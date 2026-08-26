@@ -1,4 +1,4 @@
-import { getCurrentSession } from '@/lib/auth/current-session'
+import { getCurrentSession } from '@/lib/auth/guards'
 import { subscribeHousehold } from '@/lib/events/bus'
 
 export const dynamic = 'force-dynamic'
