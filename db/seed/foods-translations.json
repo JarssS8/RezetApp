@@ -68,7 +68,9 @@
     "gramsPerTbsp": null,
     "gramsPerUnit": null,
     "densityGPerMl": null,
-    "allergens": [],
+    "allergens": [
+      "gluten"
+    ],
     "seasonalMonths": []
   },
   "2727584": {
@@ -1821,7 +1823,7 @@
     "seasonalMonths": []
   },
   "173022": {
-    "nameEs": "higo en almíbar (lata)",
+    "nameEs": "higo en su jugo (lata)",
     "aliases": [],
     "gramsPerCup": null,
     "gramsPerTbsp": null,
@@ -1891,7 +1893,7 @@
     ]
   },
   "2747676": {
-    "nameEs": "sandía",
+    "nameEs": "corteza de sandía",
     "aliases": [],
     "gramsPerCup": null,
     "gramsPerTbsp": null,
@@ -2315,7 +2317,7 @@
     "seasonalMonths": []
   },
   "172478": {
-    "nameEs": "ternera lechal",
+    "nameEs": "costillar de ternera lechal",
     "aliases": [],
     "gramsPerCup": null,
     "gramsPerTbsp": null,
@@ -2445,7 +2447,7 @@
     "seasonalMonths": []
   },
   "167712": {
-    "nameEs": "bacon bajo en sodio",
+    "nameEs": "bacon cocido bajo en sodio",
     "aliases": [],
     "gramsPerCup": null,
     "gramsPerTbsp": null,
@@ -2585,7 +2587,9 @@
     "gramsPerTbsp": null,
     "gramsPerUnit": null,
     "densityGPerMl": null,
-    "allergens": [],
+    "allergens": [
+      "gluten"
+    ],
     "seasonalMonths": []
   },
   "2727566": {
@@ -3238,6 +3242,7 @@
     "gramsPerUnit": null,
     "densityGPerMl": null,
     "allergens": [
+      "gluten",
       "mollusc"
     ],
     "seasonalMonths": []
@@ -3322,6 +3327,7 @@
     "gramsPerUnit": null,
     "densityGPerMl": null,
     "allergens": [
+      "gluten",
       "mollusc"
     ],
     "seasonalMonths": []
@@ -4747,7 +4753,9 @@
     "gramsPerTbsp": null,
     "gramsPerUnit": null,
     "densityGPerMl": null,
-    "allergens": [],
+    "allergens": [
+      "gluten"
+    ],
     "seasonalMonths": []
   },
   "173241": {
@@ -4767,7 +4775,9 @@
     "gramsPerTbsp": null,
     "gramsPerUnit": null,
     "densityGPerMl": null,
-    "allergens": [],
+    "allergens": [
+      "gluten"
+    ],
     "seasonalMonths": []
   },
   "167529": {
@@ -4783,7 +4793,7 @@
     "seasonalMonths": []
   },
   "167530": {
-    "nameEs": "galleta salada",
+    "nameEs": "galleta tipo cream cracker",
     "aliases": [],
     "gramsPerCup": null,
     "gramsPerTbsp": null,
@@ -4795,7 +4805,7 @@
     "seasonalMonths": []
   },
   "167531": {
-    "nameEs": "galleta salada",
+    "nameEs": "galleta tipo cream cracker",
     "aliases": [],
     "gramsPerCup": null,
     "gramsPerTbsp": null,
@@ -5824,6 +5834,7 @@
     "gramsPerUnit": null,
     "densityGPerMl": null,
     "allergens": [
+      "gluten",
       "soy"
     ],
     "seasonalMonths": []
@@ -5836,6 +5847,7 @@
     "gramsPerUnit": null,
     "densityGPerMl": null,
     "allergens": [
+      "gluten",
       "soy"
     ],
     "seasonalMonths": []
@@ -5848,6 +5860,7 @@
     "gramsPerUnit": null,
     "densityGPerMl": null,
     "allergens": [
+      "gluten",
       "soy"
     ],
     "seasonalMonths": []
@@ -6427,7 +6440,7 @@
     "seasonalMonths": []
   },
   "168774": {
-    "nameEs": "cacao en polvo",
+    "nameEs": "cacao en polvo (estilo europeo)",
     "aliases": [],
     "gramsPerCup": null,
     "gramsPerTbsp": null,
@@ -6613,7 +6626,7 @@
     "seasonalMonths": []
   },
   "171919": {
-    "nameEs": "licor destilado",
+    "nameEs": "licor destilado 43°",
     "aliases": [],
     "gramsPerCup": null,
     "gramsPerTbsp": null,
@@ -6623,7 +6636,7 @@
     "seasonalMonths": []
   },
   "171920": {
-    "nameEs": "licor destilado",
+    "nameEs": "licor destilado 45°",
     "aliases": [],
     "gramsPerCup": null,
     "gramsPerTbsp": null,
@@ -6633,7 +6646,7 @@
     "seasonalMonths": []
   },
   "173663": {
-    "nameEs": "licor destilado",
+    "nameEs": "licor destilado 47°",
     "aliases": [],
     "gramsPerCup": null,
     "gramsPerTbsp": null,
@@ -6724,6 +6737,803 @@
   },
   "174832": {
     "nameEs": "bebida de almendra sin azúcar",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "170393": {
+    "nameEs": "zanahoria",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "168016": {
+    "nameEs": "bolitas de boniato congeladas",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "168475": {
+    "nameEs": "calabaza de invierno",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "169352": {
+    "nameEs": "berenjena cocida",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "169238": {
+    "nameEs": "col rizada cocida",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "168520": {
+    "nameEs": "coliflor cocida",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "169332": {
+    "nameEs": "coles de Bruselas cocidas (congeladas)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "321611": {
+    "nameEs": "judía verde de bote",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "169989": {
+    "nameEs": "apio cocido",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "168507": {
+    "nameEs": "remolacha de bote",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "170059": {
+    "nameEs": "nabo congelado",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "170508": {
+    "nameEs": "chirivía cocida",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "168173": {
+    "nameEs": "fresa congelada",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "167757": {
+    "nameEs": "frambuesa congelada con azúcar",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "168158": {
+    "nameEs": "arándano seco con azúcar",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "171709": {
+    "nameEs": "mora en almíbar (lata)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "169111": {
+    "nameEs": "melocotón en almíbar ligero (lata)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "169093": {
+    "nameEs": "melón casaba",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "167785": {
+    "nameEs": "néctar de mango (lata)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "168211": {
+    "nameEs": "kiwi amarillo",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "168621": {
+    "nameEs": "entrecot de ternera",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "172479": {
+    "nameEs": "cordero (corte variado)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "172481": {
+    "nameEs": "jarrete de cordero",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "171077": {
+    "nameEs": "pechuga de pollo sin piel ni hueso",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "331960": {
+    "nameEs": "pechuga de pollo sin piel ni hueso cocinada",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "171114": {
+    "nameEs": "jamoncito de pollo asado con barbacoa",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "323793": {
+    "nameEs": "clara de huevo deshidratada",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "egg"
+    ],
+    "seasonalMonths": []
+  },
+  "173422": {
+    "nameEs": "yema de huevo azucarada",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "egg"
+    ],
+    "seasonalMonths": []
+  },
+  "171271": {
+    "nameEs": "leche desnatada enriquecida con proteína",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "lactose"
+    ],
+    "seasonalMonths": []
+  },
+  "330137": {
+    "nameEs": "yogur griego natural desnatado",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "lactose"
+    ],
+    "seasonalMonths": []
+  },
+  "2259793": {
+    "nameEs": "yogur natural",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "lactose"
+    ],
+    "seasonalMonths": []
+  },
+  "171314": {
+    "nameEs": "ghee (mantequilla clarificada)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "lactose"
+    ],
+    "seasonalMonths": []
+  },
+  "172344": {
+    "nameEs": "mantequilla light sin sal",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "lactose"
+    ],
+    "seasonalMonths": []
+  },
+  "173410": {
+    "nameEs": "mantequilla con sal",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "lactose"
+    ],
+    "seasonalMonths": []
+  },
+  "168138": {
+    "nameEs": "cereales de avena tostados con miel",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "gluten"
+    ],
+    "seasonalMonths": []
+  },
+  "170185": {
+    "nameEs": "pistacho tostado sin sal",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "nuts"
+    ],
+    "seasonalMonths": []
+  },
+  "169421": {
+    "nameEs": "anacardo tostado con sal",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "nuts"
+    ],
+    "seasonalMonths": []
+  },
+  "172328": {
+    "nameEs": "aceite de girasol parcialmente hidrogenado",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "747693": {
+    "nameEs": "kétchup",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "172883": {
+    "nameEs": "caldo de ternera casero",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "172884": {
+    "nameEs": "caldo de pollo casero",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "172885": {
+    "nameEs": "caldo de pescado casero",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "fish"
+    ],
+    "seasonalMonths": []
+  },
+  "169070": {
+    "nameEs": "vino para cocinar",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "169071": {
+    "nameEs": "vino light",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "171872": {
+    "nameEs": "vino tinto",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "168122": {
+    "nameEs": "café instantáneo con leche en polvo (light)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "lactose"
+    ],
+    "seasonalMonths": []
+  },
+  "171877": {
+    "nameEs": "café con leche sabor vainilla (listo para beber)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "lactose"
+    ],
+    "seasonalMonths": []
+  },
+  "171880": {
+    "nameEs": "café con leche (listo para beber)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "lactose"
+    ],
+    "seasonalMonths": []
+  },
+  "171883": {
+    "nameEs": "té verde con ginseng y miel (listo para beber)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "171885": {
+    "nameEs": "té verde light (listo para beber)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "171888": {
+    "nameEs": "té negro con limón (listo para beber)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "171922": {
+    "nameEs": "agua embotellada sin gas",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "173166": {
+    "nameEs": "agua saborizada de granada (sin calorías)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "173233": {
+    "nameEs": "agua con gas embotellada",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "172446": {
+    "nameEs": "bebida de soja con vainilla",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "soy"
+    ],
+    "seasonalMonths": []
+  },
+  "172456": {
+    "nameEs": "bebida de soja con vainilla enriquecida con calcio y vitaminas",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "soy"
+    ],
+    "seasonalMonths": []
+  },
+  "173765": {
+    "nameEs": "bebida de soja (varios sabores)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "soy"
+    ],
+    "seasonalMonths": []
+  },
+  "2257046": {
+    "nameEs": "bebida de avena sin azúcar",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "172521": {
+    "nameEs": "conejo (corte variado)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "174347": {
+    "nameEs": "conejo de monte",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "172522": {
+    "nameEs": "conejo asado",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "170169": {
+    "nameEs": "pulpa de coco fresca",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "170172": {
+    "nameEs": "leche de coco",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "170580": {
+    "nameEs": "nata de coco",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "746777": {
+    "nameEs": "salsa mexicana (salsa roja)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "171824": {
+    "nameEs": "salsa verde mexicana",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "171185": {
+    "nameEs": "pesto de albahaca",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "nuts",
+      "lactose"
+    ],
+    "seasonalMonths": []
+  },
+  "171579": {
+    "nameEs": "pesto (refrigerado)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "nuts",
+      "lactose"
+    ],
+    "seasonalMonths": []
+  },
+  "171580": {
+    "nameEs": "pesto (de bote)",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "nuts",
+      "lactose"
+    ],
+    "seasonalMonths": []
+  },
+  "173702": {
+    "nameEs": "surimi",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [
+      "fish"
+    ],
+    "seasonalMonths": []
+  },
+  "169997": {
+    "nameEs": "cilantro fresco",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "170005": {
+    "nameEs": "cebolleta",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "172239": {
+    "nameEs": "hierbabuena seca",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "173475": {
+    "nameEs": "hierbabuena fresca",
+    "aliases": [],
+    "gramsPerCup": null,
+    "gramsPerTbsp": null,
+    "gramsPerUnit": null,
+    "densityGPerMl": null,
+    "allergens": [],
+    "seasonalMonths": []
+  },
+  "173474": {
+    "nameEs": "menta fresca",
     "aliases": [],
     "gramsPerCup": null,
     "gramsPerTbsp": null,

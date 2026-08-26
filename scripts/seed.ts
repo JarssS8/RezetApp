@@ -63,7 +63,7 @@ export async function seedFoods(db: Db): Promise<number> {
       allergens: f.allergens,
       gramsPerCup: f.gramsPerCup, gramsPerTbsp: f.gramsPerTbsp, gramsPerUnit: f.gramsPerUnit, densityGPerMl: f.densityGPerMl,
       seasonalMonths: f.seasonalMonths,
-      isEstimated: false,
+      isEstimated: f.isEstimated,
     }))
     await db
       .insert(schema.foods)
@@ -76,7 +76,7 @@ export async function seedFoods(db: Db): Promise<number> {
           aliases: sql`excluded.aliases`, kcal100g: sql`excluded.kcal_100g`, protein100g: sql`excluded.protein_100g`, carbs100g: sql`excluded.carbs_100g`,
           fat100g: sql`excluded.fat_100g`, fiber100g: sql`excluded.fiber_100g`, gramsPerCup: sql`excluded.grams_per_cup`, gramsPerTbsp: sql`excluded.grams_per_tbsp`,
           gramsPerUnit: sql`excluded.grams_per_unit`, densityGPerMl: sql`excluded.density_g_per_ml`, allergens: sql`excluded.allergens`,
-          seasonalMonths: sql`excluded.seasonal_months`, updatedAt: sql`now()`,
+          seasonalMonths: sql`excluded.seasonal_months`, isEstimated: sql`excluded.is_estimated`, updatedAt: sql`now()`,
         },
       })
   }
