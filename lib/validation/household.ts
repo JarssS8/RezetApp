@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server'
-import { IdSchema, LocaleSchema, ThemeSchema, UnitSystemSchema } from './common'
+import { AiProviderSchema, IdSchema, LocaleSchema, ThemeSchema, UnitSystemSchema } from './common'
 
 export const RegisterBodySchema = z.strictObject({ displayName: z.string().trim().min(1).max(60), inviteToken: z.string().optional(), locale: LocaleSchema.default('es') })
 
@@ -34,3 +34,14 @@ export const UserPrefsSchema = z.strictObject({
   accent: z.enum(['huerta', 'miel', 'tomate', 'pistacho', 'higo', 'berenjena', 'arandano', 'canela']).optional(),
 })
 export const DeleteHouseholdSchema = z.strictObject({ confirmName: z.string().min(1) })
+
+// Tarea 24: ajustes de IA por hogar. apiKey opcional: ausente o '' mantiene la
+// clave guardada; null la borra (ver lib/services/ai-settings.ts).
+export const AiSettingsSchema = z.strictObject({
+  provider: AiProviderSchema,
+  model: z.string().max(80).nullable(),
+  baseUrl: z.url().nullable(),
+  apiKey: z.string().max(200).nullable().optional(),
+  monthlyCapCents: z.number().int().min(0).max(100_000),
+  structuredOutput: z.boolean(),
+})

@@ -1,10 +1,16 @@
 import { sql } from 'drizzle-orm'
 import {
-  boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uuid,
+  boolean, index, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp, uuid,
 } from 'drizzle-orm/pg-core'
 import {
   aiProviderEnum, bytea, challengeKindEnum, householdRoleEnum, themeEnum, unitSystemEnum,
 } from './_types'
+
+// Precio en céntimos por millón de tokens (in/out) que declara el propio hogar.
+// Hace falta porque el catálogo de lib/ai/models.ts no puede fijar ids ni precios
+// para proveedores cuyo nombre de modelo lleva la marca del fabricante (regla
+// W2-R3): sin este dato, el gasto de esos proveedores se contabiliza como 0.
+const priceCentsPerMtok = (name: string) => numeric(name, { precision: 10, scale: 4, mode: 'number' })
 
 export const households = pgTable('households', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -17,6 +23,8 @@ export const households = pgTable('households', {
   aiApiKeyEnc: bytea('ai_api_key_enc'),
   aiMonthlyCapCents: integer('ai_monthly_cap_cents').notNull().default(0),
   aiStructuredOutput: boolean('ai_structured_output').notNull().default(true),
+  aiPriceInCentsPerMtok: priceCentsPerMtok('ai_price_in_cents_per_mtok'),
+  aiPriceOutCentsPerMtok: priceCentsPerMtok('ai_price_out_cents_per_mtok'),
   shoplistListToken: text('shoplist_list_token'),
   shoplistFnUrl: text('shoplist_fn_url'),
   shoplistSecretEnc: bytea('shoplist_secret_enc'),

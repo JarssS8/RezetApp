@@ -15,6 +15,13 @@
       "when": 1787766563895,
       "tag": "0001_tags_name_en",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787768586281,
+      "tag": "0002_ai_prices",
+      "breakpoints": true
     }
   ]
 }
