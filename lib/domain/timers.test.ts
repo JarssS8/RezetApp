@@ -24,4 +24,17 @@ describe('detectTimers', () => {
   it('ignora temperaturas y cantidades', () => {
     expect(detectTimers('Añade 200 g y 180 ºC', 'es')).toEqual([])
   })
+  it('fusiona duraciones compuestas contiguas', () => {
+    expect(detectTimers('deja reposar 1 h 30 min', 'es')).toEqual([{ start: 13, end: 23, seconds: 5400 }])
+    expect(detectTimers('2 horas y 15 minutos', 'es')[0]).toMatchObject({ seconds: 8100 })
+    expect(detectTimers('2 horas y 15 minutos', 'es').length).toBe(1)
+    expect(detectTimers('Bake 1 hour 30 minutes', 'en')).toEqual([{ start: 5, end: 22, seconds: 5400 }])
+  })
+  it('no fusiona duraciones separadas por otras palabras', () => {
+    const r = detectTimers('5 minutos y luego otros 5 minutos', 'es')
+    expect(r.map((t) => t.seconds)).toEqual([300, 300])
+  })
+  it('rango usa el menor aunque el primero sea mayor', () => {
+    expect(detectTimers('10-8 minutos', 'es')[0]?.seconds).toBe(480)
+  })
 })
