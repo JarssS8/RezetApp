@@ -65,3 +65,27 @@ export function estimateNutritionSystemPrompt(locale: Locale): string {
     'Return a single JSON object.',
   ].join('\n')
 }
+
+// Prompt de "Planificar la semana" (spec §5 / §10): el modelo decide QUÉ
+// receta va en cada (fecha, hueco), nunca CUÁNTO (raciones/kcal las pone el
+// código después de recibir la respuesta).
+export function proposePlanSystemPrompt(locale: Locale): string {
+  if (locale === 'es') {
+    return [
+      'Planificas comidas de una semana para un hogar a partir de sus recetas.',
+      'Elige solo ids de receta que aparezcan en la lista que te doy; no inventes ids.',
+      'No repitas una receta cocinada en los últimos 7 días si puedes evitarlo.',
+      'Prioriza recetas que usen alimentos de la despensa que caducan pronto.',
+      'Respeta los alérgenos y preferencias indicadas; no propongas nada que los contenga.',
+      'No calcules raciones ni calorías: eso no es parte de tu respuesta.',
+    ].join('\n')
+  }
+  return [
+    'You plan a week of meals for a household from its recipes.',
+    'Only pick recipe ids that appear in the list I give you; never invent ids.',
+    'Avoid repeating a recipe cooked in the last 7 days when you can.',
+    'Prefer recipes that use pantry foods that expire soon.',
+    "Respect the given allergens and preferences; never propose something that contains them.",
+    'Do not compute servings or calories: that is not part of your answer.',
+  ].join('\n')
+}
