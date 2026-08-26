@@ -4,5 +4,52 @@
     "analyze": "Analizar con IA",
     "importText": "Importar con IA",
     "estimate": "Estimar nutrición con IA"
+  },
+  "food": {
+    "searchPlaceholder": "Buscar alimento…",
+    "mine": "propio",
+    "estimated": "Nutrición estimada",
+    "correct": "Corregir alimento",
+    "unresolved": "Sin alimento asignado",
+    "create": "Crear alimento nuevo",
+    "createWithQuery": "Crear «{q}»",
+    "scanBarcode": "Escanear código de barras",
+    "barcodePlaceholder": "Código de barras…",
+    "barcodeNotFound": "Sin resultados para ese código",
+    "copyNote": "Al corregir un alimento del catálogo se crea tu propia versión; tus recetas la usarán a partir de ahora.",
+    "correction": {
+      "error": "No se pudo guardar el alimento",
+      "estimatedHint": "Corregir el alimento retira la marca de estimado."
+    },
+    "fields": {
+      "nameEs": "Nombre (es)",
+      "nameEn": "Nombre (en)",
+      "defaultUnit": "Unidad por defecto",
+      "kcal100g": "kcal por 100 g",
+      "protein100g": "Proteína / 100 g",
+      "carbs100g": "Hidratos / 100 g",
+      "fat100g": "Grasa / 100 g",
+      "fiber100g": "Fibra / 100 g",
+      "gramsPerCup": "g por taza",
+      "gramsPerTbsp": "g por cucharada",
+      "gramsPerUnit": "g por unidad",
+      "densityGPerMl": "Densidad (g/ml)"
+    },
+    "allergens": {
+      "gluten": "Gluten",
+      "lactose": "Lactosa",
+      "egg": "Huevo",
+      "fish": "Pescado",
+      "shellfish": "Crustáceos",
+      "nuts": "Frutos secos",
+      "peanut": "Cacahuete",
+      "soy": "Soja",
+      "sesame": "Sésamo",
+      "celery": "Apio",
+      "mustard": "Mostaza",
+      "sulphites": "Sulfitos",
+      "lupin": "Altramuces",
+      "mollusc": "Moluscos"
+    }
   }
 }

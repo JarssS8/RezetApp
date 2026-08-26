@@ -32,5 +32,138 @@
     "testFail": "No se pudo conectar: {message}",
     "localHint": "Recomendado: llama-server con qwen3-8b Q4_K_M (8 GB) o qwen3-4b (4 GB).",
     "ownerOnly": "Solo el propietario puede cambiar la IA."
+  },
+  "tokens": {
+    "create": "Crear token",
+    "name": "Nombre",
+    "scopes": "Permisos",
+    "scope": {
+      "recipes:read": "Leer recetas",
+      "recipes:write": "Editar recetas",
+      "plan:read": "Leer el plan",
+      "plan:write": "Editar el plan",
+      "pantry:read": "Leer la despensa",
+      "pantry:write": "Editar la despensa",
+      "cooking:write": "Registrar cocinado",
+      "shopping:push": "Enviar a la compra",
+      "household:read": "Leer el hogar",
+      "household:write": "Editar el hogar"
+    },
+    "profile": "Perfil MCP",
+    "profiles": {
+      "basic": "Básico (12 herramientas, sin editar ni borrar)",
+      "full": "Completo"
+    },
+    "created": "Token creado. Cópialo ahora: no se volverá a mostrar.",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "revoke": "Revocar",
+    "revokeConfirm": "¿Revocar este token? Dejará de funcionar de inmediato.",
+    "revoked": "Revocado",
+    "lastUsed": "Último uso: {date}",
+    "never": "Nunca",
+    "empty": "Sin tokens. Crea uno para conectar un asistente o un script.",
+    "mcpHint": "Usa este token como `Authorization: Bearer` en `/mcp` o `/api/v1`. Los conectores que exigen OAuth no son compatibles todavía; usa un cliente MCP de escritorio o `mcp-remote --header`.",
+    "error": "No se pudo completar la acción."
+  },
+  "appearance": {
+    "theme": "Tema",
+    "themes": {
+      "system": "Sistema",
+      "light": "Claro",
+      "dark": "Noche suave"
+    },
+    "accent": "Acento",
+    "accents": {
+      "huerta": "Huerta",
+      "miel": "Miel",
+      "tomate": "Tomate",
+      "pistacho": "Pistacho",
+      "higo": "Higo",
+      "berenjena": "Berenjena",
+      "arandano": "Arándano",
+      "canela": "Canela"
+    },
+    "units": "Unidades",
+    "unitsMetric": "Métrico",
+    "unitsImperial": "Imperial",
+    "language": "Idioma",
+    "languages": {
+      "es": "Español",
+      "en": "Inglés"
+    },
+    "displayName": "Tu nombre",
+    "saved": "Guardado",
+    "error": "No se pudieron guardar los cambios."
+  },
+  "household": {
+    "name": "Nombre del hogar",
+    "defaultServings": "Raciones por defecto",
+    "expiryAlertDays": "Avisar de caducidad con (días)",
+    "save": "Guardar",
+    "saved": "Guardado",
+    "error": "No se pudo completar la acción.",
+    "leave": "Salir del hogar",
+    "leaveConfirm": "Perderás el acceso a las recetas y al plan de este hogar.",
+    "delete": "Borrar hogar",
+    "deleteHint": "Escribe «{name}» para confirmar. Se borra todo: recetas, plan, despensa, tokens.",
+    "deleteConfirmField": "Nombre del hogar",
+    "switch": "Cambiar de hogar",
+    "households": "Tus hogares",
+    "current": "Actual"
+  },
+  "members": {
+    "invite": "Invitar",
+    "inviteUrl": "Enlace de invitación (caduca en 24 h)",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "role": {
+      "owner": "Propietario",
+      "member": "Miembro"
+    },
+    "you": "tú",
+    "allergens": "Alergias",
+    "allergen": {
+      "gluten": "Gluten",
+      "lactose": "Lactosa",
+      "egg": "Huevo",
+      "fish": "Pescado",
+      "shellfish": "Crustáceos",
+      "nuts": "Frutos de cáscara",
+      "peanut": "Cacahuete",
+      "soy": "Soja",
+      "sesame": "Sésamo",
+      "celery": "Apio",
+      "mustard": "Mostaza",
+      "sulphites": "Sulfitos",
+      "lupin": "Altramuces",
+      "mollusc": "Moluscos"
+    },
+    "dietaryFlags": "Preferencias (p. ej. vegetariano)",
+    "dietaryPlaceholder": "Escribe y pulsa Enter",
+    "remove": "Expulsar",
+    "removeConfirm": "¿Expulsar a {name} del hogar?",
+    "error": "No se pudo completar la acción."
+  },
+  "passkeys": {
+    "add": "Añadir passkey",
+    "name": "Nombre del dispositivo",
+    "unnamed": "Sin nombre",
+    "rename": "Renombrar",
+    "remove": "Eliminar",
+    "removeConfirm": "¿Eliminar esta passkey? Tendrás que volver a registrarla si quieres usarla otra vez.",
+    "lastOne": "No puedes eliminar tu única passkey.",
+    "synced": "Sincronizada",
+    "device": "Solo este dispositivo",
+    "added": "Passkey añadida",
+    "createdAt": "Creada el {date}",
+    "lastUsed": "Último uso: {date}",
+    "never": "Nunca",
+    "error": "No se pudo completar la acción."
+  },
+  "data": {
+    "export": "Exportar recetas",
+    "exportHint": "Exporta tus recetas en JSON para tener copia.",
+    "importSoon": "Importar y migrar desde otras apps llega en W4."
   }
 }

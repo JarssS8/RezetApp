@@ -72,9 +72,22 @@ export interface VerifiedCredential {
   backedUp: boolean
 }
 
-export async function finishRegistration(db: Db, input: { challengeId: string; response: RegistrationResponseJSON }): Promise<VerifiedCredential> {
+// El reto de alta de una passkey extra desde ajustes está atado al usuario de
+// la sesión que lo pidió (options): sin esta comprobación, cualquiera con un
+// challengeId ajeno (filtrado, adivinado) podría colgarse una credencial en
+// la cuenta de otro usuario con solo llamar a /verify con su propia sesión.
+// El alta inicial (crear cuenta) no tiene aún userId: se pasa expectedUserId
+// undefined y no se comprueba nada (challenge.userId ya es null en ese caso).
+export class ChallengeUserMismatchError extends Error {
+  constructor() {
+    super('El reto no pertenece a este usuario')
+  }
+}
+
+export async function finishRegistration(db: Db, input: { challengeId: string; response: RegistrationResponseJSON; expectedUserId?: string }): Promise<VerifiedCredential> {
   const { rpID, origin } = getRp()
-  const { challenge } = await takeChallenge(db, input.challengeId, 'register')
+  const { challenge, userId } = await takeChallenge(db, input.challengeId, 'register')
+  if (input.expectedUserId !== undefined && userId !== input.expectedUserId) throw new ChallengeUserMismatchError()
   const v = await verifyRegistrationResponse({
     response: input.response,
     expectedChallenge: challenge,

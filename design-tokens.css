@@ -69,15 +69,17 @@
   --sh-hero: 0 3px 14px -9px rgba(0, 0, 0, .7);
 }
 
-/* Los ocho acentos, sacados de comida. Se aplican con data-accent en :root */
-:root[data-accent="huerta"]    { --acc: #2F9E6B; }
-:root[data-accent="miel"]      { --acc: #D99A2B; }
-:root[data-accent="tomate"]    { --acc: #CE5540; }
-:root[data-accent="pistacho"]  { --acc: #7FA344; }
-:root[data-accent="higo"]      { --acc: #B4557A; }
-:root[data-accent="berenjena"] { --acc: #8C5A9E; }
-:root[data-accent="arandano"]  { --acc: #4A7FB5; }
-:root[data-accent="canela"]    { --acc: #A9764A; }
+/* Los ocho acentos, sacados de comida. Se aplican con data-accent en :root
+   o en cualquier subárbol (una muestra de acento puede llevar su propio
+   data-accent sin cambiar el tema de toda la página). */
+[data-accent="huerta"]    { --acc: #2F9E6B; }
+[data-accent="miel"]      { --acc: #D99A2B; }
+[data-accent="tomate"]    { --acc: #CE5540; }
+[data-accent="pistacho"]  { --acc: #7FA344; }
+[data-accent="higo"]      { --acc: #B4557A; }
+[data-accent="berenjena"] { --acc: #8C5A9E; }
+[data-accent="arandano"]  { --acc: #4A7FB5; }
+[data-accent="canela"]    { --acc: #A9764A; }
 
 body {
   background: var(--bg);

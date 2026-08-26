@@ -1,5 +1,6 @@
 import { ServiceError } from '@/lib/services/ctx'
 
+// Contrato de toda acción de W2 (congelado desde esta pista: (a)/(c)/(d)/(e)/(f)/(g) lo consumen tal cual).
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; code: string; message: string }
 
 export function ok<T>(data: T): ActionResult<T> {
