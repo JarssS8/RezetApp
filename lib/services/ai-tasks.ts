@@ -17,10 +17,11 @@ import { estimateNutrition } from '@/lib/ai/tasks/estimate-nutrition'
 import { AiUnsupportedError, importRecipeFromImageAi, importRecipeFromTextAi } from '@/lib/ai/tasks/import-recipe'
 import { parseIngredientsFallback } from '@/lib/ai/tasks/parse-ingredients'
 import { proposePlan, type ProposePlanContext, type ProposePlanPlannedEntry, type ProposePlanRecipe, type ProposePlanSlot } from '@/lib/ai/tasks/propose-plan'
-import type { BaseUnit, FoodNutrition, ParsedIngredient } from '@/lib/domain/types'
-import { normalizeSearchName } from '@/lib/domain/quantities'
+import type { BaseUnit, ParsedIngredient } from '@/lib/domain/types'
 import { emitHouseholdEvent } from '@/lib/events/bus'
+import { createFood, type FoodWithNutrition } from '@/lib/services/foods'
 import { ProposalPayloadSchema } from '@/lib/validation/plan'
+import type { FoodInput } from '@/lib/validation/foods'
 import type { RecipeInput } from '@/lib/validation/recipes'
 import { type Ctx, type Db, ServiceError } from './ctx'
 
@@ -40,25 +41,9 @@ export type AiImportRecipeInput =
   // y pasa los bytes aquí.
   | { kind: 'image'; bytes: Uint8Array; mime: string }
 
-// TODO-merge: sustituir por `FoodWithNutrition` de `lib/services/foods.ts`
-// (pista (b)) al mergear; forma idéntica a la que define el contrato de esa
-// pista en el plan (`FoodSummary & FoodNutrition`).
-export interface FoodSummary {
-  id: string
-  householdId: string | null
-  name: string
-  nameEs: string
-  nameEn: string
-  defaultUnit: BaseUnit
-  kcal100g: number | null
-  isEstimated: boolean
-  source: 'off' | 'usda' | 'manual' | 'ai'
-  allergens: string[]
-}
-export type FoodWithNutrition = FoodSummary & FoodNutrition
+export type { FoodWithNutrition }
 
 type Household = typeof schema.households.$inferSelect
-type FoodRow = typeof schema.foods.$inferSelect
 
 export class AiOutputError extends Error {
   readonly code = 'ai_output'
@@ -121,61 +106,32 @@ export async function aiImportRecipe(ctx: Ctx, input: AiImportRecipeInput, deps:
   )
 }
 
-function toFoodWithNutrition(row: FoodRow): FoodWithNutrition {
-  return {
-    id: row.id,
-    householdId: row.householdId,
-    name: row.nameEs,
-    nameEs: row.nameEs,
-    nameEn: row.nameEn,
-    defaultUnit: row.defaultUnit,
-    kcal100g: row.kcal100g,
-    protein100g: row.protein100g,
-    carbs100g: row.carbs100g,
-    fat100g: row.fat100g,
-    fiber100g: row.fiber100g,
-    gramsPerCup: row.gramsPerCup,
-    gramsPerTbsp: row.gramsPerTbsp,
-    gramsPerUnit: row.gramsPerUnit,
-    densityGPerMl: row.densityGPerMl,
-    isEstimated: row.isEstimated,
-    source: row.source,
-    allergens: row.allergens,
-  }
-}
-
-// TODO-merge: sustituir por `createFood(ctx, …, 'ai')` (pista (b)) al mergear.
-async function insertAiFood(db: Db, householdId: string, foodName: string, estimate: { defaultUnit: BaseUnit; kcal100g: number; protein100g: number; carbs100g: number; fat100g: number; fiber100g: number; gramsPerUnit: number | null }): Promise<FoodWithNutrition> {
+// Construye el `FoodInput` de la estimación de IA (§9.4, Task 3): sin alias,
+// alérgenos ni conversiones de volumen — eso lo añade una corrección manual
+// posterior. `isEstimated` no es un campo de `FoodInput`: lo fija `createFood`
+// a partir del `source` que se le pasa ('ai' -> estimado).
+function toFoodInput(foodName: string, estimate: { defaultUnit: BaseUnit; kcal100g: number; protein100g: number; carbs100g: number; fat100g: number; fiber100g: number; gramsPerUnit: number | null }): FoodInput {
   const trimmed = foodName.trim()
-  const searchName = normalizeSearchName(trimmed)
-  const [row] = await db
-    .insert(schema.foods)
-    .values({
-      householdId,
-      nameEs: trimmed,
-      nameEn: trimmed,
-      searchNameEs: searchName,
-      searchNameEn: searchName,
-      aliases: [],
-      defaultUnit: estimate.defaultUnit,
-      kcal100g: estimate.kcal100g,
-      protein100g: estimate.protein100g,
-      carbs100g: estimate.carbs100g,
-      fat100g: estimate.fat100g,
-      fiber100g: estimate.fiber100g,
-      gramsPerUnit: estimate.gramsPerUnit,
-      source: 'ai',
-      isEstimated: true,
-    })
-    .returning()
-  if (!row) throw new Error('No se pudo crear el alimento estimado por IA')
-  return toFoodWithNutrition(row)
+  return {
+    nameEs: trimmed,
+    nameEn: trimmed,
+    aliases: [],
+    defaultUnit: estimate.defaultUnit,
+    kcal100g: estimate.kcal100g,
+    protein100g: estimate.protein100g,
+    carbs100g: estimate.carbs100g,
+    fat100g: estimate.fat100g,
+    fiber100g: estimate.fiber100g,
+    gramsPerUnit: estimate.gramsPerUnit,
+    allergens: [],
+    seasonalMonths: [],
+  }
 }
 
 export async function aiEstimateFood(ctx: Ctx, foodName: string, deps: AiTaskDeps = {}): Promise<AiResult<FoodWithNutrition>> {
   return runAiTask(ctx, deps, 'estimate_nutrition', async (cfg, model) => {
     const { result: estimate, usage } = await estimateNutrition(cfg, model, foodName, ctx.locale)
-    const food = await insertAiFood(ctx.db, ctx.householdId, foodName, estimate)
+    const food = await createFood(ctx, toFoodInput(foodName, estimate), 'ai')
     return { result: food, usage }
   })
 }
