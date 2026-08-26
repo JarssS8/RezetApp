@@ -1,1 +1,17 @@
-{ "title": "Pantry" }
+{
+  "title": "Pantry",
+  "locations": { "fridge": "Fridge", "freezer": "Freezer", "pantry": "Cupboard" },
+  "add": "Add",
+  "scan": "Scan",
+  "search": "Search the pantry…",
+  "empty": "The pantry is empty. Add what you have at home.",
+  "expiresIn": "Expires in {days} days",
+  "expiresToday": "Expires today",
+  "expired": "Expired",
+  "noExpiry": "No date",
+  "remove": "Remove",
+  "decrease": "Decrease",
+  "increase": "Increase",
+  "whatToCook": "What can I cook with what's expiring?",
+  "expiringTitle": "Expiring soon"
+}

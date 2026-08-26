@@ -115,6 +115,7 @@ export async function listPantry(ctx: Ctx, query: PantryQuery): Promise<PantryRo
   })
 }
 
+// Reemplazo completo por id, no un parche parcial: todo PantryItemInput se sobrescribe (sin id, crea).
 export async function upsertPantryItem(ctx: Ctx, input: PantryItemInput & { id?: string }): Promise<PantryRow> {
   const foodsMap = await getFoodsNutrition(ctx, [input.foodId])
   const food = foodsMap.get(input.foodId)

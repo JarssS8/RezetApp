@@ -1,1 +1,17 @@
-{ "title": "Despensa" }
+{
+  "title": "Despensa",
+  "locations": { "fridge": "Nevera", "freezer": "Congelador", "pantry": "Armario" },
+  "add": "Añadir",
+  "scan": "Escanear",
+  "search": "Buscar en la despensa…",
+  "empty": "La despensa está vacía. Añade lo que tengas en casa.",
+  "expiresIn": "Caduca en {days} días",
+  "expiresToday": "Caduca hoy",
+  "expired": "Caducado",
+  "noExpiry": "Sin fecha",
+  "remove": "Quitar",
+  "decrease": "Menos",
+  "increase": "Más",
+  "whatToCook": "¿Qué cocino con lo que caduca?",
+  "expiringTitle": "Caduca pronto"
+}
