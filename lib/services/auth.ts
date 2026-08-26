@@ -9,7 +9,7 @@ import { db } from '@/db'
 import { getKeys, verifySignedValue } from '@/lib/auth/crypto'
 import type { Locale } from '@/lib/domain/types'
 import { destroySession, switchHousehold } from '@/lib/auth/session'
-import { addCredentialToUser, finishLogin, finishRegistration, startLogin, startRegistration } from '@/lib/auth/webauthn'
+import { addCredentialToUser, ChallengeUserMismatchError, finishLogin, finishRegistration, startLogin, startRegistration } from '@/lib/auth/webauthn'
 import { ServiceError } from './ctx'
 import { acceptInvite, createUserWithHousehold, getInvite, isRegistrationOpen, listHouseholdsOf, registerViaInvite } from './households'
 
@@ -88,7 +88,15 @@ export function passkeyOptions(userId: string, displayName: string): Promise<{ c
 }
 
 export async function passkeyVerify(userId: string, input: { challengeId: string; response: RegistrationResponseJSON; name: string | null }): Promise<void> {
-  const credential = await finishRegistration(db, { challengeId: input.challengeId, response: input.response })
+  let credential
+  try {
+    credential = await finishRegistration(db, { challengeId: input.challengeId, response: input.response, expectedUserId: userId })
+  } catch (e) {
+    // El reto era de otro usuario (filtrado, adivinado): no es un fallo de
+    // verificación WebAuthn, es un intento de colgar una credencial ajena.
+    if (e instanceof ChallengeUserMismatchError) throw new ServiceError('forbidden', e.message)
+    throw e
+  }
   await addCredentialToUser(db, userId, credential, input.name)
 }
 

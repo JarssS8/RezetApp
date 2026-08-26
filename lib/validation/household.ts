@@ -16,7 +16,7 @@ export const RegisterVerifyBodySchema = z.strictObject({
 // Tarea 36: alta de una passkey adicional desde ajustes (sesión ya autenticada)
 export const PasskeyVerifyBodySchema = z.strictObject({
   challengeId: IdSchema,
-  name: z.string().trim().max(60).nullable(),
+  name: z.string().trim().max(60).nullable().transform((v) => (v === '' ? null : v)),
   response: z.custom<RegistrationResponseJSON>((v) => typeof v === 'object' && v !== null && 'id' in v),
 })
 export const PasskeyRenameSchema = z.strictObject({ credentialId: z.string().trim().min(1).max(1024), name: z.string().trim().min(1).max(60) })
