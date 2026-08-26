@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 // Duplicado deliberado de db/schema/tokens.ts::API_SCOPES: las fronteras de
 // eslint-boundaries prohíben que lib/validation importe de db/**. Si la lista
-// cambia, hay que actualizar ambos sitios (hay un test cruzado que lo comprueba).
+// cambia, hay que actualizar ambos sitios (comprobado en tests/contracts/api-scopes.test.ts).
 export const API_SCOPES = [
   'recipes:read', 'recipes:write', 'plan:read', 'plan:write', 'pantry:read', 'pantry:write',
   'cooking:write', 'shopping:push', 'household:read',

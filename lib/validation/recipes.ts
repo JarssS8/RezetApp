@@ -33,10 +33,10 @@ export type RecipeInput = z.infer<typeof RecipeInputSchema>
 
 export const RecipeSearchSchema = PaginationSchema.extend({
   q: z.string().max(120).optional(),
-  tags: z.array(z.string()).optional(),
+  tags: z.array(z.string()).max(20).optional(),
   maxMinutes: z.coerce.number().int().min(0).optional(),
   difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
-  hasIngredients: z.array(IdSchema).optional(), // que la receta contenga estos alimentos
+  hasIngredients: z.array(IdSchema).max(20).optional(), // que la receta contenga estos alimentos
   onlyWithPantry: z.coerce.boolean().optional(), // "tengo los ingredientes"
   sort: z.enum(['relevance', 'recent', 'most_cooked', 'title']).default('relevance'),
 })
