@@ -73,5 +73,38 @@
     "displayName": "Your name",
     "saved": "Saved",
     "error": "Couldn't save the changes."
+  },
+  "members": {
+    "invite": "Invite",
+    "inviteUrl": "Invitation link (expires in 24 h)",
+    "copy": "Copy",
+    "copied": "Copied",
+    "role": {
+      "owner": "Owner",
+      "member": "Member"
+    },
+    "you": "you",
+    "allergens": "Allergies",
+    "allergen": {
+      "gluten": "Gluten",
+      "lactose": "Lactose",
+      "egg": "Egg",
+      "fish": "Fish",
+      "shellfish": "Crustaceans",
+      "nuts": "Tree nuts",
+      "peanut": "Peanut",
+      "soy": "Soy",
+      "sesame": "Sesame",
+      "celery": "Celery",
+      "mustard": "Mustard",
+      "sulphites": "Sulphites",
+      "lupin": "Lupin",
+      "mollusc": "Molluscs"
+    },
+    "dietaryFlags": "Preferences (e.g. vegetarian)",
+    "dietaryPlaceholder": "Type and press Enter",
+    "remove": "Remove",
+    "removeConfirm": "Remove {name} from the household?",
+    "error": "Couldn't complete the action."
   }
 }

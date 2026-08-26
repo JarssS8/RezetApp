@@ -73,5 +73,38 @@
     "displayName": "Tu nombre",
     "saved": "Guardado",
     "error": "No se pudieron guardar los cambios."
+  },
+  "members": {
+    "invite": "Invitar",
+    "inviteUrl": "Enlace de invitación (caduca en 24 h)",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "role": {
+      "owner": "Propietario",
+      "member": "Miembro"
+    },
+    "you": "tú",
+    "allergens": "Alergias",
+    "allergen": {
+      "gluten": "Gluten",
+      "lactose": "Lactosa",
+      "egg": "Huevo",
+      "fish": "Pescado",
+      "shellfish": "Crustáceos",
+      "nuts": "Frutos de cáscara",
+      "peanut": "Cacahuete",
+      "soy": "Soja",
+      "sesame": "Sésamo",
+      "celery": "Apio",
+      "mustard": "Mostaza",
+      "sulphites": "Sulfitos",
+      "lupin": "Altramuces",
+      "mollusc": "Moluscos"
+    },
+    "dietaryFlags": "Preferencias (p. ej. vegetariano)",
+    "dietaryPlaceholder": "Escribe y pulsa Enter",
+    "remove": "Expulsar",
+    "removeConfirm": "¿Expulsar a {name} del hogar?",
+    "error": "No se pudo completar la acción."
   }
 }

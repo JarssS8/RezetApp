@@ -6,10 +6,12 @@ import { prefsCookieOptions, prefsCookieValue } from '@/lib/auth/cookies'
 import { requireHousehold } from '@/lib/auth/guards'
 import { PREFS_COOKIE } from '@/lib/prefs'
 import { createApiToken, revokeApiToken } from '@/lib/services/api-tokens'
+import { createInvite } from '@/lib/services/households'
+import { removeMember, updateMember, type MemberUpdate } from '@/lib/services/members'
 import { updateUserPrefs, type UserPrefs } from '@/lib/services/user-prefs'
 import { ApiTokenCreateSchema } from '@/lib/validation/tokens'
 import { IdSchema } from '@/lib/validation/common'
-import { UserPrefsSchema } from '@/lib/validation/household'
+import { MemberUpdateSchema, UserPrefsSchema } from '@/lib/validation/household'
 import { type ActionResult, fail, fromError, ok } from './result'
 
 export async function createApiTokenAction(input: unknown): Promise<ActionResult<{ id: string; token: string }>> {
@@ -49,6 +51,44 @@ export async function updateUserPrefsAction(input: UserPrefs): Promise<ActionRes
     const jar = await cookies()
     jar.set(PREFS_COOKIE, prefsCookieValue(user), prefsCookieOptions(process.env.APP_URL ?? 'http://localhost:3000'))
     revalidatePath('/', 'layout')
+    return ok(null)
+  } catch (e) {
+    return fromError(e)
+  }
+}
+
+// Solo el propietario ve el botón en el panel; el servicio vuelve a
+// comprobarlo (también acepta un token con household:write).
+export async function createInviteAction(): Promise<ActionResult<{ token: string; url: string; expiresAt: string }>> {
+  try {
+    const ctx = await requireHousehold()
+    const invite = await createInvite(ctx)
+    return ok({ token: invite.token, url: invite.url, expiresAt: invite.expiresAt.toISOString() })
+  } catch (e) {
+    return fromError(e)
+  }
+}
+
+export async function updateMemberAction(input: MemberUpdate): Promise<ActionResult<null>> {
+  try {
+    const ctx = await requireHousehold()
+    const parsed = MemberUpdateSchema.safeParse(input)
+    if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
+    await updateMember(ctx, parsed.data)
+    revalidatePath('/settings/members')
+    return ok(null)
+  } catch (e) {
+    return fromError(e)
+  }
+}
+
+export async function removeMemberAction(userId: string): Promise<ActionResult<null>> {
+  try {
+    const ctx = await requireHousehold()
+    const parsed = IdSchema.safeParse(userId)
+    if (!parsed.success) return fail('validation', 'Identificador inválido')
+    await removeMember(ctx, parsed.data)
+    revalidatePath('/settings/members')
     return ok(null)
   } catch (e) {
     return fromError(e)
