@@ -5,6 +5,7 @@ import { ClockIcon, LeftoversIcon, MinusIcon, PlusIcon, SkipIcon, TrashIcon } fr
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { MealSlot } from '@/lib/validation/plan'
+import { LeftoverDialog } from './leftover-dialog'
 import { MEAL_SLOTS, type PlanEntryClient } from './types'
 
 export interface EntryChipProps {
@@ -44,6 +45,7 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
             <LeftoversIcon size={14} />
           </span>
         ) : null}
+        <LeftoverDialog fromEntryId={entry.id} sourceSlot={entry.slot} />
         {cooked ? (
           <span className="inline-flex items-center rounded-pill bg-primary/10 px-1.5 py-0.5 text-xs text-primary">{t('cooked')}</span>
         ) : null}

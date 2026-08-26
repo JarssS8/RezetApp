@@ -5,6 +5,13 @@ import plan from '@/messages/es/plan.json'
 import { EntryChip } from './entry-chip'
 import type { PlanEntryClient } from './types'
 
+// EntryChip incrusta LeftoverDialog, que a su vez usa el router y la acción
+// del servidor: se simulan para no ejecutar código de Next/servidor real en
+// este test, centrado en el propio chip.
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
+vi.mock('@/lib/actions/plan', () => ({ createLeftoverAction: vi.fn() }))
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
+
 afterEach(cleanup)
 
 function baseEntry(overrides: Partial<PlanEntryClient> = {}): PlanEntryClient {

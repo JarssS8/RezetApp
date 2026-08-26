@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons'
+import { CalendarMonthIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { applyPlanBatchAction, movePlanEntryAction, patchPlanEntryAction } from '@/lib/actions/plan'
 import { useHouseholdEvents } from '@/lib/events/use-household-events'
@@ -156,9 +156,18 @@ export function WeekView({ monday, days, entries: initialEntries, defaultServing
         <Button variant="outline" size="icon-sm" aria-label={t('prevWeek')} render={<Link href={`/plan?week=${prevWeek}`} />}>
           <ChevronLeftIcon size={18} />
         </Button>
-        <Link href={`/plan?week=${todayIso}`} className="inline-flex min-h-11 items-center rounded-sm border border-border px-3 text-sm font-medium">
-          {t('today')}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/plan?week=${todayIso}`} className="inline-flex min-h-11 items-center rounded-sm border border-border px-3 text-sm font-medium">
+            {t('today')}
+          </Link>
+          <Link
+            href={`/plan/month?month=${monday.slice(0, 7)}`}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium"
+          >
+            <CalendarMonthIcon size={16} />
+            {t('month')}
+          </Link>
+        </div>
         <Button variant="outline" size="icon-sm" aria-label={t('nextWeek')} render={<Link href={`/plan?week=${nextWeek}`} />}>
           <ChevronRightIcon size={18} />
         </Button>

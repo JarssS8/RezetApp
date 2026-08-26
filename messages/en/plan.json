@@ -32,6 +32,13 @@
   "shopping": "Generate shopping list",
   "empty": "Empty week: add meals or ask for a proposal.",
   "errors": {
-    "move": "Couldn't move the meal"
-  }
+    "move": "Couldn't move the meal",
+    "leftover": "Couldn't create the leftover"
+  },
+  "prevMonth": "Previous month",
+  "nextMonth": "Next month",
+  "createLeftover": "Add leftover",
+  "leftoverDate": "Date",
+  "leftoverSlot": "Slot",
+  "plannedMeals": "{n} planned meals"
 }
