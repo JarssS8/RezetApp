@@ -17,7 +17,8 @@ pregunta — casi seguro es un malentendido.
 
 Repositorio inicializado (2026-08-26). Todavía no hay código. Se va a construir
 todo el roadmap (`docs/07-ROADMAP.md`, fases 0–5) en oleadas paralelas con
-subagentes; el spec está en `docs/superpowers/specs/` y el plan en
+subagentes; el spec (`docs/superpowers/specs/2026-08-26-rezetapp-design.md`)
+manda sobre estos docs cuando difieren, y el plan está en
 `docs/superpowers/plans/`.
 
 ## Comandos
@@ -42,8 +43,8 @@ No lo cambies sin decirlo explícitamente y explicar por qué.
 Decisiones que el kit dejaba abiertas, cerradas el 2026-08-26:
 
 - **pnpm** como gestor de paquetes. Node ≥ 24.
-- **Sesiones propias**: `@simplewebauthn` + tabla `sessions` + cookie firmada
-  con `jose`. Sin Auth.js.
+- **Sesiones propias**: `@simplewebauthn` + tabla `sessions` + cookie con id
+  opaco firmado (HMAC). Sin JWT, sin Auth.js.
 - **i18n con `next-intl`**, mensajes en `messages/es.json` y `messages/en.json`.
 - **`zod`** como único esquema de validación: formularios, REST, herramientas MCP
   y OpenAPI (`zod-openapi`).
@@ -53,7 +54,8 @@ Decisiones que el kit dejaba abiertas, cerradas el 2026-08-26:
 - **Imágenes** en volumen local `./data/uploads`, servidas por Next.
 - **Tests**: `vitest` para dominio y unidades; `playwright` para flujos
   (passkeys con autenticador virtual).
-- **Migraciones** (`drizzle-kit migrate`) se ejecutan al arrancar el contenedor.
+- **Migraciones** al arrancar el contenedor con `scripts/migrate.ts`
+  (`migrate()` de `drizzle-orm`); `drizzle-kit` solo en desarrollo.
 
 ## Respuestas a las cuatro preguntas abiertas
 
