@@ -215,7 +215,7 @@ function CreateTokenDialog({ createAction }: { createAction: CreateApiTokenFn })
               <Label htmlFor="token-profile">{t('tokens.profile')}</Label>
               <select
                 id="token-profile"
-                className="h-8 rounded-sm border border-input bg-transparent px-2.5 text-sm"
+                className="min-h-11 rounded-sm border border-input bg-transparent px-2.5 text-sm"
                 value={mcpProfile}
                 onChange={(e) => setMcpProfile(e.target.value === 'full' ? 'full' : 'basic')}
               >

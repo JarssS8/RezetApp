@@ -43,5 +43,35 @@
     "empty": "Sin tokens. Crea uno para conectar un asistente o un script.",
     "mcpHint": "Usa este token como `Authorization: Bearer` en `/mcp` o `/api/v1`. Los conectores que exigen OAuth no son compatibles todavía; usa un cliente MCP de escritorio o `mcp-remote --header`.",
     "error": "No se pudo completar la acción."
+  },
+  "appearance": {
+    "theme": "Tema",
+    "themes": {
+      "system": "Sistema",
+      "light": "Claro",
+      "dark": "Noche suave"
+    },
+    "accent": "Acento",
+    "accents": {
+      "huerta": "Huerta",
+      "miel": "Miel",
+      "tomate": "Tomate",
+      "pistacho": "Pistacho",
+      "higo": "Higo",
+      "berenjena": "Berenjena",
+      "arandano": "Arándano",
+      "canela": "Canela"
+    },
+    "units": "Unidades",
+    "unitsMetric": "Métrico",
+    "unitsImperial": "Imperial",
+    "language": "Idioma",
+    "languages": {
+      "es": "Español",
+      "en": "Inglés"
+    },
+    "displayName": "Tu nombre",
+    "saved": "Guardado",
+    "error": "No se pudieron guardar los cambios."
   }
 }

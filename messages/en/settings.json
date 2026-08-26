@@ -43,5 +43,35 @@
     "empty": "No tokens. Create one to connect an assistant or a script.",
     "mcpHint": "Use this token as `Authorization: Bearer` on `/mcp` or `/api/v1`. Connectors that require OAuth aren't supported yet; use a desktop MCP client or `mcp-remote --header`.",
     "error": "Couldn't complete the action."
+  },
+  "appearance": {
+    "theme": "Theme",
+    "themes": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Soft dark"
+    },
+    "accent": "Accent",
+    "accents": {
+      "huerta": "Garden",
+      "miel": "Honey",
+      "tomate": "Tomato",
+      "pistacho": "Pistachio",
+      "higo": "Fig",
+      "berenjena": "Eggplant",
+      "arandano": "Blueberry",
+      "canela": "Cinnamon"
+    },
+    "units": "Units",
+    "unitsMetric": "Metric",
+    "unitsImperial": "Imperial",
+    "language": "Language",
+    "languages": {
+      "es": "Spanish",
+      "en": "English"
+    },
+    "displayName": "Your name",
+    "saved": "Saved",
+    "error": "Couldn't save the changes."
   }
 }
