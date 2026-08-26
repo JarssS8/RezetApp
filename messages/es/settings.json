@@ -10,5 +10,38 @@
     "passkeys": "Passkeys",
     "data": "Datos",
     "notifications": "Notificaciones"
+  },
+  "tokens": {
+    "create": "Crear token",
+    "name": "Nombre",
+    "scopes": "Permisos",
+    "scope": {
+      "recipes:read": "Leer recetas",
+      "recipes:write": "Editar recetas",
+      "plan:read": "Leer el plan",
+      "plan:write": "Editar el plan",
+      "pantry:read": "Leer la despensa",
+      "pantry:write": "Editar la despensa",
+      "cooking:write": "Registrar cocinado",
+      "shopping:push": "Enviar a la compra",
+      "household:read": "Leer el hogar",
+      "household:write": "Editar el hogar"
+    },
+    "profile": "Perfil MCP",
+    "profiles": {
+      "basic": "Básico (12 herramientas, sin editar ni borrar)",
+      "full": "Completo"
+    },
+    "created": "Token creado. Cópialo ahora: no se volverá a mostrar.",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "revoke": "Revocar",
+    "revokeConfirm": "¿Revocar este token? Dejará de funcionar de inmediato.",
+    "revoked": "Revocado",
+    "lastUsed": "Último uso: {date}",
+    "never": "Nunca",
+    "empty": "Sin tokens. Crea uno para conectar un asistente o un script.",
+    "mcpHint": "Usa este token como `Authorization: Bearer` en `/mcp` o `/api/v1`. Los conectores que exigen OAuth no son compatibles todavía; usa un cliente MCP de escritorio o `mcp-remote --header`.",
+    "error": "No se pudo completar la acción."
   }
 }
