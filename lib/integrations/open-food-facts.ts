@@ -1,6 +1,7 @@
 // Cliente mínimo de Open Food Facts (ODbL). Solo lectura por código de barras.
 // Sin caché ni escritura: lookupBarcode (lib/services/foods.ts) decide qué
-// hacer con el resultado (crear alimento global source 'off').
+// hacer con el resultado (crear alimento *del hogar* con source 'off';
+// no global, ver el contrato de la pista (b)).
 import type { FoodInput } from '@/lib/validation/foods'
 import type { ALLERGENS } from '@/lib/validation/household'
 

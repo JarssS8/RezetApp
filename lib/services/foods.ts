@@ -4,6 +4,7 @@ import { normalizeSearchName } from '@/lib/domain/quantities'
 import type { BaseUnit, FoodNutrition, Locale } from '@/lib/domain/types'
 import { fetchOffProduct, offToFoodInput, type OffProduct } from '@/lib/integrations/open-food-facts'
 import { BarcodeSchema, type FoodCorrection, type FoodInput } from '@/lib/validation/foods'
+import { ALLERGENS } from '@/lib/validation/household'
 import { ServiceError, type Ctx } from './ctx'
 
 export interface FoodSummary {
@@ -186,6 +187,16 @@ export async function getFood(ctx: Ctx, foodId: string): Promise<FoodWithNutriti
   return f ? toSummary(f, ctx.locale) : null
 }
 
+// La columna allergens de una fila (string[] sin acotar en el esquema) puede
+// traer valores que ya no están en el vocabulario vigente (p. ej. tras quitar
+// uno de ALLERGENS); filtrarlos así, en vez de un cast, evita colar un
+// alérgeno inválido en un FoodInput sin que el tipo lo permita.
+type Allergen = FoodInput['allergens'][number]
+const ALLERGEN_SET: ReadonlySet<string> = new Set(ALLERGENS)
+function toAllergens(values: readonly string[]): Allergen[] {
+  return values.filter((v): v is Allergen => ALLERGEN_SET.has(v))
+}
+
 // Fila lista para insert/update a partir de un FoodInput ya validado. Los alias
 // se normalizan igual que los nombres de búsqueda (stripAccents+lowercase):
 // resolveFoodName los compara con `lower(a) = q` sin volver a normalizar.
@@ -252,7 +263,7 @@ export async function correctFood(ctx: Ctx, foodId: string, patch: FoodCorrectio
     fat100g: patch.fat100g !== undefined ? patch.fat100g : f.fat100g,
     fiber100g: patch.fiber100g !== undefined ? patch.fiber100g : f.fiber100g,
     barcode: patch.barcode !== undefined ? patch.barcode : f.barcode,
-    allergens: (patch.allergens ?? f.allergens) as FoodInput['allergens'],
+    allergens: patch.allergens ?? toAllergens(f.allergens),
     gramsPerCup: patch.gramsPerCup !== undefined ? patch.gramsPerCup : f.gramsPerCup,
     gramsPerTbsp: patch.gramsPerTbsp !== undefined ? patch.gramsPerTbsp : f.gramsPerTbsp,
     gramsPerUnit: patch.gramsPerUnit !== undefined ? patch.gramsPerUnit : f.gramsPerUnit,
@@ -293,6 +304,13 @@ export type BarcodeFetcher = (barcode: string) => Promise<OffProduct | null>
 // forma la fija el contrato de la pista (b): solo devuelve el alimento o
 // `null`); si un llamador necesita saberlo, puede consultar antes con
 // `getFood`/`searchFoods` por el código de barras.
+// No hay índice único (household_id, barcode) en el esquema (W4: añadirlo si
+// el escaneo repetido dentro de un mismo hogar demuestra ser una carrera real
+// en producción); dos inserciones concurrentes del mismo código para el mismo
+// hogar podrían crear dos filas. `sourceRef` se deja sin usar a propósito
+// aquí: esa columna (junto con el índice único `foods_source_ref_uidx`) solo
+// tiene sentido para deduplicar alimentos *globales*, y estas altas por
+// código de barras son siempre del hogar.
 export async function lookupBarcode(ctx: Ctx, barcode: string, fetcher: BarcodeFetcher = (b) => fetchOffProduct(b)): Promise<FoodWithNutrition | null> {
   const parsed = BarcodeSchema.safeParse(barcode)
   if (!parsed.success) throw new ServiceError('validation', 'Código de barras inválido')
