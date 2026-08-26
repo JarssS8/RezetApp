@@ -74,6 +74,22 @@
     "saved": "Saved",
     "error": "Couldn't save the changes."
   },
+  "household": {
+    "name": "Household name",
+    "defaultServings": "Default servings",
+    "expiryAlertDays": "Warn about expiry (days)",
+    "save": "Save",
+    "saved": "Saved",
+    "error": "Couldn't complete the action.",
+    "leave": "Leave household",
+    "leaveConfirm": "You'll lose access to this household's recipes and plan.",
+    "delete": "Delete household",
+    "deleteHint": "Type \"{name}\" to confirm. Everything gets deleted: recipes, plan, pantry, tokens.",
+    "deleteConfirmField": "Household name",
+    "switch": "Switch household",
+    "households": "Your households",
+    "current": "Current"
+  },
   "members": {
     "invite": "Invite",
     "inviteUrl": "Invitation link (expires in 24 h)",

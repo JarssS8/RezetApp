@@ -74,6 +74,22 @@
     "saved": "Guardado",
     "error": "No se pudieron guardar los cambios."
   },
+  "household": {
+    "name": "Nombre del hogar",
+    "defaultServings": "Raciones por defecto",
+    "expiryAlertDays": "Avisar de caducidad con (días)",
+    "save": "Guardar",
+    "saved": "Guardado",
+    "error": "No se pudo completar la acción.",
+    "leave": "Salir del hogar",
+    "leaveConfirm": "Perderás el acceso a las recetas y al plan de este hogar.",
+    "delete": "Borrar hogar",
+    "deleteHint": "Escribe «{name}» para confirmar. Se borra todo: recetas, plan, despensa, tokens.",
+    "deleteConfirmField": "Nombre del hogar",
+    "switch": "Cambiar de hogar",
+    "households": "Tus hogares",
+    "current": "Actual"
+  },
   "members": {
     "invite": "Invitar",
     "inviteUrl": "Enlace de invitación (caduca en 24 h)",
