@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { selectFoods, toSeed } from './build-foods-seed'
+import { assertUniqueNames, dedupeByNameEs, selectFoods, toSeed, type FoodSeed } from './build-foods-seed'
 
 const food = (fdcId: number, description: string, dataType = 'SR Legacy', kcal = 40) => ({
   fdcId, description, dataType, foodNutrients: [{ nutrient: { id: 1008 }, amount: kcal }, { nutrient: { id: 1003 }, amount: 1.1 }],
@@ -144,6 +144,53 @@ describe('build-foods-seed', () => {
     it('"Gelatin desserts, dry mix, prepared with water" no es agua: gramos', () => {
       const s = toSeed(food(1, 'Gelatin desserts, dry mix, prepared with water'), 'gelatin', undefined)
       expect(s.defaultUnit).toBe('g')
+    })
+    it('un caldo en polvo se pesa: gramos y sin densidad', () => {
+      const s = toSeed(food(1, 'Soup, chicken broth or bouillon, dry'), 'soup, chicken broth', undefined)
+      expect(s.defaultUnit).toBe('g')
+      expect(s.densityGPerMl).toBeNull()
+    })
+    it('una pastilla de caldo se cuenta: unidades', () => {
+      const s = toSeed(food(1, 'Soup, chicken broth cubes, dry'), 'soup, chicken broth', undefined)
+      expect(s.defaultUnit).toBe('ud')
+      expect(s.densityGPerMl).toBeNull()
+    })
+    it('un café instantáneo con leche en polvo se pesa', () => {
+      const s = toSeed(food(1, 'Beverages, coffee, instant, with whitener, reduced calorie'), 'coffee', undefined)
+      expect(s.defaultUnit).toBe('g')
+    })
+    it('un caldo casero sigue siendo líquido', () => {
+      const s = toSeed(food(1, 'Soup, stock, chicken, home-prepared'), 'soup, stock', undefined)
+      expect(s.defaultUnit).toBe('ml')
+      expect(s.densityGPerMl).toBe(1)
+    })
+  })
+
+  describe('un nombre en español, un alimento', () => {
+    const seed = (sourceRef: string, nameEs: string, nameEn: string, macros = true): FoodSeed => ({
+      sourceRef, nameEs, nameEn, aliases: [], defaultUnit: 'g', kcal100g: 10,
+      protein100g: macros ? 1 : null, carbs100g: macros ? 1 : null, fat100g: macros ? 1 : null, fiber100g: null,
+      isEstimated: false, gramsPerCup: null, gramsPerTbsp: null, gramsPerUnit: null, densityGPerMl: null, allergens: [], seasonalMonths: [],
+    })
+    it('prefiere "all commercial varieties"', () => {
+      const r = dedupeByNameEs([seed('1', 'aguacate', 'Avocados, raw, California'), seed('2', 'aguacate', 'Avocados, raw, all commercial varieties')])
+      expect(r.map((f) => f.sourceRef)).toEqual(['2'])
+    })
+    it('prefiere la versión sin sal añadida', () => {
+      const r = dedupeByNameEs([seed('1', 'apio cocido', 'Celery, cooked, with salt'), seed('2', 'apio cocido', 'Celery, cooked, without salt')])
+      expect(r.map((f) => f.sourceRef)).toEqual(['2'])
+    })
+    it('prefiere la que tiene los tres macros y, a igualdad, la descripción más corta', () => {
+      expect(dedupeByNameEs([seed('1', 'nuez', 'Nuts, walnuts', false), seed('2', 'nuez', 'Nuts, walnuts, english')]).map((f) => f.sourceRef)).toEqual(['2'])
+      expect(dedupeByNameEs([seed('1', 'pera', 'Pears, raw, red anjou'), seed('2', 'pera', 'Pears, raw')]).map((f) => f.sourceRef)).toEqual(['2'])
+    })
+    it('conserva el orden original y deja pasar los nombres únicos', () => {
+      const r = dedupeByNameEs([seed('1', 'ajo', 'Garlic, raw'), seed('2', 'pera', 'Pears, raw, bosc'), seed('3', 'pera', 'Pears, raw')])
+      expect(r.map((f) => f.sourceRef)).toEqual(['1', '3'])
+    })
+    it('assertUniqueNames revienta con un duplicado', () => {
+      expect(() => assertUniqueNames([seed('1', 'pera', 'Pears, raw'), seed('2', 'pera', 'Pears, raw, bosc')])).toThrow(/nameEs duplicado/)
+      expect(() => assertUniqueNames([seed('1', 'pera', 'Pears, raw')])).not.toThrow()
     })
   })
 })

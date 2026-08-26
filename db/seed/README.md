@@ -31,7 +31,7 @@ pnpm tsx scripts/build-foods-seed.ts --input ./data/usda
 ```
 
 `data/` está en `.gitignore`: los dumps de USDA nunca se commitean, solo el
-`foods.json` resultante (633 alimentos, muy por debajo de 1 MB).
+`foods.json` resultante (573 alimentos, muy por debajo de 1 MB).
 
 `build-foods-seed.ts` es determinista: con los mismos dumps, `foods-keywords.json`
 y `foods-translations.json`, siempre regenera el mismo `foods.json` byte a byte
@@ -101,6 +101,32 @@ conocidos y aceptados:
   (el que tiene energía fiable), no el que aparece antes en el fichero de
   USDA.
 
+### Un nombre en español, un alimento
+
+USDA publica variantes que en una cocina son el mismo ingrediente: cultivares
+(`Apples, fuji` / `gala` / `red delicious`), versiones con y sin sal añadida,
+enriquecidas o no, grados de la carne. Todas caen en la misma traducción
+(`manzana`), y dos filas con el mismo `nameEs` son indistinguibles en la
+interfaz y para el resolutor de ingredientes. Por eso el seed **garantiza que
+`nameEs` es único**: `assertUniqueNames` revienta la construcción si aparece un
+duplicado, y `dedupeByNameEs` se queda con una sola fila por nombre, en este
+orden de preferencia:
+
+1. la que USDA marca como `all commercial varieties`;
+2. la que **no** lleva sal añadida (`with salt` describe una variante);
+3. la que tiene los tres macronutrientes publicados;
+4. la descripción más corta (menos calificativos = más genérica);
+5. a igualdad, la primera (el orden de `selectFoods` ya es determinista).
+
+Los `fdcId` descartados así se apuntan a mano en `excludeIds` de
+`foods-keywords.json` (el propio script los imprime al final con el nombre en
+español que colisionaba). Ese paso **no es opcional**: al salir del seed, su
+traducción se poda, y sin el `excludeIds` la siguiente construcción las volvería
+a meter con el nombre en inglés — el seed dejaría de ser reproducible.
+`excludeIds` se aplica **después** de la selección, no antes: quitarlas antes
+liberaría un hueco del tope de 3 por palabra clave y metería alimentos nuevos
+por un motivo que nada tiene que ver.
+
 ### Energía: 1008 → 2047 → 2048, y cuándo (no) se deriva por Atwater
 
 Algunas entradas de Foundation Foods no publican el nutriente 1008
@@ -146,6 +172,14 @@ sólido: "canned in oil", "syrup pack", "juice pack", "water pack",
 "heavy/light syrup" (fruta o pescado en lata siguen siendo gramos, aunque
 vengan en almíbar, zumo, agua o aceite).
 
+Las formas **secas** de algo que en líquido iría en mililitros no son líquidos:
+`dry`, `dried`, `powder`, `granules`, `bouillon`, `instant`, `mix` (salvo que
+la descripción diga `prepared`, como el gelificado preparado con agua) se pesan.
+Sin esto, "Soup, chicken broth or bouillon, dry" entraba por `broth` como si
+fuera caldo. Las que además vienen en piezas contables (`cube`/`cubes`) se
+cuentan: "Soup, chicken broth cubes, dry" es `defaultUnit: 'ud'` con
+`gramsPerUnit: 10` (una pastilla) en `foods-translations.json`.
+
 La miel se queda en gramos a propósito, aunque sea líquida: en la despensa se
 pesa (el bote lo dice en gramos), y para recetas que la miden por cucharada
 está `gramsPerTbsp` (21 g). `nectar` sí es líquido (mililitros, densidad
@@ -187,7 +221,7 @@ AI_LOCAL_BASE_URL=http://localhost:8080/v1 AI_LOCAL_MODEL=qwen3-8b pnpm tsx scri
 ```
 
 El script **nunca pisa una entrada ya existente** en `foods-translations.json`:
-solo rellena los `sourceRef` que faltan. Las 633 traducciones actuales se
+solo rellena los `sourceRef` que faltan. Las 573 traducciones actuales se
 redactaron y se revisaron a mano (nombre en español tal como lo escribiría
 alguien de casa en una receta: singular, minúsculas, sin jerga de USDA ni
 marcas comerciales), sin depender de ningún servidor local. El fichero solo

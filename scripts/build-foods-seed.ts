@@ -6,7 +6,9 @@ import path from 'node:path'
 
 type UsdaNutrient = { nutrient: { id: number }; amount?: number }
 type UsdaFood = { fdcId: number; description: string; foodNutrients: UsdaNutrient[]; dataType: string }
-type Keywords = { exclude: string[]; keywords: string[] }
+// excludeIds: ids de USDA que no entran en el seed porque comparten nombre en
+// español con otra fila (los imprime este mismo script al deduplicar).
+type Keywords = { exclude: string[]; keywords: string[]; excludeIds?: string[] }
 export type Translation = {
   nameEs: string; aliases: string[]; gramsPerCup: number | null; gramsPerTbsp: number | null; gramsPerUnit: number | null
   densityGPerMl: number | null; allergens: string[]; seasonalMonths: number[]
@@ -75,6 +77,14 @@ const DENSITY_TABLE: [RegExp, number][] = [
   [/\b(water|broth|stock)\b/, 1.0],
 ]
 
+// Formas secas de un alimento que en líquido se mediría en mililitros: un caldo
+// en polvo, una pastilla o un café instantáneo se pesan (o se cuentan), no se
+// vierten. Sin esto, "Soup, chicken broth or bouillon, dry" entraba por
+// \bbroth\b como si fuera caldo líquido.
+const DRY_FORM = /\b(dry|dried|powder|powdered|granules?|bouillon|instant|mix)\b/
+// Dentro de las formas secas, las que vienen en piezas contables (pastillas)
+const PIECE_FORM = /\bcubes?\b/
+
 // Frases que indican que el líquido nombrado es solo el medio de conservación
 // de un alimento sólido (fruta o pescado en conserva), no el alimento en sí:
 // "Peaches, canned, heavy syrup, drained" no es un líquido, es fruta.
@@ -121,10 +131,19 @@ function hasReliableEnergy(f: UsdaFood): boolean {
 function isLiquid(description: string): boolean {
   const d = description.toLowerCase()
   if (PACKING_MEDIUM.test(d)) return false
+  // "prepared with water" sí es líquido aunque parta de un preparado seco
+  if (DRY_FORM.test(d) && !/\bprepared\b/.test(d)) return false
   // "Gelatin desserts, dry mix, prepared with water" es un postre gelificado,
   // no agua: el agua es solo un paso de preparación.
   if (/\bgelatin\b/.test(d)) return false
   return OIL_HINT.test(d) || MILK_HINTS.some((r) => r.test(d)) || LIQUID_HINTS.some((r) => r.test(d))
+}
+
+// g por defecto; ml para líquidos; ud para lo que viene en piezas contables
+function defaultUnitFor(description: string): 'g' | 'ml' | 'ud' {
+  const d = description.toLowerCase()
+  if (DRY_FORM.test(d) && PIECE_FORM.test(d)) return 'ud'
+  return isLiquid(description) ? 'ml' : 'g'
 }
 
 function densityFor(description: string): number {
@@ -212,7 +231,8 @@ export function selectFoods(all: UsdaFood[], kw: Keywords, maxPerKeyword = 3): {
 }
 
 export function toSeed(food: UsdaFood, keyword: string, tr: Translation | undefined): FoodSeed {
-  const liquid = isLiquid(food.description)
+  const defaultUnit = defaultUnitFor(food.description)
+  const liquid = defaultUnit === 'ml'
   const protein = nutrient(food, NUTRIENT.protein)
   const carbs = nutrient(food, NUTRIENT.carbs)
   const fat = nutrient(food, NUTRIENT.fat)
@@ -234,7 +254,7 @@ export function toSeed(food: UsdaFood, keyword: string, tr: Translation | undefi
     nameEn: cleanNameEn(food.description),
     nameEs: tr?.nameEs ?? food.description, // sin traducción aún: se ve el inglés y se marca en README
     aliases: tr?.aliases ?? [],
-    defaultUnit: liquid ? 'ml' : 'g',
+    defaultUnit,
     kcal100g: kcal,
     protein100g: protein,
     carbs100g: carbs,
@@ -247,6 +267,58 @@ export function toSeed(food: UsdaFood, keyword: string, tr: Translation | undefi
     densityGPerMl: tr?.densityGPerMl ?? (liquid ? densityFor(food.description) : null),
     allergens: tr?.allergens ?? [],
     seasonalMonths: tr?.seasonalMonths ?? [],
+  }
+}
+
+// Un nombre en español = un alimento. USDA publica variantes que en una cocina
+// son el mismo ingrediente (cultivares de manzana, "with/without salt",
+// enriquecido o no, grados de la carne): se queda UNA por nombre, la más
+// genérica, y se descartan las demás. Criterio, en orden:
+//   1. la que USDA marca como "all commercial varieties";
+//   2. la que no lleva sal añadida ("with salt" describe una variante, no el alimento);
+//   3. la que tiene los tres macronutrientes publicados;
+//   4. la descripción más corta (menos calificativos = más genérica);
+//   5. a igualdad, la primera (el orden de selectFoods ya es determinista).
+export function dedupeByNameEs(seed: FoodSeed[]): FoodSeed[] {
+  const rank = (f: FoodSeed): [number, number, number, number] => {
+    const d = f.nameEn.toLowerCase()
+    return [
+      /all commercial varieties/.test(d) ? 0 : 1,
+      /\bwith salt\b/.test(d) ? 1 : 0,
+      f.protein100g !== null && f.carbs100g !== null && f.fat100g !== null ? 0 : 1,
+      d.length,
+    ]
+  }
+  const best = new Map<string, FoodSeed>()
+  for (const f of seed) {
+    const current = best.get(f.nameEs)
+    if (!current) {
+      best.set(f.nameEs, f)
+      continue
+    }
+    if (isBetter(rank(f), rank(current))) best.set(f.nameEs, f)
+  }
+  // Se conserva el orden original del seed, no el de inserción en el Map
+  const kept = new Set([...best.values()].map((f) => f.sourceRef))
+  return seed.filter((f) => kept.has(f.sourceRef))
+}
+
+function isBetter(a: [number, number, number, number], b: [number, number, number, number]): boolean {
+  for (let i = 0; i < a.length; i += 1) {
+    const [x, y] = [a[i] ?? 0, b[i] ?? 0]
+    if (x !== y) return x < y
+  }
+  return false
+}
+
+// Contrato del seed: dos alimentos no pueden compartir nameEs (la interfaz y el
+// resolutor de ingredientes los distinguen por ese nombre).
+export function assertUniqueNames(seed: FoodSeed[]): void {
+  const seen = new Map<string, string>()
+  for (const f of seed) {
+    const previous = seen.get(f.nameEs)
+    if (previous) throw new Error(`nameEs duplicado: "${f.nameEs}" (${previous} y ${f.sourceRef})`)
+    seen.set(f.nameEs, f.sourceRef)
   }
 }
 
@@ -269,8 +341,27 @@ if (process.argv[1]?.endsWith('build-foods-seed.ts')) {
   const kw = JSON.parse(fs.readFileSync(path.join(seedDir, 'foods-keywords.json'), 'utf8')) as Keywords
   const translations = JSON.parse(fs.readFileSync(path.join(seedDir, 'foods-translations.json'), 'utf8')) as Record<string, Translation>
   const selected = selectFoods(readUsda(input), kw)
-  const seed = selected.map(({ keyword, food }) => toSeed(food, keyword, translations[String(food.fdcId)]))
+  // excludeIds se aplica DESPUÉS de la selección a propósito: quitar un id antes
+  // liberaría un hueco del tope de 3 por palabra clave y metería un alimento
+  // nuevo, cambiando el seed por un motivo que nada tiene que ver.
+  const excluded = new Set(kw.excludeIds ?? [])
+  const all = selected.filter(({ food }) => !excluded.has(String(food.fdcId))).map(({ keyword, food }) => toSeed(food, keyword, translations[String(food.fdcId)]))
+  const seed = dedupeByNameEs(all)
+  assertUniqueNames(seed)
   fs.writeFileSync(path.join(seedDir, 'foods.json'), JSON.stringify(seed, null, 2) + '\n')
+  // El fichero de traducciones solo guarda entradas de filas que existen
+  const kept = new Set(seed.map((f) => f.sourceRef))
+  const pruned = Object.fromEntries(Object.entries(translations).filter(([id]) => kept.has(id)))
+  fs.writeFileSync(path.join(seedDir, 'foods-translations.json'), JSON.stringify(pruned, null, 2) + '\n')
   const untranslated = seed.filter((s) => !translations[s.sourceRef]).length
-  console.log(`foods.json: ${seed.length} alimentos, ${untranslated} sin traducción`)
+  const dropped = all.filter((f) => !kept.has(f.sourceRef))
+  console.log(`foods.json: ${seed.length} alimentos, ${untranslated} sin traducción, ${Object.keys(translations).length - Object.keys(pruned).length} traducciones podadas`)
+  if (dropped.length) {
+    // Sin apuntarlos en excludeIds, la próxima ejecución los volvería a meter
+    // con el nombre en inglés (su traducción se acaba de podar) y el seed
+    // dejaría de ser reproducible.
+    console.log(`Añade estos ${dropped.length} ids a "excludeIds" de foods-keywords.json (mismo nombre en español que otra fila):`)
+    console.log(JSON.stringify(dropped.map((f) => f.sourceRef)))
+    for (const f of dropped) console.log(`  ${f.sourceRef}  ${f.nameEs}  ←  ${f.nameEn}`)
+  }
 }
