@@ -58,13 +58,16 @@ const ALIASES: Record<Locale, Record<string, string>> = {
   },
 }
 
+// Alias cuyo factor a unidad base difiere del de su unidad canónica.
+// cl no está en la tabla canónica: 1 cl = 10 ml (mientras que 'ml' tiene factor 1).
+const ALIAS_FACTOR_OVERRIDES: Record<string, number> = { cl: 10 }
+
 // Lo que se vuelca a la tabla unit_aliases (solo convertibles)
 export const UNIT_ALIASES: { alias: string; locale: Locale; unit: BaseUnit; factorToBase: number }[] = (['es', 'en'] as Locale[]).flatMap((locale) =>
   Object.entries(ALIASES[locale]).flatMap(([alias, id]) => {
     const u = CANONICAL_UNITS.find((c) => c.id === id)
     if (!u || u.base === null || u.factor === null) return []
-    // cl no está en la tabla canónica: 1 cl = 10 ml
-    const factor = alias === 'cl' ? 10 : u.factor
+    const factor = ALIAS_FACTOR_OVERRIDES[alias] ?? u.factor
     return [{ alias, locale, unit: u.base, factorToBase: factor }]
   }),
 )
@@ -76,7 +79,11 @@ export function stripAccents(s: string): string {
 export function findUnit(alias: string, locale: Locale): CanonicalUnit | null {
   const key = stripAccents(alias.toLowerCase().trim().replace(/\.$/, ''))
   const id = ALIASES[locale][key] ?? ALIASES[locale === 'es' ? 'en' : 'es'][key] ?? CANONICAL_UNITS.find((c) => c.id === key)?.id
-  return id ? (CANONICAL_UNITS.find((c) => c.id === id) ?? null) : null
+  const unit = id ? (CANONICAL_UNITS.find((c) => c.id === id) ?? null) : null
+  if (!unit) return null
+  // Alias como 'cl' comparten unidad canónica pero no su factor (ver ALIAS_FACTOR_OVERRIDES)
+  const overrideFactor = ALIAS_FACTOR_OVERRIDES[key]
+  return overrideFactor === undefined ? unit : { ...unit, factor: overrideFactor }
 }
 
 export function unitLabel(id: string, qty: number, locale: Locale): string {
