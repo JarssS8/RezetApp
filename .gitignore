@@ -9,3 +9,10 @@ data/
 !.env.example
 *.log
 .DS_Store
+
+# next
+next-env.d.ts
+.next/
+# tests
+test-results/
+playwright-report/
