@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { ActionResult } from '@/lib/actions/result'
 import { ACCENTS, LOCALES, THEMES, type Accent, type Locale, type Theme } from '@/lib/prefs'
+import { UnitSystemSchema } from '@/lib/validation/common'
 import type { UserPrefsSchema } from '@/lib/validation/household'
 
-export type UnitSystem = 'metric' | 'imperial'
-const UNIT_SYSTEMS: UnitSystem[] = ['metric', 'imperial']
+export type UnitSystem = z.infer<typeof UnitSystemSchema>
+const UNIT_SYSTEMS = UnitSystemSchema.options
 
 export interface AppearancePrefs {
   displayName: string
@@ -36,42 +37,46 @@ export function AppearanceForm({ initial, updateAction }: { initial: AppearanceP
   const [error, setError] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  function save(patch: PrefsPatch) {
+  // Aplica el patch de forma optimista y lo revierte si el servidor rechaza
+  // el cambio: el control no debe quedarse mostrando un valor que no se guardó.
+  function save(next: AppearancePrefs, patch: PrefsPatch) {
+    const previous = prefs
+    setPrefs(next)
     setError(false)
     setSaved(false)
     startTransition(async () => {
       const res = await updateAction(patch)
-      if (res.ok) setSaved(true)
-      else setError(true)
+      if (res.ok) {
+        setSaved(true)
+      } else {
+        setError(true)
+        setPrefs(previous)
+        if ('displayName' in patch) setDisplayName(previous.displayName)
+      }
     })
   }
 
   function onTheme(theme: Theme) {
-    setPrefs((p) => ({ ...p, theme }))
-    save({ theme })
+    save({ ...prefs, theme }, { theme })
   }
 
   function onAccent(accent: Accent) {
-    setPrefs((p) => ({ ...p, accent }))
-    save({ accent })
+    save({ ...prefs, accent }, { accent })
   }
 
   function onUnits(units: UnitSystem) {
-    setPrefs((p) => ({ ...p, units }))
-    save({ units })
+    save({ ...prefs, units }, { units })
   }
 
   function onLocale(locale: Locale) {
-    setPrefs((p) => ({ ...p, locale }))
-    save({ locale })
+    save({ ...prefs, locale }, { locale })
   }
 
   function onSubmitName(e: FormEvent) {
     e.preventDefault()
     const name = displayName.trim()
     if (!name) return
-    setPrefs((p) => ({ ...p, displayName: name }))
-    save({ displayName: name })
+    save({ ...prefs, displayName: name }, { displayName: name })
   }
 
   return (
@@ -105,7 +110,7 @@ export function AppearanceForm({ initial, updateAction }: { initial: AppearanceP
               aria-label={t(`appearance.accents.${accent}`)}
               data-accent={accent}
               onClick={() => onAccent(accent)}
-              className={`size-11 rounded-pill bg-primary transition-shadow ${prefs.accent === accent ? 'ring-2 ring-offset-2 ring-ring ring-offset-background' : ''}`}
+              className={`accent-swatch size-11 rounded-pill transition-shadow ${prefs.accent === accent ? 'ring-2 ring-offset-2 ring-ring ring-offset-background' : ''}`}
             />
           ))}
         </div>

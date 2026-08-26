@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import common from '@/messages/es/common.json'
 import settings from '@/messages/es/settings.json'
+import { ACCENTS } from '@/lib/prefs'
 import { AppearanceForm, type AppearancePrefs, type UpdatePrefsFn } from './appearance-form'
 
 afterEach(cleanup)
@@ -11,12 +12,12 @@ const initial: AppearancePrefs = { displayName: 'Ana', theme: 'system', accent: 
 
 function renderForm(updateAction?: UpdatePrefsFn) {
   const action = updateAction ?? vi.fn<UpdatePrefsFn>(async () => ({ ok: true, data: null }))
-  render(
+  const view = render(
     <NextIntlClientProvider locale="es" messages={{ settings, common }}>
       <AppearanceForm initial={initial} updateAction={action} />
     </NextIntlClientProvider>,
   )
-  return { action }
+  return { action, container: view.container }
 }
 
 describe('AppearanceForm', () => {
@@ -25,6 +26,18 @@ describe('AppearanceForm', () => {
     expect(screen.getByRole('button', { name: 'Sistema' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Claro' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('radio', { name: 'Huerta' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('cada muestra lleva su propio data-accent y la clase que lee la variable de color', () => {
+    // jsdom no calcula cascada CSS: esto comprueba el marcado (selector +
+    // clase), no el color resultante. La comprobación visual real es
+    // `pnpm dev` + capturar /settings/appearance con cada acento.
+    const { container } = renderForm()
+    for (const accent of ACCENTS) {
+      const swatch = container.querySelector(`[data-accent="${accent}"]`)
+      expect(swatch).not.toBeNull()
+      expect(swatch).toHaveClass('accent-swatch')
+    }
   })
 
   it('cambiar el tema guarda solo ese campo', async () => {
@@ -60,10 +73,12 @@ describe('AppearanceForm', () => {
     await waitFor(() => expect(action).toHaveBeenCalledWith({ displayName: 'Ana María' }))
   })
 
-  it('muestra un error si la acción falla', async () => {
+  it('muestra un error si la acción falla y revierte el cambio optimista', async () => {
     const action = vi.fn<UpdatePrefsFn>(async () => ({ ok: false, code: 'internal', message: 'x' }))
     renderForm(action)
     fireEvent.click(screen.getByRole('button', { name: 'Claro' }))
     expect(await screen.findByText('No se pudieron guardar los cambios.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Claro' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Sistema' })).toHaveAttribute('aria-pressed', 'true')
   })
 })
