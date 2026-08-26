@@ -28,7 +28,22 @@
   "dragHint": "Mantén pulsado para mover",
   "moveDate": "Mover a fecha",
   "moveSlot": "Mover a hueco",
-  "proposals": "Propuestas",
+  "proposals": {
+    "title": "Propuestas",
+    "empty": "No hay propuestas. Llegarán de la IA, del asistente MCP o de tus reglas.",
+    "from": {
+      "ai": "de la IA",
+      "rules": "de tus reglas",
+      "mcp": "del asistente"
+    },
+    "approve": "Aprobar",
+    "reject": "Descartar",
+    "approved": "Aprobada",
+    "rejected": "Descartada",
+    "adds": "Añade",
+    "removes": "Quita",
+    "error": "No se pudo decidir la propuesta"
+  },
   "shopping": "Generar compra",
   "empty": "Semana vacía: añade comidas o pide una propuesta.",
   "errors": {

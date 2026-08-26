@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server'
 import { WeekView } from '@/components/plan/week-view'
 import { requireHousehold } from '@/lib/auth/guards'
 import { todayIso, weekRange } from '@/lib/plan-dates'
-import { listEntries, rangeNutrition } from '@/lib/services/plan'
+import { listEntries, listProposals, rangeNutrition } from '@/lib/services/plan'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -41,7 +41,11 @@ export default async function PlanPage({ searchParams }: PlanPageProps) {
   }
 
   const range = { from: monday, to: days[days.length - 1] as string }
-  const [entries, nutrition] = await Promise.all([listEntries(ctx, range), rangeNutrition(ctx, range)])
+  const [entries, nutrition, pendingProposals] = await Promise.all([
+    listEntries(ctx, range),
+    rangeNutrition(ctx, range),
+    listProposals(ctx, 'pending'),
+  ])
   const kcalByDate: Record<string, number> = {}
   for (const [date, n] of Object.entries(nutrition.byDate)) kcalByDate[date] = Math.round(n.total.kcal)
 
@@ -61,6 +65,7 @@ export default async function PlanPage({ searchParams }: PlanPageProps) {
         todayIso={today}
         initialAddRecipeId={addRecipeId}
         initialAddServings={Number.isFinite(parsedAddServings) ? parsedAddServings : 0}
+        pendingProposals={pendingProposals.length}
       />
     </main>
   )

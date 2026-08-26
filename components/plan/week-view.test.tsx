@@ -79,6 +79,7 @@ describe('WeekView - revierte solo la entrada afectada', () => {
           todayIso="2026-08-26"
           initialAddRecipeId={null}
           initialAddServings={0}
+          pendingProposals={0}
         />
       </NextIntlClientProvider>,
     )

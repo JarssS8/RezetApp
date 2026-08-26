@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { CalendarMonthIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons'
+import { CalendarMonthIcon, ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from '@/components/icons'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { applyPlanBatchAction, movePlanEntryAction, patchPlanEntryAction } from '@/lib/actions/plan'
 import { useHouseholdEvents } from '@/lib/events/use-household-events'
@@ -26,6 +27,9 @@ export interface WeekViewProps {
   // Preselección desde ?add=<recipeId>&servings=N (enlace desde el detalle de receta)
   initialAddRecipeId: string | null
   initialAddServings: number
+  // Nº de propuestas pendientes (listProposals(ctx,'pending').length en la página);
+  // se muestra como insignia sobre el enlace «Propuestas» (regla de controlador).
+  pendingProposals: number
 }
 
 interface SheetTarget {
@@ -35,7 +39,17 @@ interface SheetTarget {
 
 const DRAG_ACTIVATION = { delay: 150, tolerance: 5 }
 
-export function WeekView({ monday, days, entries: initialEntries, defaultServings, kcalByDate, todayIso, initialAddRecipeId, initialAddServings }: WeekViewProps) {
+export function WeekView({
+  monday,
+  days,
+  entries: initialEntries,
+  defaultServings,
+  kcalByDate,
+  todayIso,
+  initialAddRecipeId,
+  initialAddServings,
+  pendingProposals,
+}: WeekViewProps) {
   const t = useTranslations('plan')
   const router = useRouter()
   const [entries, setEntries] = useState(initialEntries)
@@ -166,6 +180,15 @@ export function WeekView({ monday, days, entries: initialEntries, defaultServing
           >
             <CalendarMonthIcon size={16} />
             {t('month')}
+          </Link>
+          <Link href="/plan/proposals" className="relative inline-flex min-h-11 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium">
+            <SparklesIcon size={16} />
+            {t('proposals.title')}
+            {pendingProposals > 0 ? (
+              <Badge variant="destructive" className="absolute -top-2 -right-2">
+                {pendingProposals}
+              </Badge>
+            ) : null}
           </Link>
         </div>
         <Button variant="outline" size="icon-sm" aria-label={t('nextWeek')} render={<Link href={`/plan?week=${nextWeek}`} />}>

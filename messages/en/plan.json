@@ -28,7 +28,22 @@
   "dragHint": "Press and hold to move",
   "moveDate": "Move to date",
   "moveSlot": "Move to slot",
-  "proposals": "Proposals",
+  "proposals": {
+    "title": "Proposals",
+    "empty": "No proposals yet. They'll come from the AI, the MCP assistant, or your rules.",
+    "from": {
+      "ai": "from the AI",
+      "rules": "from your rules",
+      "mcp": "from the assistant"
+    },
+    "approve": "Approve",
+    "reject": "Discard",
+    "approved": "Approved",
+    "rejected": "Discarded",
+    "adds": "Adds",
+    "removes": "Removes",
+    "error": "Couldn't decide on the proposal"
+  },
   "shopping": "Generate shopping list",
   "empty": "Empty week: add meals or ask for a proposal.",
   "errors": {
