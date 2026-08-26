@@ -1,8 +1,8 @@
 # RezetApp · Diseño técnico completo (fases 0–5)
 
-Fecha: 2026-08-26. Estado: borrador para revisión.
+Fecha: 2026-08-26. Estado: revisado (v2, tras revisión del autor).
 Complementa a `AGENTS.md` y `docs/01..07`; si contradice algo de ahí, manda
-esto (es más reciente) y hay que actualizar el doc afectado en el mismo commit.
+esto (es más reciente). El apéndice A lista qué docs hay que actualizar.
 
 ## 1. Objetivo y alcance
 
@@ -12,7 +12,8 @@ oleadas paralelas ejecutadas por subagentes. Cada oleada deja el repo verde
 
 Fuera de alcance (no se construye): lista de la compra propia, sync offline
 con CRDT, reparto de gastos, recomendador propio, red social, telemetría,
-APK con Capacitor (queda preparado como PWA; el APK es trabajo posterior).
+APK con Capacitor (queda PWA), **OAuth/OIDC para el MCP** (ver §12: queda
+como tarea futura explícita).
 
 ## 2. Arquitectura en capas
 
@@ -32,22 +33,23 @@ APK con Capacitor (queda preparado como PWA; el APK es trabajo posterior).
 ```
 
 - **`lib/domain`**: funciones puras, sin I/O. Escalado, formato de cantidades,
-  unidades, nutrición, consolidación, parser de ingredientes (reglas),
-  detección de temporizadores, reglas de autorrelleno. 100 % testeado.
-- **`lib/services`**: un módulo por agregado (`recipes`, `plan`, `pantry`,
-  `foods`, `households`, `auth`, `cooking`, `shopping`, `ai`). Reciben un
-  `Ctx { db, householdId, userId, locale }`, validan con zod, llaman a dominio,
-  persisten, emiten eventos SSE. **Son la única capa que toca la DB.**
+  unidades, nutrición, asignación de descuentos de despensa, consolidación,
+  parser de ingredientes (reglas), detección de temporizadores, reglas de
+  autorrelleno. 100 % testeado. Es isomórfico: va al bundle de cliente
+  cuando hace falta (stepper de raciones en vivo).
+- **`lib/services`**: un módulo por agregado. Reciben
+  `Ctx { db, householdId, userId | apiTokenId, locale }`, validan con zod,
+  llaman a dominio, persisten, emiten eventos SSE. **Única capa que toca la
+  DB.**
 - **Adaptadores de entrada**: Server Actions/RSC, route handlers REST, MCP.
   Nunca contienen lógica; traducen entrada → servicio → salida.
 - **`lib/ai`**: proveedor elegible (Anthropic, OpenAI, Ollama) vía Vercel AI
-  SDK, con tope de gasto y log. Solo hace *extracción y propuesta*; nunca
-  cálculos.
+  SDK, con tope de gasto y log. Solo *extracción y propuesta*; nunca cálculos.
 
 Regla de dependencia (lint con `eslint-plugin-boundaries`):
 `domain` no importa nada del repo · `services` importa `domain`, `db`, `ai`,
-`integrations` · `app/` importa `services` y `domain` (solo para formato) ·
-nadie importa `app/`.
+`integrations` · `app/` y `components/` importan `services` (solo desde
+servidor) y `domain` (libremente) · nadie importa `app/`.
 
 ## 3. Estructura de directorios
 
@@ -62,11 +64,13 @@ app/
     plan/                Plan (semana | mes)
     pantry/              Despensa
     recipes/, recipes/[id], recipes/[id]/edit, recipes/new, recipes/import
-    settings/            hogar, miembros, IA, ShopList, tokens API, tema, exportar
+    settings/            layout con secciones; UNA RUTA POR SECCIÓN:
+      household/ members/ ai/ shoplist/ tokens/ appearance/ passkeys/
+      data/ (exportar, importar, migrar) notifications/
   api/v1/**/route.ts     REST
-  api/openapi.json/route.ts
+  api/openapi.json/route.ts, api/docs/route.ts
   api/events/route.ts    SSE
-  api/uploads/[...path]/route.ts
+  api/uploads/[...path]/route.ts   sirve ficheros de ./data/uploads
   mcp/route.ts
 components/
   ui/                    shadcn (editados con tokens)
@@ -75,380 +79,489 @@ components/
 lib/
   domain/                puro + tests colocalizados *.test.ts
   services/
-  ai/                    provider.ts, budget.ts, tasks/{parse-ingredients,import-recipe,estimate-nutrition,propose-plan}.ts
-  integrations/shoplist.ts
-  auth/                  session.ts (jose), webauthn.ts, guards.ts
-  i18n/                  next-intl config
+  ai/                    provider.ts, budget.ts, models.ts, tasks/*.ts
+  integrations/shoplist.ts, open-food-facts.ts
+  auth/                  session.ts, webauthn.ts, guards.ts, crypto.ts (HKDF, AES-GCM)
+  i18n/                  next-intl config; request.ts fusiona messages/<locale>/*.json
   events/                bus.ts (EventEmitter tipado) para SSE
-  validation/            esquemas zod compartidos (también alimentan OpenAPI y MCP)
+  validation/            esquemas zod compartidos (REST, MCP, OpenAPI)
+  uploads/               guardar/redimensionar imágenes (sharp)
 db/
   schema/*.ts            un fichero por agregado, index.ts los reúne
   migrations/
-  seed/                  foods base (USDA subset + traducciones es), tags
-messages/es.json, en.json
-scripts/                 migrate.ts, seed.ts, export.ts, import-mealie.ts, import-tandoor.ts
+  seed/                  foods base (subset USDA ~800 + name_es revisado), unit_aliases, tags
+messages/
+  es/{common,auth,today,cook,plan,pantry,recipes,settings,errors}.json
+  en/…                   mismas claves; lint compara claves entre locales
+scripts/                 migrate.ts, seed.ts, export.ts, import-mealie.ts, import-tandoor.ts, build-foods-seed.ts
 e2e/                     playwright
 docker/                  Dockerfile, entrypoint.sh
-docker-compose.yml, .env.example, README.md
+docker-compose.yml, .env.example, README.md, README.en.md
 ```
 
 ## 4. Modelo de datos
 
-Base: `docs/04-DATOS.md`. Cambios y añadidos respecto a ese doc:
+Base: `docs/04-DATOS.md`. Cambios y añadidos:
 
+### Hogar, usuarios, sesión
 - `households` + `default_servings int not null default 2`,
-  `ai_provider enum('none','anthropic','openai','ollama') default 'none'`,
-  `ai_model text`, `ai_base_url text` (Ollama), `ai_api_key_enc text`
-  (cifrada con `APP_SECRET`, AES-GCM), `expiry_alert_days int default 3`,
-  `shoplist_list_token`, `plan_rules jsonb` (fase 5, ver §9.6).
-- `users` + `units`, `theme enum('system','light','dark')`, `accent`.
-  Email es opcional en passkeys-only; lo mantenemos `unique` nullable para
-  invitaciones futuras. `display_name` obligatorio.
-- **Nueva `sessions`**: `id`, `user_id`, `household_id` (hogar activo),
-  `expires_at`, `created_at`, `user_agent`. Cookie `rz_session` httpOnly,
-  SameSite=Lax, contiene JWT firmado (jose, HS256 con `APP_SECRET`) con
-  `sid`. Rotación a los 30 días, caducidad 90.
+  `expiry_alert_days int not null default 3`,
+  `ai_provider enum('none','anthropic','openai','ollama') not null default 'none'`,
+  `ai_model text`, `ai_base_url text` (Ollama), `ai_api_key_enc bytea`,
+  `ai_monthly_cap_cents int not null default 0` (0 = sin tope),
+  `shoplist_list_token text`, `shoplist_fn_url text`, `shoplist_secret_enc bytea`,
+  `shoplist_last_pushed_at timestamptz`, `plan_rules jsonb not null default '[]'`.
+  **Se elimina `ai_spent_this_month_cents`**: el gasto del mes es
+  `SUM(cost_cents)` de `ai_usage_log` (índice `(household_id, created_at)`).
+- Secretos por hogar cifrados con AES-GCM. Claves derivadas de `APP_SECRET`
+  con HKDF-SHA256: `info='rezetapp/session'` para firmar cookies,
+  `info='rezetapp/secrets'` para cifrar. Nunca se usa `APP_SECRET` directo.
+- `users`: `email` nullable `unique`, `display_name not null`, `locale`,
+  `units enum('metric','imperial')`, `theme enum('system','light','dark')`,
+  `accent text`.
+- **Nueva `sessions`**: `id` (32 bytes aleatorios, base64url), `user_id`,
+  `household_id` (hogar activo), `expires_at`, `created_at`, `last_seen_at`,
+  `user_agent`. Cookie `rz_session` = `<id>.<hmac>` (HMAC-SHA256 con la
+  clave de sesión), httpOnly, SameSite=Lax, Secure fuera de localhost.
+  Sin JWT. Caducidad 90 días, `last_seen_at` se actualiza como mucho cada
+  hora.
+- Cookie `rz_prefs` (no httpOnly, JSON `{theme, accent, locale}`) **espejo**
+  de `users.*` que el servidor reescribe al guardar preferencias. `app/layout`
+  pinta `data-theme`/`data-accent` desde ella en SSR → sin flash y sin
+  `localStorage`. `theme='system'` no pone `data-theme` y manda la media
+  query.
 - **Nueva `webauthn_challenges`**: `id`, `challenge`, `user_id` nullable,
   `kind enum('register','login')`, `expires_at` (5 min). Se borra al usar.
 - `webauthn_credentials` + `device_type`, `backed_up`, `name`, `created_at`,
   `last_used_at`.
-- `recipes` + `kcal_per_serving numeric`, `protein/carbs/fat/fiber_per_serving`,
-  `kcal_100g` (desnormalizados, recalculados al guardar ingredientes),
-  `nutrition_is_estimated bool`, `yield_grams numeric nullable`,
-  `search_vector tsvector` generado, `deleted_at` (soft delete).
-- `recipe_ingredients.unit enum('g','ml','ud')` (base) + `display_unit text`
-  y `display_quantity numeric` (lo que escribió el usuario, para mostrarlo tal
-  cual si no hay conversión); `group_label text nullable` ("Para la salsa").
-- `recipe_steps` + `image_url nullable`.
-- `foods` + `search_name text` (normalizado sin acentos, para trigram),
-  `aliases text[]`, `density_g_per_ml numeric nullable`, `grams_per_unit
-  numeric nullable` (una cebolla ≈ 150 g), `merged_into_id nullable` (fase 5
-  fusionar).
-- `unit_aliases` (global): `alias`, `unit`, `factor_to_base`, `locale`
-  (cdta→5 ml, cda→15 ml, taza→240 ml, oz→28.35 g…). Las tazas *por
-  alimento* siguen en `foods.grams_per_cup`.
-- `meal_plan_entries.slot enum('breakfast','lunch','dinner','snack')`, y
-  `status enum('planned','cooked','skipped')` derivado de `cooked_at`.
-- **Nueva `plan_proposals`**: `id`, `household_id`, `created_by` (`user_id`
-  o `api_token_id`), `payload jsonb` (lista de altas/bajas), `status
-  enum('pending','approved','rejected')`, `created_at`, `resolved_at`. La IA
-  y el MCP escriben aquí; la UI aprueba en diff (fase 3).
-- `cooking_log` + `pantry_deductions jsonb` (qué se restó, para deshacer) y
-  `warnings jsonb` (los negativos dejados en 0).
-- `api_tokens.scopes`: `recipes:read recipes:write plan:read plan:write
-  pantry:read pantry:write shopping:push household:read`. Prefijo visible
-  `rz_` + 32 bytes base64url; se guarda sha256.
-- **Nueva `push_subscriptions`** (fase 5): `user_id`, `endpoint`, `keys jsonb`.
-- **Nueva `collections`** (fase 5): filtros guardados, `household_id`, `name`,
-  `query jsonb`.
-- Todas las tablas de contenido: `household_id uuid not null` + índice.
-  `foods.household_id` nullable (global). Soft delete solo en `recipes`.
+- `household_invites`, `household_members` como en `04`.
+- **Nueva `app_settings`**: `key text pk`, `value jsonb`, `updated_at`.
+  Guarda claves VAPID generadas en el primer arranque y similares.
 
-Índices: los de `04-DATOS.md` más `sessions(user_id)`,
-`plan_proposals(household_id, status)`, GIN trigram sobre `foods.search_name`
-(extensión `pg_trgm`), GIN sobre `recipes.search_vector`.
+### Recetas y alimentos
+- `recipes` + `kcal_per_serving`, `protein/carbs/fat/fiber_per_serving`,
+  `kcal_100g` (todos numeric nullable, desnormalizados, recalculados al
+  guardar ingredientes), `nutrition_is_estimated bool not null default false`,
+  `yield_grams numeric nullable`, `search_vector tsvector` generado
+  (`title || description`, config `spanish` + `english` por locale del
+  hogar), `deleted_at` (soft delete).
+- `recipe_ingredients`: `quantity numeric nullable` y `unit enum('g','ml','ud')
+  nullable` (base; **ambos null cuando no hay conversión**: "1 pizca",
+  "al gusto", "un chorrito"), `display_quantity numeric nullable`,
+  `display_unit text nullable` (siempre lo que escribió el usuario, ya
+  normalizado: `1.5` + `cdta`), `group_label text nullable`,
+  `scales_linearly bool not null default true`, `raw_text`, `food_id`
+  nullable, `preparation`, `step_index` nullable, `sort_order`.
+- `recipe_steps` + `image_url nullable`.
+- `foods` + `search_name_es text`, `search_name_en text` (normalizados sin
+  acentos ni mayúsculas; índices GIN trigram sobre ambos), `aliases text[]`,
+  `density_g_per_ml numeric nullable`, `grams_per_unit numeric nullable`,
+  `grams_per_cup`, `grams_per_tbsp`, `merged_into_id uuid nullable`.
+- `unit_aliases` (global): `alias`, `locale`, `unit enum('g','ml','ud')`,
+  `factor_to_base numeric` (cdta→5 ml, cda→15 ml, taza→240 ml, oz→28.35 g,
+  l→1000 ml, kg→1000 g). Las tazas *por alimento* se resuelven antes con
+  `foods.grams_per_cup` si existe.
+- `tags`, `recipe_tags`, `collections` (fase 5: `household_id`, `name`,
+  `query jsonb`).
+
+### Plan, despensa, cocina
+- `meal_plan_entries`: `slot enum('breakfast','lunch','dinner','snack')`,
+  `servings int not null`, `leftover_of_entry_id`, `time_budget_minutes`,
+  `cooked_at timestamptz nullable`, **`skipped_at timestamptz nullable`**,
+  `sort_order`. Estado derivado en dominio: `cooked_at` → `cooked`;
+  si no, `skipped_at` → `skipped`; si no, `planned`.
+- `pantry_items`: `location enum('fridge','freezer','pantry')`, `quantity
+  numeric not null` (base), `unit enum('g','ml','ud') not null`, `expires_at
+  date nullable`, `opened_at`, `added_at`. Índice `(household_id, food_id)`
+  y `(household_id, expires_at)`.
+- **Nueva `plan_proposals`**: `id`, `household_id`, `created_by_user_id`
+  nullable, `created_by_token_id` nullable (check: exactamente uno no nulo),
+  `source enum('ai','rules','mcp')`, `payload jsonb` (§9.2), `status
+  enum('pending','approved','rejected')`, `created_at`, `resolved_at`,
+  `resolved_by_user_id`.
+- `cooking_log` + `pantry_deductions jsonb` (`[{pantry_item_id, food_id,
+  requested, deducted}]`) y `warnings jsonb` (faltantes).
+- `api_tokens`: `scopes text[]` de `recipes:read recipes:write plan:read
+  plan:write pantry:read pantry:write cooking:write shopping:push
+  household:read`; **`mcp_profile enum('basic','full') not null default
+  'basic'`**. Token visible `rz_` + 32 bytes base64url; se guarda sha256.
+- **Nueva `push_subscriptions`** (fase 5): `user_id`, `endpoint unique`,
+  `keys jsonb`, `created_at`.
+- `ai_usage_log` como en `04`.
+
+Invariantes: toda tabla de contenido con `household_id uuid not null` +
+índice (`foods.household_id` nullable = global). Soft delete solo en
+`recipes`. Borrar hogar: operación explícita (§6). Extensión `pg_trgm`.
 
 ## 5. `lib/domain` — contrato de funciones
 
-Todo con tipos exportados en `lib/domain/types.ts`. Firmas de las principales:
+Tipos en `lib/domain/types.ts`. Firmas congeladas al final de W1:
 
 ```ts
 // scaling.ts
-scaleQuantity(qty: number, ratio: number, scalesLinearly: boolean): number   // DAMP=0.65
-scaleRecipe(recipe: RecipeForScaling, targetServings: number): ScaledRecipe // marca nonLinear[]
-isNonLinearByDefault(foodName: string, locale): boolean                     // sal, especias, levadura…
+scaleQuantity(qty: number, ratio: number, scalesLinearly: boolean): number   // DAMP = 0.65
+scaleIngredient(i: Ingredient, ratio: number): Ingredient
+   // escala quantity (base) y display_quantity con la misma regla; ambos pueden ser null
+scaleRecipe(recipe: RecipeForScaling, targetServings: number): ScaledRecipe
+   // ratio = target / servings_base; nonLinearIds[] para el aviso; tiempos/temperaturas NO se tocan
+isNonLinearByDefault(foodName: string, locale: Locale): boolean
 
 // quantities.ts
-formatQuantity(qty: number, unit: DisplayUnit, locale): string   // "1 ½ cdta", "250 g", "0,5 l"
-toDisplayUnit(qty: number, base: BaseUnit, food: FoodConversion, system: 'metric'|'imperial', preferred?: string): DisplayQuantity
-toBaseUnit(qty: number, unit: string, food?: FoodConversion): {qty, unit: BaseUnit} | null   // null → no convertible, se conserva display
+formatQuantity(qty: number | null, unit: string | null, locale: Locale): string
+   // "1 ½ cdta", "250 g", "0,5 l"; null → "" (la UI muestra raw/preparation)
+toBaseUnit(qty: number, unit: string, locale: Locale, food?: FoodConversion): {qty: number, unit: BaseUnit} | null
+   // orden: unit_aliases → grams_per_cup/tbsp/unit del alimento → density (ml↔g) → null
+toDisplayUnit(qty: number, base: BaseUnit, food: FoodConversion | null, system: UnitSystem, preferred?: string): DisplayQuantity
 
 // nutrition.ts
-recipeNutrition(ingredients: IngredientWithFood[], servings: number, yieldGrams?: number): Nutrition
-   // → perServing, total, per100g, isEstimated (si algún food.is_estimated o food null)
+recipeNutrition(ingredients: IngredientWithFood[], servings: number, yieldGrams?: number | null): Nutrition
+   // perServing/total: suma de kcal_100g * gramos; ingredientes sin food o sin base → isEstimated=true y se ignoran
+   // per100g: total / (yieldGrams ?? massSum); massSum = Σ (g directo | ml*density_g_per_ml | ml*1 si no hay density | ud*grams_per_unit)
+   //          si algún ingrediente con cantidad no tiene forma de convertirse a gramos → per100g = null, isEstimated = true
 aggregateNutrition(entries: {nutrition: Nutrition, servings: number}[]): Nutrition
 
 // ingredients-parser.ts
-parseIngredientLine(raw: string, locale: 'es'|'en'): ParsedIngredient
+parseIngredientLine(raw: string, locale: Locale): ParsedIngredient
    // {quantity?, unit?, foodName, preparation?, confidence: 0..1, needsReview}
-   // reglas: fracciones unicode, "1 y 1/2", rangos "2-3", "un/una", "al gusto", "pizca", "chorrito"
+   // fracciones unicode, "1 y 1/2", rangos "2-3" (→ media), "un/una", "al gusto", "pizca", "chorrito", "c/s"
 
 // pantry.ts
-deductFromPantry(items: PantryItem[], needs: Need[]): {updated: PantryItem[], warnings: Warning[]}
+allocateDeductions(items: PantryItem[], needs: Need[]): {allocations: Allocation[], unmatched: Need[]}
+   // Allocation = {pantryItemId, foodId, quantity}. Por food_id: FIFO por expires_at asc NULLS LAST, luego added_at asc.
+   // Si la despensa no cubre, se asigna lo que hay y el resto va a unmatched. PURO: no escribe.
+   // El servicio aplica cada allocation con UPDATE atómico (§9.5); los warnings reales salen del RETURNING.
 expiringSoon(items: PantryItem[], today: Date, days: number): PantryItem[]
+entryStatus(e: {cooked_at, skipped_at}): 'planned' | 'cooked' | 'skipped'
 
 // shopping.ts
 consolidateNeeds(entries: PlannedEntry[], pantry: PantryItem[]): ShoppingLine[]
-   // ignora entradas con leftover_of_entry_id; agrupa por food_id; resta despensa; descarta ≤0
-toShopListItem(line: ShoppingLine): {name: string, quantity: number|null}
+   // excluye: leftover_of_entry_id != null, cooked_at != null, skipped_at != null
+   // escala cada receta a entry.servings
+   // con food_id y base: agrupa por food_id, suma en base, resta despensa (suma de todos los items del food), descarta ≤ 0
+   // con base pero sin food_id: agrupa por foodName normalizado, suma, NO resta despensa, unresolved: true
+   // sin base: una línea por food_id (o nombre) con quantity null, sin sumar ni restar
+toShopListItem(line: ShoppingLine): {name: string, quantity: number | null}
 
 // timers.ts
-detectTimers(stepText: string, locale): TimerSpan[]   // "hornea 25 minutos" → 1500 s
+detectTimers(stepText: string, locale: Locale): TimerSpan[]   // "hornea 25 minutos" → {start, end, seconds: 1500}
 
 // plan-rules.ts (fase 5)
-applyPlanRules(rules: PlanRule[], candidates: RecipeSummary[], history: CookedHistory, week: Date): Slot[]
-avoidRecentRepeats(candidates, history, days: number): RecipeSummary[]
+applyPlanRules(rules: PlanRule[], candidates: RecipeSummary[], history: CookedHistory, weekStart: Date): ProposalPayload
+avoidRecentRepeats(candidates: RecipeSummary[], history: CookedHistory, days: number): RecipeSummary[]
 ```
 
-Tests obligatorios: escalado lineal/no lineal, invariante kcal por ración al
-escalar, fracciones bonitas, conversión taza-por-alimento y fallback sin dato,
-consolidación con sobras y despensa, descuento con negativo→0+warning,
-parser con ≥40 líneas reales en es y ≥20 en en (fixture JSON).
+Tests obligatorios: escalado lineal/no lineal y null; invariante kcal por
+ración al escalar; fracciones bonitas; `toBaseUnit` con taza-por-alimento,
+density y fallback null; `recipeNutrition` con y sin `yieldGrams`, con
+ingrediente inconvertible → `per100g null`; `allocateDeductions` FIFO con
+caducidades, varios ítems y faltante; `consolidateNeeds` con sobras, cocinadas,
+saltadas, sin food_id y sin base; parser con ≥ 40 líneas reales en `es` y ≥ 20
+en `en` (fixture JSON).
 
 ## 6. Auth, hogar e invitaciones
 
-- Registro: nombre → `generateRegistrationOptions` → passkey → crea `users`,
-  `households` ("Casa de <nombre>"), `household_members(owner)`, sesión.
-- Login: `generateAuthenticationOptions` sin `allowCredentials` (discoverable
-  credentials) → cookie.
+- Registro: nombre → `generateRegistrationOptions` con
+  `authenticatorSelection: { residentKey: 'required', userVerification:
+  'preferred' }` (obligatorio: el login usa credenciales descubribles) →
+  crea `users`, `households` ("Casa de <nombre>"), `household_members(owner)`,
+  sesión.
+- Login: `generateAuthenticationOptions` sin `allowCredentials` → cookie.
 - `rpID`/`origin` desde `APP_URL`. En dev `localhost`.
-- Invitación: owner genera `household_invites` (token 24 h) → enlace
-  `/invite/<token>` → si no hay sesión, registro con passkey; se añade como
-  `member`. Un usuario puede estar en varios hogares; la sesión guarda el
-  activo y hay selector en ajustes.
-- Recuperación: un usuario puede registrar varias passkeys desde ajustes.
-  Sin email/SMTP no hay recuperación por correo; el README lo dice.
+- Invitación: owner genera `household_invites` (token 24 h) → `/invite/<token>`
+  → registro con passkey si no hay sesión → `member`. Un usuario puede estar
+  en varios hogares; la sesión guarda el activo; selector en ajustes.
+- Varias passkeys por usuario desde ajustes. Sin SMTP no hay recuperación por
+  correo; el README lo dice.
+- **Salir del hogar**: un `member` puede irse; el último `owner` no. **Borrar
+  hogar**: solo `owner`, escribiendo el nombre del hogar para confirmar;
+  borra en transacción todas las filas con ese `household_id` (sin
+  `ON DELETE CASCADE` en el esquema), los tokens y las invitaciones.
 - `guards.ts`: `requireSession()`, `requireHousehold()`, `requireRole('owner')`,
-  `requireApiToken(scopes)`. REST y MCP aceptan `Authorization: Bearer rz_…`;
-  la UI usa cookie.
+  `requireApiToken(scopes[])`. REST y MCP aceptan `Authorization: Bearer
+  rz_…`; la UI usa cookie. `cooking:write` es necesario para `log_cooked`
+  (además de nada más: el scope ya implica tocar plan y despensa).
 - Toda consulta de servicio filtra por `ctx.householdId`. Test de aislamiento
   entre hogares en cada servicio.
 
 ## 7. UI: tema, tipografía, iconos, i18n
 
 - `app/globals.css`: `@import "tailwindcss"`, tokens de `design-tokens.css`,
-  mapeo de tokens shadcn (`--background: var(--bg)`, `--primary: var(--acc)`,
-  `--primary-foreground: var(--on-acc)`, `--radius: var(--r-sm)`…).
-- Fuentes con `next/font/google`: Outfit, DM Sans, JetBrains Mono. Sin CDN en
-  runtime (self-hosted en build).
-- `data-theme` y `data-accent` en `<html>` desde la preferencia del usuario;
-  script inline anti-flash lee `localStorage` antes de hidratar.
-- Iconos: `components/icons/*.tsx`, dibujados a mano. Los cinco de la barra
-  (sol-plato, sartén, calendario, alacena, libro) + ~25 de interfaz (más,
-  menos, reloj, aviso, fuego, nevera, congelador, armario, código de barras,
-  enlace, foto, buscar, ajustes, salir, chevron, check, cerrar, arrastrar,
-  sobras, estimado, enviar, copiar, eliminar, editar, usuario). Nunca lucide.
-- `next-intl` con `messages/{es,en}.json` por namespace (`common`, `today`,
-  `cook`, `plan`, `pantry`, `recipes`, `settings`, `auth`, `errors`). Lint
-  que falla si hay literales JSX fuera de `messages/` (regla
-  `react/jsx-no-literals` con allowlist de símbolos).
-- Locale del usuario (`users.locale`), fallback `Accept-Language`, default `es`.
-- Móvil primero: barra inferior 5 pestañas, área táctil ≥ 44 px, safe-area.
-- Accesibilidad: foco visible, `prefers-reduced-motion`, contraste AA en
-  ambos temas (test automático con axe en Playwright).
+  `@theme inline` con mapeo a shadcn: `--background: var(--bg)`, `--card:
+  var(--surf)`, `--muted: var(--surf-2)`, `--border: var(--line)`,
+  `--foreground: var(--text)`, `--primary: var(--acc)`, `--primary-foreground:
+  var(--on-acc)`, `--destructive`, y **radios explícitos**: `--radius-sm:
+  var(--r-sm)`, `--radius-md: var(--r-md)`, `--radius-lg: var(--r-lg)`,
+  `--radius-xl: var(--r-lg)` (no se usa la derivación por `--radius`).
+- Fuentes con `next/font/google` (Outfit, DM Sans, JetBrains Mono),
+  self-hosted en build.
+- Tema/acento: fuente de verdad `users`; espejo en cookie `rz_prefs` (§4);
+  SSR pinta `data-theme`/`data-accent`. Sin script inline ni `localStorage`.
+- Iconos: `components/icons/*.tsx` a mano. Los cinco de la barra (sol-plato,
+  sartén, calendario, alacena, libro) + ~25 de interfaz. Nunca lucide.
+- `next-intl`; mensajes **un fichero por namespace y locale**
+  (`messages/es/recipes.json`), fusionados en `lib/i18n/request.ts`. Lint:
+  `react/jsx-no-literals` (allowlist de símbolos) + script que compara
+  claves `es`/`en` y falla si difieren.
+- Locale: `users.locale` → `rz_prefs` → `Accept-Language` → `es`.
+- Móvil primero: barra inferior 5 pestañas, táctil ≥ 44 px, safe-area.
+- Accesibilidad: foco visible, `prefers-reduced-motion`, AA en ambos temas
+  (axe en Playwright).
+- Ámbar de caducidad en filas de despensa: umbral fijo 7 días (visual);
+  alerta de Hoy y notificaciones: `expiry_alert_days` (3 por defecto). Son
+  dos cosas distintas a propósito: la fila avisa antes, Hoy solo lo urgente.
 
 ## 8. Las cinco pantallas (comportamiento)
 
 ### Hoy
-Comidas de hoy por slot con estado (planificada/cocinada), anillo de kcal
-del hogar (cocinado sobre planificado; informativo, sin objetivo), lo que
+Comidas de hoy por slot con estado (`planned`/`cooked`/`skipped`), anillo de
+kcal del hogar (cocinado sobre planificado; informativo, sin objetivo), lo que
 caduca en ≤ `expiry_alert_days`, atajos: "cocinar esto", "añadir a despensa",
-"proponer semana" (si hay IA). Se actualiza por SSE.
+"proponer semana" (si hay IA o reglas). Se actualiza por SSE.
 
 ### Cocinar
 Entrada: desde una entrada del plan (`servings` del hueco) o desde una receta
-(elige raciones). Un paso por pantalla, ingredientes del paso escalados
-arriba, temporizadores detectados como botones, wake lock (Screen Wake Lock
-API con fallback silencioso), swipe/teclas. Al terminar: "¿Cuántas raciones
-has hecho?" → `cooking.logCooked` (descuento atómico + log + sobras
-opcionales → crea entrada `leftover_of_entry_id` en el hueco que elija).
-Lectura en voz alta (SpeechSynthesis) fase 5.
+(elige raciones). Un paso por pantalla, ingredientes del paso escalados,
+temporizadores detectados como botones, wake lock (con fallback silencioso),
+swipe/teclas. Al terminar: "¿Cuántas raciones has hecho?" y "¿Sobras?" →
+`cooking.logCooked` (§9.5). Voz (SpeechSynthesis) y modo pared en fase 5.
 
 ### Plan
-Vista semana (default) y mes. Huecos por slot; arrastrar y soltar con
-`@dnd-kit` (touch). Varias comidas por hueco. Chips: raciones (stepper si ≠
-default), sobras, presupuesto de tiempo del día. Panel "Propuestas": lista de
-`plan_proposals` pendientes con diff (añadir/quitar por día), aprobar o
-descartar; SSE cuando llega una nueva. Botón "Generar compra" → resumen
-consolidado → "Enviar a ShopList" (solo si está configurado) + "Abrir en
-ShopList".
+Semana (default) y mes. Huecos por slot; arrastrar y soltar con `@dnd-kit`.
+Varias comidas por hueco. Chips: raciones (stepper si ≠ default), sobras,
+saltada, presupuesto de tiempo del día. Panel "Propuestas": `plan_proposals`
+pendientes con diff (añadir/quitar por día), aprobar o descartar; SSE al
+llegar una nueva. "Generar compra" → resumen consolidado (líneas
+`unresolved` y sin cantidad marcadas) → "Enviar a ShopList" (si configurado)
++ "Abrir en ShopList".
 
 ### Despensa
-Lista por ubicación, buscador, caducidad en ámbar si < 7 días, stepper de
-cantidad con unidad de presentación. Añadir: buscador de `foods` (trigram),
-escáner de código de barras (`BarcodeDetector` si existe, fallback
-`@zxing/browser`) → Open Food Facts → crea/actualiza `foods`. "Qué cocinar
-con lo que caduca": consulta a `recipes.search` con `hasIngredients`.
+Lista por ubicación, buscador, caducidad en ámbar si < 7 días, stepper con
+unidad de presentación. Añadir: buscador de `foods` (trigram en el locale del
+usuario y en el otro), escáner (`BarcodeDetector` → fallback `@zxing/browser`)
+→ Open Food Facts → crea/actualiza `foods`. "Qué cocinar con lo que caduca".
 
 ### Recetas
-Lista con búsqueda full-text, filtros (etiquetas jerárquicas, tiempo máx,
-dificultad, "tengo los ingredientes"), colecciones guardadas (fase 5).
-Detalle: cabecera, stepper de raciones con recálculo en vivo y aviso ámbar de
-no lineales + nota, fila de kcal (grande por ración, pequeño total, por 100 g),
-ingredientes agrupados, pasos con ingredientes asignados, notas, veces
-cocinada, "Cocinar", "Añadir al plan". Editor: formulario con ingredientes
-como líneas de texto que se parsean al vuelo (badge de confianza; clic para
-corregir cantidad/unidad/alimento/preparación y `scales_linearly`). Importar:
-URL (schema.org/Recipe JSON-LD y microdata, con `cheerio`), texto pegado,
-foto/PDF (fase 5, vía IA con visión si el proveedor la tiene; Ollama →
-modelo con visión o deshabilitado). Exportar JSON de todo el hogar y
-migración desde Mealie/Tandoor (scripts CLI + botón en ajustes).
+Lista con full-text, filtros (etiquetas, tiempo máx, dificultad, "tengo los
+ingredientes"), colecciones (fase 5). Detalle: stepper de raciones con
+recálculo en vivo (dominio en cliente) y aviso ámbar de no lineales + nota;
+kcal grande por ración, total pequeño, por 100 g (o "—" si null) y etiqueta
+«estimado» si procede; ingredientes agrupados; pasos con ingredientes; notas;
+veces cocinada; "Cocinar"; "Añadir al plan". Editor: ingredientes como líneas
+que se parsean al vuelo (badge de confianza; clic para corregir cantidad,
+unidad, alimento, preparación y `scales_linearly`). Fotos: subida a
+`POST /api/v1/uploads` (máx. 8 MB, `sharp` → webp máx. 1600 px, guarda en
+`./data/uploads/<household>/<uuid>.webp`). Importar: URL (schema.org JSON-LD y
+microdata con `cheerio`), texto pegado, foto/PDF (fase 5, solo si el proveedor
+tiene visión). Exportar JSON; importar Mealie/Tandoor (fase 5).
 
-### Ajustes (dentro de Recetas → icono, y desde avatar)
-Hogar (nombre, raciones por defecto, alerta caducidad), miembros (alérgenos,
-`dietary_flags`, invitar, expulsar), IA (proveedor, modelo, clave, URL Ollama,
-tope mensual, gasto actual, "probar"), ShopList (token de lista, URL función,
-secreto — o solo activar si vienen por env), tokens API (crear con scopes,
-revocar, ver última vez), apariencia (tema, acento, unidades, idioma),
-passkeys, exportar, importar, notificaciones push (fase 5).
+### Ajustes
+Una ruta por sección (§3): hogar (nombre, raciones por defecto, alerta
+caducidad, salir/borrar hogar), miembros (alérgenos, `dietary_flags`, invitar,
+expulsar), IA (proveedor, modelo, clave, URL Ollama, tope, gasto del mes,
+"probar"), ShopList (URL función, secreto, token de lista; o "usando
+configuración del servidor" si vienen por env), tokens API (crear con scopes
+y perfil MCP, revocar, última vez; con instrucciones de conexión MCP),
+apariencia (tema, acento, unidades, idioma), passkeys, datos (exportar,
+importar, migrar), notificaciones (fase 5).
 
 ## 9. Servicios: reglas por agregado
 
-1. **recipes**: crear/editar/borrar(soft)/buscar/importar/exportar. Al guardar
-   ingredientes: parsear, resolver `food_id` (cascada §9.4), convertir a base,
-   recalcular nutrición desnormalizada. Contador `times_cooked` lo actualiza
-   `cooking`.
-2. **plan**: CRUD de entradas en lote, mover, sobras, agregados nutricionales
-   por rango, propuestas (crear/aprobar/rechazar; aprobar aplica en
-   transacción).
-3. **pantry**: CRUD, deltas (`adjust(foodId, deltaBase)`), caducidades,
-   lookup por código de barras (OFF → cache en `foods`).
-4. **foods** (resolución en cascada): (a) exacto/alias en `foods` del hogar y
-   global; (b) trigram ≥ 0.6; (c) código de barras → OFF; (d) USDA sembrado
-   (subset "Foundation + SR Legacy" ~8k alimentos crudos, con `name_es`
-   traducido en el seed vía tabla estática incluida en el repo); (e) IA si
-   está activa → `is_estimated=true`, `source='ai'`. La corrección manual
-   pone `source='manual'` y gana siempre. Fusionar duplicados (fase 5) reapunta
-   `recipe_ingredients` y `pantry_items` y marca `merged_into_id`.
-5. **cooking.logCooked(entryId|recipeId, servingsCooked, leftovers?)**: en una
-   transacción: snapshot de kcal, descuento de despensa (`deductFromPantry`),
-   `cooking_log`, `recipes.times_cooked/last_cooked_at`, `entry.cooked_at`,
-   entrada de sobras si procede. Emite evento `plan.changed`, `pantry.changed`.
+1. **recipes**: crear/editar/borrar(soft)/buscar/importar/exportar. Al
+   guardar ingredientes: parsear, resolver `food_id` (§9.4), `toBaseUnit`,
+   recalcular nutrición desnormalizada.
+2. **plan**: CRUD de entradas en lote, mover, saltar/desaltar, sobras,
+   agregados por rango, propuestas. `ProposalPayload = { add: {date, slot,
+   recipe_id, servings}[], remove: entry_id[] }`. Aprobar aplica en
+   transacción y marca `approved`; si una entrada de `remove` ya no existe,
+   se ignora.
+3. **pantry**: CRUD, `adjust(itemId, deltaBase)` atómico (`GREATEST(0, …)`),
+   caducidades, `lookupBarcode` (OFF → cache en `foods`).
+4. **foods** — resolución en cascada, **todo local salvo (c)**:
+   (a) exacto o alias en `foods` (del hogar, luego global — que incluye el
+   seed); (b) trigram ≥ 0.6 en `search_name_<locale>` y el otro idioma;
+   (c) código de barras → Open Food Facts (remoto, sin clave) → crea `foods`
+   `source='off'`; (d) IA si activa → `is_estimated=true`, `source='ai'`.
+   No hay llamada remota a USDA FoodData Central: el subset viene sembrado.
+   Corrección manual: `source='manual'`, gana siempre. Fusionar (fase 5)
+   reapunta `recipe_ingredients` y `pantry_items` y marca `merged_into_id`.
+5. **cooking.logCooked({entryId?, recipeId?, servingsCooked, leftovers?})**
+   en **una transacción**:
+   1. Si viene `recipeId` sin entrada: crea `meal_plan_entries` de hoy con
+      `slot` por hora del día (o el que elija el usuario) y `servings =
+      servingsCooked`. A partir de aquí siempre hay entrada.
+   2. `SELECT … FOR UPDATE` de los `pantry_items` del hogar cuyos `food_id`
+      están en la receta.
+   3. `allocateDeductions` (dominio) sobre ese snapshot.
+   4. Por cada allocation: `UPDATE pantry_items SET quantity = GREATEST(0,
+      quantity - $q) WHERE id = $id RETURNING quantity`; `deducted = old -
+      new`; si `deducted < requested` → warning. Ítems que quedan en 0 se
+      conservan (el usuario decide si borrar).
+   5. `cooking_log` con snapshot de kcal, `pantry_deductions`, `warnings`.
+   6. `recipes.times_cooked += 1`, `last_cooked_at`; `entry.cooked_at = now`.
+   7. Sobras: crea entradas con `leftover_of_entry_id = entry.id`,
+      `servings` indicadas, en la fecha/slot elegidos (default: mañana, mismo
+      slot).
+   Emite `plan.changed`, `pantry.changed`. Test de concurrencia: dos
+   `logCooked` simultáneos sobre el mismo alimento nunca dejan negativo ni
+   descuentan de más.
 6. **shopping**: `generate(range)` → `consolidateNeeds`; `push(lines)` →
-   `pushToShopList` en lotes de 100; guarda `last_pushed_at` en el hogar.
-7. **households/auth**: §6.
+   `pushToShopList` en lotes de 100; `shoplist_last_pushed_at`.
+7. **households/auth**: §6, incluido salir y borrar hogar.
 8. **ai**: §10.
-9. **plan-rules** (fase 5): `households.plan_rules` = lista de reglas
-   `{day, slot?, constraint: 'no-meat'|'max-minutes'|'tag'|'not-tag', value}`.
-   El autorrelleno sin IA usa `applyPlanRules` + `avoidRecentRepeats` y crea
-   una `plan_proposal` igual que la IA — misma UI de aprobación.
+9. **plan-rules** (fase 5): `households.plan_rules` = `{day, slot?,
+   constraint: 'no-meat'|'max-minutes'|'tag'|'not-tag', value}[]`. El
+   autorrelleno sin IA usa `applyPlanRules` + `avoidRecentRepeats` y crea una
+   `plan_proposal` con `source='rules'` — misma UI de aprobación.
 
-Todos los servicios exponen `z` schemas de entrada/salida en `lib/validation`;
-REST y MCP los reutilizan.
+Todos los servicios exponen esquemas zod de entrada/salida en
+`lib/validation`; REST y MCP los reutilizan.
 
 ## 10. IA (`lib/ai`)
 
-- `getProvider(household)`: devuelve un `LanguageModel` del AI SDK o `null`
-  (regla 3: todo funciona sin él). Anthropic/OpenAI con clave del hogar o de
-  env (`AI_ANTHROPIC_API_KEY`…), Ollama con `ai_base_url`.
-- `withBudget(household, op, fn)`: comprueba `ai_spent_this_month_cents <
-  cap`, ejecuta, registra `ai_usage_log`, actualiza gasto. Ollama cuesta 0.
-  Precios por modelo en una tabla estática editable en ajustes.
-- Tareas (todas con `generateObject` + zod y `maxRetries: 2`):
-  `parseIngredientsFallback` (solo líneas con `needsReview`),
-  `importRecipeFromText/Image`, `estimateNutrition(foodName)` (devuelve por
-  100 g + `is_estimated`), `proposePlan(context)` → escribe `plan_proposals`.
-- Modelos por defecto en ajustes (constantes en `lib/ai/models.ts`, con
-  precios): Anthropic → ids exactos se fijan en W2(e) consultando la
-  documentación oficial del proveedor (no de memoria); OpenAI → el modelo "mini" vigente; Ollama →
-  `qwen3:8b` (8 GB VRAM) / `qwen3:4b` (4 GB). Se validan con el botón "probar".
-- Con modelos ≤ 8B: prompts cortos, un solo objeto de salida, sin tool
-  calling en cadena (la orquestación multi-herramienta la hace el cliente
-  MCP externo, no `lib/ai`).
+- `getProvider(household)`: `LanguageModel` del AI SDK o `null`. Clave del
+  hogar (descifrada) o de env (`AI_ANTHROPIC_API_KEY`, `AI_OPENAI_API_KEY`,
+  `AI_OLLAMA_BASE_URL`).
+- `withBudget(household, op, fn)`: `SUM(cost_cents)` del mes < cap (si cap >
+  0), ejecuta, registra `ai_usage_log`. Ollama cuesta 0. Precios en
+  `lib/ai/models.ts`.
+- Tareas (`generateObject` + zod, `maxRetries: 2`): `parseIngredientsFallback`
+  (solo líneas `needsReview`), `importRecipeFromText/Image`,
+  `estimateNutrition(foodName)`, `proposePlan(context)` → `plan_proposals`
+  con `source='ai'`.
+- Modelos por defecto en `models.ts`: ids exactos de Anthropic/OpenAI se fijan
+  en W2(e) consultando la documentación oficial del proveedor; Ollama →
+  `qwen3:8b` (8 GB) / `qwen3:4b` (4 GB). Botón "probar".
+- Con modelos ≤ 8B: prompts cortos, un objeto de salida, sin tool calling en
+  cadena.
 
 ## 11. REST `/api/v1` + OpenAPI
 
-Recursos: `recipes`, `recipes/{id}` (con `?servings=`), `recipes/import`,
+Recursos: `recipes`, `recipes/{id}?servings=`, `recipes/import`, `uploads`,
 `plan?from&to`, `plan/entries` (batch), `plan/proposals`, `pantry`,
 `pantry/adjust`, `pantry/barcode/{code}`, `foods/search`, `shopping/generate`,
 `shopping/push`, `cooking/log`, `household`, `household/members`, `export`.
-Auth: Bearer token con scopes o cookie de sesión. Errores `{error: {code,
-message, details?}}`. `GET /api/openapi.json` generado desde zod; Swagger UI
-en `/api/docs`.
+Auth: Bearer con scopes o cookie. Errores `{error: {code, message,
+details?}}`. `GET /api/openapi.json` desde zod; Swagger UI en `/api/docs`.
 
 ## 12. MCP `/mcp`
 
-- Transporte Streamable HTTP del SDK oficial (`@modelcontextprotocol/sdk`),
-  stateless por petición; auth por Bearer `rz_…` (scopes → herramientas
-  visibles). Sin sesión de cookie.
-- Perfiles: `basic` (12 herramientas de `docs/05-MCP.md`) por defecto;
-  `full` añade `update_recipe`, `delete_recipe`, `update_meal_plan_entry`,
-  `delete_pantry_item`, `create_food`, `merge_foods`. El perfil lo fija el
-  token (`api_tokens.mcp_profile`).
-- `set_meal_plan` **no escribe el plan**: crea una `plan_proposal` y devuelve
-  su id y el diff. La descripción de la herramienta lo dice.
-- Esquemas zod estrictos (`.strict()`), errores con mensaje explicativo para
-  que el modelo corrija. Descripciones con "úsala cuando… / no la uses
-  para…".
+- SDK oficial `@modelcontextprotocol/sdk`, transporte Streamable HTTP,
+  stateless por petición. **Decisión de transporte el día 1 de W2(h)**: el
+  SDK reciente trae `WebStandardStreamableHTTPServerTransport` (acepta
+  `Request` web) → es la opción; si la versión instalada no lo trae, se usa
+  `mcp-handler` (Vercel). Se documenta en `docs/05`.
+- Auth: Bearer `rz_…`. **Límite conocido**: los conectores MCP de clientes
+  web/móvil suelen exigir OAuth; con Bearer se conecta desde clientes de
+  escritorio y vía `mcp-remote --header`. `docs/05` lo dice; OAuth/OIDC
+  queda como tarea futura fuera de este spec.
+- Perfiles por token (`api_tokens.mcp_profile`): `basic` (las 12 de
+  `docs/05`), `full` (+ `update_recipe`, `delete_recipe`,
+  `update_meal_plan_entry`, `delete_pantry_item`, `create_food`,
+  `merge_foods`). Los scopes del token filtran además qué se expone.
+- `set_meal_plan` **crea una `plan_proposal`** (`source='mcp'`) y devuelve id
+  + diff. Nunca escribe el plan.
+- Esquemas zod `.strict()`, errores explicativos, descripciones "úsala
+  cuando… / no la uses para…".
 - Prompts: `plan_week`, `prepare_shopping`, `cooking_session(recipe)`,
-  `nutrition_summary(range)`.
-- Recursos: `household://context` (lo mismo que `get_household_context`).
-- Tests: cada herramienta con fixture; test de "modelo pequeño" opcional
-  (`OLLAMA_TEST_MODEL`) que lanza los cuatro prompts contra Ollama y
-  comprueba que llama a las herramientas correctas, marcado `skip` sin env.
+  `nutrition_summary(range)`. Recurso: `household://context`.
+- **MCP mínimo en W2(h)**: transporte + auth + `get_household_context`,
+  `search_recipes`, `get_recipe`, para poder usarlo con un cliente real
+  mientras W3 avanza (conserva el espíritu de `docs/07` "fase 2 a
+  propósito"). W3(d) completa el resto.
+- Tests: cada herramienta con fixture; test opcional con `OLLAMA_TEST_MODEL`.
 
 ## 13. ShopList
 
-`lib/integrations/shoplist.ts` según `docs/06-SHOPLIST.md` con nombres en
-inglés (`ShoppingLine`, `toShopListItem`, `pushToShopList`). Config por hogar
-(`shoplist_list_token`) con fallback a env. Lotes de 100. Sin categoría. Enlace
-profundo `https://shop.jarsss8.es/#/s/<token>`. La Edge Function va en el
-repo de ShopList: aquí se deja `docs/06` con el contrato y un `curl` de
-ejemplo; no se implementa en este repo.
+`lib/integrations/shoplist.ts` según `docs/06` con identificadores en inglés
+(`ShoppingLine`, `toShopListItem`, `pushToShopList`). Config por hogar
+(`shoplist_fn_url`, `shoplist_secret_enc`, `shoplist_list_token`) con fallback
+a env `SHOPLIST_FN_URL`, `SHOPLIST_IMPORT_SECRET`, `SHOPLIST_LIST_TOKEN`.
+Lotes de 100. Sin categoría. Enlace `https://shop.jarsss8.es/#/s/<token>`.
+La Edge Function vive en el repo de ShopList; aquí solo el contrato y un
+`curl` de ejemplo en `docs/06`.
 
 ## 14. Tiempo real (SSE)
 
 `lib/events/bus.ts`: `emit(householdId, {type, payload})`. `GET /api/events`
-mantiene la conexión, filtra por hogar de la sesión, heartbeat 25 s,
-`Last-Event-ID` ignorado (los clientes refetch al reconectar). Tipos:
-`plan.changed`, `pantry.changed`, `recipe.changed`, `proposal.created`.
-Cliente: hook `useHouseholdEvents()` que invalida `router.refresh()` o estado
-local según pantalla.
+filtra por hogar de la sesión, heartbeat 25 s. Tipos: `plan.changed`,
+`pantry.changed`, `recipe.changed`, `proposal.created`. Cliente:
+`useHouseholdEvents()` → `router.refresh()` o estado local.
 
 ## 15. Docker y despliegue
 
-- `Dockerfile` multi-stage (node:24-alpine → `output: 'standalone'`), usuario
-  no root, `docker/entrypoint.sh`: espera Postgres, `drizzle-kit migrate`,
-  seed idempotente de `foods` globales y `unit_aliases`, arranca.
-- `docker-compose.yml`: `app` (puerto 3000, volumen `./data/uploads`) +
-  `db` (postgres:17-alpine, volumen, healthcheck). `.env.example` con
-  `APP_URL`, `APP_SECRET`, `DATABASE_URL`, `AI_*` opcionales, `SHOPLIST_*`
-  opcionales. Sin S3, sin SMTP.
-- README en español e inglés: instalación en 3 comandos, passkeys requieren
-  HTTPS o `localhost`, cero telemetría, cómo conectar un cliente MCP de escritorio al endpoint.
-- PWA: `manifest.webmanifest`, service worker mínimo (shell cacheado, sin
-  sync de datos), iconos. Push web (VAPID, claves generadas en el primer
-  arranque y guardadas en DB) para caducidades — fase 5.
+- `Dockerfile` multi-stage (node:24-alpine, `output: 'standalone'`), usuario
+  no root. **Migraciones sin `drizzle-kit` en runtime**: `scripts/migrate.ts`
+  usa `migrate()` de `drizzle-orm/node-postgres/migrator`; se compila en el
+  build y se copia junto a `db/migrations/` a la imagen. `entrypoint.sh`:
+  espera Postgres → `node scripts/migrate.js` → `node scripts/seed.js`
+  (idempotente) → `node server.js`.
+- `docker-compose.yml`: `app` (3000, volumen `./data/uploads`) + `db`
+  (postgres:17-alpine, volumen, healthcheck). `.env.example`: `APP_URL`,
+  `APP_SECRET`, `DATABASE_URL`, `AI_*` y `SHOPLIST_*` opcionales.
+- README (`es` + `en`): instalación en 3 comandos, passkeys requieren HTTPS o
+  `localhost`, cero telemetría, conexión de clientes MCP y su límite (§12),
+  **atribuciones**: USDA FoodData Central (dominio público) y Open Food Facts
+  (ODbL, con enlace y aviso de licencia).
+- PWA: manifest, service worker mínimo (shell), iconos. Push web (VAPID en
+  `app_settings`) para caducidades — fase 5.
 
 ## 16. Testing y calidad
 
-- `vitest`: `lib/domain` 100 % de líneas; servicios con Postgres real
-  (`testcontainers` o `DATABASE_URL_TEST`), cada uno con test de aislamiento
-  entre hogares.
+- `vitest`: `lib/domain` 100 % líneas; servicios contra Postgres real
+  (`DATABASE_URL_TEST`, base efímera por fichero), aislamiento entre hogares
+  en cada servicio, concurrencia en `logCooked`.
 - `playwright`: registro con passkey (CDP virtual authenticator), invitar,
-  crear receta y escalar, planificar, cocinar y comprobar despensa, MCP con
-  `curl` de `tools/list`. Axe en las cinco pantallas, claro y oscuro.
-- CI local: `pnpm check` = typecheck + eslint (boundaries, no-literals,
-  no-explicit-any) + vitest. Es lo que cada subagente debe dejar en verde.
+  receta y escalar, planificar, cocinar → despensa, `tools/list` del MCP.
+  Axe en las cinco pantallas, claro y oscuro.
+- `pnpm check` = typecheck + eslint (boundaries, no-literals, no-explicit-any)
+  + i18n-keys + vitest. Cada subagente lo deja en verde.
 
 ## 17. Plan de oleadas (input para `writing-plans`)
 
-Contratos congelados al final de W1 y solo modificables por tarea explícita:
-`db/schema/*`, `lib/domain/types.ts`, firmas de §5, `lib/validation/*`,
-`components/icons` (nombres), `messages/*` (claves se añaden, no se renombran).
+Contratos congelados al final de W1, modificables solo por tarea explícita:
+`db/schema/*`, `lib/domain/types.ts` y firmas §5, `lib/validation/*`, nombres
+de `components/icons`, claves de `messages/*` (se añaden, no se renombran),
+rutas de `settings/*`.
 
-| Oleada | Tareas paralelas | Depende de |
+| Oleada | Tareas | Depende |
 |---|---|---|
-| W0 | Esqueleto: Next 16, TS estricto, Tailwind 4, shadcn init, pnpm, vitest, playwright, eslint boundaries, compose + Dockerfile, README, `pnpm check` | — |
-| W1 | (a) schema Drizzle + migración + seed foods/unit_aliases · (b) `lib/domain` + tests · (c) tema: globals.css, shadcn re-estilizado, fuentes, iconos, barra, anti-flash · (d) next-intl + mensajes base + lint no-literals · (e) auth passkeys + hogar + invitación + guards + e2e registro | W0 |
-| W2 | (a) recetas: servicio + CRUD UI + editor con parser + importar URL/texto + exportar · (b) foods: resolución en cascada + OFF + búsqueda + ajustes de alimentos · (c) plan: servicio + calendario dnd + sobras + propuestas UI · (d) despensa: servicio + UI + escáner · (e) `lib/ai`: proveedores, presupuesto, tareas, ajustes IA · (f) shoplist client + shopping service + ajustes ShopList · (g) tokens API + ajustes apariencia/miembros | W1 |
-| W3 | (a) cooking: modo cocina + logCooked atómico + sobras · (b) Hoy + SSE + hooks · (c) REST completo + OpenAPI + Swagger · (d) MCP: tools basic/full, prompts, recurso, tests, doc de conexión de clientes MCP | W2 |
-| W4 | (a) reglas de autorrelleno + evitar repetición · (b) temporizadores + voz + modo pared · (c) importar foto/PDF + migración Mealie/Tandoor · (d) etiquetas jerárquicas + colecciones + fusionar alimentos · (e) alérgenos por miembro en propuestas + estadísticas plan vs realidad · (f) PWA + push caducidad | W3 |
-| W5 | Integración final: e2e completo, axe, revisión de diseño contra `02-DISENO.md`, README, `AGENTS.md` sección Comandos, docs actualizados | W4 |
+| **W0** (1 agente, secuencial) | Esqueleto: Next 16, TS estricto, Tailwind 4, shadcn init, pnpm, vitest, playwright, eslint boundaries + no-literals, next-intl con `messages/<locale>/*.json` y namespaces vacíos, **tema completo** (globals.css, shadcn re-estilizado, fuentes, radios, `rz_prefs`), **iconos** de la barra y básicos, `app/(app)/layout` con barra, `(auth)` layout, **shell de ajustes** con una ruta vacía por sección, Dockerfile + compose + migrate/seed scripts vacíos, README, `pnpm check`. Apéndice A aplicado. | — |
+| **W1** (∥) | (a) schema Drizzle completo + migración + `build-foods-seed` (subset ~800, `name_es` generado una vez con IA y revisado, versionado) + seed `unit_aliases`/tags · (b) `lib/domain` + tests · (c) auth passkeys (`residentKey: 'required'`) + sesión HMAC + HKDF/AES-GCM + hogar + invitación + salir/borrar + guards + e2e registro · (d) `lib/validation` zod de todos los agregados + `lib/events` + hook SSE | W0 |
+| **W2** (∥) | (a) recetas: servicio + CRUD UI + editor con parser + uploads + importar URL/texto + exportar · (b) foods: cascada + OFF + búsqueda + `settings/foods` · (c) plan: servicio + calendario dnd + saltar + sobras + propuestas UI · (d) despensa: servicio + UI + escáner · (e) `lib/ai` + `settings/ai` · (f) shoplist + shopping service + `settings/shoplist` · (g) tokens API + `settings/tokens|appearance|members|household|passkeys` · (h) **MCP mínimo** (transporte decidido, auth, 3 tools) | W1 |
+| **W3** (∥) | (a) cooking: modo cocina + `logCooked` + sobras · (b) Hoy + SSE en pantallas · (c) REST completo + OpenAPI + Swagger · (d) MCP completo: 12 basic + full, prompts, recurso, tests, docs de conexión | W2 |
+| **W4** (∥) | (a) reglas de autorrelleno + evitar repetición · (b) temporizadores + voz + modo pared · (c) importar foto/PDF + migración Mealie/Tandoor · (d) etiquetas jerárquicas + colecciones + fusionar alimentos · (e) alérgenos por miembro en propuestas + estadísticas plan vs realidad · (f) PWA + push caducidad | W3 |
+| **W5** | Integración: e2e completo, axe, revisión de diseño contra `02-DISENO.md`, README, `AGENTS.md` sección Comandos, docs al día | W4 |
 
-Cada tarea: rama/worktree propio, TDD, `pnpm check` verde, revisión por un
-agente revisor antes de merge a `main`. El orquestador mergea en orden y
-resuelve conflictos; si una tarea necesita cambiar un contrato congelado,
-para y lo pide.
+Cada tarea: worktree propio, TDD, `pnpm check` verde, revisión por agente
+revisor antes de merge. Ningún commit lleva trailers ni menciones a
+herramientas de IA; autor `JarssS8 <adriancgs@gmail.com>`. Si una tarea
+necesita cambiar un contrato congelado, para y lo pide.
 
 ## 18. Riesgos conocidos
 
-1. Base de alimentos: el seed USDA con traducción es un fichero grande; se
-   genera en W1(a) con un script y se versiona comprimido.
-2. Parser en español: fixture real y `needsReview` barato; la IA solo como
-   fallback.
-3. Modelos ≤ 8B: probar `qwen3:8b` en W3(d) con el test opcional.
-4. Descuento de despensa: transacción única y test con concurrencia (dos
-   `logCooked` a la vez sobre el mismo alimento).
-5. Next 16 / React 19 / Tailwind 4 / shadcn: versiones recientes; W0 fija
-   versiones exactas en `package.json` y documenta cualquier desvío.
+1. **Seed de alimentos**: el subset de ~800 y su traducción es la tarea más
+   grande sin código; dueño W1(a), con script reproducible
+   (`build-foods-seed.ts`) y fichero versionado en `db/seed/`.
+2. Parser en español: fixture real y `needsReview` barato; IA solo fallback.
+3. Modelos ≤ 8B eligen mal herramientas: probar `qwen3:8b` en W2(h) y W3(d).
+4. Descuento de despensa concurrente: `FOR UPDATE` + `GREATEST` atómico +
+   test de concurrencia (§9.5).
+5. **Transporte MCP en Next**: `WebStandardStreamableHTTPServerTransport` o
+   `mcp-handler`; decidir día 1 de W2(h).
+6. **Bearer no vale para conectores OAuth**: documentado; OAuth fuera de
+   alcance.
+7. Migraciones en imagen standalone: sin `drizzle-kit` en runtime (§15).
+8. Versiones recientes (Next 16, React 19, Tailwind 4, shadcn): W0 fija
+   versiones exactas y documenta desvíos.
+
+## Apéndice A · Docs a actualizar en W0
+
+| Doc | Cambio |
+|---|---|
+| `AGENTS.md` | Migraciones: `scripts/migrate.ts` con `migrate()` de drizzle-orm, no `drizzle-kit` en runtime. Sesión: id opaco + HMAC, sin JWT. |
+| `docs/03-DOMINIO.md` §6 | `ubicacion`/`caduca_el` → `location`/`expires_at`; FIFO por caducidad; negativo → `GREATEST(0)` atómico. §7: excluye cocinadas y saltadas; líneas sin base o sin `food_id`. |
+| `docs/04-DATOS.md` | Tablas y columnas nuevas de §4; scopes con `cooking:write`; `mcp_profile`; sin `ai_spent_this_month_cents`; `skipped_at`; `plan_proposals`; `app_settings`. |
+| `docs/05-MCP.md` | Transporte y límite Bearer/OAuth; `set_meal_plan` crea propuesta; perfiles por token; MCP mínimo en W2. |
+| `docs/06-SHOPLIST.md` | Nombres en inglés; config por hogar cifrada con fallback a env. |
+| `docs/07-ROADMAP.md` | Nota: se ejecuta en oleadas (§17); MCP mínimo adelantado a W2. |
+| `docs/02-DISENO.md` | Radios: mapeo explícito `--radius-*`; ámbar 7 días vs alerta configurable. |
