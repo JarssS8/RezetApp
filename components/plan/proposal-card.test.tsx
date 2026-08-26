@@ -65,6 +65,13 @@ function renderCard(proposal: ProposalClient) {
 }
 
 describe('ProposalCard', () => {
+  it('agrupa el diff por fecha con la cabecera formateada según el locale, no en ISO crudo', () => {
+    renderCard(baseProposal())
+    expect(screen.getByText('lun, 24 ago')).toBeInTheDocument()
+    expect(screen.getByText('mar, 25 ago')).toBeInTheDocument()
+    expect(screen.queryByText('2026-08-24')).not.toBeInTheDocument()
+  })
+
   it('pinta los altas en text-acc-ink y las bajas en text-warn', () => {
     renderCard(baseProposal())
 

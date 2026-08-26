@@ -2,7 +2,7 @@ import { and, desc, eq, gte, ilike, inArray, isNull, lte, type SQL } from 'drizz
 import * as schema from '@/db/schema'
 import { emitHouseholdEvent } from '@/lib/events/bus'
 import { aggregateNutrition, EMPTY_MACROS, entryStatus } from '@/lib/domain'
-import type { Nutrition } from '@/lib/domain'
+import type { FoodConversion, Nutrition, PantryItem, PlannedEntry, ShoppingIngredient } from '@/lib/domain'
 import { ProposalPayloadSchema } from '@/lib/validation/plan'
 import type { MealSlot, PlanBatch, PlanEntryInput, PlanEntryMove, PlanEntryPatch, ProposalPayload } from '@/lib/validation/plan'
 import { type Ctx, type Db, ServiceError } from './ctx'
@@ -381,4 +381,140 @@ export async function rangeNutrition(ctx: Ctx, range: { from: string; to: string
   for (const [date, entries] of byDateEntries) byDate[date] = aggregateNutrition(entries)
   const total = aggregateNutrition(Array.from(byDateEntries.values()).flat())
   return { byDate, total }
+}
+
+function foodConversionOf(f: { defaultUnit: string | null; gramsPerCup: number | null; gramsPerTbsp: number | null; gramsPerUnit: number | null; densityGPerMl: number | null }): FoodConversion {
+  return {
+    defaultUnit: (f.defaultUnit as FoodConversion['defaultUnit'] | null) ?? null,
+    gramsPerCup: f.gramsPerCup,
+    gramsPerTbsp: f.gramsPerTbsp,
+    gramsPerUnit: f.gramsPerUnit,
+    densityGPerMl: f.densityGPerMl,
+  }
+}
+
+// Entradas del rango listas para lib/domain/shopping.ts::consolidateNeeds: solo
+// las que aún necesitan compra (planned+cooked no importa aquí, consolidateNeeds
+// ya descarta sobras/cocinadas/saltadas; filtramos aquí también para no cargar
+// ingredientes de entradas que se van a descartar igualmente)
+export async function plannedEntriesForShopping(ctx: Ctx, range: { from: string; to: string }): Promise<PlannedEntry[]> {
+  const entryRows = await ctx.db
+    .select({
+      id: schema.mealPlanEntries.id,
+      servings: schema.mealPlanEntries.servings,
+      recipeId: schema.recipes.id,
+      servingsBase: schema.recipes.servingsBase,
+    })
+    .from(schema.mealPlanEntries)
+    .innerJoin(schema.recipes, eq(schema.recipes.id, schema.mealPlanEntries.recipeId))
+    .where(
+      and(
+        eq(schema.mealPlanEntries.householdId, ctx.householdId),
+        gte(schema.mealPlanEntries.date, range.from),
+        lte(schema.mealPlanEntries.date, range.to),
+        isNull(schema.mealPlanEntries.cookedAt),
+        isNull(schema.mealPlanEntries.skippedAt),
+        isNull(schema.mealPlanEntries.leftoverOfEntryId),
+      ),
+    )
+  if (entryRows.length === 0) return []
+
+  const recipeIds = Array.from(new Set(entryRows.map((r) => r.recipeId)))
+  const ingredientRows = await ctx.db
+    .select({
+      recipeId: schema.recipeIngredients.recipeId,
+      id: schema.recipeIngredients.id,
+      foodId: schema.recipeIngredients.foodId,
+      rawText: schema.recipeIngredients.rawText,
+      quantity: schema.recipeIngredients.quantity,
+      unit: schema.recipeIngredients.unit,
+      displayQuantity: schema.recipeIngredients.displayQuantity,
+      displayUnit: schema.recipeIngredients.displayUnit,
+      preparation: schema.recipeIngredients.preparation,
+      groupLabel: schema.recipeIngredients.groupLabel,
+      stepIndex: schema.recipeIngredients.stepIndex,
+      scalesLinearly: schema.recipeIngredients.scalesLinearly,
+      sortOrder: schema.recipeIngredients.sortOrder,
+      foodNameEs: schema.foods.nameEs,
+      foodNameEn: schema.foods.nameEn,
+      defaultUnit: schema.foods.defaultUnit,
+      gramsPerCup: schema.foods.gramsPerCup,
+      gramsPerTbsp: schema.foods.gramsPerTbsp,
+      gramsPerUnit: schema.foods.gramsPerUnit,
+      densityGPerMl: schema.foods.densityGPerMl,
+    })
+    .from(schema.recipeIngredients)
+    .leftJoin(schema.foods, eq(schema.foods.id, schema.recipeIngredients.foodId))
+    .where(inArray(schema.recipeIngredients.recipeId, recipeIds))
+
+  const ingredientsByRecipe = new Map<string, ShoppingIngredient[]>()
+  for (const r of ingredientRows) {
+    const conversion = r.foodId !== null ? foodConversionOf(r) : null
+    const foodName = r.foodId !== null ? (ctx.locale === 'en' ? (r.foodNameEn ?? r.rawText) : (r.foodNameEs ?? r.rawText)) : r.rawText
+    const ingredient: ShoppingIngredient = {
+      id: r.id,
+      foodId: r.foodId,
+      rawText: r.rawText,
+      quantity: r.quantity,
+      unit: r.unit,
+      displayQuantity: r.displayQuantity,
+      displayUnit: r.displayUnit,
+      preparation: r.preparation,
+      groupLabel: r.groupLabel,
+      stepIndex: r.stepIndex,
+      scalesLinearly: r.scalesLinearly,
+      sortOrder: r.sortOrder,
+      foodName,
+      conversion,
+    }
+    const list = ingredientsByRecipe.get(r.recipeId) ?? []
+    list.push(ingredient)
+    ingredientsByRecipe.set(r.recipeId, list)
+  }
+
+  return entryRows.map(
+    (r): PlannedEntry => ({
+      id: r.id,
+      servings: r.servings,
+      leftoverOfEntryId: null,
+      cookedAt: null,
+      skippedAt: null,
+      recipe: { servingsBase: r.servingsBase, ingredients: ingredientsByRecipe.get(r.recipeId) ?? [] },
+    }),
+  )
+}
+
+// Despensa del hogar mapeada a PantryItem de dominio, para consolidateNeeds.
+// Decisión de esta pista (ver plan de la tarea): la pista (f) la sustituye por
+// pantryAsDomain de (d) al mergear.
+export async function pantryForShopping(ctx: Ctx): Promise<PantryItem[]> {
+  const rows = await ctx.db
+    .select({
+      id: schema.pantryItems.id,
+      foodId: schema.pantryItems.foodId,
+      quantity: schema.pantryItems.quantity,
+      unit: schema.pantryItems.unit,
+      expiresAt: schema.pantryItems.expiresAt,
+      addedAt: schema.pantryItems.addedAt,
+      defaultUnit: schema.foods.defaultUnit,
+      gramsPerCup: schema.foods.gramsPerCup,
+      gramsPerTbsp: schema.foods.gramsPerTbsp,
+      gramsPerUnit: schema.foods.gramsPerUnit,
+      densityGPerMl: schema.foods.densityGPerMl,
+    })
+    .from(schema.pantryItems)
+    .innerJoin(schema.foods, eq(schema.foods.id, schema.pantryItems.foodId))
+    .where(eq(schema.pantryItems.householdId, ctx.householdId))
+
+  return rows.map(
+    (r): PantryItem => ({
+      id: r.id,
+      foodId: r.foodId,
+      quantity: r.quantity,
+      unit: r.unit,
+      expiresAt: r.expiresAt !== null ? new Date(r.expiresAt) : null,
+      addedAt: r.addedAt,
+      conversion: foodConversionOf(r),
+    }),
+  )
 }

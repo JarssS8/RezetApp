@@ -4,7 +4,19 @@ import { eq } from 'drizzle-orm'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
 import { ServiceError, type Ctx } from './ctx'
-import { applyBatch, createLeftover, createProposal, decideProposal, listEntries, listProposals, moveEntry, patchEntry, rangeNutrition } from './plan'
+import {
+  applyBatch,
+  createLeftover,
+  createProposal,
+  decideProposal,
+  listEntries,
+  listProposals,
+  moveEntry,
+  pantryForShopping,
+  patchEntry,
+  plannedEntriesForShopping,
+  rangeNutrition,
+} from './plan'
 
 async function expectServiceErrorCode(promise: Promise<unknown>, code: 'not_found' | 'forbidden' | 'conflict' | 'validation'): Promise<void> {
   try {
@@ -64,6 +76,15 @@ async function makeRecipe(householdId: string, title: string): Promise<string> {
     .returning()
   if (!r) throw new Error('seed')
   return r.id
+}
+
+async function makeFood(nameEs: string, nameEn: string, overrides: Partial<typeof schema.foods.$inferInsert> = {}): Promise<string> {
+  const [f] = await db
+    .insert(schema.foods)
+    .values({ nameEs, nameEn, searchNameEs: nameEs.toLowerCase(), searchNameEn: nameEn.toLowerCase(), defaultUnit: 'g', ...overrides })
+    .returning()
+  if (!f) throw new Error('seed')
+  return f.id
 }
 
 beforeAll(async () => {
@@ -346,5 +367,78 @@ describe('decideProposal', () => {
     expect(row?.resolvedAt).toBeNull()
     const entries = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.householdId, a))
     expect(entries).toHaveLength(0)
+  })
+})
+
+describe('plannedEntriesForShopping', () => {
+  it('carga ingredientes con foodName (según locale) y excluye cocinadas, saltadas y sobras', async () => {
+    const a = await makeHousehold('Casa A')
+    const recipeA = await makeRecipe(a, 'Lentejas')
+    const lentejas = await makeFood('Lentejas secas', 'Dried lentils')
+    await db.insert(schema.recipeIngredients).values({ recipeId: recipeA, foodId: lentejas, rawText: '200 g de lentejas', quantity: 200, unit: 'g', scalesLinearly: true, sortOrder: 0 })
+    await db.insert(schema.recipeIngredients).values({ recipeId: recipeA, foodId: null, rawText: 'sal al gusto', quantity: null, unit: null, scalesLinearly: false, sortOrder: 1 })
+
+    const [counted] = await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-09-01', slot: 'lunch', recipeId: recipeA, servings: 4 }).returning()
+    if (!counted) throw new Error('seed')
+    await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-09-01', slot: 'dinner', recipeId: recipeA, servings: 2, cookedAt: new Date() })
+    await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-09-01', slot: 'snack', recipeId: recipeA, servings: 2, skippedAt: new Date() })
+    await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-09-02', slot: 'lunch', recipeId: recipeA, servings: 1, leftoverOfEntryId: counted.id })
+    await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-09-10', slot: 'lunch', recipeId: recipeA, servings: 2 }) // fuera de rango
+
+    const entries = await plannedEntriesForShopping(ctxOf(a), { from: '2026-09-01', to: '2026-09-02' })
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.id).toBe(counted.id)
+    expect(entries[0]?.servings).toBe(4)
+    expect(entries[0]?.recipe.servingsBase).toBe(2)
+
+    const byRawText = new Map(entries[0]?.recipe.ingredients.map((i) => [i.rawText, i]))
+    expect(byRawText.get('200 g de lentejas')).toMatchObject({ foodId: lentejas, foodName: 'Lentejas secas', quantity: 200, unit: 'g' })
+    expect(byRawText.get('sal al gusto')).toMatchObject({ foodId: null, foodName: 'sal al gusto', quantity: null, unit: null, scalesLinearly: false })
+  })
+
+  it('usa el nombre en inglés cuando el locale del ctx es en', async () => {
+    const a = await makeHousehold('Casa A')
+    const recipeA = await makeRecipe(a, 'Lentils')
+    const lentejas = await makeFood('Lentejas secas', 'Dried lentils')
+    await db.insert(schema.recipeIngredients).values({ recipeId: recipeA, foodId: lentejas, rawText: '200 g lentils', quantity: 200, unit: 'g' })
+    await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-09-01', slot: 'lunch', recipeId: recipeA, servings: 2 })
+
+    const entries = await plannedEntriesForShopping(ctxOf(a, { locale: 'en' }), { from: '2026-09-01', to: '2026-09-01' })
+    expect(entries[0]?.recipe.ingredients[0]?.foodName).toBe('Dried lentils')
+  })
+
+  it('ignora entradas sin receta (comida libre) y aísla por hogar', async () => {
+    const a = await makeHousehold('Casa A')
+    const b = await makeHousehold('Casa B')
+    await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-09-01', slot: 'lunch', customTitle: 'Pizza', servings: 2 })
+    const recipeB = await makeRecipe(b, 'Sopa')
+    await db.insert(schema.mealPlanEntries).values({ householdId: b, date: '2026-09-01', slot: 'lunch', recipeId: recipeB, servings: 2 })
+
+    const entries = await plannedEntriesForShopping(ctxOf(a), { from: '2026-09-01', to: '2026-09-01' })
+    expect(entries).toEqual([])
+  })
+})
+
+describe('pantryForShopping', () => {
+  it('mapea pantry_items del hogar a PantryItem de dominio, con la conversión del alimento', async () => {
+    const a = await makeHousehold('Casa A')
+    const b = await makeHousehold('Casa B')
+    const harina = await makeFood('Harina', 'Flour', { gramsPerCup: 120 })
+    const [item] = await db.insert(schema.pantryItems).values({ householdId: a, foodId: harina, quantity: 500, unit: 'g' }).returning()
+    if (!item) throw new Error('seed')
+    await db.insert(schema.pantryItems).values({ householdId: b, foodId: harina, quantity: 1000, unit: 'g' })
+
+    const items = await pantryForShopping(ctxOf(a))
+    expect(items).toEqual([
+      {
+        id: item.id,
+        foodId: harina,
+        quantity: 500,
+        unit: 'g',
+        expiresAt: null,
+        addedAt: expect.any(Date),
+        conversion: { defaultUnit: 'g', gramsPerCup: 120, gramsPerTbsp: null, gramsPerUnit: null, densityGPerMl: null },
+      },
+    ])
   })
 })

@@ -57,10 +57,16 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
     return `${t(`proposals.from.${proposal.source}`)} · ${createdAt}`
   }
   function addLine(item: ProposalAddClient): string {
-    return `+ ${item.title} · ${t(`slots.${item.slot}`)} · ×${item.servings}`
+    return t('proposals.addLine', { title: item.title, slot: t(`slots.${item.slot}`), servings: item.servings })
   }
   function removeLine(item: PlanEntryClient): string {
-    return `− ${item.title} · ${t(`slots.${item.slot}`)}`
+    return t('proposals.removeLine', { title: item.title, slot: t(`slots.${item.slot}`) })
+  }
+  // Mismo formato que day-column.tsx (semana), pero con el locale activo en vez
+  // del locale del navegador: aquí el grupo va dentro de un texto ya localizado
+  // por next-intl, así que conviene que coincida con el resto de la tarjeta.
+  function dayLabel(date: string): string {
+    return new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`))
   }
 
   async function decide(decision: 'approve' | 'reject') {
@@ -93,7 +99,7 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
       </div>
       {groups.map((group) => (
         <div key={group.date} className="flex flex-col gap-1">
-          <p className="text-xs font-medium text-text-2">{group.date}</p>
+          <p className="text-xs font-medium text-text-2">{dayLabel(group.date)}</p>
           {group.add.length > 0 ? (
             <ul aria-label={t('proposals.adds')} className="flex flex-col gap-0.5">
               {group.add.map((item, i) => (

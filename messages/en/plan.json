@@ -42,9 +42,18 @@
     "rejected": "Discarded",
     "adds": "Adds",
     "removes": "Removes",
+    "addLine": "+ {title} · {slot} · ×{servings}",
+    "removeLine": "− {title} · {slot}",
     "error": "Couldn't decide on the proposal"
   },
-  "shopping": "Generate shopping list",
+  "shopping": {
+    "title": "Generate shopping list",
+    "resolved": "To buy",
+    "unresolved": "No matching food",
+    "noQuantity": "No quantity set",
+    "pantryUnmatched": "Pantry has some in another unit",
+    "empty": "Nothing to buy for this range."
+  },
   "empty": "Empty week: add meals or ask for a proposal.",
   "errors": {
     "move": "Couldn't move the meal",
