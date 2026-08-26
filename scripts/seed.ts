@@ -6,8 +6,11 @@ import path from 'node:path'
 import { Pool } from 'pg'
 import type { Db } from '@/db/types'
 import * as schema from '@/db/schema'
+import { normalizeSearchName } from '@/lib/domain/quantities'
 import { UNIT_ALIASES } from '@/lib/domain/units-data'
+import foodsSeed from '@/db/seed/foods.json'
 import tagsSeed from '@/db/seed/tags.json'
+import type { FoodSeed } from './build-foods-seed'
 
 type TagSeed = { slug: string; name: { es: string; en: string }; parent: string | null }
 
@@ -42,10 +45,42 @@ export async function seedTags(db: Db): Promise<number> {
   return list.length
 }
 
-// Se implementa en la Tarea 7
 export async function seedFoods(db: Db): Promise<number> {
-  void db
-  return 0
+  const list = foodsSeed as FoodSeed[]
+  const CHUNK = 200
+  for (let i = 0; i < list.length; i += CHUNK) {
+    const rows = list.slice(i, i + CHUNK).map((f) => ({
+      householdId: null,
+      nameEs: f.nameEs,
+      nameEn: f.nameEn,
+      searchNameEs: normalizeSearchName(f.nameEs),
+      searchNameEn: normalizeSearchName(f.nameEn),
+      aliases: f.aliases,
+      defaultUnit: f.defaultUnit,
+      kcal100g: f.kcal100g, protein100g: f.protein100g, carbs100g: f.carbs100g, fat100g: f.fat100g, fiber100g: f.fiber100g,
+      source: 'usda' as const,
+      sourceRef: f.sourceRef,
+      allergens: f.allergens,
+      gramsPerCup: f.gramsPerCup, gramsPerTbsp: f.gramsPerTbsp, gramsPerUnit: f.gramsPerUnit, densityGPerMl: f.densityGPerMl,
+      seasonalMonths: f.seasonalMonths,
+      isEstimated: false,
+    }))
+    await db
+      .insert(schema.foods)
+      .values(rows)
+      .onConflictDoUpdate({
+        target: [schema.foods.source, schema.foods.sourceRef],
+        targetWhere: sql`source_ref IS NOT NULL AND household_id IS NULL`,
+        set: {
+          nameEs: sql`excluded.name_es`, nameEn: sql`excluded.name_en`, searchNameEs: sql`excluded.search_name_es`, searchNameEn: sql`excluded.search_name_en`,
+          aliases: sql`excluded.aliases`, kcal100g: sql`excluded.kcal_100g`, protein100g: sql`excluded.protein_100g`, carbs100g: sql`excluded.carbs_100g`,
+          fat100g: sql`excluded.fat_100g`, fiber100g: sql`excluded.fiber_100g`, gramsPerCup: sql`excluded.grams_per_cup`, gramsPerTbsp: sql`excluded.grams_per_tbsp`,
+          gramsPerUnit: sql`excluded.grams_per_unit`, densityGPerMl: sql`excluded.density_g_per_ml`, allergens: sql`excluded.allergens`,
+          seasonalMonths: sql`excluded.seasonal_months`, updatedAt: sql`now()`,
+        },
+      })
+  }
+  return list.length
 }
 
 export async function seedAll(db: Db): Promise<{ units: number; tags: number; foods: number }> {

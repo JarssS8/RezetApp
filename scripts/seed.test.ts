@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
-import { seedTags, seedUnitAliases } from './seed'
+import { seedFoods, seedTags, seedUnitAliases } from './seed'
 
 let db: TestDb
 beforeAll(async () => { db = await getTestDb() })
@@ -22,5 +22,13 @@ describe('seed', () => {
     const row = r.rows[0] as { c: number; children: number }
     expect(row.c).toBe(20)
     expect(row.children).toBe(15)
+  })
+  it('foods se siembra y re-siembra sin duplicar', async () => {
+    const n = await seedFoods(db)
+    await seedFoods(db)
+    const r = await db.execute(sql`SELECT count(*)::int AS c FROM foods WHERE source = 'usda' AND household_id IS NULL`)
+    expect((r.rows[0] as { c: number }).c).toBe(n)
+    const cebolla = await db.execute(sql`SELECT name_es FROM foods WHERE search_name_es % 'cebolla' LIMIT 1`)
+    expect(cebolla.rows.length).toBe(1)
   })
 })
