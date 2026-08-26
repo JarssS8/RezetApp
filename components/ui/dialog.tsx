@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
+import { useTranslations } from "next-intl"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -49,6 +50,7 @@ function DialogContent({
   showCloseButton?: boolean
   closeLabel?: string
 }) {
+  const t = useTranslations("common")
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -64,7 +66,7 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            aria-label={closeLabel}
+            aria-label={closeLabel ?? t("actions.close")}
             render={
               <Button
                 variant="ghost"

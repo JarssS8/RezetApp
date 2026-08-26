@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
+import { useTranslations } from "next-intl"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -48,6 +49,7 @@ function SheetContent({
   showCloseButton?: boolean
   closeLabel?: string
 }) {
+  const t = useTranslations("common")
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -64,7 +66,7 @@ function SheetContent({
         {showCloseButton && (
           <SheetPrimitive.Close
             data-slot="sheet-close"
-            aria-label={closeLabel}
+            aria-label={closeLabel ?? t("actions.close")}
             render={
               <Button
                 variant="ghost"

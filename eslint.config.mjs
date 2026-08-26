@@ -2,7 +2,7 @@ import nextVitals from 'eslint-config-next/core-web-vitals'
 import nextTs from 'eslint-config-next/typescript'
 import boundaries from 'eslint-plugin-boundaries'
 
-export default [
+const config = [
   ...nextVitals,
   ...nextTs,
   { ignores: ['.next/**', 'dist/**', 'node_modules/**', 'playwright-report/**', 'test-results/**'] },
@@ -63,3 +63,5 @@ export default [
     },
   },
 ]
+
+export default config

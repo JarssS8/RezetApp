@@ -1,0 +1,14 @@
+{
+  "title": "Ajustes",
+  "sections": {
+    "household": "Hogar",
+    "members": "Miembros",
+    "ai": "Inteligencia artificial",
+    "shoplist": "ShopList",
+    "tokens": "Tokens de API",
+    "appearance": "Apariencia",
+    "passkeys": "Passkeys",
+    "data": "Datos",
+    "notifications": "Notificaciones"
+  }
+}

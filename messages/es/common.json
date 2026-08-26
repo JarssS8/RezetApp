@@ -1,0 +1,8 @@
+{
+  "appName": "RezetApp",
+  "navLabel": "Navegación principal",
+  "settings": "Ajustes",
+  "nav": { "today": "Hoy", "cook": "Cocinar", "plan": "Plan", "pantry": "Despensa", "recipes": "Recetas" },
+  "actions": { "save": "Guardar", "cancel": "Cancelar", "close": "Cerrar", "back": "Atrás", "delete": "Eliminar", "confirm": "Confirmar" },
+  "state": { "loading": "Cargando…", "empty": "Nada por aquí todavía", "comingSoon": "Pronto" }
+}

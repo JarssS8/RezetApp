@@ -1,0 +1,14 @@
+{
+  "title": "Settings",
+  "sections": {
+    "household": "Household",
+    "members": "Members",
+    "ai": "Artificial intelligence",
+    "shoplist": "ShopList",
+    "tokens": "API tokens",
+    "appearance": "Appearance",
+    "passkeys": "Passkeys",
+    "data": "Data",
+    "notifications": "Notifications"
+  }
+}
