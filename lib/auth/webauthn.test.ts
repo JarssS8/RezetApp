@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { sql } from 'drizzle-orm'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
+import * as schema from '@/db/schema'
 import { getRp, startLogin, startRegistration } from './webauthn'
 
 process.env.APP_URL = 'http://localhost:3000'
@@ -32,5 +33,17 @@ describe('webauthn', () => {
     const { options } = await startLogin(db)
     expect(options.allowCredentials === undefined || options.allowCredentials.length === 0).toBe(true)
     expect(options.rpId).toBe('localhost')
+  })
+  it('registrar con un usuario que ya tiene passkey excluye esa credencial', async () => {
+    const [u] = await db.insert(schema.users).values({ displayName: 'Ana' }).returning()
+    if (!u) throw new Error('seed')
+    await db.insert(schema.webauthnCredentials).values({
+      credentialId: 'cred-existente',
+      userId: u.id,
+      publicKey: Buffer.from('clave'),
+      deviceType: 'singleDevice',
+    })
+    const { options } = await startRegistration(db, 'Ana', u.id)
+    expect(options.excludeCredentials?.map((c) => c.id)).toContain('cred-existente')
   })
 })

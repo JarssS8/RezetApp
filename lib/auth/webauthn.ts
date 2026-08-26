@@ -33,8 +33,18 @@ async function takeChallenge(db: Db, id: string, kind: 'register' | 'login'): Pr
   return { challenge: row.challenge, userId: row.userId }
 }
 
+// Passkeys que ya tiene el usuario, para que el autenticador no deje registrar la misma dos veces
+async function getExcludeCredentials(db: Db, userId: string): Promise<{ id: string; transports: AuthenticatorTransportFuture[] }[]> {
+  const rows = await db
+    .select({ credentialId: schema.webauthnCredentials.credentialId, transports: schema.webauthnCredentials.transports })
+    .from(schema.webauthnCredentials)
+    .where(eq(schema.webauthnCredentials.userId, userId))
+  return rows.map((r) => ({ id: r.credentialId, transports: r.transports as AuthenticatorTransportFuture[] }))
+}
+
 export async function startRegistration(db: Db, displayName: string, userId: string | null = null): Promise<{ challengeId: string; options: PublicKeyCredentialCreationOptionsJSON }> {
   const { rpID, rpName } = getRp()
+  const excludeCredentials = userId ? await getExcludeCredentials(db, userId) : []
   const options = await generateRegistrationOptions({
     rpName,
     rpID,
@@ -43,6 +53,7 @@ export async function startRegistration(db: Db, displayName: string, userId: str
     attestationType: 'none',
     // Obligatorio: el login usa credenciales descubribles (sin allowCredentials)
     authenticatorSelection: { residentKey: 'required', userVerification: 'preferred' },
+    ...(excludeCredentials.length > 0 ? { excludeCredentials } : {}),
   })
   const challengeId = await saveChallenge(db, options.challenge, 'register', userId)
   return { challengeId, options }
@@ -60,7 +71,14 @@ export interface VerifiedCredential {
 export async function finishRegistration(db: Db, input: { challengeId: string; response: RegistrationResponseJSON }): Promise<VerifiedCredential> {
   const { rpID, origin } = getRp()
   const { challenge } = await takeChallenge(db, input.challengeId, 'register')
-  const v = await verifyRegistrationResponse({ response: input.response, expectedChallenge: challenge, expectedOrigin: origin, expectedRPID: rpID })
+  const v = await verifyRegistrationResponse({
+    response: input.response,
+    expectedChallenge: challenge,
+    expectedOrigin: origin,
+    expectedRPID: rpID,
+    // El cliente pide verificación 'preferred' (no 'required'): el servidor no debe exigirla
+    requireUserVerification: false,
+  })
   if (!v.verified || !v.registrationInfo) throw new Error('Registro no verificado')
   const c = v.registrationInfo.credential
   return {
@@ -90,13 +108,18 @@ export async function finishLogin(db: Db, input: { challengeId: string; response
     expectedChallenge: challenge,
     expectedOrigin: origin,
     expectedRPID: rpID,
+    // El cliente pide verificación 'preferred' (no 'required'): el servidor no debe exigirla
+    requireUserVerification: false,
     credential: { id: cred.credentialId, publicKey: new Uint8Array(cred.publicKey), counter: cred.counter, transports: cred.transports as AuthenticatorTransportFuture[] },
   })
   if (!v.verified) throw new Error('Autenticación no verificada')
-  await db
+  // Actualización optimista: si el contador cambió entre la lectura y aquí, hubo uso concurrente
+  const [updated] = await db
     .update(schema.webauthnCredentials)
     .set({ counter: v.authenticationInfo.newCounter, lastUsedAt: new Date() })
-    .where(eq(schema.webauthnCredentials.credentialId, cred.credentialId))
+    .where(and(eq(schema.webauthnCredentials.credentialId, cred.credentialId), eq(schema.webauthnCredentials.counter, cred.counter)))
+    .returning({ credentialId: schema.webauthnCredentials.credentialId })
+  if (!updated) throw new Error('Uso concurrente de la credencial')
   return { userId: cred.userId }
 }
 
@@ -106,3 +129,6 @@ export async function addCredentialToUser(db: Db, userId: string, c: VerifiedCre
     credentialId: c.credentialId, userId, publicKey: c.publicKey, counter: c.counter, transports: c.transports, deviceType: c.deviceType, backedUp: c.backedUp, name,
   })
 }
+
+// Alias: Task 19 importa este nombre
+export const saveCredential = addCredentialToUser
