@@ -10,10 +10,6 @@ RUN pnpm install --frozen-lockfile
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# DATABASE_URL falso solo para que `next build` pueda cargar el módulo `db`
-# (el pool de `pg` no conecta hasta la primera query; la ruta es force-dynamic
-# así que no se ejecuta en build). En runtime la sobreescribe compose.
-ENV DATABASE_URL=postgres://build:build@localhost:5432/build
 RUN pnpm build && pnpm build:scripts
 
 FROM node:24-alpine AS runner
