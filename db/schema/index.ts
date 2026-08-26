@@ -1,4 +1,5 @@
 export * from './_types'
 export * from './foods'
 export * from './households'
+export * from './plan'
 export * from './recipes'
