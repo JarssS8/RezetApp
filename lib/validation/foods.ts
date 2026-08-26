@@ -20,5 +20,6 @@ export const FoodInputSchema = z.strictObject({
   densityGPerMl: z.number().positive().nullable().optional(),
   seasonalMonths: z.array(z.number().int().min(1).max(12)).default([]),
 })
+export type FoodInput = z.infer<typeof FoodInputSchema>
 export const FoodSearchSchema = PaginationSchema.extend({ q: z.string().trim().min(1).max(80), locale: z.enum(['es', 'en']).default('es') })
 export const BarcodeSchema = z.string().regex(/^\d{8,14}$/)

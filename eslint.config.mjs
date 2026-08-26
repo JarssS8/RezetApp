@@ -60,8 +60,11 @@ const config = [
               allow: { to: { element: { types: { anyOf: ['ai', 'domain', 'validation', 'db', 'lib'] } } } },
             },
             {
+              // 'validation' incluido: una integración traduce la respuesta
+              // externa a la forma que el servicio espera (p. ej.
+              // offToFoodInput -> FoodInput), sin tocar db ni services.
               from: { element: { type: 'integrations' } },
-              allow: { to: { element: { types: { anyOf: ['integrations', 'domain', 'lib'] } } } },
+              allow: { to: { element: { types: { anyOf: ['integrations', 'domain', 'validation', 'lib'] } } } },
             },
             {
               from: { element: { type: 'actions' } },
