@@ -6,11 +6,7 @@ import path from 'node:path'
 import { Pool } from 'pg'
 import type { Db } from '@/db/types'
 import * as schema from '@/db/schema'
-// DESVIACIÓN (Tarea 6): debía ser `UNIT_ALIASES` de `@/lib/domain/units-data`
-// (Tarea 8, pista b), que todavía no existe en esta rama. Se usa el espejo
-// local en `@/db/seed/unit-aliases` — mismos datos, mismo shape. Sustituir
-// este import al cerrar W1.
-import { UNIT_ALIASES } from '@/db/seed/unit-aliases'
+import { UNIT_ALIASES } from '@/lib/domain/units-data'
 import tagsSeed from '@/db/seed/tags.json'
 
 type TagSeed = { slug: string; name: { es: string; en: string }; parent: string | null }
