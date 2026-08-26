@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, isNull, lte, type SQL } from 'drizzle-orm'
+import { and, desc, eq, gte, ilike, inArray, isNull, lte, type SQL } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { emitHouseholdEvent } from '@/lib/events/bus'
 import { aggregateNutrition, EMPTY_MACROS, entryStatus } from '@/lib/domain'
@@ -104,6 +104,20 @@ export async function listEntries(ctx: Ctx, range: { from: string; to: string })
     ctx.db,
     and(eq(schema.mealPlanEntries.householdId, ctx.householdId), gte(schema.mealPlanEntries.date, range.from), lte(schema.mealPlanEntries.date, range.to)),
   )
+}
+
+// Búsqueda ligera de recetas para la hoja de "añadir al plan" (solo id y título).
+// Implementación local a esta pista: (a) todavía no expone un servicio de recetas;
+// cuando lo haga, puede sustituir esta función sin tocar la acción que la llama.
+export async function searchRecipesLite(ctx: Ctx, q: string): Promise<{ id: string; title: string }[]> {
+  const term = q.trim()
+  if (term.length === 0) return []
+  return ctx.db
+    .select({ id: schema.recipes.id, title: schema.recipes.title })
+    .from(schema.recipes)
+    .where(and(eq(schema.recipes.householdId, ctx.householdId), isNull(schema.recipes.deletedAt), ilike(schema.recipes.title, `%${term}%`)))
+    .orderBy(desc(schema.recipes.updatedAt))
+    .limit(10)
 }
 
 // Núcleo transaccional de un lote: lo comparten applyBatch y decideProposal (aprobación de propuesta)
