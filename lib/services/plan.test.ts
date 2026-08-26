@@ -1,17 +1,49 @@
+import { randomBytes } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
-import type { Ctx } from './ctx'
-import { applyBatch, createLeftover, listEntries, moveEntry, patchEntry, rangeNutrition } from './plan'
+import { ServiceError, type Ctx } from './ctx'
+import { applyBatch, createLeftover, createProposal, decideProposal, listEntries, listProposals, moveEntry, patchEntry, rangeNutrition } from './plan'
+
+async function expectServiceErrorCode(promise: Promise<unknown>, code: 'not_found' | 'forbidden' | 'conflict' | 'validation'): Promise<void> {
+  try {
+    await promise
+    expect.unreachable('se esperaba que la promesa rechazara')
+  } catch (e) {
+    expect(e).toBeInstanceOf(ServiceError)
+    expect((e as ServiceError).code).toBe(code)
+  }
+}
 
 let db: TestDb
-const ctxOf = (householdId: string): Ctx => ({ db, householdId, userId: 'u1', apiTokenId: null, role: 'owner', locale: 'es', scopes: [] })
+const ctxOf = (householdId: string, overrides: Partial<Ctx> = {}): Ctx => ({
+  db,
+  householdId,
+  userId: 'u1',
+  apiTokenId: null,
+  role: 'owner',
+  locale: 'es',
+  scopes: [],
+  ...overrides,
+})
 
 async function makeHousehold(name: string): Promise<string> {
   const [h] = await db.insert(schema.households).values({ name }).returning()
   if (!h) throw new Error('seed')
   return h.id
+}
+
+async function makeUser(displayName: string): Promise<string> {
+  const [u] = await db.insert(schema.users).values({ displayName }).returning()
+  if (!u) throw new Error('seed')
+  return u.id
+}
+
+async function makeApiToken(householdId: string, userId: string): Promise<string> {
+  const [t] = await db.insert(schema.apiTokens).values({ householdId, userId, name: 'Token de prueba', tokenHash: randomBytes(16).toString('hex'), scopes: ['plan:write'] }).returning()
+  if (!t) throw new Error('seed')
+  return t.id
 }
 
 async function makeRecipe(householdId: string, title: string): Promise<string> {
@@ -168,5 +200,102 @@ describe('rangeNutrition', () => {
     const { byDate, total } = await rangeNutrition(ctxOf(a), { from: '2026-09-01', to: '2026-09-01' })
     expect(byDate['2026-09-01']?.total.kcal).toBe(800)
     expect(total.total.kcal).toBe(800)
+  })
+})
+
+describe('createProposal', () => {
+  it('usa createdByUserId para un ctx de usuario y createdByTokenId para un ctx de token', async () => {
+    const a = await makeHousehold('Casa A')
+    const owner = await makeUser('Ana')
+    const tokenId = await makeApiToken(a, owner)
+
+    const fromUser = await createProposal(ctxOf(a, { userId: owner }), { source: 'rules', payload: { add: [], remove: [] } })
+    expect(fromUser.status).toBe('pending')
+    const [rowUser] = await db.select().from(schema.planProposals).where(eq(schema.planProposals.id, fromUser.id))
+    expect(rowUser?.createdByUserId).toBe(owner)
+    expect(rowUser?.createdByTokenId).toBeNull()
+
+    const fromToken = await createProposal(ctxOf(a, { userId: null, apiTokenId: tokenId }), { source: 'mcp', payload: { add: [], remove: [] } })
+    const [rowToken] = await db.select().from(schema.planProposals).where(eq(schema.planProposals.id, fromToken.id))
+    expect(rowToken?.createdByTokenId).toBe(tokenId)
+    expect(rowToken?.createdByUserId).toBeNull()
+  })
+})
+
+describe('listProposals', () => {
+  it('lista solo las pendientes cuando se pide y aísla por hogar', async () => {
+    const a = await makeHousehold('Casa A')
+    const b = await makeHousehold('Casa B')
+    const ownerA = await makeUser('Ana')
+    const ownerB = await makeUser('Bea')
+
+    const pending = await createProposal(ctxOf(a, { userId: ownerA }), { source: 'ai', payload: { add: [], remove: [] } })
+    const decided = await createProposal(ctxOf(a, { userId: ownerA }), { source: 'ai', payload: { add: [], remove: [] } })
+    await decideProposal(ctxOf(a, { userId: ownerA }), decided.id, 'reject')
+    await createProposal(ctxOf(b, { userId: ownerB }), { source: 'ai', payload: { add: [], remove: [] } })
+
+    const all = await listProposals(ctxOf(a, { userId: ownerA }))
+    expect(all.map((p) => p.id).sort()).toEqual([pending.id, decided.id].sort())
+
+    const onlyPending = await listProposals(ctxOf(a, { userId: ownerA }), 'pending')
+    expect(onlyPending.map((p) => p.id)).toEqual([pending.id])
+  })
+})
+
+describe('decideProposal', () => {
+  it('approve aplica el lote (con título resuelto en el diff), marca approved y resuelve; un segundo approve da conflict', async () => {
+    const a = await makeHousehold('Casa A')
+    const ownerA = await makeUser('Ana')
+    const recipeA = await makeRecipe(a, 'Lentejas')
+    const [toRemove] = await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-09-01', slot: 'lunch', recipeId: recipeA, servings: 2 }).returning()
+    if (!toRemove) throw new Error('seed')
+
+    const proposal = await createProposal(ctxOf(a, { userId: ownerA }), {
+      source: 'ai',
+      payload: { add: [{ date: '2026-09-02', slot: 'dinner', recipeId: recipeA, servings: 2 }], remove: [toRemove.id] },
+    })
+    expect(proposal.diff.add).toEqual([expect.objectContaining({ date: '2026-09-02', recipeId: recipeA, title: 'Lentejas' })])
+    expect(proposal.diff.remove.map((e) => e.id)).toEqual([toRemove.id])
+
+    const approved = await decideProposal(ctxOf(a, { userId: ownerA }), proposal.id, 'approve')
+    expect(approved.status).toBe('approved')
+    const [row] = await db.select().from(schema.planProposals).where(eq(schema.planProposals.id, proposal.id))
+    expect(row?.resolvedByUserId).toBe(ownerA)
+    expect(row?.resolvedAt).not.toBeNull()
+
+    const remaining = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.householdId, a))
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0]?.date).toBe('2026-09-02')
+
+    await expectServiceErrorCode(decideProposal(ctxOf(a, { userId: ownerA }), proposal.id, 'approve'), 'conflict')
+  })
+
+  it('reject marca rejected sin tocar el plan', async () => {
+    const a = await makeHousehold('Casa A')
+    const ownerA = await makeUser('Ana')
+    const recipeA = await makeRecipe(a, 'Lentejas')
+    const proposal = await createProposal(ctxOf(a, { userId: ownerA }), {
+      source: 'rules',
+      payload: { add: [{ date: '2026-09-02', slot: 'dinner', recipeId: recipeA, servings: 2 }], remove: [] },
+    })
+
+    const rejected = await decideProposal(ctxOf(a, { userId: ownerA }), proposal.id, 'reject')
+    expect(rejected.status).toBe('rejected')
+
+    const entries = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.householdId, a))
+    expect(entries).toHaveLength(0)
+  })
+
+  it('un token no puede decidir (forbidden); una propuesta de otro hogar da not_found', async () => {
+    const a = await makeHousehold('Casa A')
+    const b = await makeHousehold('Casa B')
+    const ownerA = await makeUser('Ana')
+    const ownerB = await makeUser('Bea')
+    const tokenId = await makeApiToken(a, ownerA)
+
+    const proposal = await createProposal(ctxOf(a, { userId: ownerA }), { source: 'ai', payload: { add: [], remove: [] } })
+
+    await expectServiceErrorCode(decideProposal(ctxOf(a, { userId: null, apiTokenId: tokenId }), proposal.id, 'approve'), 'forbidden')
+    await expectServiceErrorCode(decideProposal(ctxOf(b, { userId: ownerB }), proposal.id, 'approve'), 'not_found')
   })
 })

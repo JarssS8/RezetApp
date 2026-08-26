@@ -3,7 +3,8 @@ import * as schema from '@/db/schema'
 import { emitHouseholdEvent } from '@/lib/events/bus'
 import { aggregateNutrition, EMPTY_MACROS, entryStatus } from '@/lib/domain'
 import type { Nutrition } from '@/lib/domain'
-import type { MealSlot, PlanBatch, PlanEntryMove, PlanEntryPatch } from '@/lib/validation/plan'
+import { ProposalPayloadSchema } from '@/lib/validation/plan'
+import type { MealSlot, PlanBatch, PlanEntryInput, PlanEntryMove, PlanEntryPatch, ProposalPayload } from '@/lib/validation/plan'
 import { type Ctx, type Db, ServiceError } from './ctx'
 
 export interface PlanEntryView {
@@ -105,53 +106,158 @@ export async function listEntries(ctx: Ctx, range: { from: string; to: string })
   )
 }
 
+// Núcleo transaccional de un lote: lo comparten applyBatch y decideProposal (aprobación de propuesta)
+async function applyBatchTx(tx: Db, householdId: string, batch: PlanBatch): Promise<{ addedIds: string[]; removed: string[]; dates: Set<string> }> {
+  const dates = new Set<string>()
+  let removed: string[] = []
+  if (batch.remove.length > 0) {
+    const rows = await tx
+      .delete(schema.mealPlanEntries)
+      .where(and(eq(schema.mealPlanEntries.householdId, householdId), inArray(schema.mealPlanEntries.id, batch.remove)))
+      .returning({ id: schema.mealPlanEntries.id, date: schema.mealPlanEntries.date })
+    removed = rows.map((r) => r.id)
+    for (const r of rows) dates.add(r.date)
+  }
+  const addedIds: string[] = []
+  for (const item of batch.add) {
+    if (item.recipeId) {
+      const [recipe] = await tx
+        .select({ id: schema.recipes.id })
+        .from(schema.recipes)
+        .where(and(eq(schema.recipes.id, item.recipeId), eq(schema.recipes.householdId, householdId), isNull(schema.recipes.deletedAt)))
+        .limit(1)
+      if (!recipe) throw new ServiceError('validation', 'La receta no pertenece al hogar')
+    }
+    const [row] = await tx
+      .insert(schema.mealPlanEntries)
+      .values({
+        householdId,
+        date: item.date,
+        slot: item.slot,
+        recipeId: item.recipeId ?? null,
+        customTitle: item.customTitle ?? null,
+        servings: item.servings,
+        leftoverOfEntryId: item.leftoverOfEntryId ?? null,
+        timeBudgetMinutes: item.timeBudgetMinutes ?? null,
+      })
+      .returning({ id: schema.mealPlanEntries.id })
+    if (!row) throw new ServiceError('conflict', 'No se pudo crear la entrada del plan')
+    addedIds.push(row.id)
+    dates.add(item.date)
+  }
+  return { addedIds, removed, dates }
+}
+
 // Alta y baja de entradas en una sola transacción; los ids de `remove` de otro hogar se ignoran sin error
 export async function applyBatch(ctx: Ctx, batch: PlanBatch): Promise<{ added: PlanEntryView[]; removed: string[] }> {
-  const { addedIds, removed, dates } = await ctx.db.transaction(async (tx) => {
-    const dates = new Set<string>()
-    let removed: string[] = []
-    if (batch.remove.length > 0) {
-      const rows = await tx
-        .delete(schema.mealPlanEntries)
-        .where(and(eq(schema.mealPlanEntries.householdId, ctx.householdId), inArray(schema.mealPlanEntries.id, batch.remove)))
-        .returning({ id: schema.mealPlanEntries.id, date: schema.mealPlanEntries.date })
-      removed = rows.map((r) => r.id)
-      for (const r of rows) dates.add(r.date)
-    }
-    const addedIds: string[] = []
-    for (const item of batch.add) {
-      if (item.recipeId) {
-        const [recipe] = await tx
-          .select({ id: schema.recipes.id })
-          .from(schema.recipes)
-          .where(and(eq(schema.recipes.id, item.recipeId), eq(schema.recipes.householdId, ctx.householdId), isNull(schema.recipes.deletedAt)))
-          .limit(1)
-        if (!recipe) throw new ServiceError('validation', 'La receta no pertenece al hogar')
-      }
-      const [row] = await tx
-        .insert(schema.mealPlanEntries)
-        .values({
-          householdId: ctx.householdId,
-          date: item.date,
-          slot: item.slot,
-          recipeId: item.recipeId ?? null,
-          customTitle: item.customTitle ?? null,
-          servings: item.servings,
-          leftoverOfEntryId: item.leftoverOfEntryId ?? null,
-          timeBudgetMinutes: item.timeBudgetMinutes ?? null,
-        })
-        .returning({ id: schema.mealPlanEntries.id })
-      if (!row) throw new ServiceError('conflict', 'No se pudo crear la entrada del plan')
-      addedIds.push(row.id)
-      dates.add(item.date)
-    }
-    return { addedIds, removed, dates }
-  })
+  const { addedIds, removed, dates } = await ctx.db.transaction((tx) => applyBatchTx(tx, ctx.householdId, batch))
   const views = addedIds.length > 0 ? await queryEntryViews(ctx.db, and(eq(schema.mealPlanEntries.householdId, ctx.householdId), inArray(schema.mealPlanEntries.id, addedIds))) : []
   const byId = new Map(views.map((v) => [v.id, v]))
   const added = addedIds.map((id) => byId.get(id)).filter((v): v is PlanEntryView => v !== undefined)
   if (dates.size > 0) emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: Array.from(dates) } })
   return { added, removed }
+}
+
+export interface ProposalView {
+  id: string
+  source: 'ai' | 'rules' | 'mcp'
+  status: 'pending' | 'approved' | 'rejected'
+  createdAt: string
+  payload: ProposalPayload
+  diff: { add: (PlanEntryInput & { title: string })[]; remove: PlanEntryView[] }
+}
+
+type ProposalRow = typeof schema.planProposals.$inferSelect
+
+// El add del diff se enriquece con el título vigente de la receta (o el customTitle del propio payload);
+// el remove son las PlanEntryView actuales de los ids que aún existan (los que ya no existen se omiten)
+async function buildProposalDiff(ctx: Ctx, payload: ProposalPayload): Promise<ProposalView['diff']> {
+  const add = await Promise.all(
+    payload.add.map(async (item): Promise<PlanEntryInput & { title: string }> => {
+      let title = item.customTitle ?? ''
+      if (item.recipeId) {
+        const [recipe] = await ctx.db.select({ title: schema.recipes.title }).from(schema.recipes).where(eq(schema.recipes.id, item.recipeId)).limit(1)
+        if (recipe) title = recipe.title
+      }
+      return { ...item, title }
+    }),
+  )
+  const remove =
+    payload.remove.length > 0
+      ? await queryEntryViews(ctx.db, and(eq(schema.mealPlanEntries.householdId, ctx.householdId), inArray(schema.mealPlanEntries.id, payload.remove)))
+      : []
+  return { add, remove }
+}
+
+async function toProposalView(ctx: Ctx, row: ProposalRow): Promise<ProposalView> {
+  const payload = ProposalPayloadSchema.parse(row.payload)
+  const diff = await buildProposalDiff(ctx, payload)
+  return { id: row.id, source: row.source, status: row.status, createdAt: row.createdAt.toISOString(), payload, diff }
+}
+
+// createdByUserId o createdByTokenId según ctx (exactamente uno no nulo, ver check plan_proposals_one_creator)
+export async function createProposal(ctx: Ctx, input: { source: 'ai' | 'rules' | 'mcp'; payload: ProposalPayload }): Promise<ProposalView> {
+  const [row] = await ctx.db
+    .insert(schema.planProposals)
+    .values({ householdId: ctx.householdId, createdByUserId: ctx.userId, createdByTokenId: ctx.apiTokenId, source: input.source, payload: input.payload })
+    .returning()
+  if (!row) throw new ServiceError('conflict', 'No se pudo crear la propuesta')
+  const view = await toProposalView(ctx, row)
+  emitHouseholdEvent(ctx.householdId, { type: 'proposal.created', payload: { proposalId: row.id } })
+  return view
+}
+
+export async function listProposals(ctx: Ctx, status?: 'pending'): Promise<ProposalView[]> {
+  const where = status
+    ? and(eq(schema.planProposals.householdId, ctx.householdId), eq(schema.planProposals.status, status))
+    : eq(schema.planProposals.householdId, ctx.householdId)
+  const rows = await ctx.db.select().from(schema.planProposals).where(where).orderBy(schema.planProposals.createdAt)
+  return Promise.all(rows.map((row) => toProposalView(ctx, row)))
+}
+
+// approve: re-valida el payload, aplica el lote (mismo camino que applyBatch) y marca resuelto, todo en una transacción
+// reject: solo actualiza status/resolved. Propuesta ya decidida → conflict; de otro hogar → not_found; token → forbidden
+export async function decideProposal(ctx: Ctx, id: string, decision: 'approve' | 'reject'): Promise<ProposalView> {
+  if (ctx.userId === null) throw new ServiceError('forbidden', 'Solo un usuario con sesión puede decidir propuestas')
+  const userId = ctx.userId
+
+  if (decision === 'reject') {
+    const [current] = await ctx.db
+      .select()
+      .from(schema.planProposals)
+      .where(and(eq(schema.planProposals.id, id), eq(schema.planProposals.householdId, ctx.householdId)))
+      .limit(1)
+    if (!current) throw new ServiceError('not_found', 'Propuesta no encontrada')
+    if (current.status !== 'pending') throw new ServiceError('conflict', 'La propuesta ya fue decidida')
+    const [updated] = await ctx.db
+      .update(schema.planProposals)
+      .set({ status: 'rejected', resolvedAt: new Date(), resolvedByUserId: userId })
+      .where(eq(schema.planProposals.id, id))
+      .returning()
+    if (!updated) throw new ServiceError('conflict', 'No se pudo rechazar la propuesta')
+    return toProposalView(ctx, updated)
+  }
+
+  const result = await ctx.db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(schema.planProposals)
+      .where(and(eq(schema.planProposals.id, id), eq(schema.planProposals.householdId, ctx.householdId)))
+      .limit(1)
+    if (!current) throw new ServiceError('not_found', 'Propuesta no encontrada')
+    if (current.status !== 'pending') throw new ServiceError('conflict', 'La propuesta ya fue decidida')
+    const batch = ProposalPayloadSchema.parse(current.payload)
+    const applied = await applyBatchTx(tx, ctx.householdId, batch)
+    const [updated] = await tx
+      .update(schema.planProposals)
+      .set({ status: 'approved', resolvedAt: new Date(), resolvedByUserId: userId })
+      .where(eq(schema.planProposals.id, id))
+      .returning()
+    if (!updated) throw new ServiceError('conflict', 'No se pudo aprobar la propuesta')
+    return { updated, applied }
+  })
+  if (result.applied.dates.size > 0) emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: Array.from(result.applied.dates) } })
+  return toProposalView(ctx, result.updated)
 }
 
 // Mueve una entrada de fecha/hueco/orden; id de otro hogar → not_found
