@@ -22,8 +22,9 @@ export interface LeftoverDialogProps {
 
 // Diálogo, incrustado en el chip de origen, para planificar una sobra: una
 // comida planificable que no genera compra (spec §8) y que referencia la
-// entrada original (docs/03-DOMINIO §8). Por defecto, mañana y el mismo
-// hueco que la entrada de origen, 1 ración.
+// entrada original (docs/03-DOMINIO §8, campo `ofEntryId` en
+// CreateLeftoverInputSchema de lib/validation/plan.ts). Por defecto, mañana
+// y el mismo hueco que la entrada de origen, 1 ración.
 export function LeftoverDialog({ fromEntryId, sourceSlot, onCreated }: LeftoverDialogProps) {
   const t = useTranslations('plan')
   const c = useTranslations('common')
@@ -34,9 +35,24 @@ export function LeftoverDialog({ fromEntryId, sourceSlot, onCreated }: LeftoverD
   const [servings, setServings] = useState(1)
   const [pending, setPending] = useState(false)
 
+  // Reinicia el formulario a sus valores por defecto cada vez que se abre
+  // (si el usuario cerró el diálogo con cambios sin enviar y lo vuelve a
+  // abrir, no debe arrastrar el estado anterior). Ajuste durante el render,
+  // no en un efecto (mismo patrón que week-view.tsx::syncedEntries): evita
+  // el repintado en cascada de un setState síncrono dentro de useEffect.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      setDate(addDays(todayIso(), 1))
+      setSlot(sourceSlot)
+      setServings(1)
+    }
+  }
+
   async function submit() {
     setPending(true)
-    const result = await createLeftoverAction({ fromEntryId, date, slot, servings })
+    const result = await createLeftoverAction({ ofEntryId: fromEntryId, date, slot, servings })
     setPending(false)
     if (!result.ok) {
       toast.error(t('errors.leftover'))
@@ -78,11 +94,11 @@ export function LeftoverDialog({ fromEntryId, sourceSlot, onCreated }: LeftoverD
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm">{t('servings')}</span>
-            <Button type="button" variant="ghost" size="icon-sm" aria-label={t('servings')} onClick={() => setServings((s) => Math.max(1, s - 1))}>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label={t('servingsDec')} onClick={() => setServings((s) => Math.max(1, s - 1))}>
               <MinusIcon size={14} />
             </Button>
             <span className="w-6 text-center text-sm tabular-nums">{servings}</span>
-            <Button type="button" variant="ghost" size="icon-sm" aria-label={t('servings')} onClick={() => setServings((s) => s + 1)}>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label={t('servingsInc')} onClick={() => setServings((s) => s + 1)}>
               <PlusIcon size={14} />
             </Button>
           </div>

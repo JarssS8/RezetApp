@@ -40,5 +40,7 @@
   "createLeftover": "Add leftover",
   "leftoverDate": "Date",
   "leftoverSlot": "Slot",
-  "plannedMeals": "{n} planned meals"
+  "plannedMeals": "{n} planned meals",
+  "servingsInc": "Increase servings",
+  "servingsDec": "Decrease servings"
 }

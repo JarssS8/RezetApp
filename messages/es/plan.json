@@ -40,5 +40,7 @@
   "createLeftover": "Crear sobra",
   "leftoverDate": "Fecha",
   "leftoverSlot": "Hueco",
-  "plannedMeals": "{n} comidas planificadas"
+  "plannedMeals": "{n} comidas planificadas",
+  "servingsInc": "Aumentar raciones",
+  "servingsDec": "Disminuir raciones"
 }

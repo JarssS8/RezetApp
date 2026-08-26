@@ -26,3 +26,8 @@ export type PlanEntryMove = z.infer<typeof PlanEntryMoveSchema>
 export const PlanEntryPatchSchema = z.strictObject({ servings: z.number().int().min(1).max(100).optional(), skipped: z.boolean().optional(), timeBudgetMinutes: z.number().int().min(0).nullable().optional() })
 export type PlanEntryPatch = z.infer<typeof PlanEntryPatchSchema>
 export const ProposalDecisionSchema = z.strictObject({ decision: z.enum(['approve', 'reject']) })
+// Crear una sobra a partir de una entrada existente (lib/actions/plan.ts::createLeftoverAction);
+// se define aquí (no en un fichero nuevo) porque, aunque no forma parte del contrato original
+// de W1, sí es del propio contrato de esta pista y lo valida también el test del diálogo.
+export const CreateLeftoverInputSchema = z.strictObject({ ofEntryId: IdSchema, date: DateSchema, slot: MealSlotSchema, servings: z.number().int().min(1).max(100) })
+export type CreateLeftoverInput = z.infer<typeof CreateLeftoverInputSchema>

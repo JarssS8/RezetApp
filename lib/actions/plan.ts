@@ -1,19 +1,14 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
 import { requireHousehold } from '@/lib/auth/guards'
-import { DateSchema, IdSchema, MealSlotSchema } from '@/lib/validation/common'
-import { PlanBatchSchema, PlanEntryMoveSchema, PlanEntryPatchSchema, ProposalDecisionSchema } from '@/lib/validation/plan'
+import { IdSchema } from '@/lib/validation/common'
+import { CreateLeftoverInputSchema, PlanBatchSchema, PlanEntryMoveSchema, PlanEntryPatchSchema, ProposalDecisionSchema } from '@/lib/validation/plan'
 import type { PlanBatch, PlanEntryMove, PlanEntryPatch } from '@/lib/validation/plan'
 import { applyBatch, createLeftover, decideProposal, moveEntry, patchEntry, searchRecipesLite, type PlanEntryView, type ProposalView } from '@/lib/services/plan'
 import { type ActionResult, fail, fromError, ok } from './result'
 
 const PLAN_PATH = '/plan'
-
-// Esquema local: crear una sobra no está en lib/validation/plan.ts (fuera del
-// alcance de esta pista); se define aquí, junto a la acción que lo usa.
-const CreateLeftoverInputSchema = z.strictObject({ ofEntryId: IdSchema, date: DateSchema, slot: MealSlotSchema, servings: z.number().int().min(1).max(100) })
 
 export async function applyPlanBatchAction(batch: PlanBatch): Promise<ActionResult<{ added: PlanEntryView[]; removed: string[] }>> {
   try {

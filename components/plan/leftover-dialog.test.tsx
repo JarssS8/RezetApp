@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import common from '@/messages/es/common.json'
 import plan from '@/messages/es/plan.json'
+import { CreateLeftoverInputSchema } from '@/lib/validation/plan'
 import { LeftoverDialog } from './leftover-dialog'
 import type { LeftoverDialogProps } from './leftover-dialog'
 
@@ -21,6 +22,10 @@ function renderDialog(props: Partial<LeftoverDialogProps> = {}) {
       <LeftoverDialog {...defaults} {...props} />
     </NextIntlClientProvider>,
   )
+}
+
+function openDialog() {
+  fireEvent.click(screen.getByRole('button', { name: 'Crear sobra' }))
 }
 
 // El "hoy" del reloj del sistema durante los tests: fija la fecha por
@@ -42,39 +47,67 @@ describe('LeftoverDialog', () => {
 
   it('abre con la fecha de mañana y el hueco de origen por defecto, 1 ración', () => {
     renderDialog({ sourceSlot: 'dinner' })
-    fireEvent.click(screen.getByRole('button', { name: 'Crear sobra' }))
+    openDialog()
     expect(screen.getByLabelText('Fecha')).toHaveValue('2026-08-27')
     expect(screen.getByLabelText('Hueco')).toHaveValue('dinner')
     expect(screen.getByText('1')).toBeInTheDocument()
   })
 
-  it('llama a createLeftoverAction con el payload del formulario al enviar', async () => {
+  it('llama a createLeftoverAction con ofEntryId (no fromEntryId) y el payload es válido según el esquema real', async () => {
+    const fromEntryId = '11111111-1111-4111-8111-111111111111'
     createLeftoverAction.mockResolvedValue({ ok: true, data: {} })
-    renderDialog({ fromEntryId: 'e42', sourceSlot: 'breakfast' })
-    fireEvent.click(screen.getByRole('button', { name: 'Crear sobra' }))
+    renderDialog({ fromEntryId, sourceSlot: 'breakfast' })
+    openDialog()
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
-    await waitFor(() =>
-      expect(createLeftoverAction).toHaveBeenCalledWith({ fromEntryId: 'e42', date: '2026-08-27', slot: 'breakfast', servings: 1 }),
-    )
+    await waitFor(() => expect(createLeftoverAction).toHaveBeenCalled())
+    const payload = createLeftoverAction.mock.calls[0]?.[0]
+    expect(payload).toStrictEqual({ ofEntryId: fromEntryId, date: '2026-08-27', slot: 'breakfast', servings: 1 })
+    // Regresión: el diálogo llegó a enviar `fromEntryId`, que CreateLeftoverInputSchema
+    // (z.strictObject) rechaza al no reconocer la clave; se valida contra el esquema
+    // real de lib/actions/plan.ts para que un futuro desajuste de claves falle aquí.
+    expect(CreateLeftoverInputSchema.safeParse(payload).success).toBe(true)
     expect(refresh).toHaveBeenCalled()
   })
 
-  it('cambia las raciones con el stepper antes de enviar', async () => {
+  it('cambia las raciones con el stepper (botones +/- con aria-label propio) antes de enviar', async () => {
     createLeftoverAction.mockResolvedValue({ ok: true, data: {} })
     renderDialog({ fromEntryId: 'e7', sourceSlot: 'snack' })
-    fireEvent.click(screen.getByRole('button', { name: 'Crear sobra' }))
-    fireEvent.click(screen.getAllByRole('button', { name: 'Raciones' })[1] as HTMLElement) // +
+    openDialog()
+    fireEvent.click(screen.getByRole('button', { name: 'Aumentar raciones' }))
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
-    await waitFor(() => expect(createLeftoverAction).toHaveBeenCalledWith({ fromEntryId: 'e7', date: '2026-08-27', slot: 'snack', servings: 2 }))
+    await waitFor(() => expect(createLeftoverAction).toHaveBeenCalledWith({ ofEntryId: 'e7', date: '2026-08-27', slot: 'snack', servings: 2 }))
+  })
+
+  it('el botón de disminuir raciones no baja de 1', () => {
+    renderDialog({ fromEntryId: 'e8', sourceSlot: 'lunch' })
+    openDialog()
+    fireEvent.click(screen.getByRole('button', { name: 'Disminuir raciones' }))
+    expect(screen.getByText('1')).toBeInTheDocument()
   })
 
   it('muestra un error y no cierra el diálogo si la acción falla', async () => {
     createLeftoverAction.mockResolvedValue({ ok: false, code: 'validation' })
     renderDialog({ fromEntryId: 'e9', sourceSlot: 'lunch' })
-    fireEvent.click(screen.getByRole('button', { name: 'Crear sobra' }))
+    openDialog()
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
     await waitFor(() => expect(createLeftoverAction).toHaveBeenCalled())
     expect(refresh).not.toHaveBeenCalled()
     expect(screen.getByLabelText('Fecha')).toBeInTheDocument()
+  })
+
+  it('reinicia fecha, hueco y raciones a los valores por defecto cada vez que se abre', () => {
+    renderDialog({ sourceSlot: 'dinner' })
+    openDialog()
+    fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-09-01' } })
+    fireEvent.change(screen.getByLabelText('Hueco'), { target: { value: 'lunch' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aumentar raciones' }))
+    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-09-01')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+    openDialog()
+
+    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-08-27')
+    expect(screen.getByLabelText('Hueco')).toHaveValue('dinner')
+    expect(screen.getByText('1')).toBeInTheDocument()
   })
 })
