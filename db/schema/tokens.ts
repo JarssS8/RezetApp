@@ -5,7 +5,7 @@ import { households, users } from './households'
 
 export const API_SCOPES = [
   'recipes:read', 'recipes:write', 'plan:read', 'plan:write', 'pantry:read', 'pantry:write',
-  'cooking:write', 'shopping:push', 'household:read',
+  'cooking:write', 'shopping:push', 'household:read', 'household:write',
 ] as const
 export type ApiScope = (typeof API_SCOPES)[number]
 

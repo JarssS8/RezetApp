@@ -18,4 +18,7 @@ export interface Ctx {
   apiTokenId: string | null
   role: 'owner' | 'member' | null // null cuando actúa un token
   locale: Locale
+  // Permisos del token que actúa; [] cuando es una sesión (la sesión no tiene
+  // scopes: manda el rol). Ver lib/validation/tokens.ts::API_SCOPES.
+  scopes: string[]
 }

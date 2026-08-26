@@ -10,7 +10,8 @@ process.env.APP_URL = 'http://localhost:3000'
 process.env.APP_SECRET = 'secreto-de-prueba-con-suficiente-longitud-1234'
 let db: TestDb
 const cred = (id: string): VerifiedCredential => ({ credentialId: id, publicKey: Buffer.from([1, 2, 3]), counter: 0, transports: ['internal'], deviceType: 'singleDevice', backedUp: false })
-const ctxOf = (householdId: string, userId: string, role: 'owner' | 'member'): Ctx => ({ db, householdId, userId, apiTokenId: null, role, locale: 'es' })
+const ctxOf = (householdId: string, userId: string, role: 'owner' | 'member'): Ctx => ({ db, householdId, userId, apiTokenId: null, role, locale: 'es', scopes: [] })
+const tokenCtxOf = (householdId: string, apiTokenId: string, scopes: string[]): Ctx => ({ db, householdId, userId: null, apiTokenId, role: null, locale: 'es', scopes })
 
 beforeAll(async () => { db = await getTestDb() })
 afterAll(closeTestDb)
@@ -41,6 +42,26 @@ describe('households', () => {
   it('un member no puede invitar', async () => {
     const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
     await expect(createInvite(ctxOf(a.householdId, a.userId, 'member'))).rejects.toThrow()
+  })
+  it('un token con household:write puede invitar; sin el scope, no', async () => {
+    const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    const [tok] = await db.insert(schema.apiTokens).values({ householdId: a.householdId, userId: a.userId, name: 'mcp', tokenHash: 'hash-1', scopes: ['household:write'] }).returning()
+    const [sinScope] = await db.insert(schema.apiTokens).values({ householdId: a.householdId, userId: a.userId, name: 'mcp2', tokenHash: 'hash-2', scopes: ['household:read'] }).returning()
+    if (!tok || !sinScope) throw new Error('seed')
+    const inv = await createInvite(tokenCtxOf(a.householdId, tok.id, ['household:write']))
+    expect((await getInvite(db, inv.token))?.householdName).toBe('Casa de Ana')
+    await expect(createInvite(tokenCtxOf(a.householdId, sinScope.id, ['household:read']))).rejects.toThrow()
+  })
+  it('salir del hogar borra los tokens API de esa persona en ese hogar', async () => {
+    const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    const b = await createUserWithHousehold(db, { displayName: 'Bo', credential: cred('c2'), locale: 'en' })
+    const inv = await createInvite(ctxOf(a.householdId, a.userId, 'owner'))
+    await acceptInvite(db, { token: inv.token, userId: b.userId })
+    await db.insert(schema.apiTokens).values({ householdId: a.householdId, userId: b.userId, name: 'de Bo', tokenHash: 'hash-b', scopes: [] })
+    await db.insert(schema.apiTokens).values({ householdId: a.householdId, userId: a.userId, name: 'de Ana', tokenHash: 'hash-a', scopes: [] })
+    await leaveHousehold(ctxOf(a.householdId, b.userId, 'member'))
+    const rest = await db.select().from(schema.apiTokens).where(eq(schema.apiTokens.householdId, a.householdId))
+    expect(rest.map((t) => t.name)).toEqual(['de Ana'])
   })
   it('registro vía invitación no crea hogar propio', async () => {
     const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })

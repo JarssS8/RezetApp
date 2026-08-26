@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
@@ -14,6 +15,7 @@ beforeEach(async () => {
   const [h] = await db.insert(schema.households).values({ name: 'Casa' }).returning()
   if (!u || !h) throw new Error('seed')
   userId = u.id; householdId = h.id
+  await db.insert(schema.householdMembers).values({ householdId, userId, role: 'owner' })
 })
 
 describe('api tokens', () => {
@@ -32,6 +34,21 @@ describe('api tokens', () => {
     await expect(authenticateApiToken(db, `Bearer ${token}`, ['recipes:write'])).rejects.toMatchObject({ status: 403 })
     await expect(authenticateApiToken(db, `Bearer rz_falso`, [])).rejects.toMatchObject({ status: 401 })
     await expect(authenticateApiToken(db, undefined, [])).rejects.toBeInstanceOf(ApiAuthError)
+  })
+  it('el esquema Bearer no distingue mayúsculas', async () => {
+    const token = generateApiToken()
+    await db.insert(schema.apiTokens).values({ householdId, userId, name: 'test', tokenHash: hashToken(token), scopes: [] })
+    for (const prefix of ['bearer', 'BEARER', 'BeArEr']) {
+      const ctx = await authenticateApiToken(db, `${prefix} ${token}`, [])
+      expect(ctx.householdId).toBe(householdId)
+    }
+  })
+  it('el token de quien ya no es miembro del hogar da 401', async () => {
+    const token = generateApiToken()
+    await db.insert(schema.apiTokens).values({ householdId, userId, name: 'test', tokenHash: hashToken(token), scopes: ['recipes:read'] })
+    await authenticateApiToken(db, `Bearer ${token}`, ['recipes:read'])
+    await db.delete(schema.householdMembers).where(eq(schema.householdMembers.userId, userId))
+    await expect(authenticateApiToken(db, `Bearer ${token}`, ['recipes:read'])).rejects.toMatchObject({ status: 401 })
   })
   it('token revocado no vale y actualiza last_used_at al usarlo', async () => {
     const token = generateApiToken()

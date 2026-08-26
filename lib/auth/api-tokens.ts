@@ -18,13 +18,23 @@ export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
 }
 
-export async function authenticateApiToken(db: Db, authorization: string | undefined, requiredScopes: ApiScope[]): Promise<Ctx & { mcpProfile: 'basic' | 'full'; scopes: string[] }> {
-  const token = authorization?.startsWith('Bearer ') ? authorization.slice(7).trim() : null
+// RFC 6750: el esquema "Bearer" no distingue mayúsculas ("bearer", "BEARER")
+const BEARER = /^bearer\s+(.+)$/i
+
+export async function authenticateApiToken(db: Db, authorization: string | undefined, requiredScopes: ApiScope[]): Promise<Ctx & { mcpProfile: 'basic' | 'full' }> {
+  const token = BEARER.exec(authorization ?? '')?.[1]?.trim() ?? null
   if (!token || !token.startsWith('rz_')) throw new ApiAuthError(401, 'Token ausente')
+  // El join con household_members es la garantía de que un token deja de valer
+  // en cuanto su dueño sale del hogar: sin membresía, el token no existe (401),
+  // igual que uno desconocido — no se distingue para no filtrar información.
   const [row] = await db
     .select({ token: schema.apiTokens, locale: schema.users.locale })
     .from(schema.apiTokens)
     .innerJoin(schema.users, eq(schema.users.id, schema.apiTokens.userId))
+    .innerJoin(
+      schema.householdMembers,
+      and(eq(schema.householdMembers.userId, schema.apiTokens.userId), eq(schema.householdMembers.householdId, schema.apiTokens.householdId)),
+    )
     .where(and(eq(schema.apiTokens.tokenHash, hashToken(token)), isNull(schema.apiTokens.revokedAt)))
     .limit(1)
   if (!row) throw new ApiAuthError(401, 'Token inválido o revocado')

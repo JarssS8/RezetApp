@@ -5,7 +5,7 @@ import { z } from 'zod'
 // cambia, hay que actualizar ambos sitios (comprobado en tests/contracts/api-scopes.test.ts).
 export const API_SCOPES = [
   'recipes:read', 'recipes:write', 'plan:read', 'plan:write', 'pantry:read', 'pantry:write',
-  'cooking:write', 'shopping:push', 'household:read',
+  'cooking:write', 'shopping:push', 'household:read', 'household:write',
 ] as const
 
 export const ApiScopeSchema = z.enum(API_SCOPES)

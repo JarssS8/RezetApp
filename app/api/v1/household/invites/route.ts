@@ -4,7 +4,7 @@ import { createInvite } from '@/lib/services/households'
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const ctx = await requireApiToken(request, ['household:read'])
+    const ctx = await requireApiToken(request, ['household:write'])
     const inv = await createInvite(ctx)
     return Response.json(inv, { status: 201 })
   } catch (e) {

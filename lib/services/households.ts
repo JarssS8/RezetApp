@@ -7,6 +7,13 @@ import { type Ctx, type Db, ServiceError } from './ctx'
 
 const INVITE_HOURS = 24
 
+// Usuario dueño del token que actúa: las invitaciones siempre tienen autor
+async function tokenOwner(ctx: Ctx): Promise<string> {
+  const [row] = await ctx.db.select({ userId: schema.apiTokens.userId }).from(schema.apiTokens).where(eq(schema.apiTokens.id, ctx.apiTokenId ?? '')).limit(1)
+  if (!row) throw new ServiceError('forbidden', 'Token sin usuario asociado')
+  return row.userId
+}
+
 export async function createUserWithHousehold(db: Db, input: { displayName: string; credential: VerifiedCredential; locale: Locale }): Promise<{ userId: string; householdId: string }> {
   return db.transaction(async (tx) => {
     const [user] = await tx.insert(schema.users).values({ displayName: input.displayName, locale: input.locale }).returning()
@@ -27,11 +34,15 @@ export async function listHouseholdsOf(db: Db, userId: string): Promise<{ id: st
     .orderBy(schema.householdMembers.joinedAt)
 }
 
+// Invita el propietario con sesión o un token API con household:write (regla W1-R16).
+// El token guarda como autor al usuario dueño del token: household_invites.created_by es NOT NULL.
 export async function createInvite(ctx: Ctx): Promise<{ token: string; url: string; expiresAt: Date }> {
-  if (ctx.role !== 'owner' || !ctx.userId) throw new ServiceError('forbidden', 'Solo el propietario puede invitar')
+  const byToken = ctx.apiTokenId !== null && ctx.scopes.includes('household:write')
+  if (!byToken && ctx.role !== 'owner') throw new ServiceError('forbidden', 'Solo el propietario puede invitar')
+  const createdBy = ctx.userId ?? (await tokenOwner(ctx))
   const token = randomBytes(24).toString('base64url')
   const expiresAt = new Date(Date.now() + INVITE_HOURS * 3_600_000)
-  await ctx.db.insert(schema.householdInvites).values({ token, householdId: ctx.householdId, createdBy: ctx.userId, expiresAt })
+  await ctx.db.insert(schema.householdInvites).values({ token, householdId: ctx.householdId, createdBy, expiresAt })
   const base = process.env.APP_URL ?? 'http://localhost:3000'
   return { token, url: `${base}/invite/${token}`, expiresAt }
 }
@@ -100,6 +111,9 @@ export async function leaveHousehold(ctx: Ctx): Promise<void> {
     if (ctx.role === 'owner' && owners.length <= 1) throw new ServiceError('conflict', 'El último propietario no puede salir; borra el hogar o nombra otro propietario')
     await tx.delete(schema.householdMembers).where(and(eq(schema.householdMembers.householdId, ctx.householdId), eq(schema.householdMembers.userId, ctx.userId ?? '')))
     await tx.delete(schema.sessions).where(and(eq(schema.sessions.householdId, ctx.householdId), eq(schema.sessions.userId, ctx.userId ?? '')))
+    // Los tokens API no sobreviven a la membresía: quien sale del hogar deja de
+    // tener acceso también por REST/MCP (authenticateApiToken ya exige membresía).
+    await tx.delete(schema.apiTokens).where(and(eq(schema.apiTokens.householdId, ctx.householdId), eq(schema.apiTokens.userId, ctx.userId ?? '')))
   })
 }
 
