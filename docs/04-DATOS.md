@@ -16,9 +16,10 @@ mantén las invariantes de abajo.
 
 ### `households`
 `id`, `name`, `created_at`, `default_servings`, `expiry_alert_days`,
-`ai_provider`, `ai_model`, `ai_base_url`, `ai_api_key_enc`, `ai_monthly_cap_cents`,
-`ai_structured_output`, `shoplist_list_token` (nullable), `shoplist_fn_url`,
-`shoplist_secret_enc`, `plan_rules`
+`ai_provider` (`none | anthropic | openai | openai_compatible`), `ai_model`,
+`ai_base_url`, `ai_api_key_enc`, `ai_monthly_cap_cents`, `ai_structured_output`,
+`shoplist_list_token` (nullable), `shoplist_fn_url`, `shoplist_secret_enc`,
+`shoplist_last_pushed_at` (nullable), `plan_rules`
 
 (Sin `ai_spent_this_month_cents`: el gasto del mes es `SUM(cost_cents)` de `ai_usage_log`.)
 
@@ -46,14 +47,19 @@ Lo que pida `@simplewebauthn/server`: `credential_id`, `public_key`, `counter`,
 `transports`, `user_id`, `device_type`, `backed_up`, `name`, `created_at`,
 `last_used_at`.
 
+### `app_settings`
+`key` (text, primary key), `value` (jsonb), `updated_at`. Guarda claves VAPID
+generadas en el primer arranque y similares.
+
 ### `foods`
 El catálogo de alimentos. Compartido entre hogares (semilla común) pero permite
 entradas propias.
 `id`, `household_id` (nullable → global), `name_es`, `name_en`, `search_name_es`,
 `search_name_en`, `default_unit`, `kcal_100g`, `protein_100g`, `carbs_100g`,
-`fat_100g`, `fiber_100g`, `density_g_per_ml`, `grams_per_unit`, `source`
-(`off|usda|manual|ai`), `source_ref`, `barcode`, `allergens`, `grams_per_cup`,
-`grams_per_tbsp`, `seasonal_months` (int[]), `is_estimated`, `merged_into_id`
+`fat_100g`, `fiber_100g`, `density_g_per_ml`, `grams_per_unit`, `aliases` (text[]),
+`source` (`off|usda|manual|ai`), `source_ref`, `barcode`, `allergens`,
+`grams_per_cup`, `grams_per_tbsp`, `seasonal_months` (int[]), `is_estimated`,
+`merged_into_id`
 
 `is_estimated` es lo que pinta la etiqueta «estimado» en la interfaz. No lo omitas.
 
