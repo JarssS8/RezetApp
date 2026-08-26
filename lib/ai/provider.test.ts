@@ -1,11 +1,11 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { encryptSecret, getKeys } from '@/lib/crypto'
 import { estimateCostCents, modelInfo } from './models'
 import { resolveAiConfig } from './provider'
 
 process.env.APP_SECRET = 'secreto-de-prueba-con-suficiente-longitud-1234'
 
-const base = { aiProvider: 'none' as const, aiModel: null, aiBaseUrl: null, aiApiKeyEnc: null, aiStructuredOutput: true }
+const base = { id: 'h1', aiProvider: 'none' as const, aiModel: null, aiBaseUrl: null, aiApiKeyEnc: null, aiStructuredOutput: true }
 
 describe('resolveAiConfig', () => {
   afterEach(() => {
@@ -46,6 +46,22 @@ describe('resolveAiConfig', () => {
     process.env.AI_LOCAL_MODEL = 'qwen3-8b'
     const cfg = resolveAiConfig({ ...base, aiProvider: 'openai_compatible' })
     expect(cfg).toEqual({ provider: 'openai_compatible', model: 'qwen3-8b', apiKey: null, baseUrl: 'http://localhost:8080/v1', structuredOutput: true })
+  })
+
+  it('openai_compatible con una baseUrl pública por http se rechaza (defensa SSRF)', () => {
+    const cfg = resolveAiConfig({ ...base, aiProvider: 'openai_compatible', aiBaseUrl: 'http://example.com/v1', aiModel: 'qwen3-8b' })
+    expect(cfg).toBeNull()
+  })
+
+  it('una clave que no se puede descifrar se registra sin el secreto y cae a null', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const corrupted = Buffer.from('esto-no-es-un-blob-cifrado-valido-de-verdad')
+    const cfg = resolveAiConfig({ ...base, id: 'hogar-123', aiProvider: 'openai', aiApiKeyEnc: corrupted, aiModel: 'gpt-4o-mini' })
+    expect(cfg).toBeNull() // sin clave (ni de hogar ni de entorno) y openai la exige
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('no se pudo descifrar'), 'hogar-123')
+    const logged = spy.mock.calls.flat().join(' ')
+    expect(logged).not.toContain('esto-no-es-un-blob-cifrado-valido-de-verdad')
+    spy.mockRestore()
   })
 })
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ApiTokenCreateSchema, DateRangeSchema, LogCookedSchema, PantryAdjustSchema, PlanBatchSchema, ProposalPayloadSchema, RecipeInputSchema, RecipeSearchSchema,
+  AiSettingsSchema, ApiTokenCreateSchema, DateRangeSchema, LogCookedSchema, normalizeAiBaseUrl, PantryAdjustSchema, PlanBatchSchema, ProposalPayloadSchema, RecipeInputSchema, RecipeSearchSchema,
 } from './index'
 
 const uuid = '11111111-1111-4111-8111-111111111111'
@@ -46,5 +46,27 @@ describe('validation', () => {
   it('ApiTokenCreateSchema: scopes conocidos y perfil', () => {
     expect(ApiTokenCreateSchema.safeParse({ name: 'Escritorio', scopes: ['recipes:read', 'plan:read'], mcpProfile: 'basic' }).success).toBe(true)
     expect(ApiTokenCreateSchema.safeParse({ name: 'x', scopes: ['admin'] }).success).toBe(false)
+  })
+  it('normalizeAiBaseUrl: acepta https a cualquier host y http solo en local/LAN', () => {
+    expect(normalizeAiBaseUrl('https://api.example.com/v1')).toBe('https://api.example.com/v1')
+    expect(normalizeAiBaseUrl('http://localhost:8080/v1')).toBe('http://localhost:8080/v1')
+    expect(normalizeAiBaseUrl('http://192.168.1.20:8080/v1')).toBe('http://192.168.1.20:8080/v1')
+  })
+  it('normalizeAiBaseUrl: rechaza esquemas peligrosos y http a un host público (SSRF)', () => {
+    expect(normalizeAiBaseUrl('ftp://x')).toBeNull()
+    expect(normalizeAiBaseUrl('javascript:alert(1)')).toBeNull()
+    expect(normalizeAiBaseUrl('file:///etc/passwd')).toBeNull()
+    expect(normalizeAiBaseUrl('http://169.254.169.254/latest/meta-data')).toBeNull()
+    expect(normalizeAiBaseUrl('http://example.com/v1')).toBeNull()
+  })
+  it('normalizeAiBaseUrl: quita usuario/contraseña de la URL', () => {
+    expect(normalizeAiBaseUrl('http://user:pass@localhost:8080/v1')).toBe('http://localhost:8080/v1')
+  })
+  it('AiSettingsSchema: valida baseUrl con las mismas reglas SSRF', () => {
+    const base = { provider: 'openai_compatible' as const, model: 'qwen3-8b', monthlyCapCents: 0, structuredOutput: true }
+    expect(AiSettingsSchema.safeParse({ ...base, baseUrl: 'http://localhost:8080/v1' }).success).toBe(true)
+    expect(AiSettingsSchema.safeParse({ ...base, baseUrl: null }).success).toBe(true)
+    expect(AiSettingsSchema.safeParse({ ...base, baseUrl: 'http://example.com/v1' }).success).toBe(false)
+    expect(AiSettingsSchema.safeParse({ ...base, baseUrl: 'javascript:alert(1)' }).success).toBe(false)
   })
 })

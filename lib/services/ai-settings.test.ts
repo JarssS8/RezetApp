@@ -1,12 +1,23 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { eq } from 'drizzle-orm'
+import type { LanguageModel } from 'ai'
+import { MockLanguageModelV3 } from 'ai/test'
 import * as schema from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import { decryptSecret, getKeys } from '@/lib/crypto'
+import { languageModel } from '@/lib/ai/provider'
 import { createUserWithHousehold } from './households'
 import type { Ctx } from './ctx'
-import { getAiSettings, updateAiSettings } from './ai-settings'
+import { getAiSettings, testAiConnection, updateAiSettings } from './ai-settings'
 import type { VerifiedCredential } from '@/lib/auth/webauthn'
+
+// Solo se sustituye languageModel (construye el modelo real del SDK, harían
+// falta credenciales de verdad); resolveAiConfig se queda tal cual para
+// probar la orquestación completa del servicio.
+vi.mock('@/lib/ai/provider', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/ai/provider')>()
+  return { ...actual, languageModel: vi.fn() }
+})
 
 process.env.APP_URL = 'http://localhost:3000'
 process.env.APP_SECRET = 'secreto-de-prueba-con-suficiente-longitud-1234'
@@ -19,7 +30,10 @@ const baseInput = { provider: 'openai' as const, model: 'gpt-4o-mini', baseUrl: 
 
 beforeAll(async () => { db = await getTestDb() })
 afterAll(closeTestDb)
-beforeEach(async () => { await truncateAll(db) })
+beforeEach(async () => {
+  await truncateAll(db)
+  vi.mocked(languageModel).mockReset()
+})
 
 describe('ai-settings', () => {
   it('cifra la clave y no guarda el texto plano; getAiSettings reporta hasKey', async () => {
@@ -56,7 +70,7 @@ describe('ai-settings', () => {
 
   it('un member no puede cambiar los ajustes de IA', async () => {
     const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
-    await expect(updateAiSettings(ctxOf(a.householdId, a.userId, 'member'), baseInput)).rejects.toThrow()
+    await expect(updateAiSettings(ctxOf(a.householdId, a.userId, 'member'), baseInput)).rejects.toMatchObject({ code: 'forbidden' })
   })
 
   it('spentThisMonthCents suma solo el gasto del mes en curso', async () => {
@@ -67,5 +81,55 @@ describe('ai-settings', () => {
     await db.insert(schema.aiUsageLog).values({ householdId: a.householdId, provider: 'openai', model: 'gpt-4o-mini', operation: 'test', tokensIn: 100, tokensOut: 50, costCents: 999, createdAt: lastMonth })
     const settings = await getAiSettings(ctxOf(a.householdId, a.userId, 'owner'))
     expect(settings.spentThisMonthCents).toBe(10)
+  })
+})
+
+describe('testAiConnection', () => {
+  it('sin proveedor configurado no llama al modelo y devuelve not_configured', async () => {
+    const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    const result = await testAiConnection(ctxOf(a.householdId, a.userId, 'owner'))
+    expect(result).toMatchObject({ ok: false, error: 'not_configured', latencyMs: 0 })
+    expect(languageModel).not.toHaveBeenCalled()
+  })
+
+  it('conexión correcta: ok true y registra ai_usage_log con operation test', async () => {
+    const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    const ctx = ctxOf(a.householdId, a.userId, 'owner')
+    await updateAiSettings(ctx, { ...baseInput, apiKey: 'sk-test' })
+    const model = new MockLanguageModelV3({
+      doGenerate: async () => ({
+        content: [{ type: 'text', text: 'OK' }],
+        finishReason: { unified: 'stop', raw: undefined },
+        usage: {
+          inputTokens: { total: 5, noCache: 5, cacheRead: undefined, cacheWrite: undefined },
+          outputTokens: { total: 3, text: 3, reasoning: undefined },
+        },
+        warnings: [],
+      }),
+    })
+    vi.mocked(languageModel).mockReturnValue(model as unknown as LanguageModel)
+    const result = await testAiConnection(ctx)
+    expect(result.ok).toBe(true)
+    expect(result.latencyMs).toBeGreaterThanOrEqual(0)
+    expect(result.error).toBeUndefined()
+    const rows = await db.select().from(schema.aiUsageLog).where(eq(schema.aiUsageLog.householdId, a.householdId))
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.operation).toBe('test')
+  })
+
+  it('el modelo lanza: ok false y error provider, sin registrar uso', async () => {
+    const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    const ctx = ctxOf(a.householdId, a.userId, 'owner')
+    await updateAiSettings(ctx, { ...baseInput, apiKey: 'sk-test' })
+    const model = new MockLanguageModelV3({
+      doGenerate: async () => {
+        throw new Error('fallo de red')
+      },
+    })
+    vi.mocked(languageModel).mockReturnValue(model as unknown as LanguageModel)
+    const result = await testAiConnection(ctx)
+    expect(result).toMatchObject({ ok: false, error: 'provider' })
+    const rows = await db.select().from(schema.aiUsageLog).where(eq(schema.aiUsageLog.householdId, a.householdId))
+    expect(rows).toHaveLength(0)
   })
 })

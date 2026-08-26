@@ -30,12 +30,13 @@ export const MODELS: ModelInfo[] = [
   { id: 'qwen3-4b', provider: 'openai_compatible', label: 'Qwen3 4B (servidor local)', inputCentsPerM: 0, outputCentsPerM: 0, vision: false },
 ]
 
-// null para el proveedor cuyo modelo no se puede catalogar aquí (ver nota de
-// arriba): el hogar tiene que fijarlo a mano y no hay sugerencia posible.
+// null: ni anthropic (sin id por defecto, ver nota de arriba) ni
+// openai_compatible (el nombre del modelo local lo escribe el hogar; no hay
+// uno "por defecto" razonable) tienen sugerencia automática.
 export const DEFAULT_MODEL: Record<AiProviderId, string | null> = {
   anthropic: null,
   openai: 'gpt-4o-mini',
-  openai_compatible: '',
+  openai_compatible: null,
 }
 
 // Clave i18n (messages/*/settings.json) con la pista que se muestra en vez de

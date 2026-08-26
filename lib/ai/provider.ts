@@ -7,6 +7,7 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import type { LanguageModel } from 'ai'
 import type { Household } from '@/db/schema'
 import { decryptSecret, getKeys } from '@/lib/crypto'
+import { normalizeAiBaseUrl } from '@/lib/validation/household'
 import { DEFAULT_MODEL, type AiProviderId } from './models'
 
 export interface AiConfig {
@@ -17,13 +18,16 @@ export interface AiConfig {
   structuredOutput: boolean
 }
 
-type HouseholdAiFields = Pick<Household, 'aiProvider' | 'aiModel' | 'aiBaseUrl' | 'aiApiKeyEnc' | 'aiStructuredOutput'>
+type HouseholdAiFields = Pick<Household, 'id' | 'aiProvider' | 'aiModel' | 'aiBaseUrl' | 'aiApiKeyEnc' | 'aiStructuredOutput'>
 
-function resolveApiKey(h: Pick<HouseholdAiFields, 'aiProvider' | 'aiApiKeyEnc'>): string | null {
+function resolveApiKey(h: Pick<HouseholdAiFields, 'id' | 'aiProvider' | 'aiApiKeyEnc'>): string | null {
   if (h.aiApiKeyEnc) {
     try {
       return decryptSecret(h.aiApiKeyEnc, getKeys().secrets)
     } catch {
+      // Nunca se registra el secreto: solo que el hogar tiene una clave que ya no se puede leer
+      // (p. ej. cambió APP_SECRET).
+      console.error('ai: no se pudo descifrar la clave del hogar', h.id)
       return null
     }
   }
@@ -32,13 +36,21 @@ function resolveApiKey(h: Pick<HouseholdAiFields, 'aiProvider' | 'aiApiKeyEnc'>)
   return null // openai_compatible: el servidor local puede no exigir clave
 }
 
+// Defensa en profundidad: la URL ya se valida y normaliza en AiSettingsSchema
+// al guardarla, pero se revalida aquí por si llegó de otra vía (semilla,
+// migración manual, variable de entorno) para no acabar pidiendo a un host
+// público por http ni siguiendo un esquema no soportado (SSRF).
+function safeBaseUrl(raw: string | null): string | null {
+  return raw ? normalizeAiBaseUrl(raw) : null
+}
+
 export function resolveAiConfig(h: HouseholdAiFields): AiConfig | null {
   if (h.aiProvider === 'none') return null
   const apiKey = resolveApiKey(h)
   const structuredOutput = h.aiStructuredOutput
 
   if (h.aiProvider === 'openai_compatible') {
-    const baseUrl = h.aiBaseUrl ?? process.env.AI_LOCAL_BASE_URL ?? null
+    const baseUrl = safeBaseUrl(h.aiBaseUrl) ?? safeBaseUrl(process.env.AI_LOCAL_BASE_URL ?? null)
     const model = h.aiModel ?? process.env.AI_LOCAL_MODEL ?? null
     if (!baseUrl || !model) return null
     return { provider: 'openai_compatible', model, apiKey, baseUrl, structuredOutput }

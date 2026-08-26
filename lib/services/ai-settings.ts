@@ -74,10 +74,24 @@ export async function updateAiSettings(ctx: Ctx, input: AiSettings): Promise<voi
   await ctx.db.update(schema.households).set(patch).where(eq(schema.households.id, ctx.householdId))
 }
 
-export async function testAiConnection(ctx: Ctx): Promise<{ ok: boolean; message: string; latencyMs: number }> {
+export type AiConnectionErrorCode = 'not_configured' | 'provider' | 'timeout'
+
+export interface AiConnectionResult {
+  ok: boolean
+  message: string
+  latencyMs: number
+  error?: AiConnectionErrorCode
+}
+
+function isTimeoutError(err: unknown): boolean {
+  // AbortSignal.timeout() aborta con un DOMException 'TimeoutError'.
+  return err instanceof Error && err.name === 'TimeoutError'
+}
+
+export async function testAiConnection(ctx: Ctx): Promise<AiConnectionResult> {
   const h = await getHousehold(ctx)
   const cfg = resolveAiConfig(h)
-  if (!cfg) return { ok: false, message: 'Sin proveedor de IA configurado', latencyMs: 0 }
+  if (!cfg) return { ok: false, message: 'Sin proveedor de IA configurado', latencyMs: 0, error: 'not_configured' }
   const start = Date.now()
   try {
     const model = languageModel(cfg)
@@ -97,6 +111,8 @@ export async function testAiConnection(ctx: Ctx): Promise<{ ok: boolean; message
     })
     return { ok: true, message: result.text, latencyMs }
   } catch (err) {
-    return { ok: false, message: err instanceof Error ? err.message : 'Error desconocido', latencyMs: Date.now() - start }
+    const latencyMs = Date.now() - start
+    const message = err instanceof Error ? err.message : 'Error desconocido'
+    return { ok: false, message, latencyMs, error: isTimeoutError(err) ? 'timeout' : 'provider' }
   }
 }
