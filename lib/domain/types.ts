@@ -94,6 +94,9 @@ export interface PantryItem {
   unit: BaseUnit
   expiresAt: Date | null
   addedAt: Date
+  // Conversión del alimento, para restar despensa aunque la unidad no coincida
+  // con la de la necesidad (regla W1-R17). null = no se sabe convertir.
+  conversion: FoodConversion | null
 }
 
 export interface Need {
@@ -110,6 +113,7 @@ export interface Allocation {
 
 export interface ShoppingIngredient extends Ingredient {
   foodName: string
+  conversion: FoodConversion | null
 }
 
 export interface PlannedEntry {
@@ -127,6 +131,9 @@ export interface ShoppingLine {
   quantity: number | null
   unit: BaseUnit | null
   unresolved: boolean
+  // true cuando había despensa de este alimento en otra unidad y no se pudo
+  // convertir: no se ha restado nada, y la interfaz debe avisarlo.
+  pantryUnmatched: boolean
 }
 
 export interface TimerSpan {

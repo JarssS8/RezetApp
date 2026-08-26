@@ -22,5 +22,7 @@
   { "raw": "3 medium carrots, sliced", "expected": { "quantity": 3, "unit": null, "foodName": "medium carrots", "preparation": "sliced" } },
   { "raw": "1 kg potatoes, peeled and cubed", "expected": { "quantity": 1, "unit": "kg", "foodName": "potatoes", "preparation": "peeled and cubed" } },
   { "raw": "splash of white wine", "expected": { "quantity": null, "unit": "splash", "foodName": "white wine", "preparation": null } },
-  { "raw": "½ cup chopped walnuts", "expected": { "quantity": 0.5, "unit": "cup", "foodName": "chopped walnuts", "preparation": null } }
+  { "raw": "½ cup chopped walnuts", "expected": { "quantity": 0.5, "unit": "cup", "foodName": "chopped walnuts", "preparation": null } },
+  { "raw": "1 can of 400 g chopped tomatoes", "expected": { "quantity": 1, "unit": "can", "foodName": "400 g chopped tomatoes", "preparation": null }, "needsReview": true },
+  { "raw": "a pinch of freshly ground black pepper", "expected": { "quantity": 1, "unit": "pinch", "foodName": "freshly ground black pepper", "preparation": null }, "needsReview": true }
 ]

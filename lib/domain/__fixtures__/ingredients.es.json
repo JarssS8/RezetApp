@@ -42,5 +42,7 @@
   { "raw": "2 puñados de espinacas frescas", "expected": { "quantity": 2, "unit": "handful", "foodName": "espinacas frescas", "preparation": null } },
   { "raw": "1 pellizco de azafrán", "expected": { "quantity": 1, "unit": "pinch", "foodName": "azafrán", "preparation": null } },
   { "raw": "unos 300 g de merluza", "expected": { "quantity": 300, "unit": "g", "foodName": "merluza", "preparation": null } },
-  { "raw": "1 taza (240 ml) de arroz", "expected": { "quantity": 1, "unit": "cup", "foodName": "arroz", "preparation": "(240 ml)" } }
+  { "raw": "1 taza (240 ml) de arroz", "expected": { "quantity": 1, "unit": "cup", "foodName": "arroz", "preparation": "(240 ml)" } },
+  { "raw": "2 latas de 400 g de tomate triturado", "expected": { "quantity": 2, "unit": "can", "foodName": "400 g de tomate triturado", "preparation": null }, "needsReview": true },
+  { "raw": "un chorrito de aceite de oliva virgen extra", "expected": { "quantity": 1, "unit": "splash", "foodName": "aceite de oliva virgen extra", "preparation": null }, "needsReview": true }
 ]

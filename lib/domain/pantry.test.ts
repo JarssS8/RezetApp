@@ -3,7 +3,7 @@ import { allocateDeductions, entryStatus, expiringSoon } from './pantry'
 import type { PantryItem } from './types'
 
 const item = (id: string, qty: number, over: Partial<PantryItem> = {}): PantryItem => ({
-  id, foodId: 'f', quantity: qty, unit: 'g', expiresAt: null, addedAt: new Date('2026-01-01'), ...over,
+  id, foodId: 'f', quantity: qty, unit: 'g', expiresAt: null, addedAt: new Date('2026-01-01'), conversion: null, ...over,
 })
 
 describe('allocateDeductions', () => {

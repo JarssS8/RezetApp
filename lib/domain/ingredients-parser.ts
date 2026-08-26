@@ -14,6 +14,10 @@ const PARTICIPLES: Record<Locale, string[]> = {
   en: ['minced', 'diced', 'chopped', 'sliced', 'grated', 'drained', 'softened', 'beaten', 'peeled', 'cubed', 'melted', 'crushed', 'shredded', 'rinsed', 'thawed', 'toasted', 'crumbled', 'halved', 'quartered', 'juiced', 'zested', 'sifted', 'whisked', 'cooked', 'mashed', 'trimmed'],
 }
 const ADVERBS: Record<Locale, string[]> = { es: ['recien', 'bien', 'muy', 'finamente'], en: ['finely', 'freshly', 'roughly', 'thinly', 'coarsely'] }
+// Conectores que, si sobreviven al principio o al final del alimento, indican
+// que el corte se hizo mal ("de aceite de oliva y", "of the")
+const CONNECTORS: Record<Locale, string[]> = { es: ['de', 'del', 'y'], en: ['of', 'and'] }
+const REVIEW_CONFIDENCE = 0.5
 
 function parseNumberToken(tok: string, locale: Locale): number | null {
   if (UNICODE_FRACTIONS[tok] !== undefined) return UNICODE_FRACTIONS[tok] ?? null
@@ -141,5 +145,25 @@ export function parseIngredientLine(raw: string, locale: Locale): ParsedIngredie
   if (q.quantity === null) confidence = 0.7
   else if (u.unit === null) confidence = 0.8
   if (!food) confidence = 0.4
+  if (needsHumanEye(food, q.quantity, u.unit, locale)) confidence = Math.min(confidence, REVIEW_CONFIDENCE)
   return { quantity: q.quantity, unit: u.unit, foodName: food, preparation, confidence, needsReview: confidence < 0.6 }
+}
+
+// Señales de que la línea se ha entendido mal y conviene que alguien la mire:
+// baja la confianza por debajo del umbral de revisión (0.6).
+function needsHumanEye(food: string, quantity: number | null, unit: string | null, locale: Locale): boolean {
+  const words = food.split(' ').filter(Boolean)
+  // Un número dentro del nombre casi siempre es una cantidad que no se separó
+  // ("2 latas de 400 g de tomate" → "tomate de 400 g")
+  if (/\d/.test(food)) return true
+  const connectors = CONNECTORS[locale]
+  const first = stripAccents(words[0] ?? '')
+  const last = stripAccents(words[words.length - 1] ?? '')
+  if (words.length > 0 && (connectors.includes(first) || connectors.includes(last))) return true
+  // Sin cantidad ni unidad y con un nombre largo: probablemente sea una frase, no un ingrediente
+  if (quantity === null && unit === null && words.length > 3) return true
+  // Unidad vaga (pizca, chorrito, puñado) sobre un nombre largo: el reparto entre
+  // unidad, alimento y preparación es dudoso
+  const vague = unit !== null && findUnit(unit, locale)?.kind === 'vague'
+  return vague && words.length > 2
 }
