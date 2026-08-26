@@ -2,13 +2,15 @@
 // no pueden importar '@/db' directamente (regla de boundaries de eslint), así
 // que estas funciones resuelven la conexión aquí y exponen solo lo necesario.
 import 'server-only'
-import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server'
-import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/server'
+import type {
+  AuthenticationResponseJSON, PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON, RegistrationResponseJSON,
+} from '@simplewebauthn/server'
 import { db } from '@/db'
 import { getKeys, verifySignedValue } from '@/lib/auth/crypto'
 import type { Locale } from '@/lib/domain/types'
 import { destroySession, switchHousehold } from '@/lib/auth/session'
 import { finishLogin, finishRegistration, startLogin, startRegistration } from '@/lib/auth/webauthn'
+import { ServiceError } from './ctx'
 import { acceptInvite, createUserWithHousehold, getInvite, listHouseholdsOf, registerViaInvite } from './households'
 
 export type RegisterOptionsResult =
@@ -39,19 +41,29 @@ export function loginOptions(): Promise<{ challengeId: string; options: PublicKe
   return startLogin(db)
 }
 
-// null cuando el usuario autenticado no pertenece a ningún hogar (no debería pasar en flujo normal)
+// null cuando el usuario autenticado no pertenece a ningún hogar (no debería pasar en flujo normal).
+// Si la invitación falla tras un login ya verificado, no rebotamos al usuario: seguimos con su
+// hogar habitual y devolvemos inviteError para que la UI lo informe si quiere.
 export async function loginVerify(input: {
   challengeId: string
   inviteToken: string | undefined
   response: AuthenticationResponseJSON
-}): Promise<{ userId: string; householdId: string } | null> {
+}): Promise<{ userId: string; householdId: string; inviteError: 'invalid' | null } | null> {
   const { userId } = await finishLogin(db, { challengeId: input.challengeId, response: input.response })
   let householdId: string | undefined
-  if (input.inviteToken) householdId = (await acceptInvite(db, { token: input.inviteToken, userId })).householdId
+  let inviteError: 'invalid' | null = null
+  if (input.inviteToken) {
+    try {
+      householdId = (await acceptInvite(db, { token: input.inviteToken, userId })).householdId
+    } catch (e) {
+      console.error('loginVerify: no se pudo aceptar la invitación, se continúa con el hogar habitual', e)
+      inviteError = 'invalid'
+    }
+  }
   const households = await listHouseholdsOf(db, userId)
   householdId ??= households[0]?.id
   if (!householdId) return null
-  return { userId, householdId }
+  return { userId, householdId, inviteError }
 }
 
 export async function logoutSession(cookieValue: string | undefined): Promise<void> {
@@ -59,13 +71,19 @@ export async function logoutSession(cookieValue: string | undefined): Promise<vo
   if (id) await destroySession(db, id)
 }
 
-export async function getInviteInfo(token: string): Promise<{ householdId: string; householdName: string; invitedBy: string } | null> {
+export function getInviteInfo(token: string): Promise<{ householdId: string; householdName: string; invitedBy: string } | null> {
   return getInvite(db, token)
 }
 
-// El usuario ya tiene sesión: aceptar la invitación y cambiar el hogar activo de la sesión
+// El usuario ya tiene sesión: si ya es miembro del hogar de la invitación, no se
+// consume el token (evita quemar una invitación de un solo uso para otros); si no,
+// se acepta y se cambia el hogar activo de la sesión.
 export async function joinInviteAsCurrentUser(input: { token: string; sessionId: string; userId: string }): Promise<{ householdId: string }> {
-  const { householdId } = await acceptInvite(db, { token: input.token, userId: input.userId })
+  const invite = await getInvite(db, input.token)
+  if (!invite) throw new ServiceError('not_found', 'Invitación inválida o caducada')
+  const households = await listHouseholdsOf(db, input.userId)
+  const alreadyMember = households.some((h) => h.id === invite.householdId)
+  const householdId = alreadyMember ? invite.householdId : (await acceptInvite(db, { token: input.token, userId: input.userId })).householdId
   await switchHousehold(db, input.sessionId, householdId)
   return { householdId }
 }

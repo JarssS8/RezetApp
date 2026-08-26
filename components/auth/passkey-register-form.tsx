@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 
 export function PasskeyRegisterForm({ inviteToken, locale }: { inviteToken?: string; locale: 'es' | 'en' }) {
   const t = useTranslations('auth')
+  const c = useTranslations('common')
   const router = useRouter()
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -59,12 +60,17 @@ export function PasskeyRegisterForm({ inviteToken, locale }: { inviteToken?: str
         />
       </div>
       <p className="text-sm text-text-2">{t('register.hint')}</p>
+      {busy && (
+        <p aria-live="polite" className="text-sm text-text-2">
+          {c('state.working')}
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-sm text-warn">
           {error}
         </p>
       )}
-      <Button type="submit" disabled={busy || !displayName.trim()}>
+      <Button type="submit" aria-busy={busy} disabled={busy || !displayName.trim()}>
         {t('register.submit')}
       </Button>
     </form>

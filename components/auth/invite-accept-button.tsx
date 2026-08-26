@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 
 export function InviteAcceptButton({ token, displayName }: { token: string; displayName: string }) {
   const t = useTranslations('auth')
+  const c = useTranslations('common')
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -31,12 +32,17 @@ export function InviteAcceptButton({ token, displayName }: { token: string; disp
 
   return (
     <div className="flex flex-col gap-3">
+      {busy && (
+        <p aria-live="polite" className="text-sm text-text-2">
+          {c('state.working')}
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-sm text-warn">
           {error}
         </p>
       )}
-      <Button type="button" onClick={onClick} disabled={busy} data-testid="invite-accept-button">
+      <Button type="button" onClick={onClick} aria-busy={busy} disabled={busy} data-testid="invite-accept-button">
         {t('invite.joinAs', { name: displayName })}
       </Button>
     </div>

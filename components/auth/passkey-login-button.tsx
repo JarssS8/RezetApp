@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 
 export function PasskeyLoginButton({ inviteToken }: { inviteToken?: string }) {
   const t = useTranslations('auth')
+  const c = useTranslations('common')
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -16,6 +17,7 @@ export function PasskeyLoginButton({ inviteToken }: { inviteToken?: string }) {
     setError(null)
     try {
       const opt = await fetch('/api/auth/login/options', { method: 'POST' })
+      if (!opt.ok) throw new Error('options')
       const { challengeId, options } = (await opt.json()) as { challengeId: string; options: Parameters<typeof startAuthentication>[0]['optionsJSON'] }
       const response = await startAuthentication({ optionsJSON: options })
       const ver = await fetch('/api/auth/login/verify', {
@@ -35,12 +37,17 @@ export function PasskeyLoginButton({ inviteToken }: { inviteToken?: string }) {
 
   return (
     <div className="flex flex-col gap-3">
+      {busy && (
+        <p aria-live="polite" className="text-sm text-text-2">
+          {c('state.working')}
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-sm text-warn">
           {error}
         </p>
       )}
-      <Button type="button" onClick={onClick} disabled={busy} data-testid="login-button">
+      <Button type="button" onClick={onClick} aria-busy={busy} disabled={busy} data-testid="login-button">
         {t('login.submit')}
       </Button>
     </div>
