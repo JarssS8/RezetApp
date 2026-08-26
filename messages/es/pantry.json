@@ -13,5 +13,15 @@
   "decrease": "Menos",
   "increase": "Más",
   "whatToCook": "¿Qué cocino con lo que caduca?",
-  "expiringTitle": "Caduca pronto"
+  "expiringTitle": "Caduca pronto",
+  "form": {
+    "food": "Alimento",
+    "quantity": "Cantidad",
+    "unit": "Unidad",
+    "location": "Ubicación",
+    "expiresAt": "Caducidad",
+    "save": "Guardar",
+    "createFood": "Crear alimento nuevo",
+    "pickFood": "Elige un alimento para poder guardar"
+  }
 }

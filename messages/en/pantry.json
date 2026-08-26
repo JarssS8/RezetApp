@@ -13,5 +13,15 @@
   "decrease": "Decrease",
   "increase": "Increase",
   "whatToCook": "What can I cook with what's expiring?",
-  "expiringTitle": "Expiring soon"
+  "expiringTitle": "Expiring soon",
+  "form": {
+    "food": "Food",
+    "quantity": "Quantity",
+    "unit": "Unit",
+    "location": "Location",
+    "expiresAt": "Expiry date",
+    "save": "Save",
+    "createFood": "Create new food",
+    "pickFood": "Pick a food before saving"
+  }
 }
