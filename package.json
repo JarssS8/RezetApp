@@ -10,7 +10,7 @@
     "build": "next build",
     "build:scripts": "esbuild scripts/migrate.ts scripts/seed.ts --bundle --platform=node --format=esm --target=node24 --outdir=dist/scripts --external:pg-native --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
     "i18n:check": "tsx scripts/check-i18n-keys.ts",
     "test": "vitest run",
