@@ -23,6 +23,11 @@ export function getDb(): Db {
 // Proxy perezoso: cada acceso a una propiedad delega en getDb(), que solo crea
 // el pool la primera vez. Permite seguir escribiendo `db.execute(...)` en los
 // servicios sin forzar la conexión al importar el módulo.
+// getPrototypeOf/has delegan también en la instancia real para que
+// `instanceof PgDatabase` y el `is()` de drizzle-orm (que hacen brand checks
+// sobre el prototipo) sigan funcionando a través del proxy.
 export const db = new Proxy({} as Db, {
   get: (_target, prop) => Reflect.get(getDb() as object, prop, getDb()),
+  getPrototypeOf: () => Object.getPrototypeOf(getDb()),
+  has: (_target, prop) => prop in (getDb() as object),
 })

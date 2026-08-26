@@ -11,7 +11,7 @@ export async function runMigrations(databaseUrl: string): Promise<void> {
   const pool = new Pool({ connectionString: databaseUrl })
   const db = drizzle(pool)
   try {
-    await migrate(db, { migrationsFolder: process.env.MIGRATIONS_DIR ?? path.join(process.cwd(), 'db', 'migrations') })
+    await migrate(db, { migrationsFolder: process.env.MIGRATIONS_DIR || path.join(process.cwd(), 'db', 'migrations') })
   } finally {
     await pool.end()
   }
