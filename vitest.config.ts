@@ -19,6 +19,7 @@ export default defineConfig({
   resolve: { alias: { '@': path.resolve(import.meta.dirname) } },
   test: {
     exclude: ['**/node_modules/**', 'e2e/**', '.next/**', 'dist/**', '.worktrees/**'],
+    coverage: { include: ['lib/domain/**'], thresholds: { lines: 100 } },
     projects: [
       { extends: true, test: { name: 'unit', environment: 'node', include: ['**/*.test.ts'], exclude: DB_TEST_GLOBS } },
       { extends: true, test: { name: 'ui', environment: 'jsdom', include: ['**/*.test.tsx'], setupFiles: ['./vitest.setup.ts'] } },
