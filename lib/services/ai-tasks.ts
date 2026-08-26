@@ -18,12 +18,12 @@ import { AiUnsupportedError, importRecipeFromImageAi, importRecipeFromTextAi } f
 import { parseIngredientsFallback } from '@/lib/ai/tasks/parse-ingredients'
 import { proposePlan, type ProposePlanContext, type ProposePlanPlannedEntry, type ProposePlanRecipe, type ProposePlanSlot } from '@/lib/ai/tasks/propose-plan'
 import type { BaseUnit, ParsedIngredient } from '@/lib/domain/types'
-import { emitHouseholdEvent } from '@/lib/events/bus'
 import { createFood, type FoodWithNutrition } from '@/lib/services/foods'
 import { ProposalPayloadSchema } from '@/lib/validation/plan'
 import type { FoodInput } from '@/lib/validation/foods'
 import type { RecipeInput } from '@/lib/validation/recipes'
 import { type Ctx, type Db, ServiceError } from './ctx'
+import { createProposal } from './plan'
 
 export type AiFailureCode = 'no_provider' | 'ai_budget' | 'ai_unsupported' | 'ai_output' | 'internal'
 export type AiResult<T> = { ok: true; data: T } | { ok: false; code: AiFailureCode; message: string }
@@ -261,21 +261,7 @@ export async function aiProposeWeek(ctx: Ctx, input: { from: string; to: string;
       remove: [],
     })
 
-    // TODO-merge: sustituir por `createProposal` de la pista (c) al mergear.
-    const [row] = await ctx.db
-      .insert(schema.planProposals)
-      .values({
-        householdId: ctx.householdId,
-        createdByUserId: ctx.userId,
-        createdByTokenId: ctx.apiTokenId,
-        source: 'ai',
-        status: 'pending',
-        payload,
-      })
-      .returning({ id: schema.planProposals.id })
-    if (!row) throw new Error('No se pudo crear la propuesta')
-
-    emitHouseholdEvent(ctx.householdId, { type: 'proposal.created', payload: { proposalId: row.id } })
-    return { result: { proposalId: row.id }, usage }
+    const proposal = await createProposal(ctx, { source: 'ai', payload })
+    return { result: { proposalId: proposal.id }, usage }
   })
 }

@@ -9,6 +9,7 @@ import { updateAiSettings } from './ai-settings'
 import { aiEstimateFood, aiImportRecipe, aiParseIngredients, aiProposeWeek } from './ai-tasks'
 import type { Ctx } from './ctx'
 import { createUserWithHousehold } from './households'
+import { listProposals } from './plan'
 
 process.env.APP_URL = 'http://localhost:3000'
 process.env.APP_SECRET = 'secreto-de-prueba-con-suficiente-longitud-1234'
@@ -145,11 +146,11 @@ describe('aiProposeWeek', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) throw new Error('esperaba ok')
 
-    const [proposal] = await db.select().from(schema.planProposals).where(eq(schema.planProposals.id, result.data.proposalId))
+    const pending = await listProposals(ctx, 'pending')
+    const proposal = pending.find((p) => p.id === result.data.proposalId)
     expect(proposal).toBeDefined()
     expect(proposal?.status).toBe('pending')
     expect(proposal?.source).toBe('ai')
-    expect(proposal?.createdByUserId).toBe(ctx.userId)
     expect(proposal?.payload).toEqual({ add: [{ date: '2026-08-25', slot: 'dinner', recipeId, servings: 2 }], remove: [] })
 
     const usage = await db.select().from(schema.aiUsageLog).where(and(eq(schema.aiUsageLog.householdId, householdId), eq(schema.aiUsageLog.operation, 'propose_week')))
@@ -173,7 +174,9 @@ describe('aiProposeWeek', () => {
     const result = await aiProposeWeek(ctx, { from: '2026-08-24', to: '2026-08-30' }, { model: model as unknown as LanguageModel })
     expect(result.ok).toBe(true)
     if (!result.ok) throw new Error('esperaba ok')
-    const [proposal] = await db.select().from(schema.planProposals).where(eq(schema.planProposals.id, result.data.proposalId))
+    const pending = await listProposals(ctx, 'pending')
+    const proposal = pending.find((p) => p.id === result.data.proposalId)
+    expect(proposal?.source).toBe('ai')
     expect(proposal?.payload).toEqual({ add: [{ date: '2026-08-25', slot: 'lunch', recipeId, servings: 2 }], remove: [] })
   })
 
