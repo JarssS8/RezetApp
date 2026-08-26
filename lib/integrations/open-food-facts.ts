@@ -137,13 +137,12 @@ export async function fetchOffProduct(barcode: string, fetchImpl: typeof fetch =
   if (!name) return null
 
   const n = p.nutriments ?? {}
-  // Inferencia propia (no está en el brief ni en sus tests): serving_quantity
-  // solo tiene sentido como gramos-por-unidad cuando la unidad declarada es
-  // 'g'. A confirmar por quien implemente lookupBarcode (Tarea 3).
+  // serving_quantity solo tiene sentido como gramos-por-unidad cuando la
+  // unidad declarada es 'g' (si viniera en 'ml' u otra cosa, no es una
+  // cantidad de la unidad por defecto 'g' de createFood).
   const gramsPerUnit = p.serving_quantity_unit === 'g' ? num(p.serving_quantity) : null
-  // Inferencia propia: volcamos la marca (lista separada por comas) como
-  // aliases para que sea buscable. A confirmar por quien implemente
-  // lookupBarcode/createFood (Tarea 3).
+  // Volcamos la marca (lista separada por comas) como aliases: así "Danone"
+  // o "Hacendado" son buscables aunque no aparezcan en el nombre del producto.
   const aliases = (p.brands ?? '')
     .split(',')
     .map((b) => b.trim())

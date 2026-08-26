@@ -1,8 +1,9 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
+import type { OffProduct } from '@/lib/integrations/open-food-facts'
 import type { Ctx } from '@/lib/services/ctx'
-import { getFood, getFoodsNutrition, resolveFoodName, resolveMany, searchFoods } from './foods'
+import { correctFood, createFood, getFood, getFoodsNutrition, lookupBarcode, resolveFoodName, resolveMany, searchFoods } from './foods'
 
 let db: TestDb
 let ctxA: Ctx
@@ -100,5 +101,73 @@ describe('getFoodsNutrition / getFood', () => {
     const [p] = await db.insert(schema.foods).values({ householdId: ctxA.householdId, nameEs: 'secreto', nameEn: 'secret', searchNameEs: 'secreto', searchNameEn: 'secret' }).returning()
     expect(await getFood(ctxB, p!.id)).toBeNull()
     expect((await getFoodsNutrition(ctxB, [p!.id])).size).toBe(0)
+  })
+})
+
+describe('createFood / correctFood', () => {
+  it('createFood crea un alimento del hogar con nombres y aliases normalizados', async () => {
+    const f = await createFood(ctxA, { nameEs: 'Tomate Pera', nameEn: 'Plum Tomato', aliases: ['Tomate de pera'], defaultUnit: 'g', allergens: [], seasonalMonths: [7, 8] })
+    expect(f.householdId).toBe(ctxA.householdId)
+    expect(f.source).toBe('manual')
+    expect((await resolveFoodName(ctxA, 'tomate de pera', 'es'))?.foodId).toBe(f.id)
+    // aislamiento: el hogar B no resuelve el alimento privado de A
+    expect(await resolveFoodName(ctxB, 'tomate pera', 'es')).toBeNull()
+  })
+
+  it('correctFood sobre un alimento global crea una copia del hogar; el global sigue intacto', async () => {
+    const [g] = await searchFoods(ctxA, { q: 'pimiento rojo' })
+    const c = await correctFood(ctxA, g!.id, { kcal100g: 31 })
+    expect(c.id).not.toBe(g!.id)
+    expect(c.householdId).toBe(ctxA.householdId)
+    expect(c.kcal100g).toBe(31)
+    expect(c.source).toBe('manual')
+    // el global sigue intacto y el hogar A ahora resuelve a su copia
+    expect((await getFood(ctxB, g!.id))?.kcal100g).toBe(40)
+    expect((await resolveFoodName(ctxA, 'pimiento rojo', 'es'))?.foodId).toBe(c.id)
+  })
+
+  it('correctFood sobre un alimento propio actualiza in situ; sobre uno ajeno → not_found', async () => {
+    const f = await createFood(ctxA, { nameEs: 'x', nameEn: 'x', aliases: [], defaultUnit: 'g', allergens: [], seasonalMonths: [] })
+    const c = await correctFood(ctxA, f.id, { kcal100g: 5 })
+    expect(c.id).toBe(f.id)
+    expect(c.source).toBe('manual')
+    await expect(correctFood(ctxB, f.id, { kcal100g: 5 })).rejects.toMatchObject({ code: 'not_found' })
+  })
+})
+
+describe('lookupBarcode', () => {
+  it('devuelve el alimento local si ya existe con ese código, sin llamar al fetcher', async () => {
+    await seedGlobal('galleta', 'biscuit', { barcode: '12345678' })
+    const fetcher = vi.fn(async () => null)
+    const { food, created } = await lookupBarcode(ctxA, '12345678', fetcher)
+    expect(food.nameEs).toBe('galleta')
+    expect(created).toBe(false)
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('consulta OFF si no existe y crea un alimento del hogar con source off', async () => {
+    const fetcher = async (): Promise<OffProduct> => ({
+      code: '99900000', name: 'Yogur', nameEs: 'Yogur natural', nameEn: 'Plain yogurt',
+      kcal100g: 60, protein100g: 3.5, carbs100g: 4.5, fat100g: 3, fiber100g: 0,
+      allergens: ['lactose'], aliases: [], gramsPerUnit: null,
+    })
+    const { food, created } = await lookupBarcode(ctxA, '99900000', fetcher)
+    expect(created).toBe(true)
+    expect(food.source).toBe('off')
+    expect(food.householdId).toBe(ctxA.householdId)
+    // segunda vez para el mismo hogar: ya está en caché local, no vuelve a llamar a OFF
+    const fetcher2 = vi.fn(async () => null)
+    const again = await lookupBarcode(ctxA, '99900000', fetcher2)
+    expect(again.food.id).toBe(food.id)
+    expect(again.created).toBe(false)
+    expect(fetcher2).not.toHaveBeenCalled()
+  })
+
+  it('lanza not_found si OFF no lo conoce', async () => {
+    await expect(lookupBarcode(ctxA, '00000000', async () => null)).rejects.toMatchObject({ code: 'not_found' })
+  })
+
+  it('lanza validation si el código de barras no tiene formato válido', async () => {
+    await expect(lookupBarcode(ctxA, 'no-es-un-codigo', async () => null)).rejects.toMatchObject({ code: 'validation' })
   })
 })

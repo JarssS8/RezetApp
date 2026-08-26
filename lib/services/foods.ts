@@ -2,7 +2,9 @@ import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { normalizeSearchName } from '@/lib/domain/quantities'
 import type { BaseUnit, FoodNutrition, Locale } from '@/lib/domain/types'
-import type { Ctx } from './ctx'
+import { fetchOffProduct, offToFoodInput, type OffProduct } from '@/lib/integrations/open-food-facts'
+import { BarcodeSchema, type FoodCorrection, type FoodInput } from '@/lib/validation/foods'
+import { ServiceError, type Ctx } from './ctx'
 
 export interface FoodSummary {
   id: string
@@ -182,4 +184,129 @@ export async function getFood(ctx: Ctx, foodId: string): Promise<FoodWithNutriti
     .where(and(visible(ctx), eq(schema.foods.id, foodId)))
     .limit(1)
   return f ? toSummary(f, ctx.locale) : null
+}
+
+// Fila lista para insert/update a partir de un FoodInput ya validado. Los alias
+// se normalizan igual que los nombres de búsqueda (stripAccents+lowercase):
+// resolveFoodName los compara con `lower(a) = q` sin volver a normalizar.
+function toInsert(input: FoodInput, householdId: string | null, source: schema.Food['source'], isEstimated: boolean): typeof schema.foods.$inferInsert {
+  return {
+    householdId,
+    nameEs: input.nameEs,
+    nameEn: input.nameEn,
+    searchNameEs: normalizeSearchName(input.nameEs),
+    searchNameEn: normalizeSearchName(input.nameEn),
+    aliases: input.aliases.map(normalizeSearchName).filter(Boolean),
+    defaultUnit: input.defaultUnit,
+    kcal100g: input.kcal100g ?? null,
+    protein100g: input.protein100g ?? null,
+    carbs100g: input.carbs100g ?? null,
+    fat100g: input.fat100g ?? null,
+    fiber100g: input.fiber100g ?? null,
+    barcode: input.barcode ?? null,
+    allergens: input.allergens,
+    gramsPerCup: input.gramsPerCup ?? null,
+    gramsPerTbsp: input.gramsPerTbsp ?? null,
+    gramsPerUnit: input.gramsPerUnit ?? null,
+    densityGPerMl: input.densityGPerMl ?? null,
+    seasonalMonths: input.seasonalMonths,
+    source,
+    isEstimated,
+  }
+}
+
+// Alta manual (o desde IA, pista (e)): siempre del hogar que la crea, nunca global.
+// `isEstimated` solo es true para altas de IA; una manual o de OFF es un dato declarado, no estimado.
+export async function createFood(ctx: Ctx, input: FoodInput, source: schema.Food['source'] = 'manual'): Promise<FoodWithNutrition> {
+  const [f] = await ctx.db
+    .insert(schema.foods)
+    .values(toInsert(input, ctx.householdId, source, source === 'ai'))
+    .returning()
+  if (!f) throw new ServiceError('conflict', 'No se pudo crear el alimento')
+  return toSummary(f, ctx.locale)
+}
+
+// Corrección manual (§9.4): gana a cualquier fuente y deja de ser una estimación.
+// Un alimento global es compartido por todos los hogares, así que corregirlo
+// no lo modifica in situ (afectaría a otros hogares sin que lo pidan): en su
+// lugar se crea una copia del hogar con el parche aplicado, y quien llama
+// sustituye el foodId por el de la copia. Un alimento ya del hogar sí se
+// actualiza en su sitio. `visible(ctx)` ya excluye los alimentos privados de
+// otro hogar, así que un id ajeno cae directamente en `not_found`.
+export async function correctFood(ctx: Ctx, foodId: string, patch: FoodCorrection): Promise<FoodWithNutrition> {
+  const [f] = await ctx.db
+    .select()
+    .from(schema.foods)
+    .where(and(visible(ctx), eq(schema.foods.id, foodId)))
+    .limit(1)
+  if (!f) throw new ServiceError('not_found', 'Alimento no encontrado')
+
+  const merged: FoodInput = {
+    nameEs: patch.nameEs ?? f.nameEs,
+    nameEn: patch.nameEn ?? f.nameEn,
+    aliases: patch.aliases ?? f.aliases,
+    defaultUnit: patch.defaultUnit ?? f.defaultUnit,
+    kcal100g: patch.kcal100g !== undefined ? patch.kcal100g : f.kcal100g,
+    protein100g: patch.protein100g !== undefined ? patch.protein100g : f.protein100g,
+    carbs100g: patch.carbs100g !== undefined ? patch.carbs100g : f.carbs100g,
+    fat100g: patch.fat100g !== undefined ? patch.fat100g : f.fat100g,
+    fiber100g: patch.fiber100g !== undefined ? patch.fiber100g : f.fiber100g,
+    barcode: patch.barcode !== undefined ? patch.barcode : f.barcode,
+    allergens: (patch.allergens ?? f.allergens) as FoodInput['allergens'],
+    gramsPerCup: patch.gramsPerCup !== undefined ? patch.gramsPerCup : f.gramsPerCup,
+    gramsPerTbsp: patch.gramsPerTbsp !== undefined ? patch.gramsPerTbsp : f.gramsPerTbsp,
+    gramsPerUnit: patch.gramsPerUnit !== undefined ? patch.gramsPerUnit : f.gramsPerUnit,
+    densityGPerMl: patch.densityGPerMl !== undefined ? patch.densityGPerMl : f.densityGPerMl,
+    seasonalMonths: patch.seasonalMonths ?? f.seasonalMonths,
+  }
+
+  if (f.householdId === null) {
+    const [copy] = await ctx.db
+      .insert(schema.foods)
+      .values(toInsert(merged, ctx.householdId, 'manual', false))
+      .returning()
+    if (!copy) throw new ServiceError('conflict', 'No se pudo copiar el alimento')
+    return toSummary(copy, ctx.locale)
+  }
+
+  const [updated] = await ctx.db
+    .update(schema.foods)
+    .set({ ...toInsert(merged, f.householdId, 'manual', false), updatedAt: new Date() })
+    .where(and(eq(schema.foods.id, f.id), eq(schema.foods.householdId, ctx.householdId)))
+    .returning()
+  if (!updated) throw new ServiceError('not_found', 'Alimento no encontrado')
+  return toSummary(updated, ctx.locale)
+}
+
+// Inyectable en tests: una función que dado un código de barras intenta
+// obtener el producto (normalmente contra Open Food Facts).
+export type BarcodeFetcher = (barcode: string) => Promise<OffProduct | null>
+
+export interface BarcodeLookupResult {
+  food: FoodWithNutrition
+  created: boolean
+}
+
+// Cascada de código de barras: primero local (del hogar, luego global), y solo
+// si no hay nada se pregunta a OFF. Un producto envasado escaneado por un hogar
+// se guarda como alimento *del hogar* (source 'off'), no global: así el dato
+// que trae un usuario (nombre, kcal de la etiqueta) no se cuela en el catálogo
+// de otros hogares sin revisión. Si OFF tampoco lo conoce, `not_found`.
+export async function lookupBarcode(ctx: Ctx, barcode: string, fetcher: BarcodeFetcher = (b) => fetchOffProduct(b)): Promise<BarcodeLookupResult> {
+  const parsed = BarcodeSchema.safeParse(barcode)
+  if (!parsed.success) throw new ServiceError('validation', 'Código de barras inválido')
+
+  const [local] = await ctx.db
+    .select()
+    .from(schema.foods)
+    .where(and(visible(ctx), eq(schema.foods.barcode, parsed.data)))
+    .orderBy(sql`(${schema.foods.householdId} is null)`) // el del hogar antes que el global
+    .limit(1)
+  if (local) return { food: toSummary(local, ctx.locale), created: false }
+
+  const off = await fetcher(parsed.data)
+  if (!off) throw new ServiceError('not_found', 'Código de barras no encontrado en Open Food Facts')
+
+  const food = await createFood(ctx, offToFoodInput(off), 'off')
+  return { food, created: true }
 }
