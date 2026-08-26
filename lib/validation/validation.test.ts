@@ -51,6 +51,7 @@ describe('validation', () => {
     expect(normalizeAiBaseUrl('https://api.example.com/v1')).toBe('https://api.example.com/v1')
     expect(normalizeAiBaseUrl('http://localhost:8080/v1')).toBe('http://localhost:8080/v1')
     expect(normalizeAiBaseUrl('http://192.168.1.20:8080/v1')).toBe('http://192.168.1.20:8080/v1')
+    expect(normalizeAiBaseUrl('http://[::1]:8080/v1')).toBe('http://[::1]:8080/v1')
   })
   it('normalizeAiBaseUrl: rechaza esquemas peligrosos y http a un host público (SSRF)', () => {
     expect(normalizeAiBaseUrl('ftp://x')).toBeNull()
@@ -58,6 +59,7 @@ describe('validation', () => {
     expect(normalizeAiBaseUrl('file:///etc/passwd')).toBeNull()
     expect(normalizeAiBaseUrl('http://169.254.169.254/latest/meta-data')).toBeNull()
     expect(normalizeAiBaseUrl('http://example.com/v1')).toBeNull()
+    expect(normalizeAiBaseUrl('http://[2001:db8::1]/v1')).toBeNull()
   })
   it('normalizeAiBaseUrl: quita usuario/contraseña de la URL', () => {
     expect(normalizeAiBaseUrl('http://user:pass@localhost:8080/v1')).toBe('http://localhost:8080/v1')

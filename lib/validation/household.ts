@@ -55,8 +55,30 @@ function isPrivateIPv4(hostname: string): boolean {
   return false
 }
 
+// URL.hostname devuelve las IPv6 entre corchetes ('[::1]'); hay que quitarlos
+// antes de comparar contra la lista de hosts locales.
+function stripIPv6Brackets(hostname: string): string {
+  return hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname
+}
+
+// El parser de URL normaliza cualquier IPv4-mapped ('::ffff:127.0.0.1',
+// '::ffff:192.168.1.20'…) a su forma hexadecimal ('::ffff:7f00:1',
+// '::ffff:c0a8:114'…); hay que deshacerla para poder aplicar las mismas
+// reglas de host local/LAN que a una IPv4 normal.
+function ipv4MappedToDotted(hostname: string): string | null {
+  const m = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i.exec(hostname)
+  if (!m || m[1] === undefined || m[2] === undefined) return null
+  const g1 = Number.parseInt(m[1], 16)
+  const g2 = Number.parseInt(m[2], 16)
+  return [(g1 >> 8) & 0xff, g1 & 0xff, (g2 >> 8) & 0xff, g2 & 0xff].join('.')
+}
+
 function isAllowedLocalAiHost(hostname: string): boolean {
-  return PRIVATE_AI_HOSTS.has(hostname.toLowerCase()) || isPrivateIPv4(hostname)
+  const h = stripIPv6Brackets(hostname).toLowerCase()
+  if (PRIVATE_AI_HOSTS.has(h) || h === '::1') return true
+  const mapped = ipv4MappedToDotted(h)
+  if (mapped !== null) return mapped === '127.0.0.1' || isPrivateIPv4(mapped)
+  return isPrivateIPv4(h)
 }
 
 // Valida y normaliza la URL de un servidor de IA (SSRF, W2-R-fix-1): https a
