@@ -2,5 +2,72 @@
   "title": "Plan",
   "ai": {
     "propose": "Propose week"
-  }
+  },
+  "week": "Week",
+  "month": "Month",
+  "today": "Today",
+  "prevWeek": "Previous week",
+  "nextWeek": "Next week",
+  "slots": {
+    "breakfast": "Breakfast",
+    "lunch": "Lunch",
+    "dinner": "Dinner",
+    "snack": "Snack"
+  },
+  "addTo": "Add to {slot}",
+  "searchRecipe": "Search recipe…",
+  "freeMeal": "Free meal",
+  "freeMealTitle": "Title",
+  "servings": "Servings",
+  "servingsShort": "×{n}",
+  "leftover": "Leftovers",
+  "skip": "Skip",
+  "unskip": "Unskip",
+  "skipped": "Skipped",
+  "cooked": "Cooked",
+  "timeBudget": "Time available (min)",
+  "kcalDay": "{kcal} kcal",
+  "remove": "Remove from plan",
+  "dragHint": "Press and hold to move",
+  "moveDate": "Move to date",
+  "moveSlot": "Move to slot",
+  "proposals": {
+    "title": "Proposals",
+    "empty": "No proposals yet. They'll come from the AI, the MCP assistant, or your rules.",
+    "from": {
+      "ai": "from the AI",
+      "rules": "from your rules",
+      "mcp": "from the assistant"
+    },
+    "approve": "Approve",
+    "reject": "Discard",
+    "approved": "Approved",
+    "rejected": "Discarded",
+    "adds": "Adds",
+    "removes": "Removes",
+    "addLine": "+ {title} · {slot} · ×{servings}",
+    "removeLine": "− {title} · {slot}",
+    "error": "Couldn't decide on the proposal"
+  },
+  "shopping": {
+    "title": "Generate shopping list",
+    "resolved": "To buy",
+    "unresolved": "No matching food",
+    "noQuantity": "No quantity set",
+    "pantryUnmatched": "Pantry has some in another unit",
+    "empty": "Nothing to buy for this range."
+  },
+  "empty": "Empty week: add meals or ask for a proposal.",
+  "errors": {
+    "move": "Couldn't move the meal",
+    "leftover": "Couldn't create the leftover"
+  },
+  "prevMonth": "Previous month",
+  "nextMonth": "Next month",
+  "createLeftover": "Add leftover",
+  "leftoverDate": "Date",
+  "leftoverSlot": "Slot",
+  "plannedMeals": "{n} planned meals",
+  "servingsInc": "Increase servings",
+  "servingsDec": "Decrease servings"
 }
