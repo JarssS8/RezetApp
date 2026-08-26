@@ -36,6 +36,26 @@ export async function createInvite(ctx: Ctx): Promise<{ token: string; url: stri
   return { token, url: `${base}/invite/${token}`, expiresAt }
 }
 
+// Hogar y miembros para GET /api/v1/household (REST y MCP)
+export async function getHouseholdOverview(
+  ctx: Ctx,
+): Promise<{ id: string; name: string; defaultServings: number; expiryAlertDays: number; members: { userId: string; displayName: string; role: 'owner' | 'member'; allergens: string[]; dietaryFlags: string[] }[] }> {
+  const [household] = await ctx.db.select().from(schema.households).where(eq(schema.households.id, ctx.householdId)).limit(1)
+  if (!household) throw new ServiceError('not_found', 'Hogar no encontrado')
+  const members = await ctx.db
+    .select({
+      userId: schema.users.id,
+      displayName: schema.users.displayName,
+      role: schema.householdMembers.role,
+      allergens: schema.householdMembers.allergens,
+      dietaryFlags: schema.householdMembers.dietaryFlags,
+    })
+    .from(schema.householdMembers)
+    .innerJoin(schema.users, eq(schema.users.id, schema.householdMembers.userId))
+    .where(eq(schema.householdMembers.householdId, ctx.householdId))
+  return { id: household.id, name: household.name, defaultServings: household.defaultServings, expiryAlertDays: household.expiryAlertDays, members }
+}
+
 export async function getInvite(db: Db, token: string): Promise<{ householdId: string; householdName: string; invitedBy: string } | null> {
   const [row] = await db
     .select({ householdId: schema.households.id, householdName: schema.households.name, invitedBy: schema.users.displayName })
