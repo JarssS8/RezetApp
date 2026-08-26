@@ -4,7 +4,7 @@ import { detectTimers, isNonLinearByDefault, normalizeSearchName, parseIngredien
 import type { BaseUnit, IngredientWithFood, Locale, Nutrition, ScaledRecipe } from '@/lib/domain/types'
 import { emitHouseholdEvent } from '@/lib/events/bus'
 import type { RecipeInput } from '@/lib/validation/recipes'
-import { type Ctx, type Db, ServiceError } from './ctx'
+import { isUniqueViolation, type Ctx, type Db, ServiceError } from './ctx'
 import { getFoodsNutrition, resolveFoodName, resolveMany, type FoodWithNutrition, type ResolvedFood } from './foods'
 import { toIngredient, toIngredientWithFood, toRecipeForScaling } from './recipe-mapper'
 
@@ -38,23 +38,29 @@ export function slugify(s: string): string {
   return normalizeSearchName(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
-// Resuelve el nombre de un ingrediente cuya cascada normal (resolveFoodName vía
-// resolveMany) no dio nada: reintenta con la primera palabra del nombre
-// parseado ("cebollas grandes" -> "cebollas"), porque el trigram exige ≥ 0.6 y
-// una frase larga rara vez llega a ese umbral aunque la primera palabra sí.
+// Segundo intento cuando la cascada normal (resolveFoodName vía resolveMany) no
+// dio nada: reintenta con la primera palabra del nombre parseado ("cebollas
+// grandes" -> "cebollas"), porque el trigram exige ≥ 0.6 y una frase larga rara
+// vez llega a ese umbral aunque la primera palabra sí. Solo se llama cuando el
+// primer intento ya falló, así que no repite esa misma consulta.
 async function resolveWithFallback(ctx: Ctx, name: string, locale: Locale): Promise<ResolvedFood | null> {
-  const direct = await resolveFoodName(ctx, name, locale)
-  if (direct) return direct
   const firstWord = name.split(' ')[0]
   if (!firstWord || firstWord === name) return null
   return resolveFoodName(ctx, firstWord, locale)
+}
+
+interface PreparedWithFoods {
+  prepared: PreparedIngredient[]
+  foods: Map<string, FoodWithNutrition>
 }
 
 // Completa cada línea: parsea rawText si faltan quantity/unit, resuelve el
 // alimento si falta foodId y calcula scalesLinearly por defecto para las
 // líneas que se acaban de parsear (una línea ya resuelta a mano -editar una
 // receta existente- conserva el valor que traiga, que el usuario pudo corregir).
-export async function prepareIngredients(ctx: Ctx, inputs: IngredientInput[], locale: Locale): Promise<PreparedIngredient[]> {
+// Devuelve también el mapa de alimentos ya resuelto para que createRecipe/
+// updateRecipe no tengan que volver a pedirlo a computar la nutrición.
+async function prepareIngredientsWithFoods(ctx: Ctx, inputs: IngredientInput[], locale: Locale): Promise<PreparedWithFoods> {
   const parsed = inputs.map((i) => parseIngredientLine(i.rawText, locale))
   const namesToResolve = inputs.map((i, k) => (i.foodId ? null : (parsed[k]?.foodName ?? null)))
   const firstPass = await resolveMany(ctx, namesToResolve.map((n) => n ?? ''), locale)
@@ -67,10 +73,14 @@ export async function prepareIngredients(ctx: Ctx, inputs: IngredientInput[], lo
     }
     resolved.push(firstPass[k] ?? (await resolveWithFallback(ctx, name, locale)))
   }
-  const foodIds = inputs.map((i, k) => i.foodId ?? resolved[k]?.foodId ?? null)
-  const foods = await getFoodsNutrition(ctx, foodIds.filter((x): x is string => x !== null))
+  const rawFoodIds = inputs.map((i, k) => i.foodId ?? resolved[k]?.foodId ?? null)
+  const foods = await getFoodsNutrition(ctx, rawFoodIds.filter((x): x is string => x !== null))
+  // Un foodId explícito puede señalar un alimento privado de otro hogar: getFoodsNutrition
+  // ya filtra por visibilidad, así que si no aparece en el mapa se descarta aquí en vez
+  // de arrastrarlo a la receta (la línea queda sin alimento, no apunta al ajeno).
+  const foodIds = rawFoodIds.map((id) => (id !== null && foods.has(id) ? id : null))
 
-  return inputs.map((i, k): PreparedIngredient => {
+  const prepared = inputs.map((i, k): PreparedIngredient => {
     const p = parsed[k]
     if (!p) throw new ServiceError('validation', 'Ingrediente inválido')
     const foodId = foodIds[k] ?? null
@@ -93,6 +103,15 @@ export async function prepareIngredients(ctx: Ctx, inputs: IngredientInput[], lo
     // Una línea que llega ya resuelta (quantity y unit explícitos) conserva el
     // scalesLinearly que traiga -el usuario pudo corregirlo a mano-; una línea
     // recién parseada desde texto libre lo recalcula siempre con la heurística.
+    // Deuda aparcada: RecipeIngredientInputSchema define scalesLinearly con
+    // z.boolean().default(true), así que en RecipeInput el campo llega SIEMPRE
+    // presente (nunca undefined) y no hay forma de distinguir "no lo mandaron"
+    // de "mandaron true a propósito". needsParsing es la única señal disponible
+    // aquí; para que la heurística se aplique de verdad, REST/MCP deben pasar
+    // las líneas nuevas por prepareIngredients con quantity/unit sin resolver
+    // (tal como hace este servicio), no colar un scalesLinearly ya calculado a
+    // mano. Revisar si lib/validation deja de estar congelado (podría separarse
+    // "no venía" de "vino true").
     const needsParsing = i.quantity === undefined || i.unit === undefined
     const scalesLinearly = needsParsing ? !isNonLinearByDefault(food?.name ?? p.foodName, locale) : i.scalesLinearly
 
@@ -111,6 +130,27 @@ export async function prepareIngredients(ctx: Ctx, inputs: IngredientInput[], lo
       needsReview: foodId === null || p.needsReview,
     }
   })
+
+  return { prepared, foods }
+}
+
+export async function prepareIngredients(ctx: Ctx, inputs: IngredientInput[], locale: Locale): Promise<PreparedIngredient[]> {
+  return (await prepareIngredientsWithFoods(ctx, inputs, locale)).prepared
+}
+
+// Etiqueta existente (del hogar o global) por slug, o la crea. onConflictDoNothing
+// cubre la carrera entre el select y el insert (dos peticiones creando la misma
+// etiqueta nueva a la vez): si el insert no devuelve fila, alguien se adelantó y
+// se relee; un 23505 que aun así escape (otra causa) se traduce a ServiceError
+// en vez de dejar pasar el error crudo de Postgres.
+async function findTagBySlug(ctx: Ctx, slug: string) {
+  const [tag] = await ctx.db
+    .select()
+    .from(schema.tags)
+    .where(and(eq(schema.tags.slug, slug), or(eq(schema.tags.householdId, ctx.householdId), isNull(schema.tags.householdId))))
+    .orderBy(sql`(${schema.tags.householdId} IS NULL)`)
+    .limit(1)
+  return tag ?? null
 }
 
 async function upsertTags(ctx: Ctx, names: string[]): Promise<string[]> {
@@ -118,18 +158,26 @@ async function upsertTags(ctx: Ctx, names: string[]): Promise<string[]> {
   for (const name of names) {
     const slug = slugify(name)
     if (!slug) continue
-    const [existing] = await ctx.db
-      .select()
-      .from(schema.tags)
-      .where(and(eq(schema.tags.slug, slug), or(eq(schema.tags.householdId, ctx.householdId), isNull(schema.tags.householdId))))
-      .orderBy(sql`(${schema.tags.householdId} IS NULL)`)
-      .limit(1)
+    const existing = await findTagBySlug(ctx, slug)
     if (existing) {
       ids.push(existing.id)
       continue
     }
-    const [created] = await ctx.db.insert(schema.tags).values({ householdId: ctx.householdId, name, slug }).returning()
-    if (created) ids.push(created.id)
+    let created: schema.Tag | undefined
+    try {
+      ;[created] = await ctx.db.insert(schema.tags).values({ householdId: ctx.householdId, name, slug }).onConflictDoNothing().returning()
+    } catch (e) {
+      if (!isUniqueViolation(e)) throw e
+    }
+    if (created) {
+      ids.push(created.id)
+      continue
+    }
+    // onConflictDoNothing no devolvió fila (o saltó la excepción 23505 capturada arriba):
+    // alguien creó la misma etiqueta justo antes; releerla es la única salida limpia.
+    const raced = await findTagBySlug(ctx, slug)
+    if (!raced) throw new ServiceError('conflict', 'No se pudo crear la etiqueta')
+    ids.push(raced.id)
   }
   return ids
 }
@@ -161,7 +209,8 @@ function nutritionColumns(n: Nutrition | null) {
     fatPerServing: n?.perServing.fat ?? null,
     fiberPerServing: n?.perServing.fiber ?? null,
     kcal100g: n?.per100g?.kcal ?? null,
-    nutritionIsEstimated: n?.isEstimated ?? false,
+    // Sin nutrición (ningún ingrediente resuelto) es el caso más estimado posible: no hay dato real que mostrar.
+    nutritionIsEstimated: n?.isEstimated ?? true,
   }
 }
 
@@ -183,14 +232,16 @@ async function writeChildren(ctx: Ctx, tx: Db, recipeId: string, input: RecipeIn
       })),
     )
   }
-  const tagIds = await upsertTags({ ...ctx, db: tx }, input.tags)
+  // Dos nombres de etiqueta distintos pueden normalizar al mismo slug ('Vegano'/'vegano',
+  // 'básico'/'basico'): upsertTags ya los resuelve al mismo id, pero sin deduplicar aquí
+  // recipe_tags recibiría el mismo (recipeId, tagId) dos veces y violaría su clave primaria.
+  const tagIds = [...new Set(await upsertTags({ ...ctx, db: tx }, input.tags))]
   if (tagIds.length) await tx.insert(schema.recipeTags).values(tagIds.map((tagId) => ({ recipeId, tagId })))
 }
 
-async function computeNutrition(ctx: Ctx, prepared: PreparedIngredient[], servings: number, yieldGrams: number | null): Promise<Nutrition | null> {
-  const ids = prepared.map((p) => p.foodId).filter((x): x is string => x !== null)
-  if (ids.length === 0) return null
-  const foods = await getFoodsNutrition(ctx, ids)
+function nutritionFromPrepared(prepared: PreparedIngredient[], foods: Map<string, FoodWithNutrition>, servings: number, yieldGrams: number | null): Nutrition | null {
+  const hasAnyFood = prepared.some((p) => p.foodId !== null)
+  if (!hasAnyFood) return null
   const withFood: IngredientWithFood[] = prepared.map((p, k) => ({
     id: String(k),
     foodId: p.foodId,
@@ -225,8 +276,8 @@ function baseColumns(input: RecipeInput) {
 }
 
 export async function createRecipe(ctx: Ctx, input: RecipeInput): Promise<RecipeDetail> {
-  const prepared = await prepareIngredients(ctx, input.ingredients, ctx.locale)
-  const nutrition = await computeNutrition(ctx, prepared, input.servingsBase, input.yieldGrams ?? null)
+  const { prepared, foods } = await prepareIngredientsWithFoods(ctx, input.ingredients, ctx.locale)
+  const nutrition = nutritionFromPrepared(prepared, foods, input.servingsBase, input.yieldGrams ?? null)
   const id = await ctx.db.transaction(async (tx) => {
     const [r] = await tx.insert(schema.recipes).values({ householdId: ctx.householdId, ...baseColumns(input), ...nutritionColumns(nutrition) }).returning({ id: schema.recipes.id })
     if (!r) throw new ServiceError('conflict', 'No se pudo crear la receta')
@@ -240,8 +291,8 @@ export async function createRecipe(ctx: Ctx, input: RecipeInput): Promise<Recipe
 }
 
 export async function updateRecipe(ctx: Ctx, id: string, input: RecipeInput): Promise<RecipeDetail> {
-  const prepared = await prepareIngredients(ctx, input.ingredients, ctx.locale)
-  const nutrition = await computeNutrition(ctx, prepared, input.servingsBase, input.yieldGrams ?? null)
+  const { prepared, foods } = await prepareIngredientsWithFoods(ctx, input.ingredients, ctx.locale)
+  const nutrition = nutritionFromPrepared(prepared, foods, input.servingsBase, input.yieldGrams ?? null)
   await ctx.db.transaction(async (tx) => {
     const [r] = await tx
       .update(schema.recipes)
@@ -258,6 +309,10 @@ export async function updateRecipe(ctx: Ctx, id: string, input: RecipeInput): Pr
 }
 
 export async function getRecipe(ctx: Ctx, id: string, opts: { servings?: number } = {}): Promise<RecipeDetail | null> {
+  if (opts.servings !== undefined && !(Number.isFinite(opts.servings) && opts.servings > 0)) {
+    throw new ServiceError('validation', 'El número de raciones debe ser un entero positivo')
+  }
+
   const [recipe] = await ctx.db
     .select()
     .from(schema.recipes)
@@ -277,7 +332,7 @@ export async function getRecipe(ctx: Ctx, id: string, opts: { servings?: number 
     .where(eq(schema.recipeTags.recipeId, id))
 
   const nutrition = ingredients.some((i) => i.food) ? recipeNutrition(ingredients, recipe.servingsBase, recipe.yieldGrams) : null
-  const scaled = opts.servings && opts.servings !== recipe.servingsBase ? scaleRecipe(toRecipeForScaling(recipe.servingsBase, rows.map(toIngredient)), opts.servings) : null
+  const scaled = opts.servings !== undefined && opts.servings !== recipe.servingsBase ? scaleRecipe(toRecipeForScaling(recipe.servingsBase, rows.map(toIngredient)), opts.servings) : null
 
   return { recipe, ingredients, steps, tags, nutrition, scaled }
 }

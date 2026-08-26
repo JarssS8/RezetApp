@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
 import type { Ctx } from '@/lib/services/ctx'
-import { createRecipe, getRecipe, softDeleteRecipe, updateRecipe } from './recipes'
+import { createRecipe, getRecipe, prepareIngredients, softDeleteRecipe, updateRecipe } from './recipes'
 
 let db: TestDb
 let ctxA: Ctx
@@ -72,6 +72,10 @@ describe('createRecipe', () => {
     const d = await createRecipe(ctxA, { ...input, ingredients: [{ rawText: 'cebolla', foodId: onionId, quantity: 100, unit: 'g', displayQuantity: 100, displayUnit: 'g', scalesLinearly: true }] })
     expect(d.ingredients[0]).toMatchObject({ quantity: 100, unit: 'g', foodId: onionId })
   })
+  it('deduplica etiquetas repetidas o con solo variación de mayúsculas/acentos', async () => {
+    const d = await createRecipe(ctxA, { ...input, tags: ['Vegano', 'vegano', 'básico', 'basico'] })
+    expect(d.tags.map((t) => t.slug).sort()).toEqual(['basico', 'vegano'])
+  })
 })
 
 describe('getRecipe', () => {
@@ -91,6 +95,11 @@ describe('getRecipe', () => {
     expect(await getRecipe(ctxA, d.recipe.id)).toBeNull()
     await expect(softDeleteRecipe(ctxB, d.recipe.id)).rejects.toMatchObject({ code: 'not_found' })
   })
+  it('rechaza un número de raciones que no sea positivo', async () => {
+    const d = await createRecipe(ctxA, input)
+    await expect(getRecipe(ctxA, d.recipe.id, { servings: 0 })).rejects.toMatchObject({ code: 'validation' })
+    await expect(getRecipe(ctxA, d.recipe.id, { servings: -2 })).rejects.toMatchObject({ code: 'validation' })
+  })
 })
 
 describe('updateRecipe', () => {
@@ -101,5 +110,36 @@ describe('updateRecipe', () => {
     expect(u.recipe.kcalPerServing).toBeCloseTo(30, 0) // 150 g × 0.4 / 2
     expect(u.tags).toEqual([])
     await expect(updateRecipe(ctxB, d.recipe.id, input)).rejects.toMatchObject({ code: 'not_found' })
+  })
+})
+
+describe('prepareIngredients', () => {
+  it('resuelve por la primera palabra cuando el nombre completo no alcanza el umbral de trigram', async () => {
+    const prepared = await prepareIngredients(ctxA, [{ rawText: '2 cebollas grandes', scalesLinearly: true }], 'es')
+    expect(prepared[0]).toMatchObject({ foodId: onionId, quantity: 300, unit: 'g', needsReview: false })
+  })
+  it('infiere unidad "ud" para alimentos sin gramos por unidad y no la convierte a gramos', async () => {
+    const [egg] = await db
+      .insert(schema.foods)
+      .values({ nameEs: 'huevo', nameEn: 'egg', searchNameEs: 'huevo', searchNameEn: 'egg', source: 'usda', kcal100g: 155, protein100g: 13, carbs100g: 1.1, fat100g: 11, fiber100g: 0 })
+      .returning()
+    if (!egg) throw new Error('setup')
+    const prepared = await prepareIngredients(ctxA, [{ rawText: '2 huevos', foodId: egg.id, scalesLinearly: true }], 'es')
+    expect(prepared[0]).toMatchObject({ quantity: 2, unit: 'ud', displayQuantity: 2, displayUnit: 'ud' })
+  })
+  it('marca needsReview cuando no logra resolver el alimento de la línea', async () => {
+    const prepared = await prepareIngredients(ctxA, [{ rawText: 'de queso', scalesLinearly: true }], 'es')
+    expect(prepared[0]?.foodId).toBeNull()
+    expect(prepared[0]?.needsReview).toBe(true)
+  })
+  it('descarta un foodId que apunta a un alimento privado de otro hogar', async () => {
+    const [foreign] = await db
+      .insert(schema.foods)
+      .values({ householdId: ctxB.householdId, nameEs: 'queso secreto de b', nameEn: 'secret cheese', searchNameEs: 'queso secreto de b', searchNameEn: 'secret cheese', source: 'manual', kcal100g: 300 })
+      .returning()
+    if (!foreign) throw new Error('setup')
+    const prepared = await prepareIngredients(ctxA, [{ rawText: 'queso secreto de b', foodId: foreign.id, scalesLinearly: true }], 'es')
+    expect(prepared[0]?.foodId).not.toBe(foreign.id)
+    expect(prepared[0]?.foodId).toBeNull()
   })
 })
