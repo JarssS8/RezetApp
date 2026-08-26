@@ -10,6 +10,41 @@
     "createWithQuery": "Create \"{q}\"",
     "scanBarcode": "Scan barcode",
     "barcodePlaceholder": "Barcode…",
-    "barcodeNotFound": "No matches for that barcode"
+    "barcodeNotFound": "No matches for that barcode",
+    "copyNote": "Correcting a catalog food creates your own version; your recipes will use it from now on.",
+    "correction": {
+      "error": "The food could not be saved",
+      "estimatedHint": "Correcting the food clears the estimated flag."
+    },
+    "fields": {
+      "nameEs": "Name (es)",
+      "nameEn": "Name (en)",
+      "defaultUnit": "Default unit",
+      "kcal100g": "kcal per 100 g",
+      "protein100g": "Protein / 100 g",
+      "carbs100g": "Carbs / 100 g",
+      "fat100g": "Fat / 100 g",
+      "fiber100g": "Fiber / 100 g",
+      "gramsPerCup": "g per cup",
+      "gramsPerTbsp": "g per tbsp",
+      "gramsPerUnit": "g per unit",
+      "densityGPerMl": "Density (g/ml)"
+    },
+    "allergens": {
+      "gluten": "Gluten",
+      "lactose": "Lactose",
+      "egg": "Egg",
+      "fish": "Fish",
+      "shellfish": "Shellfish",
+      "nuts": "Nuts",
+      "peanut": "Peanut",
+      "soy": "Soy",
+      "sesame": "Sesame",
+      "celery": "Celery",
+      "mustard": "Mustard",
+      "sulphites": "Sulphites",
+      "lupin": "Lupin",
+      "mollusc": "Molluscs"
+    }
   }
 }
