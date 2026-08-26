@@ -89,6 +89,7 @@ function isTimeoutError(err: unknown): boolean {
 }
 
 export async function testAiConnection(ctx: Ctx): Promise<AiConnectionResult> {
+  if (ctx.role !== 'owner') throw new ServiceError('forbidden', 'Solo el propietario puede probar la conexión de IA')
   const h = await getHousehold(ctx)
   const cfg = resolveAiConfig(h)
   if (!cfg) return { ok: false, message: 'Sin proveedor de IA configurado', latencyMs: 0, error: 'not_configured' }

@@ -21,6 +21,7 @@
     },
     "model": "Model",
     "baseUrl": "Local server URL",
+    "baseUrlPlaceholder": "http://localhost:8080/v1",
     "apiKey": "API key",
     "keySaved": "•••• (saved)",
     "cap": "Monthly cap (€)",

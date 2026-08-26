@@ -132,4 +132,13 @@ describe('testAiConnection', () => {
     const rows = await db.select().from(schema.aiUsageLog).where(eq(schema.aiUsageLog.householdId, a.householdId))
     expect(rows).toHaveLength(0)
   })
+
+  it('un member no puede probar la conexión de IA: no llama al proveedor ni gasta presupuesto', async () => {
+    const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    await updateAiSettings(ctxOf(a.householdId, a.userId, 'owner'), { ...baseInput, apiKey: 'sk-test' })
+    await expect(testAiConnection(ctxOf(a.householdId, a.userId, 'member'))).rejects.toMatchObject({ code: 'forbidden' })
+    expect(languageModel).not.toHaveBeenCalled()
+    const rows = await db.select().from(schema.aiUsageLog).where(eq(schema.aiUsageLog.householdId, a.householdId))
+    expect(rows).toHaveLength(0)
+  })
 })

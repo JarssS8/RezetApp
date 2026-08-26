@@ -62,8 +62,8 @@ export function AiSettingsForm(props: AiSettingsFormProps) {
           <dd>{t(`providers.${props.provider}`)}</dd>
           <dt className="text-text-2">{t('cap')}</dt>
           <dd>{format.number(props.monthlyCapCents / 100, { style: 'currency', currency: 'EUR' })}</dd>
-          <dt className="text-text-2">{t('spent', { amount: spentAmount })}</dt>
         </dl>
+        <p className="text-sm text-text-2">{t('spent', { amount: spentAmount })}</p>
       </div>
     )
   }
@@ -144,7 +144,7 @@ export function AiSettingsForm(props: AiSettingsFormProps) {
       {provider === 'openai_compatible' && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="ai-base-url">{t('baseUrl')}</Label>
-          <Input id="ai-base-url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://localhost:8080/v1" />
+          <Input id="ai-base-url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder={t('baseUrlPlaceholder')} />
           <p className="text-sm text-text-2">{t('localHint')}</p>
         </div>
       )}
