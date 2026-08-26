@@ -42,6 +42,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@ai-sdk/openai": "4.0.47",
     "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "4.3.3",
     "@testing-library/jest-dom": "6.9.1",
@@ -52,6 +53,7 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.1.2",
     "@vitest/coverage-v8": "4.1.11",
+    "ai": "7.0.79",
     "drizzle-kit": "0.31.10",
     "esbuild": "0.25.12",
     "eslint": "10.9.1",
