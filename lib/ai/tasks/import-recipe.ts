@@ -6,7 +6,7 @@ import { z } from 'zod'
 import type { LanguageModel, ModelMessage } from 'ai'
 import type { Locale } from '@/lib/domain/types'
 import { RecipeInputSchema, type RecipeInput } from '@/lib/validation/recipes'
-import { modelInfo } from '../models'
+import { supportsVision } from '../models'
 import type { AiConfig } from '../provider'
 import { generateStructured } from '../structured'
 import { importRecipeImageUserText, importRecipeSystemPrompt } from './prompts'
@@ -59,8 +59,7 @@ export async function importRecipeFromImageAi(
   image: { bytes: Uint8Array; mime: string },
   locale: Locale,
 ): Promise<RecipeInput> {
-  const info = modelInfo(cfg.provider, cfg.model)
-  if (!info?.vision) throw new AiUnsupportedError()
+  if (!supportsVision(cfg)) throw new AiUnsupportedError()
 
   const userMessage: ModelMessage[] = [
     {

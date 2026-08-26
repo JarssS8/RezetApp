@@ -9,6 +9,9 @@ import { estimateNutritionSystemPrompt, importRecipeSystemPrompt, parseIngredien
 
 const openaiCfg: AiConfig = { provider: 'openai', model: 'gpt-4o-mini', apiKey: 'sk-test', baseUrl: null, structuredOutput: true }
 const localCfg: AiConfig = { provider: 'openai_compatible', model: 'qwen3-8b', apiKey: null, baseUrl: 'http://localhost:8080/v1', structuredOutput: true }
+const anthropicCfg: AiConfig = { provider: 'anthropic', model: 'custom-model', apiKey: 'sk-test', baseUrl: null, structuredOutput: true }
+const localVisionCfg: AiConfig = { provider: 'openai_compatible', model: 'qwen2-vl-7b', apiKey: null, baseUrl: 'http://localhost:8080/v1', structuredOutput: true }
+const openaiUnknownCfg: AiConfig = { provider: 'openai', model: 'modelo-que-no-existe', apiKey: 'sk-test', baseUrl: null, structuredOutput: true }
 
 function modelReturning(text: string): MockLanguageModelV3 {
   return new MockLanguageModelV3({
@@ -147,6 +150,35 @@ describe('importRecipeFromImageAi', () => {
       expect.objectContaining({ type: 'text', text: 'Esta es la foto de una receta de cocina.' }),
       expect.objectContaining({ type: 'file', data: { type: 'data', data: image.bytes }, mediaType: 'image/jpeg' }),
     ])
+  })
+
+  it('con anthropic, se permite cualquier id de modelo (regla W2-R10)', async () => {
+    const model = modelReturning(
+      '{"title":"Tortilla","description":null,"servingsBase":2,"prepMinutes":null,"cookMinutes":null,"difficulty":null,"tags":[],"ingredients":[{"rawText":"4 huevos"}],"steps":[{"text":"Bate los huevos","timerSeconds":null}]}',
+    )
+    const image = { bytes: new Uint8Array([1, 2, 3]), mime: 'image/jpeg' }
+    const result = await importRecipeFromImageAi(anthropicCfg, model as unknown as LanguageModel, image, 'es')
+    expect(result.title).toBe('Tortilla')
+    expect(model.doGenerateCalls).toHaveLength(1)
+  })
+
+  it('con un modelo local de visión conocido (qwen2-vl-7b), se permite', async () => {
+    const model = modelReturning(
+      '{"title":"Tortilla","description":null,"servingsBase":2,"prepMinutes":null,"cookMinutes":null,"difficulty":null,"tags":[],"ingredients":[{"rawText":"4 huevos"}],"steps":[{"text":"Bate los huevos","timerSeconds":null}]}',
+    )
+    const image = { bytes: new Uint8Array([1, 2, 3]), mime: 'image/jpeg' }
+    const result = await importRecipeFromImageAi(localVisionCfg, model as unknown as LanguageModel, image, 'es')
+    expect(result.title).toBe('Tortilla')
+    expect(model.doGenerateCalls).toHaveLength(1)
+  })
+
+  it('con openai y un id de modelo desconocido, lanza AiUnsupportedError sin llamar al modelo', async () => {
+    const model = modelReturning('{}')
+    const image = { bytes: new Uint8Array([1, 2, 3]), mime: 'image/jpeg' }
+    await expect(importRecipeFromImageAi(openaiUnknownCfg, model as unknown as LanguageModel, image, 'es')).rejects.toMatchObject({
+      code: 'ai_unsupported',
+    })
+    expect(model.doGenerateCalls).toHaveLength(0)
   })
 })
 

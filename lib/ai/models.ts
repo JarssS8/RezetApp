@@ -49,6 +49,22 @@ export function modelInfo(provider: AiProviderId, id: string): ModelInfo | null 
   return MODELS.find((m) => m.provider === provider && m.id === id) ?? null
 }
 
+// Regla W2-R10: detección de visión por proveedor, no por catálogo único.
+// - anthropic: sin catálogo (regla W2-R3), pero sus modelos multimodales
+//   habituales soportan visión; se asume soportada para cualquier id.
+// - openai: se consulta el catálogo (`vision` flag); un id desconocido no
+//   soporta visión.
+// - openai_compatible: el hogar escribe el nombre del modelo local a mano,
+//   así que se detecta por convención de nombre (familias de modelos de
+//   visión conocidas: llava, *-vision, *-vl, moondream, minicpm-v).
+const LOCAL_VISION_MODEL_RE = /llava|vision|\bvl\b|moondream|minicpm-v/i
+
+export function supportsVision(cfg: { provider: AiProviderId; model: string }): boolean {
+  if (cfg.provider === 'anthropic') return true
+  if (cfg.provider === 'openai') return modelInfo('openai', cfg.model)?.vision ?? false
+  return LOCAL_VISION_MODEL_RE.test(cfg.model)
+}
+
 export function estimateCostCents(info: ModelInfo | null, tokensIn: number, tokensOut: number): number {
   if (!info) return 0
   return Math.round((tokensIn * info.inputCentsPerM) / 1_000_000 + (tokensOut * info.outputCentsPerM) / 1_000_000)
