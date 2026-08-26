@@ -7,8 +7,8 @@ reales. Escribir W2+ antes de W1 produciría planes inventados.
 
 | Oleada | Plan | Estado | Paralelismo |
 |---|---|---|---|
-| W0 | `2026-08-26-w0-esqueleto.md` | escrito | 1 agente, secuencial (8 tareas) |
-| W1 | `2026-08-26-w1-contratos.md` | escrito | 4 ramas ∥: schema+seed · domain · auth+hogar · validation+eventos |
+| W0 | `2026-08-26-w0-esqueleto.md` | hecho (mergeado 2026-08-26) | 1 agente, secuencial (8 tareas) |
+| W1 | `2026-08-26-w1-contratos.md` | hecho (mergeado 2026-08-26) | 4 ramas ∥: schema+seed · domain · auth+hogar · validation+eventos |
 | W2 | `2026-08-26-w2-modulos.md` | escrito | 8 ramas ∥ (40 tareas) |
 | W3 | `w3-bucle.md` | pendiente (al cerrar W2) | 4 ramas ∥ |
 | W4 | `w4-extras.md` | pendiente (al cerrar W3) | 6 ramas ∥ |
