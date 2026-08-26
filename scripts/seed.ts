@@ -36,8 +36,8 @@ export async function seedTags(db: Db): Promise<number> {
       const parentId = t.parent ? (idBySlug.get(t.parent) ?? null) : null
       const [row] = await db
         .insert(schema.tags)
-        .values({ householdId: null, slug: t.slug, name: t.name.es, parentId })
-        .onConflictDoUpdate({ target: [schema.tags.householdId, schema.tags.slug], set: { name: t.name.es, parentId } })
+        .values({ householdId: null, slug: t.slug, name: t.name.es, nameEn: t.name.en, parentId })
+        .onConflictDoUpdate({ target: [schema.tags.householdId, schema.tags.slug], set: { name: t.name.es, nameEn: t.name.en, parentId } })
         .returning({ id: schema.tags.id })
       if (row) idBySlug.set(t.slug, row.id)
     }

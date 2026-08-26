@@ -1,4 +1,4 @@
-import { and, eq, gt } from 'drizzle-orm'
+import { and, eq, gt, lt, sql } from 'drizzle-orm'
 import {
   generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse,
   type AuthenticationResponseJSON, type AuthenticatorTransportFuture, type PublicKeyCredentialCreationOptionsJSON,
@@ -15,6 +15,10 @@ export function getRp(): { rpID: string; origin: string; rpName: string } {
 }
 
 async function saveChallenge(db: Db, challenge: string, kind: 'register' | 'login', userId: string | null): Promise<string> {
+  // Barrido de caducados: la tabla solo crece con retos abandonados (el usuario
+  // cierra el diálogo del navegador) y nadie más los borra. Es barato: hay
+  // índice por expires_at y como mucho unas decenas de filas.
+  await db.delete(schema.webauthnChallenges).where(lt(schema.webauthnChallenges.expiresAt, sql`now()`))
   const [row] = await db
     .insert(schema.webauthnChallenges)
     .values({ challenge, kind, userId, expiresAt: new Date(Date.now() + CHALLENGE_MINUTES * 60_000) })

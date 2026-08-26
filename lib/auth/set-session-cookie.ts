@@ -3,7 +3,8 @@ import { cookies } from 'next/headers'
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import * as schema from '@/db/schema'
-import { PREFS_COOKIE, SESSION_COOKIE, prefsCookieOptions, prefsCookieValue, sessionCookieOptions } from './cookies'
+import { PREFS_COOKIE } from '@/lib/prefs'
+import { SESSION_COOKIE, prefsCookieOptions, prefsCookieValue, sessionCookieOptions } from './cookies'
 import { createSession } from './session'
 
 export async function startSessionFor(userId: string, householdId: string, userAgent: string | null): Promise<void> {

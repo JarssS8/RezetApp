@@ -50,6 +50,28 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('invariantes del esquema', () =>
     expect(r.rows.length).toBe(1)
     expect((r.rows[0] as { indexdef: string }).indexdef).toMatch(/NULLS NOT DISTINCT/)
   })
+  it('tags.name_en existe (traducción opcional de la etiqueta)', async () => {
+    const r = await db.execute(sql`SELECT is_nullable FROM information_schema.columns WHERE table_name = 'tags' AND column_name = 'name_en'`)
+    expect(r.rows.length).toBe(1)
+    expect((r.rows[0] as { is_nullable: string }).is_nullable).toBe('YES')
+  })
+  it('las cuatro FK añadidas a mano en 0000_inicial.sql existen', async () => {
+    for (const name of ['foods_merged_into_fk', 'meal_plan_entries_leftover_fk', 'plan_proposals_created_by_token_id_fk', 'tags_parent_fk']) {
+      const r = await db.execute(sql`SELECT 1 FROM pg_constraint WHERE conname = ${name} AND contype = 'f'`)
+      expect(r.rows.length, `falta la FK ${name}`).toBe(1)
+    }
+  })
+  it('unit_aliases tiene clave primaria (alias, locale)', async () => {
+    const r = await db.execute(sql`
+      SELECT a.attname FROM pg_constraint c
+      JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
+      WHERE c.conrelid = 'unit_aliases'::regclass AND c.contype = 'p' ORDER BY a.attname`)
+    expect((r.rows as { attname: string }[]).map((x) => x.attname)).toEqual(['alias', 'locale'])
+  })
+  it('webauthn_challenges tiene índice por expires_at', async () => {
+    const r = await db.execute(sql`SELECT indexname FROM pg_indexes WHERE tablename = 'webauthn_challenges' AND indexdef LIKE '%expires_at%'`)
+    expect(r.rows.length).toBeGreaterThan(0)
+  })
   it('pantry_items rechaza cantidades negativas', async () => {
     await expect(db.execute(sql`INSERT INTO pantry_items (household_id, food_id, quantity, unit) VALUES (gen_random_uuid(), gen_random_uuid(), -1, 'g')`)).rejects.toThrow()
   })

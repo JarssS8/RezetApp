@@ -94,13 +94,18 @@ export const webauthnCredentials = pgTable(
   (t) => [index('webauthn_credentials_user_idx').on(t.userId)],
 )
 
-export const webauthnChallenges = pgTable('webauthn_challenges', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  challenge: text('challenge').notNull(),
-  userId: uuid('user_id').references(() => users.id),
-  kind: challengeKindEnum('kind').notNull(),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-})
+export const webauthnChallenges = pgTable(
+  'webauthn_challenges',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    challenge: text('challenge').notNull(),
+    userId: uuid('user_id').references(() => users.id),
+    kind: challengeKindEnum('kind').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  // La limpieza de retos caducados (saveChallenge) barre por expires_at
+  (t) => [index('webauthn_challenges_expires_idx').on(t.expiresAt)],
+)
 
 export const appSettings = pgTable('app_settings', {
   key: text('key').primaryKey(),

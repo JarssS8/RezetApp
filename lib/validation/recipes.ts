@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { BaseUnitSchema, IdSchema, PaginationSchema } from './common'
+import { BaseUnitSchema, DifficultySchema, IdSchema, PaginationSchema } from './common'
 
 export const RecipeIngredientInputSchema = z.strictObject({
   rawText: z.string().trim().min(1).max(200),
@@ -20,7 +20,7 @@ export const RecipeInputSchema = z.strictObject({
   servingsBase: z.number().int().min(1).max(100),
   prepMinutes: z.number().int().min(0).nullable().optional(),
   cookMinutes: z.number().int().min(0).nullable().optional(),
-  difficulty: z.enum(['easy', 'medium', 'hard']).nullable().optional(),
+  difficulty: DifficultySchema.nullable().optional(),
   sourceUrl: z.url().nullable().optional(),
   imageUrls: z.array(z.string().max(300)).max(10).default([]),
   notes: z.string().max(4000).nullable().optional(),
@@ -35,7 +35,7 @@ export const RecipeSearchSchema = PaginationSchema.extend({
   q: z.string().max(120).optional(),
   tags: z.array(z.string()).max(20).optional(),
   maxMinutes: z.coerce.number().int().min(0).optional(),
-  difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
+  difficulty: DifficultySchema.optional(),
   hasIngredients: z.array(IdSchema).max(20).optional(), // que la receta contenga estos alimentos
   onlyWithPantry: z.coerce.boolean().optional(), // "tengo los ingredientes"
   sort: z.enum(['relevance', 'recent', 'most_cooked', 'title']).default('relevance'),

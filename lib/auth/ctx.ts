@@ -5,7 +5,8 @@ export type { Db }
 // Duplicado deliberado de lib/domain/types.ts::Locale: las fronteras de
 // eslint-boundaries prohíben que lib/auth importe de lib/domain (ver
 // lib/validation/tokens.ts para el mismo patrón con API_SCOPES).
-export type Locale = 'es' | 'en'
+export const LOCALES = ['es', 'en'] as const
+export type Locale = (typeof LOCALES)[number]
 
 // Contexto de toda petición autenticada (páginas, REST y tokens API).
 // Vive en lib/auth porque los guards lo necesitan sin depender de

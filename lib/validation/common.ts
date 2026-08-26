@@ -5,6 +5,14 @@ export const LocaleSchema = z.enum(['es', 'en'])
 export const BaseUnitSchema = z.enum(['g', 'ml', 'ud'])
 export const DateSchema = z.iso.date() // YYYY-MM-DD
 export const MealSlotSchema = z.enum(['breakfast', 'lunch', 'dinner', 'snack'])
+export const ThemeSchema = z.enum(['system', 'light', 'dark'])
+export const UnitSystemSchema = z.enum(['metric', 'imperial'])
+export const DifficultySchema = z.enum(['easy', 'medium', 'hard'])
+export const McpProfileSchema = z.enum(['basic', 'full'])
+export const AiProviderSchema = z.enum(['none', 'anthropic', 'openai', 'openai_compatible'])
+export const FoodSourceSchema = z.enum(['off', 'usda', 'manual', 'ai'])
+export const ProposalSourceSchema = z.enum(['ai', 'rules', 'mcp'])
+export const ProposalStatusSchema = z.enum(['pending', 'approved', 'rejected'])
 
 const MAX_RANGE_DAYS = 92
 export const DateRangeSchema = z

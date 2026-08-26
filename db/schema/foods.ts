@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { boolean, index, integer, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { boolean, index, integer, numeric, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import { baseUnitEnum, foodSourceEnum } from './_types'
 import { households } from './households'
 
@@ -53,7 +53,8 @@ export const unitAliases = pgTable(
     unit: baseUnitEnum('unit').notNull(),
     factorToBase: qty('factor_to_base').notNull(),
   },
-  (t) => [uniqueIndex('unit_aliases_alias_locale_uidx').on(t.alias, t.locale)],
+  // (alias, locale) es la clave natural: clave primaria, no un índice único aparte
+  (t) => [primaryKey({ columns: [t.alias, t.locale] })],
 )
 
 export const tags = pgTable(
@@ -61,7 +62,8 @@ export const tags = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     householdId: uuid('household_id').references(() => households.id), // null = global (seed)
-    name: text('name').notNull(),
+    name: text('name').notNull(), // español
+    nameEn: text('name_en'), // null en etiquetas creadas por el hogar sin traducir (regla W1-R19)
     slug: text('slug').notNull(),
     parentId: uuid('parent_id'),
   },

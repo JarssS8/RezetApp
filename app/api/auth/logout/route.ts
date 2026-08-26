@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
-import { PREFS_COOKIE, SESSION_COOKIE } from '@/lib/auth/cookies'
+import { SESSION_COOKIE } from '@/lib/auth/cookies'
+import { PREFS_COOKIE } from '@/lib/prefs'
 import { logoutSession } from '@/lib/services/auth'
 
 export async function POST(): Promise<Response> {

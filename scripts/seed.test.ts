@@ -22,6 +22,8 @@ describe('seed', () => {
     const row = r.rows[0] as { c: number; children: number }
     expect(row.c).toBe(20)
     expect(row.children).toBe(15)
+    const postre = await db.execute(sql`SELECT name, name_en FROM tags WHERE slug = 'postre'`)
+    expect(postre.rows[0]).toEqual({ name: 'Postre', name_en: 'Dessert' })
   })
   it('foods se siembra y re-siembra sin duplicar', async () => {
     const n = await seedFoods(db)

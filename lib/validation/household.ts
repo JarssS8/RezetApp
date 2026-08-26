@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server'
-import { IdSchema, LocaleSchema } from './common'
+import { IdSchema, LocaleSchema, ThemeSchema, UnitSystemSchema } from './common'
 
 export const RegisterBodySchema = z.strictObject({ displayName: z.string().trim().min(1).max(60), inviteToken: z.string().optional(), locale: LocaleSchema.default('es') })
 
@@ -29,8 +29,8 @@ export const MemberUpdateSchema = z.strictObject({ userId: IdSchema, allergens: 
 export const UserPrefsSchema = z.strictObject({
   displayName: z.string().trim().min(1).max(60).optional(),
   locale: LocaleSchema.optional(),
-  units: z.enum(['metric', 'imperial']).optional(),
-  theme: z.enum(['system', 'light', 'dark']).optional(),
+  units: UnitSystemSchema.optional(),
+  theme: ThemeSchema.optional(),
   accent: z.enum(['huerta', 'miel', 'tomate', 'pistacho', 'higo', 'berenjena', 'arandano', 'canela']).optional(),
 })
 export const DeleteHouseholdSchema = z.strictObject({ confirmName: z.string().min(1) })

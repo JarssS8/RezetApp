@@ -1,6 +1,12 @@
-export type Locale = 'es' | 'en'
-export type BaseUnit = 'g' | 'ml' | 'ud'
-export type UnitSystem = 'metric' | 'imperial'
+// Arrays en tiempo de ejecución para que tests/contracts/enums.test.ts pueda
+// comparar estas listas con las de lib/prefs.ts, lib/auth/ctx.ts y los pgEnum.
+export const LOCALES = ['es', 'en'] as const
+export const BASE_UNITS = ['g', 'ml', 'ud'] as const
+export const UNIT_SYSTEMS = ['metric', 'imperial'] as const
+
+export type Locale = (typeof LOCALES)[number]
+export type BaseUnit = (typeof BASE_UNITS)[number]
+export type UnitSystem = (typeof UNIT_SYSTEMS)[number]
 export type EntryStatus = 'planned' | 'cooked' | 'skipped'
 
 // Conversión por alimento (tazas, piezas, densidad). Todo nullable: si falta, no se inventa.
