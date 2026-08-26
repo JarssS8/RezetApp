@@ -282,17 +282,18 @@ export async function correctFood(ctx: Ctx, foodId: string, patch: FoodCorrectio
 // obtener el producto (normalmente contra Open Food Facts).
 export type BarcodeFetcher = (barcode: string) => Promise<OffProduct | null>
 
-export interface BarcodeLookupResult {
-  food: FoodWithNutrition
-  created: boolean
-}
-
-// Cascada de código de barras: primero local (del hogar, luego global), y solo
-// si no hay nada se pregunta a OFF. Un producto envasado escaneado por un hogar
-// se guarda como alimento *del hogar* (source 'off'), no global: así el dato
-// que trae un usuario (nombre, kcal de la etiqueta) no se cuela en el catálogo
-// de otros hogares sin revisión. Si OFF tampoco lo conoce, `not_found`.
-export async function lookupBarcode(ctx: Ctx, barcode: string, fetcher: BarcodeFetcher = (b) => fetchOffProduct(b)): Promise<BarcodeLookupResult> {
+// Cascada de código de barras (contrato de la pista (b)): primero local (del
+// hogar, luego global); si no hay nada, se pregunta a OFF. `null` significa
+// "ni local ni OFF lo conocen" — no es un error, así que no lanza `not_found`
+// (ruling W2-R4/W2-R9: la forma la fija el contrato, no esta implementación).
+// Un producto envasado escaneado por un hogar se guarda como alimento *del
+// hogar* (source 'off'), no global: así el dato que trae un usuario (nombre,
+// kcal de la etiqueta) no se cuela en el catálogo de otros hogares sin
+// revisión. Esta función no distingue "ya existía" de "recién creado" (esa
+// forma la fija el contrato de la pista (b): solo devuelve el alimento o
+// `null`); si un llamador necesita saberlo, puede consultar antes con
+// `getFood`/`searchFoods` por el código de barras.
+export async function lookupBarcode(ctx: Ctx, barcode: string, fetcher: BarcodeFetcher = (b) => fetchOffProduct(b)): Promise<FoodWithNutrition | null> {
   const parsed = BarcodeSchema.safeParse(barcode)
   if (!parsed.success) throw new ServiceError('validation', 'Código de barras inválido')
 
@@ -302,11 +303,10 @@ export async function lookupBarcode(ctx: Ctx, barcode: string, fetcher: BarcodeF
     .where(and(visible(ctx), eq(schema.foods.barcode, parsed.data)))
     .orderBy(sql`(${schema.foods.householdId} is null)`) // el del hogar antes que el global
     .limit(1)
-  if (local) return { food: toSummary(local, ctx.locale), created: false }
+  if (local) return toSummary(local, ctx.locale)
 
   const off = await fetcher(parsed.data)
-  if (!off) throw new ServiceError('not_found', 'Código de barras no encontrado en Open Food Facts')
+  if (!off) return null
 
-  const food = await createFood(ctx, offToFoodInput(off), 'off')
-  return { food, created: true }
+  return createFood(ctx, offToFoodInput(off), 'off')
 }

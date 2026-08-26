@@ -139,9 +139,8 @@ describe('lookupBarcode', () => {
   it('devuelve el alimento local si ya existe con ese código, sin llamar al fetcher', async () => {
     await seedGlobal('galleta', 'biscuit', { barcode: '12345678' })
     const fetcher = vi.fn(async () => null)
-    const { food, created } = await lookupBarcode(ctxA, '12345678', fetcher)
-    expect(food.nameEs).toBe('galleta')
-    expect(created).toBe(false)
+    const food = await lookupBarcode(ctxA, '12345678', fetcher)
+    expect(food?.nameEs).toBe('galleta')
     expect(fetcher).not.toHaveBeenCalled()
   })
 
@@ -151,20 +150,18 @@ describe('lookupBarcode', () => {
       kcal100g: 60, protein100g: 3.5, carbs100g: 4.5, fat100g: 3, fiber100g: 0,
       allergens: ['lactose'], aliases: [], gramsPerUnit: null,
     })
-    const { food, created } = await lookupBarcode(ctxA, '99900000', fetcher)
-    expect(created).toBe(true)
-    expect(food.source).toBe('off')
-    expect(food.householdId).toBe(ctxA.householdId)
+    const food = await lookupBarcode(ctxA, '99900000', fetcher)
+    expect(food?.source).toBe('off')
+    expect(food?.householdId).toBe(ctxA.householdId)
     // segunda vez para el mismo hogar: ya está en caché local, no vuelve a llamar a OFF
     const fetcher2 = vi.fn(async () => null)
     const again = await lookupBarcode(ctxA, '99900000', fetcher2)
-    expect(again.food.id).toBe(food.id)
-    expect(again.created).toBe(false)
+    expect(again?.id).toBe(food?.id)
     expect(fetcher2).not.toHaveBeenCalled()
   })
 
-  it('lanza not_found si OFF no lo conoce', async () => {
-    await expect(lookupBarcode(ctxA, '00000000', async () => null)).rejects.toMatchObject({ code: 'not_found' })
+  it('devuelve null si OFF no lo conoce', async () => {
+    expect(await lookupBarcode(ctxA, '00000000', async () => null)).toBeNull()
   })
 
   it('lanza validation si el código de barras no tiene formato válido', async () => {
