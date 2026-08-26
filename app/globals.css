@@ -23,6 +23,7 @@
   --r-sm: 12px;
   --sh-card: 0 2px 10px -7px rgba(22, 28, 26, .22);
   --sh-hero: 0 3px 14px -9px rgba(22, 28, 26, .30);
+  --overlay: rgba(22, 28, 26, .35);
   --f-display: var(--font-outfit), "Helvetica Neue", system-ui, sans-serif;
   --f-body: var(--font-dm-sans), "Segoe UI", system-ui, sans-serif;
   --f-mono: var(--font-jetbrains-mono), ui-monospace, Menlo, monospace;
@@ -38,6 +39,7 @@
     --on-acc: #12261C;
     --sh-card: 0 2px 10px -7px rgba(0, 0, 0, .5);
     --sh-hero: 0 3px 14px -9px rgba(0, 0, 0, .7);
+    --overlay: rgba(0, 0, 0, .55);
   }
 }
 :root[data-theme="dark"] {
@@ -48,6 +50,7 @@
   --on-acc: #12261C;
   --sh-card: 0 2px 10px -7px rgba(0, 0, 0, .5);
   --sh-hero: 0 3px 14px -9px rgba(0, 0, 0, .7);
+  --overlay: rgba(0, 0, 0, .55);
 }
 
 /* Acentos, todos de comida */
@@ -117,6 +120,7 @@
 
   --shadow-card: var(--sh-card);
   --shadow-hero: var(--sh-hero);
+  --color-overlay: var(--overlay);
 
   --font-display: var(--f-display);
   --font-sans: var(--f-body);
