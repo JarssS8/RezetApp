@@ -6,7 +6,7 @@
 // admite ese adaptador en llamadas por-petición: el modo de gramática GBNF en
 // sí depende de cómo se construyó el modelo en lib/ai/provider.ts).
 import { generateObject } from 'ai'
-import type { LanguageModel } from 'ai'
+import type { LanguageModel, ModelMessage } from 'ai'
 import type { z } from 'zod'
 import type { AiConfig } from './provider'
 
@@ -20,7 +20,9 @@ export class AiStructuredError extends Error {
 
 export interface StructuredPrompt {
   system: string
-  user: string
+  // Texto simple, o lista de mensajes cuando hace falta contenido multimodal
+  // (p. ej. `importRecipeFromImageAi` adjuntando la foto como `file` part).
+  user: string | ModelMessage[]
 }
 
 export interface StructuredResult<T> {

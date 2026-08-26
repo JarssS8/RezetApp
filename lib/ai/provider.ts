@@ -74,7 +74,16 @@ export function languageModel(cfg: AiConfig): LanguageModel {
     return createOpenAI(settings)(cfg.model)
   }
   if (!cfg.baseUrl) throw new Error('openai_compatible requiere baseUrl')
-  return createOpenAICompatible({ name: 'local', baseURL: cfg.baseUrl, apiKey: cfg.apiKey ?? 'none' })(cfg.model)
+  // Con `structuredOutput` activo, hace falta declarar el soporte explícito
+  // para que el AI SDK envíe `response_format: json_schema` en la llamada
+  // (si no, el adaptador genérico asume que el servidor no lo soporta y cae a
+  // texto libre + parseo, perdiendo la validación en origen).
+  return createOpenAICompatible({
+    name: 'local',
+    baseURL: cfg.baseUrl,
+    apiKey: cfg.apiKey ?? 'none',
+    supportsStructuredOutputs: cfg.structuredOutput,
+  })(cfg.model)
 }
 
 // Atajo usado fuera de lib/ai (p. ej. servicios) cuando solo hace falta el modelo.

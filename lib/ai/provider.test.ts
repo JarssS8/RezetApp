@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { encryptSecret, getKeys } from '@/lib/crypto'
 import { estimateCostCents, modelInfo } from './models'
-import { resolveAiConfig } from './provider'
+import { languageModel, resolveAiConfig } from './provider'
+
+const { createOpenAICompatibleMock } = vi.hoisted(() => ({ createOpenAICompatibleMock: vi.fn(() => () => ({})) }))
+vi.mock('@ai-sdk/openai-compatible', () => ({ createOpenAICompatible: createOpenAICompatibleMock }))
 
 process.env.APP_SECRET = 'secreto-de-prueba-con-suficiente-longitud-1234'
 
@@ -62,6 +65,22 @@ describe('resolveAiConfig', () => {
     const logged = spy.mock.calls.flat().join(' ')
     expect(logged).not.toContain('esto-no-es-un-blob-cifrado-valido-de-verdad')
     spy.mockRestore()
+  })
+})
+
+describe('languageModel', () => {
+  afterEach(() => {
+    createOpenAICompatibleMock.mockClear()
+  })
+
+  it("con proveedor 'openai_compatible' y salida estructurada activa, pide supportsStructuredOutputs al adaptador", () => {
+    languageModel({ provider: 'openai_compatible', model: 'qwen3-8b', apiKey: null, baseUrl: 'http://localhost:8080/v1', structuredOutput: true })
+    expect(createOpenAICompatibleMock).toHaveBeenCalledWith(expect.objectContaining({ supportsStructuredOutputs: true }))
+  })
+
+  it('con salida estructurada desactivada, no lo pide', () => {
+    languageModel({ provider: 'openai_compatible', model: 'qwen3-8b', apiKey: null, baseUrl: 'http://localhost:8080/v1', structuredOutput: false })
+    expect(createOpenAICompatibleMock).toHaveBeenCalledWith(expect.objectContaining({ supportsStructuredOutputs: false }))
   })
 })
 
