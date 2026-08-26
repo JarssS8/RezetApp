@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { correctFoodAction, createFoodAction, type FoodWithNutrition } from '@/lib/actions/foods'
 import type { ActionResult } from '@/lib/actions/result'
 import { BASE_UNITS, type BaseUnit } from '@/lib/domain/types'
+import { unitLabel } from '@/lib/domain/units-data'
 import type { Locale } from '@/lib/prefs'
 import { FoodCorrectionSchema, FoodInputSchema, type FoodCorrection, type FoodInput } from '@/lib/validation/foods'
 import { ALLERGENS } from '@/lib/validation/household'
@@ -280,7 +281,7 @@ export function FoodCorrectionDialog({ food, open, onOpenChange, onSaved, locale
             >
               {BASE_UNITS.map((u) => (
                 <option key={u} value={u}>
-                  {u}
+                  {unitLabel(u, 1, activeLocale)}
                 </option>
               ))}
             </select>

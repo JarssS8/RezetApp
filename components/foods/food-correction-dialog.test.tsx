@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import common from '@/messages/es/common.json'
 import recipes from '@/messages/es/recipes.json'
+import { FoodCorrectionSchema, FoodInputSchema } from '@/lib/validation/foods'
 import { FoodCorrectionDialog } from './food-correction-dialog'
 
 // El componente importa las server actions reales para usarlas como valor por
@@ -52,12 +53,18 @@ describe('FoodCorrectionDialog', () => {
     fireEvent.change(screen.getByLabelText(/kcal/i), { target: { value: '31' } })
     fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
     await waitFor(() => expect(correct).toHaveBeenCalledWith('g1', { kcal100g: 31 }))
+    const patch = correct.mock.calls[0]?.[1]
+    expect(FoodCorrectionSchema.safeParse(patch).success).toBe(true)
     expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ id: 'h1', kcal100g: 31 }))
   })
 
   it('en modo creación (food null) llama a create con los datos introducidos', async () => {
     const created = { ...food, id: 'n1', householdId: 'A', nameEs: 'kiwi', nameEn: 'kiwi', kcal100g: 61, source: 'manual' as const }
-    const create = vi.fn(async () => ({ ok: true as const, data: created }))
+    let receivedInput: unknown
+    const create = vi.fn(async (input: unknown) => {
+      receivedInput = input
+      return { ok: true as const, data: created }
+    })
     const onSaved = vi.fn()
     render(
       <NextIntlClientProvider locale="es" messages={{ recipes, common }}>
@@ -73,6 +80,7 @@ describe('FoodCorrectionDialog', () => {
         expect.objectContaining({ nameEs: 'kiwi', nameEn: 'kiwi', kcal100g: 61, defaultUnit: 'g', allergens: [] }),
       ),
     )
+    expect(FoodInputSchema.safeParse(receivedInput).success).toBe(true)
     expect(onSaved).toHaveBeenCalledWith(created)
   })
 
@@ -83,5 +91,51 @@ describe('FoodCorrectionDialog', () => {
       </NextIntlClientProvider>,
     )
     expect(screen.getByText(recipes.food.copyNote)).toBeInTheDocument()
+  })
+
+  it('acepta coma decimal y la convierte a punto en el patch', async () => {
+    const correct = vi.fn(async (_id: string, patch: unknown) => ({
+      ok: true as const,
+      data: { ...food, id: 'h1', householdId: 'A', ...(patch as object) },
+    }))
+    render(
+      <NextIntlClientProvider locale="es" messages={{ recipes, common }}>
+        <FoodCorrectionDialog food={food} open onOpenChange={() => {}} correct={correct} onSaved={() => {}} />
+      </NextIntlClientProvider>,
+    )
+    fireEvent.change(screen.getByLabelText(/densidad/i), { target: { value: '1,5' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
+    await waitFor(() => expect(correct).toHaveBeenCalledWith('g1', { densityGPerMl: 1.5 }))
+    const patch = correct.mock.calls[0]?.[1]
+    expect(FoodCorrectionSchema.safeParse(patch).success).toBe(true)
+  })
+
+  it('vacía un campo y lo envía como null en el patch', async () => {
+    const correct = vi.fn(async (_id: string, patch: unknown) => ({
+      ok: true as const,
+      data: { ...food, id: 'h1', householdId: 'A', ...(patch as object) },
+    }))
+    render(
+      <NextIntlClientProvider locale="es" messages={{ recipes, common }}>
+        <FoodCorrectionDialog food={food} open onOpenChange={() => {}} correct={correct} onSaved={() => {}} />
+      </NextIntlClientProvider>,
+    )
+    fireEvent.change(screen.getByLabelText(/g por unidad/i), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
+    await waitFor(() => expect(correct).toHaveBeenCalledWith('g1', { gramsPerUnit: null }))
+    const patch = correct.mock.calls[0]?.[1]
+    expect(FoodCorrectionSchema.safeParse(patch).success).toBe(true)
+  })
+
+  it('muestra un error accesible cuando el guardado falla', async () => {
+    const correct = vi.fn(async () => ({ ok: false as const, code: 'validation', message: 'no' }))
+    render(
+      <NextIntlClientProvider locale="es" messages={{ recipes, common }}>
+        <FoodCorrectionDialog food={food} open onOpenChange={() => {}} correct={correct} onSaved={() => {}} />
+      </NextIntlClientProvider>,
+    )
+    fireEvent.change(screen.getByLabelText(/kcal/i), { target: { value: '31' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(recipes.food.correction.error))
   })
 })
