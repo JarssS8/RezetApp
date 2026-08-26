@@ -6,14 +6,14 @@
 // `deps.model` permite inyectar un LanguageModel de prueba (p. ej.
 // `MockLanguageModelV3`) sin tocar `lib/ai/provider.ts`: se usa en vez del
 // modelo que construiría `withBudget` a partir de la configuración del hogar.
-import { and, eq, gte, inArray, isNotNull, isNull, lte } from 'drizzle-orm'
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, sql } from 'drizzle-orm'
 import type { LanguageModel } from 'ai'
 import * as schema from '@/db/schema'
 import { AiBudgetError, withBudget } from '@/lib/ai/budget'
 import type { AiConfig } from '@/lib/ai/provider'
 import { resolveAiConfig } from '@/lib/ai/provider'
 import { AiStructuredError } from '@/lib/ai/structured'
-import { estimateNutrition, type NutritionEstimateSchema } from '@/lib/ai/tasks/estimate-nutrition'
+import { estimateNutrition } from '@/lib/ai/tasks/estimate-nutrition'
 import { AiUnsupportedError, importRecipeFromImageAi, importRecipeFromTextAi } from '@/lib/ai/tasks/import-recipe'
 import { parseIngredientsFallback } from '@/lib/ai/tasks/parse-ingredients'
 import { proposePlan, type ProposePlanContext, type ProposePlanPlannedEntry, type ProposePlanRecipe, type ProposePlanSlot } from '@/lib/ai/tasks/propose-plan'
@@ -22,7 +22,6 @@ import { normalizeSearchName } from '@/lib/domain/quantities'
 import { emitHouseholdEvent } from '@/lib/events/bus'
 import { ProposalPayloadSchema } from '@/lib/validation/plan'
 import type { RecipeInput } from '@/lib/validation/recipes'
-import type { z } from 'zod'
 import { type Ctx, type Db, ServiceError } from './ctx'
 
 export type AiFailureCode = 'no_provider' | 'ai_budget' | 'ai_unsupported' | 'ai_output' | 'internal'
@@ -60,9 +59,6 @@ export type FoodWithNutrition = FoodSummary & FoodNutrition
 
 type Household = typeof schema.households.$inferSelect
 type FoodRow = typeof schema.foods.$inferSelect
-type NutritionEstimate = z.infer<typeof NutritionEstimateSchema>
-
-const ZERO_USAGE = { inputTokens: 0, outputTokens: 0 }
 
 export class AiOutputError extends Error {
   readonly code = 'ai_output'
@@ -89,7 +85,8 @@ async function getHousehold(db: Db, householdId: string): Promise<Household> {
 // aplica el tope de gasto (`withBudget`) y traduce cualquier error conocido
 // al `code` de `AiResult`. `run` recibe el modelo ya resuelto (inyectado por
 // `deps.model` o construido a partir de la configuración) y devuelve el
-// resultado junto al uso de tokens, tal y como exige `withBudget`.
+// resultado junto al uso real de tokens de `generateStructured`, tal y como
+// exige `withBudget` para calcular `cost_cents` y registrar `ai_usage_log`.
 async function runAiTask<T>(
   ctx: Ctx,
   deps: AiTaskDeps,
@@ -113,20 +110,15 @@ async function runAiTask<T>(
 }
 
 export async function aiParseIngredients(ctx: Ctx, lines: string[], deps: AiTaskDeps = {}): Promise<AiResult<ParsedIngredient[]>> {
-  return runAiTask(ctx, deps, 'parse_ingredients', async (cfg, model) => ({
-    result: await parseIngredientsFallback(cfg, model, lines, ctx.locale),
-    usage: ZERO_USAGE,
-  }))
+  return runAiTask(ctx, deps, 'parse_ingredients', (cfg, model) => parseIngredientsFallback(cfg, model, lines, ctx.locale))
 }
 
 export async function aiImportRecipe(ctx: Ctx, input: AiImportRecipeInput, deps: AiTaskDeps = {}): Promise<AiResult<RecipeInput>> {
-  return runAiTask(ctx, deps, 'import_recipe', async (cfg, model) => ({
-    result:
-      input.kind === 'text'
-        ? await importRecipeFromTextAi(cfg, model, input.text, ctx.locale)
-        : await importRecipeFromImageAi(cfg, model, { bytes: input.bytes, mime: input.mime }, ctx.locale),
-    usage: ZERO_USAGE,
-  }))
+  return runAiTask(ctx, deps, 'import_recipe', (cfg, model) =>
+    input.kind === 'text'
+      ? importRecipeFromTextAi(cfg, model, input.text, ctx.locale)
+      : importRecipeFromImageAi(cfg, model, { bytes: input.bytes, mime: input.mime }, ctx.locale),
+  )
 }
 
 function toFoodWithNutrition(row: FoodRow): FoodWithNutrition {
@@ -153,7 +145,7 @@ function toFoodWithNutrition(row: FoodRow): FoodWithNutrition {
 }
 
 // TODO-merge: sustituir por `createFood(ctx, …, 'ai')` (pista (b)) al mergear.
-async function insertAiFood(db: Db, householdId: string, foodName: string, estimate: NutritionEstimate): Promise<FoodWithNutrition> {
+async function insertAiFood(db: Db, householdId: string, foodName: string, estimate: { defaultUnit: BaseUnit; kcal100g: number; protein100g: number; carbs100g: number; fat100g: number; fiber100g: number; gramsPerUnit: number | null }): Promise<FoodWithNutrition> {
   const trimmed = foodName.trim()
   const searchName = normalizeSearchName(trimmed)
   const [row] = await db
@@ -182,9 +174,9 @@ async function insertAiFood(db: Db, householdId: string, foodName: string, estim
 
 export async function aiEstimateFood(ctx: Ctx, foodName: string, deps: AiTaskDeps = {}): Promise<AiResult<FoodWithNutrition>> {
   return runAiTask(ctx, deps, 'estimate_nutrition', async (cfg, model) => {
-    const estimate = await estimateNutrition(cfg, model, foodName, ctx.locale)
+    const { result: estimate, usage } = await estimateNutrition(cfg, model, foodName, ctx.locale)
     const food = await insertAiFood(ctx.db, ctx.householdId, foodName, estimate)
-    return { result: food, usage: ZERO_USAGE }
+    return { result: food, usage }
   })
 }
 
@@ -204,6 +196,13 @@ function enumerateDates(from: string, to: string): string[] {
   return dates
 }
 
+// Cota del contexto de recetas que se manda al modelo (spec §10: modelos
+// ≤ 8B, prompt corto). Con más recetas que esto, se prioriza variedad:
+// primero las nunca cocinadas (`lastCookedAt` null) y, dentro de cada grupo,
+// las menos veces cocinadas.
+const RECIPE_CONTEXT_LIMIT = 80
+const TAGS_PER_RECIPE_LIMIT = 5
+
 // Contexto de "Planificar la semana" (spec §5, §10): recetas del hogar,
 // despensa que caduca dentro de `expiry_alert_days`, alérgenos/preferencias
 // de los miembros y lo que ya hay planificado en el rango (para no
@@ -220,6 +219,8 @@ async function buildProposePlanContext(ctx: Ctx, household: Household, input: { 
     })
     .from(schema.recipes)
     .where(and(eq(schema.recipes.householdId, ctx.householdId), isNull(schema.recipes.deletedAt)))
+    .orderBy(sql`${schema.recipes.lastCookedAt} asc nulls first`, asc(schema.recipes.timesCooked))
+    .limit(RECIPE_CONTEXT_LIMIT)
 
   const recipeIds = recipeRows.map((r) => r.id)
   const tagRows = recipeIds.length
@@ -240,7 +241,7 @@ async function buildProposePlanContext(ctx: Ctx, household: Household, input: { 
     id: r.id,
     title: r.title,
     totalMinutes: r.prepMinutes === null && r.cookMinutes === null ? null : (r.prepMinutes ?? 0) + (r.cookMinutes ?? 0),
-    tags: tagsByRecipe.get(r.id) ?? [],
+    tags: (tagsByRecipe.get(r.id) ?? []).slice(0, TAGS_PER_RECIPE_LIMIT),
     timesCooked: r.timesCooked,
     lastCookedAt: r.lastCookedAt ? dateOnly(r.lastCookedAt) : null,
   }))

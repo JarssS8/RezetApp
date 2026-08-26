@@ -13,6 +13,11 @@ const anthropicCfg: AiConfig = { provider: 'anthropic', model: 'custom-model', a
 const localVisionCfg: AiConfig = { provider: 'openai_compatible', model: 'qwen2-vl-7b', apiKey: null, baseUrl: 'http://localhost:8080/v1', structuredOutput: true }
 const openaiUnknownCfg: AiConfig = { provider: 'openai', model: 'modelo-que-no-existe', apiKey: 'sk-test', baseUrl: null, structuredOutput: true }
 
+// El uso del mock (10 tokens de entrada, 4 de salida) es el mismo en todas
+// las llamadas: sirve para comprobar que cada tarea propaga el `usage` real
+// de `generateStructured` en vez de descartarlo (ver lib/services/ai-tasks.ts).
+const MOCK_USAGE = { inputTokens: 10, outputTokens: 4 }
+
 function modelReturning(text: string): MockLanguageModelV3 {
   return new MockLanguageModelV3({
     doGenerate: async () => ({
@@ -47,10 +52,11 @@ describe('prompts', () => {
 })
 
 describe('parseIngredientsFallback', () => {
-  it('sin líneas, no llama al modelo y devuelve []', async () => {
+  it('sin líneas, no llama al modelo y devuelve [] con uso en cero', async () => {
     const model = modelReturning('{"lines":[]}')
-    const result = await parseIngredientsFallback(openaiCfg, model as unknown as LanguageModel, [], 'es')
+    const { result, usage } = await parseIngredientsFallback(openaiCfg, model as unknown as LanguageModel, [], 'es')
     expect(result).toEqual([])
+    expect(usage).toEqual({ inputTokens: 0, outputTokens: 0 })
     expect(model.doGenerateCalls).toHaveLength(0)
   })
 
@@ -64,21 +70,22 @@ describe('parseIngredientsFallback', () => {
     expect(userMessage?.content).toEqual([{ type: 'text', text: '1. 2 cucharadas de aceite de oliva' }])
   })
 
-  it('mapea unidad reconocida ("cucharadas" -> tbsp) y needsReview false con cantidad+alimento', async () => {
+  it('mapea unidad reconocida ("cucharadas" -> tbsp), needsReview false con cantidad+alimento, y propaga el usage real', async () => {
     const model = modelReturning('{"lines":[{"quantity":2,"unit":"cucharadas","foodName":"aceite de oliva","preparation":null}]}')
-    const result = await parseIngredientsFallback(openaiCfg, model as unknown as LanguageModel, ['2 cucharadas de aceite de oliva'], 'es')
+    const { result, usage } = await parseIngredientsFallback(openaiCfg, model as unknown as LanguageModel, ['2 cucharadas de aceite de oliva'], 'es')
     expect(result).toEqual([{ quantity: 2, unit: 'tbsp', foodName: 'aceite de oliva', preparation: null, confidence: 0.5, needsReview: false }])
+    expect(usage).toEqual(MOCK_USAGE)
   })
 
   it('unidad no reconocida -> unit null; sin cantidad -> needsReview true', async () => {
     const model = modelReturning('{"lines":[{"quantity":null,"unit":"a ojo","foodName":"sal","preparation":null}]}')
-    const result = await parseIngredientsFallback(openaiCfg, model as unknown as LanguageModel, ['sal a ojo'], 'es')
+    const { result } = await parseIngredientsFallback(openaiCfg, model as unknown as LanguageModel, ['sal a ojo'], 'es')
     expect(result).toEqual([{ quantity: null, unit: null, foodName: 'sal', preparation: null, confidence: 0.5, needsReview: true }])
   })
 
   it('sin unidad en la línea de entrada, unit queda null sin llamar a findUnit', async () => {
     const model = modelReturning('{"lines":[{"quantity":1,"unit":null,"foodName":"cebolla","preparation":"picada"}]}')
-    const result = await parseIngredientsFallback(openaiCfg, model as unknown as LanguageModel, ['1 cebolla picada'], 'es')
+    const { result } = await parseIngredientsFallback(openaiCfg, model as unknown as LanguageModel, ['1 cebolla picada'], 'es')
     expect(result).toEqual([{ quantity: 1, unit: null, foodName: 'cebolla', preparation: 'picada', confidence: 0.5, needsReview: false }])
   })
 })
@@ -93,11 +100,11 @@ describe('importRecipeFromTextAi', () => {
     expect(systemMessage?.content).toBe(importRecipeSystemPrompt('es'))
   })
 
-  it('mapea la salida a un RecipeInput con rawText y sin foodId/quantity/unit', async () => {
+  it('mapea la salida a un RecipeInput con rawText y sin foodId/quantity/unit, y propaga el usage real', async () => {
     const model = modelReturning(
       '{"title":"Tortilla","description":null,"servingsBase":2,"prepMinutes":5,"cookMinutes":10,"difficulty":"easy","tags":["rápido"],"ingredients":[{"rawText":"4 huevos"},{"rawText":"sal al gusto"}],"steps":[{"text":"Bate los huevos","timerSeconds":null},{"text":"Cuaja en la sartén","timerSeconds":180}]}',
     )
-    const result = await importRecipeFromTextAi(openaiCfg, model as unknown as LanguageModel, 'texto de la receta', 'es')
+    const { result, usage } = await importRecipeFromTextAi(openaiCfg, model as unknown as LanguageModel, 'texto de la receta', 'es')
     expect(result).toEqual({
       title: 'Tortilla',
       description: null,
@@ -119,6 +126,7 @@ describe('importRecipeFromTextAi', () => {
         { text: 'Cuaja en la sartén', timerSeconds: 180 },
       ],
     })
+    expect(usage).toEqual(MOCK_USAGE)
     for (const ingredient of result.ingredients) {
       expect(ingredient).not.toHaveProperty('foodId')
       expect(ingredient).not.toHaveProperty('quantity')
@@ -136,14 +144,15 @@ describe('importRecipeFromImageAi', () => {
     expect(model.doGenerateCalls).toHaveLength(0)
   })
 
-  it('con un modelo con vision, manda la imagen como file part', async () => {
+  it('con un modelo con vision, manda la imagen como file part y propaga el usage real', async () => {
     const model = modelReturning(
       '{"title":"Tortilla","description":null,"servingsBase":2,"prepMinutes":null,"cookMinutes":null,"difficulty":null,"tags":[],"ingredients":[{"rawText":"4 huevos"}],"steps":[{"text":"Bate los huevos","timerSeconds":null}]}',
     )
     const image = { bytes: new Uint8Array([1, 2, 3]), mime: 'image/jpeg' }
-    const result = await importRecipeFromImageAi(openaiCfg, model as unknown as LanguageModel, image, 'es')
+    const { result, usage } = await importRecipeFromImageAi(openaiCfg, model as unknown as LanguageModel, image, 'es')
     expect(result.title).toBe('Tortilla')
     expect(result.ingredients).toEqual([{ rawText: '4 huevos', scalesLinearly: true }])
+    expect(usage).toEqual(MOCK_USAGE)
 
     const userMessage = model.doGenerateCalls[0]?.prompt.find((m) => m.role === 'user')
     expect(userMessage?.content).toEqual([
@@ -157,7 +166,7 @@ describe('importRecipeFromImageAi', () => {
       '{"title":"Tortilla","description":null,"servingsBase":2,"prepMinutes":null,"cookMinutes":null,"difficulty":null,"tags":[],"ingredients":[{"rawText":"4 huevos"}],"steps":[{"text":"Bate los huevos","timerSeconds":null}]}',
     )
     const image = { bytes: new Uint8Array([1, 2, 3]), mime: 'image/jpeg' }
-    const result = await importRecipeFromImageAi(anthropicCfg, model as unknown as LanguageModel, image, 'es')
+    const { result } = await importRecipeFromImageAi(anthropicCfg, model as unknown as LanguageModel, image, 'es')
     expect(result.title).toBe('Tortilla')
     expect(model.doGenerateCalls).toHaveLength(1)
   })
@@ -167,7 +176,7 @@ describe('importRecipeFromImageAi', () => {
       '{"title":"Tortilla","description":null,"servingsBase":2,"prepMinutes":null,"cookMinutes":null,"difficulty":null,"tags":[],"ingredients":[{"rawText":"4 huevos"}],"steps":[{"text":"Bate los huevos","timerSeconds":null}]}',
     )
     const image = { bytes: new Uint8Array([1, 2, 3]), mime: 'image/jpeg' }
-    const result = await importRecipeFromImageAi(localVisionCfg, model as unknown as LanguageModel, image, 'es')
+    const { result } = await importRecipeFromImageAi(localVisionCfg, model as unknown as LanguageModel, image, 'es')
     expect(result.title).toBe('Tortilla')
     expect(model.doGenerateCalls).toHaveLength(1)
   })
@@ -183,10 +192,11 @@ describe('importRecipeFromImageAi', () => {
 })
 
 describe('estimateNutrition', () => {
-  it('construye el prompt del sistema correcto y devuelve la estimación', async () => {
+  it('construye el prompt del sistema correcto, devuelve la estimación y propaga el usage real', async () => {
     const model = modelReturning('{"kcal100g":52,"protein100g":0.3,"carbs100g":14,"fat100g":0.2,"fiber100g":2.4,"defaultUnit":"g","gramsPerUnit":null}')
-    const result = await estimateNutrition(openaiCfg, model as unknown as LanguageModel, 'manzana', 'es')
+    const { result, usage } = await estimateNutrition(openaiCfg, model as unknown as LanguageModel, 'manzana', 'es')
     expect(result).toEqual({ kcal100g: 52, protein100g: 0.3, carbs100g: 14, fat100g: 0.2, fiber100g: 2.4, defaultUnit: 'g', gramsPerUnit: null })
+    expect(usage).toEqual(MOCK_USAGE)
     const systemMessage = model.doGenerateCalls[0]?.prompt.find((m) => m.role === 'system')
     expect(systemMessage?.content).toBe(estimateNutritionSystemPrompt('es'))
   })

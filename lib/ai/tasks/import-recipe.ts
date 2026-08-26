@@ -34,6 +34,11 @@ const AiRecipeSchema = z.object({
   steps: z.array(z.object({ text: z.string().min(1).max(2000), timerSeconds: z.number().int().positive().nullable() })).max(100),
 })
 
+export interface ImportRecipeAiResult {
+  result: RecipeInput
+  usage: { inputTokens: number; outputTokens: number }
+}
+
 function toRecipeInput(ai: z.infer<typeof AiRecipeSchema>): RecipeInput {
   return RecipeInputSchema.parse({
     title: ai.title,
@@ -48,9 +53,9 @@ function toRecipeInput(ai: z.infer<typeof AiRecipeSchema>): RecipeInput {
   })
 }
 
-export async function importRecipeFromTextAi(cfg: AiConfig, model: LanguageModel, text: string, locale: Locale): Promise<RecipeInput> {
-  const { result } = await generateStructured(cfg, model, AiRecipeSchema, { system: importRecipeSystemPrompt(locale), user: text })
-  return toRecipeInput(result)
+export async function importRecipeFromTextAi(cfg: AiConfig, model: LanguageModel, text: string, locale: Locale): Promise<ImportRecipeAiResult> {
+  const { result, usage } = await generateStructured(cfg, model, AiRecipeSchema, { system: importRecipeSystemPrompt(locale), user: text })
+  return { result: toRecipeInput(result), usage }
 }
 
 export async function importRecipeFromImageAi(
@@ -58,7 +63,7 @@ export async function importRecipeFromImageAi(
   model: LanguageModel,
   image: { bytes: Uint8Array; mime: string },
   locale: Locale,
-): Promise<RecipeInput> {
+): Promise<ImportRecipeAiResult> {
   if (!supportsVision(cfg)) throw new AiUnsupportedError()
 
   const userMessage: ModelMessage[] = [
@@ -70,6 +75,6 @@ export async function importRecipeFromImageAi(
       ],
     },
   ]
-  const { result } = await generateStructured(cfg, model, AiRecipeSchema, { system: importRecipeSystemPrompt(locale), user: userMessage })
-  return toRecipeInput(result)
+  const { result, usage } = await generateStructured(cfg, model, AiRecipeSchema, { system: importRecipeSystemPrompt(locale), user: userMessage })
+  return { result: toRecipeInput(result), usage }
 }

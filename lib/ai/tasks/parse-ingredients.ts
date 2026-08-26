@@ -26,13 +26,18 @@ export const ParsedLinesSchema = z.object({
 // reglas, así que el resultado del modelo nunca se trata como definitivo.
 const FALLBACK_CONFIDENCE = 0.5
 
-export async function parseIngredientsFallback(cfg: AiConfig, model: LanguageModel, lines: string[], locale: Locale): Promise<ParsedIngredient[]> {
-  if (lines.length === 0) return []
+export interface ParseIngredientsFallbackResult {
+  result: ParsedIngredient[]
+  usage: { inputTokens: number; outputTokens: number }
+}
+
+export async function parseIngredientsFallback(cfg: AiConfig, model: LanguageModel, lines: string[], locale: Locale): Promise<ParseIngredientsFallbackResult> {
+  if (lines.length === 0) return { result: [], usage: { inputTokens: 0, outputTokens: 0 } }
 
   const user = lines.map((line, i) => `${i + 1}. ${line}`).join('\n')
-  const { result } = await generateStructured(cfg, model, ParsedLinesSchema, { system: parseIngredientsSystemPrompt(locale), user })
+  const { result, usage } = await generateStructured(cfg, model, ParsedLinesSchema, { system: parseIngredientsSystemPrompt(locale), user })
 
-  return result.lines.map((line) => {
+  const mapped = result.lines.map((line) => {
     const unit = line.unit ? (findUnit(line.unit, locale)?.id ?? null) : null
     const needsReview = line.quantity === null || line.foodName.trim() === ''
     return {
@@ -44,4 +49,5 @@ export async function parseIngredientsFallback(cfg: AiConfig, model: LanguageMod
       needsReview,
     }
   })
+  return { result: mapped, usage }
 }

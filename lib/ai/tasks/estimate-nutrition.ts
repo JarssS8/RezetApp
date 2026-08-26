@@ -19,12 +19,17 @@ export const NutritionEstimateSchema = z.object({
   gramsPerUnit: z.number().positive().nullable(),
 })
 
+export interface EstimateNutritionResult {
+  result: z.infer<typeof NutritionEstimateSchema>
+  usage: { inputTokens: number; outputTokens: number }
+}
+
 export async function estimateNutrition(
   cfg: AiConfig,
   model: LanguageModel,
   foodName: string,
   locale: Locale,
-): Promise<z.infer<typeof NutritionEstimateSchema>> {
-  const { result } = await generateStructured(cfg, model, NutritionEstimateSchema, { system: estimateNutritionSystemPrompt(locale), user: foodName })
-  return result
+): Promise<EstimateNutritionResult> {
+  const { result, usage } = await generateStructured(cfg, model, NutritionEstimateSchema, { system: estimateNutritionSystemPrompt(locale), user: foodName })
+  return { result, usage }
 }
