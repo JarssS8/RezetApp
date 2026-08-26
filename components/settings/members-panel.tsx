@@ -237,14 +237,22 @@ function MemberCard({
           {dietaryFlags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {dietaryFlags.map((flag) => (
-                <Badge key={flag} variant="secondary" className="gap-1">
-                  {flag}
+                // El botón de quitar va fuera del Badge (que recorta con
+                // overflow-hidden a 20 px): así puede alcanzar el objetivo
+                // táctil de 44 px sin que el pill lo recorte.
+                <span key={flag} className="inline-flex items-center">
+                  <Badge variant="secondary">{flag}</Badge>
                   {editable && (
-                    <button type="button" onClick={() => removeDietaryFlag(flag)} aria-label={c('actions.delete')} className="min-h-4">
+                    <button
+                      type="button"
+                      onClick={() => removeDietaryFlag(flag)}
+                      aria-label={c('actions.delete')}
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center"
+                    >
                       <CloseIcon size={12} />
                     </button>
                   )}
-                </Badge>
+                </span>
               ))}
             </div>
           )}

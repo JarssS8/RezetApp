@@ -72,10 +72,14 @@ export async function removeMember(ctx: Ctx, userId: string): Promise<void> {
       .limit(1)
     if (!member) throw new ServiceError('not_found', 'Miembro no encontrado')
     if (member.role === 'owner') {
+      // FOR UPDATE bloquea las filas de propietarios hasta que termine la
+      // transacción: dos expulsiones concurrentes sobre los dos últimos
+      // propietarios no pueden leer ambas "quedan 2" y dejar el hogar sin nadie.
       const owners = await tx
         .select({ userId: schema.householdMembers.userId })
         .from(schema.householdMembers)
         .where(and(eq(schema.householdMembers.householdId, ctx.householdId), eq(schema.householdMembers.role, 'owner')))
+        .for('update')
       if (owners.length <= 1) throw new ServiceError('conflict', 'El último propietario no puede ser expulsado')
     }
     await tx.delete(schema.householdMembers).where(and(eq(schema.householdMembers.householdId, ctx.householdId), eq(schema.householdMembers.userId, userId)))
