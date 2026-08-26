@@ -60,6 +60,12 @@ describe('importRecipeFromUrl bloquea hosts privados/reservados (SSRF)', () => {
     'http://[::ffff:127.0.0.1]/x',
     'http://[::ffff:192.168.1.5]/x',
     'http://0.0.0.0/x',
+    // FQDN con punto final (DNS resuelve 'localhost.' igual que 'localhost'):
+    // new URL() conserva ese punto en el hostname, hay que normalizarlo antes de comparar.
+    'http://localhost./x',
+    'http://LOCALHOST./x',
+    'http://sub.local./x',
+    'http://Localhost../x',
   ]
   it.each(blockedHosts)('%s se rechaza sin llamar a fetch', async (url) => {
     let called = false
@@ -75,11 +81,31 @@ describe('importRecipeFromUrl bloquea hosts privados/reservados (SSRF)', () => {
     const d = await importRecipeFromUrl('http://[2001:4860:4860::8888]/x', fetchHtml('<html><body>hola</body></html>'))
     expect(d.warnings).not.toContain('invalid_url')
   })
+  it('no bloquea un FQDN público con punto final', async () => {
+    let called = false
+    const fetchImpl = (async () => {
+      called = true
+      return new Response('<html><body>hola</body></html>', { status: 200, headers: { 'content-type': 'text/html' } })
+    }) as unknown as typeof fetch
+    const d = await importRecipeFromUrl('http://example.com./recipe', fetchImpl)
+    expect(called).toBe(true)
+    expect(d.warnings).not.toContain('invalid_url')
+  })
   it('rechaza una redirección hacia un host privado sin seguirla', async () => {
     let calls = 0
     const fetchImpl = (async () => {
       calls += 1
       return new Response(null, { status: 302, headers: { location: 'http://127.0.0.1/secreto' } })
+    }) as unknown as typeof fetch
+    const d = await importRecipeFromUrl('https://ejemplo.test/origen', fetchImpl)
+    expect(d.warnings).toContain('invalid_url')
+    expect(calls).toBe(1)
+  })
+  it('rechaza una redirección hacia "localhost." (punto final) sin seguirla', async () => {
+    let calls = 0
+    const fetchImpl = (async () => {
+      calls += 1
+      return new Response(null, { status: 302, headers: { location: 'http://localhost./y' } })
     }) as unknown as typeof fetch
     const d = await importRecipeFromUrl('https://ejemplo.test/origen', fetchImpl)
     expect(d.warnings).toContain('invalid_url')

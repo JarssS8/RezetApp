@@ -171,7 +171,11 @@ function firstHextet(hostname: string): number | null {
 // dispara la propia app (SSRF, W2-R15). Cubre nombres reservados, loopback,
 // LAN privada, link-local (v4 y v6), ULA v6 e IPv4-mapped-a-IPv6.
 function isPrivateOrReservedHost(rawHostname: string): boolean {
-  const h = stripIPv6Brackets(rawHostname).toLowerCase()
+  // DNS resuelve 'localhost.' igual que 'localhost' (FQDN con punto final);
+  // sin quitarlo, 'localhost.' o 'sub.local.' se colarían como si fueran
+  // hosts distintos. Un FQDN público ('example.com.') sigue funcionando: el
+  // punto final no lo hace privado, solo se normaliza antes de comparar.
+  const h = stripIPv6Brackets(rawHostname).toLowerCase().replace(/\.+$/, '')
   if (h === 'localhost' || h.endsWith('.local')) return true
   if (h === '::1' || h === '::' || h === '0.0.0.0') return true
   if (isReservedIPv4(h)) return true
