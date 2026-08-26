@@ -1,0 +1,22 @@
+[
+  { "slug": "tipo", "name": { "es": "Tipo de plato", "en": "Dish type" }, "parent": null },
+  { "slug": "desayuno", "name": { "es": "Desayuno", "en": "Breakfast" }, "parent": "tipo" },
+  { "slug": "primero", "name": { "es": "Primero", "en": "Starter" }, "parent": "tipo" },
+  { "slug": "principal", "name": { "es": "Principal", "en": "Main" }, "parent": "tipo" },
+  { "slug": "guarnicion", "name": { "es": "Guarnición", "en": "Side" }, "parent": "tipo" },
+  { "slug": "postre", "name": { "es": "Postre", "en": "Dessert" }, "parent": "tipo" },
+  { "slug": "snack", "name": { "es": "Picoteo", "en": "Snack" }, "parent": "tipo" },
+  { "slug": "dieta", "name": { "es": "Dieta", "en": "Diet" }, "parent": null },
+  { "slug": "vegetariano", "name": { "es": "Vegetariano", "en": "Vegetarian" }, "parent": "dieta" },
+  { "slug": "vegano", "name": { "es": "Vegano", "en": "Vegan" }, "parent": "dieta" },
+  { "slug": "sin-gluten", "name": { "es": "Sin gluten", "en": "Gluten-free" }, "parent": "dieta" },
+  { "slug": "sin-lactosa", "name": { "es": "Sin lactosa", "en": "Dairy-free" }, "parent": "dieta" },
+  { "slug": "tecnica", "name": { "es": "Técnica", "en": "Technique" }, "parent": null },
+  { "slug": "horno", "name": { "es": "Horno", "en": "Oven" }, "parent": "tecnica" },
+  { "slug": "olla", "name": { "es": "Olla / guiso", "en": "Stew" }, "parent": "tecnica" },
+  { "slug": "sarten", "name": { "es": "Sartén", "en": "Pan" }, "parent": "tecnica" },
+  { "slug": "sin-cocinar", "name": { "es": "Sin cocinar", "en": "No-cook" }, "parent": "tecnica" },
+  { "slug": "batch", "name": { "es": "Batch cooking", "en": "Batch cooking" }, "parent": "tecnica" },
+  { "slug": "rapido", "name": { "es": "Rápido (<20 min)", "en": "Quick (<20 min)" }, "parent": null },
+  { "slug": "fiambrera", "name": { "es": "Para llevar", "en": "Lunchbox" }, "parent": null }
+]
