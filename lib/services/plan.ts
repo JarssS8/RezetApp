@@ -169,18 +169,19 @@ export interface ProposalView {
 
 type ProposalRow = typeof schema.planProposals.$inferSelect
 
+// Un único SELECT con inArray para todos los recipeId del lote (evita N consultas repetidas)
+async function lookupRecipeTitles(db: Db, recipeIds: string[]): Promise<Map<string, string>> {
+  const rows = await db.select({ id: schema.recipes.id, title: schema.recipes.title }).from(schema.recipes).where(inArray(schema.recipes.id, recipeIds))
+  return new Map(rows.map((r) => [r.id, r.title]))
+}
+
 // El add del diff se enriquece con el título vigente de la receta (o el customTitle del propio payload);
 // el remove son las PlanEntryView actuales de los ids que aún existan (los que ya no existen se omiten)
 async function buildProposalDiff(ctx: Ctx, payload: ProposalPayload): Promise<ProposalView['diff']> {
-  const add = await Promise.all(
-    payload.add.map(async (item): Promise<PlanEntryInput & { title: string }> => {
-      let title = item.customTitle ?? ''
-      if (item.recipeId) {
-        const [recipe] = await ctx.db.select({ title: schema.recipes.title }).from(schema.recipes).where(eq(schema.recipes.id, item.recipeId)).limit(1)
-        if (recipe) title = recipe.title
-      }
-      return { ...item, title }
-    }),
+  const recipeIds = Array.from(new Set(payload.add.map((item) => item.recipeId).filter((id): id is string => id !== null && id !== undefined)))
+  const titleById = recipeIds.length > 0 ? await lookupRecipeTitles(ctx.db, recipeIds) : new Map<string, string>()
+  const add = payload.add.map(
+    (item): PlanEntryInput & { title: string } => ({ ...item, title: (item.recipeId ? titleById.get(item.recipeId) : undefined) ?? item.customTitle ?? '' }),
   )
   const remove =
     payload.remove.length > 0
@@ -215,45 +216,41 @@ export async function listProposals(ctx: Ctx, status?: 'pending'): Promise<Propo
   return Promise.all(rows.map((row) => toProposalView(ctx, row)))
 }
 
-// approve: re-valida el payload, aplica el lote (mismo camino que applyBatch) y marca resuelto, todo en una transacción
-// reject: solo actualiza status/resolved. Propuesta ya decidida → conflict; de otro hogar → not_found; token → forbidden
+// Transición atómica pending -> approved|rejected: el UPDATE con WHERE status='pending' hace de lock
+// optimista (bloquea la fila hasta que la otra transacción concurrente termine y ya no vea 'pending').
+// Sin fila devuelta: si la propuesta existe → conflict (ya decidida); si no → not_found
+async function resolveProposalTx(tx: Db, householdId: string, id: string, status: 'approved' | 'rejected', userId: string): Promise<ProposalRow> {
+  const [updated] = await tx
+    .update(schema.planProposals)
+    .set({ status, resolvedAt: new Date(), resolvedByUserId: userId })
+    .where(and(eq(schema.planProposals.id, id), eq(schema.planProposals.householdId, householdId), eq(schema.planProposals.status, 'pending')))
+    .returning()
+  if (updated) return updated
+  const [existing] = await tx
+    .select()
+    .from(schema.planProposals)
+    .where(and(eq(schema.planProposals.id, id), eq(schema.planProposals.householdId, householdId)))
+    .limit(1)
+  if (existing) throw new ServiceError('conflict', 'La propuesta ya fue decidida')
+  throw new ServiceError('not_found', 'Propuesta no encontrada')
+}
+
+// approve: el UPDATE (lock) va primero y luego se aplica el lote (mismo camino que applyBatch) en la
+// misma transacción, así un fallo en el lote revierte también el cambio de status.
+// reject: solo el UPDATE. Propuesta ya decidida → conflict; de otro hogar → not_found; token → forbidden
 export async function decideProposal(ctx: Ctx, id: string, decision: 'approve' | 'reject'): Promise<ProposalView> {
   if (ctx.userId === null) throw new ServiceError('forbidden', 'Solo un usuario con sesión puede decidir propuestas')
   const userId = ctx.userId
 
   if (decision === 'reject') {
-    const [current] = await ctx.db
-      .select()
-      .from(schema.planProposals)
-      .where(and(eq(schema.planProposals.id, id), eq(schema.planProposals.householdId, ctx.householdId)))
-      .limit(1)
-    if (!current) throw new ServiceError('not_found', 'Propuesta no encontrada')
-    if (current.status !== 'pending') throw new ServiceError('conflict', 'La propuesta ya fue decidida')
-    const [updated] = await ctx.db
-      .update(schema.planProposals)
-      .set({ status: 'rejected', resolvedAt: new Date(), resolvedByUserId: userId })
-      .where(eq(schema.planProposals.id, id))
-      .returning()
-    if (!updated) throw new ServiceError('conflict', 'No se pudo rechazar la propuesta')
+    const updated = await ctx.db.transaction((tx) => resolveProposalTx(tx, ctx.householdId, id, 'rejected', userId))
     return toProposalView(ctx, updated)
   }
 
   const result = await ctx.db.transaction(async (tx) => {
-    const [current] = await tx
-      .select()
-      .from(schema.planProposals)
-      .where(and(eq(schema.planProposals.id, id), eq(schema.planProposals.householdId, ctx.householdId)))
-      .limit(1)
-    if (!current) throw new ServiceError('not_found', 'Propuesta no encontrada')
-    if (current.status !== 'pending') throw new ServiceError('conflict', 'La propuesta ya fue decidida')
-    const batch = ProposalPayloadSchema.parse(current.payload)
+    const updated = await resolveProposalTx(tx, ctx.householdId, id, 'approved', userId)
+    const batch = ProposalPayloadSchema.parse(updated.payload)
     const applied = await applyBatchTx(tx, ctx.householdId, batch)
-    const [updated] = await tx
-      .update(schema.planProposals)
-      .set({ status: 'approved', resolvedAt: new Date(), resolvedByUserId: userId })
-      .where(eq(schema.planProposals.id, id))
-      .returning()
-    if (!updated) throw new ServiceError('conflict', 'No se pudo aprobar la propuesta')
     return { updated, applied }
   })
   if (result.applied.dates.size > 0) emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: Array.from(result.applied.dates) } })

@@ -286,7 +286,7 @@ describe('decideProposal', () => {
     expect(entries).toHaveLength(0)
   })
 
-  it('un token no puede decidir (forbidden); una propuesta de otro hogar da not_found', async () => {
+  it('un token no puede decidir (forbidden), ni aprobar ni rechazar; una propuesta de otro hogar da not_found en ambos', async () => {
     const a = await makeHousehold('Casa A')
     const b = await makeHousehold('Casa B')
     const ownerA = await makeUser('Ana')
@@ -296,6 +296,55 @@ describe('decideProposal', () => {
     const proposal = await createProposal(ctxOf(a, { userId: ownerA }), { source: 'ai', payload: { add: [], remove: [] } })
 
     await expectServiceErrorCode(decideProposal(ctxOf(a, { userId: null, apiTokenId: tokenId }), proposal.id, 'approve'), 'forbidden')
+    await expectServiceErrorCode(decideProposal(ctxOf(a, { userId: null, apiTokenId: tokenId }), proposal.id, 'reject'), 'forbidden')
     await expectServiceErrorCode(decideProposal(ctxOf(b, { userId: ownerB }), proposal.id, 'approve'), 'not_found')
+    await expectServiceErrorCode(decideProposal(ctxOf(b, { userId: ownerB }), proposal.id, 'reject'), 'not_found')
+  })
+
+  it('dos approves concurrentes sobre la misma propuesta: solo uno se aplica, el otro da conflict, y las entradas se insertan una sola vez', async () => {
+    const a = await makeHousehold('Casa A')
+    const ownerA = await makeUser('Ana')
+    const recipeA = await makeRecipe(a, 'Lentejas')
+    const proposal = await createProposal(ctxOf(a, { userId: ownerA }), {
+      source: 'ai',
+      payload: { add: [{ date: '2026-09-02', slot: 'dinner', recipeId: recipeA, servings: 2 }], remove: [] },
+    })
+
+    const results = await Promise.allSettled([
+      decideProposal(ctxOf(a, { userId: ownerA }), proposal.id, 'approve'),
+      decideProposal(ctxOf(a, { userId: ownerA }), proposal.id, 'approve'),
+    ])
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled')
+    const rejected = results.filter((r) => r.status === 'rejected')
+    expect(fulfilled).toHaveLength(1)
+    expect(rejected).toHaveLength(1)
+    const [conflictResult] = rejected
+    if (conflictResult && conflictResult.status === 'rejected') {
+      expect(conflictResult.reason).toBeInstanceOf(ServiceError)
+      expect((conflictResult.reason as ServiceError).code).toBe('conflict')
+    }
+
+    const entries = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.householdId, a))
+    expect(entries).toHaveLength(1)
+  })
+
+  it('approve revierte el status si applyBatchTx falla (receta borrada tras crear la propuesta); la propuesta sigue pending', async () => {
+    const a = await makeHousehold('Casa A')
+    const ownerA = await makeUser('Ana')
+    const recipeA = await makeRecipe(a, 'Lentejas')
+    const proposal = await createProposal(ctxOf(a, { userId: ownerA }), {
+      source: 'ai',
+      payload: { add: [{ date: '2026-09-02', slot: 'dinner', recipeId: recipeA, servings: 2 }], remove: [] },
+    })
+    await db.update(schema.recipes).set({ deletedAt: new Date() }).where(eq(schema.recipes.id, recipeA))
+
+    await expectServiceErrorCode(decideProposal(ctxOf(a, { userId: ownerA }), proposal.id, 'approve'), 'validation')
+
+    const [row] = await db.select().from(schema.planProposals).where(eq(schema.planProposals.id, proposal.id))
+    expect(row?.status).toBe('pending')
+    expect(row?.resolvedAt).toBeNull()
+    const entries = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.householdId, a))
+    expect(entries).toHaveLength(0)
   })
 })
