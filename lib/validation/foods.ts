@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { BaseUnitSchema, PaginationSchema } from './common'
+import { BaseUnitSchema, LocaleSchema, PaginationSchema } from './common'
 import { ALLERGENS } from './household'
 
 export const FoodInputSchema = z.strictObject({
@@ -21,5 +21,9 @@ export const FoodInputSchema = z.strictObject({
   seasonalMonths: z.array(z.number().int().min(1).max(12)).default([]),
 })
 export type FoodInput = z.infer<typeof FoodInputSchema>
-export const FoodSearchSchema = PaginationSchema.extend({ q: z.string().trim().min(1).max(80), locale: z.enum(['es', 'en']).default('es') })
+export const FoodSearchSchema = PaginationSchema.extend({ q: z.string().trim().min(1).max(80), locale: LocaleSchema.default('es') })
 export const BarcodeSchema = z.string().regex(/^\d{8,14}$/)
+
+// Corrección manual de un alimento (gana a cualquier fuente, §9.4). Todo opcional: se actualiza solo lo enviado.
+export const FoodCorrectionSchema = FoodInputSchema.partial().strict()
+export type FoodCorrection = z.infer<typeof FoodCorrectionSchema>
