@@ -1,0 +1,86 @@
+/* RezetApp · dirección «Mercado» + modo oscuro «Noche suave»
+   Pega esto en app/globals.css antes de nada más. */
+
+:root {
+  /* Acento — el usuario puede cambiarlo entre los ocho de abajo */
+  --acc: #2F9E6B;
+
+  /* Superficies y texto */
+  --bg:      #FBFBFC;
+  --surf:    #FFFFFF;
+  --surf-2:  #F2F5F3;
+  --line:    #EAEEEC;
+  --text:    #161C1A;
+  --text-2:  #485450;
+  --muted:   #8A9691;
+  --warn:    #D9803A;
+
+  /* Derivados — nunca los escribas a ojo */
+  --acc-soft: color-mix(in srgb, var(--acc) 13%, #FFFFFF);
+  --acc-ink:  color-mix(in srgb, var(--acc) 78%, #0A2118);
+  --on-acc:   #FFFFFF;
+
+  /* Radios */
+  --r-lg: 22px;   /* tarjetas, hero */
+  --r-md: 16px;   /* tarjetas internas, campos */
+  --r-sm: 12px;   /* botones, steppers */
+
+  /* Sombras — suaves, nunca duras */
+  --sh-card: 0 2px 10px -7px rgba(22, 28, 26, .22);
+  --sh-hero: 0 3px 14px -9px rgba(22, 28, 26, .30);
+
+  /* Tipografía */
+  --f-display: "Outfit", "Helvetica Neue", system-ui, sans-serif;
+  --f-body:    "DM Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:    "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+
+/* «Noche suave» — carbón cálido, no negro azulado */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:     #16130F;
+    --surf:   #1F1B16;
+    --surf-2: #2A241D;
+    --line:   #2E271F;
+    --text:   #F1EBE1;
+    --text-2: #BBB0A1;
+    --muted:  #8B8175;
+    --warn:   #E8A33D;
+    --acc-soft: color-mix(in srgb, var(--acc) 17%, #16130F);
+    --acc-ink:  color-mix(in srgb, var(--acc) 68%, #F1EBE1);
+    --on-acc:   #12261C;
+    --sh-card: 0 2px 10px -7px rgba(0, 0, 0, .5);
+    --sh-hero: 0 3px 14px -9px rgba(0, 0, 0, .7);
+  }
+}
+:root[data-theme="dark"] {
+  --bg:     #16130F;
+  --surf:   #1F1B16;
+  --surf-2: #2A241D;
+  --line:   #2E271F;
+  --text:   #F1EBE1;
+  --text-2: #BBB0A1;
+  --muted:  #8B8175;
+  --warn:   #E8A33D;
+  --acc-soft: color-mix(in srgb, var(--acc) 17%, #16130F);
+  --acc-ink:  color-mix(in srgb, var(--acc) 68%, #F1EBE1);
+  --on-acc:   #12261C;
+  --sh-card: 0 2px 10px -7px rgba(0, 0, 0, .5);
+  --sh-hero: 0 3px 14px -9px rgba(0, 0, 0, .7);
+}
+
+/* Los ocho acentos, sacados de comida. Se aplican con data-accent en :root */
+:root[data-accent="huerta"]    { --acc: #2F9E6B; }
+:root[data-accent="miel"]      { --acc: #D99A2B; }
+:root[data-accent="tomate"]    { --acc: #CE5540; }
+:root[data-accent="pistacho"]  { --acc: #7FA344; }
+:root[data-accent="higo"]      { --acc: #B4557A; }
+:root[data-accent="berenjena"] { --acc: #8C5A9E; }
+:root[data-accent="arandano"]  { --acc: #4A7FB5; }
+:root[data-accent="canela"]    { --acc: #A9764A; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--f-body);
+}
