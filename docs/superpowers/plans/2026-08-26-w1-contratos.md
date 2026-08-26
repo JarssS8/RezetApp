@@ -89,7 +89,7 @@ export const tsvector = customType<{ data: string }>({
 
 // Enums compartidos entre agregados
 export const baseUnitEnum = pgEnum('base_unit', ['g', 'ml', 'ud'])
-export const aiProviderEnum = pgEnum('ai_provider', ['none', 'anthropic', 'openai', 'ollama'])
+export const aiProviderEnum = pgEnum('ai_provider', ['none', 'anthropic', 'openai', 'openai_compatible'])
 export const unitSystemEnum = pgEnum('unit_system', ['metric', 'imperial'])
 export const themeEnum = pgEnum('theme', ['system', 'light', 'dark'])
 export const householdRoleEnum = pgEnum('household_role', ['owner', 'member'])
@@ -124,6 +124,7 @@ export const households = pgTable('households', {
   aiBaseUrl: text('ai_base_url'),
   aiApiKeyEnc: bytea('ai_api_key_enc'),
   aiMonthlyCapCents: integer('ai_monthly_cap_cents').notNull().default(0),
+  aiStructuredOutput: boolean('ai_structured_output').notNull().default(true),
   shoplistListToken: text('shoplist_list_token'),
   shoplistFnUrl: text('shoplist_fn_url'),
   shoplistSecretEnc: bytea('shoplist_secret_enc'),
@@ -1295,8 +1296,8 @@ import { generateObject } from 'ai'
 import { z } from 'zod'
 import type { FoodSeed, Translation } from './build-foods-seed'
 
-// Genera entradas que faltan en foods-translations.json usando un modelo local (Ollama, API compatible con OpenAI).
-// Uso: OLLAMA_BASE_URL=http://localhost:11434/v1 OLLAMA_MODEL=qwen3:8b pnpm tsx scripts/translate-foods.ts
+// Genera entradas que faltan en foods-translations.json usando un modelo local (llama-server u Ollama, API compatible con OpenAI).
+// Uso: AI_LOCAL_BASE_URL=http://localhost:8080/v1 AI_LOCAL_MODEL=qwen3-8b pnpm tsx scripts/translate-foods.ts
 // Las entradas existentes se respetan siempre: la revisión manual manda.
 
 const TranslationSchema = z.object({
@@ -1315,8 +1316,8 @@ async function main(): Promise<void> {
   const foods = JSON.parse(fs.readFileSync(path.join(seedDir, 'foods.json'), 'utf8')) as FoodSeed[]
   const file = path.join(seedDir, 'foods-translations.json')
   const translations = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, Translation>
-  const provider = createOpenAI({ baseURL: process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434/v1', apiKey: 'ollama' })
-  const model = provider(process.env.OLLAMA_MODEL ?? 'qwen3:8b')
+  const provider = createOpenAI({ baseURL: process.env.AI_LOCAL_BASE_URL ?? 'http://localhost:8080/v1', apiKey: 'ollama' })
+  const model = provider(process.env.AI_LOCAL_MODEL ?? 'qwen3-8b')
   let done = 0
   for (const f of foods) {
     if (translations[f.sourceRef]) continue
@@ -1345,7 +1346,7 @@ mkdir -p data/usda && echo "descarga manual: ver db/seed/README.md"
 # tras descomprimir los JSON de Foundation y SR Legacy en data/usda:
 echo '{}' > db/seed/foods-translations.json
 pnpm tsx scripts/build-foods-seed.ts --input ./data/usda
-OLLAMA_BASE_URL=http://localhost:11434/v1 OLLAMA_MODEL=qwen3:8b pnpm tsx scripts/translate-foods.ts
+AI_LOCAL_BASE_URL=http://localhost:8080/v1 AI_LOCAL_MODEL=qwen3-8b pnpm tsx scripts/translate-foods.ts
 pnpm tsx scripts/build-foods-seed.ts --input ./data/usda
 ```
 Expected: `foods.json: ~800 alimentos, 0 sin traducción`. Revisar a mano `foods-translations.json` (nombres raros, `gramsPerUnit` absurdos) antes de commitear; corregir en el JSON, no en el prompt. Si no hay Ollama disponible, commitear `foods.json` con `nameEs = nameEn` para las no traducidas y abrir una tarea de revisión: el seed sigue siendo funcional.

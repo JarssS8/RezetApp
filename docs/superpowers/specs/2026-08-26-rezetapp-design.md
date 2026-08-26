@@ -43,7 +43,7 @@ como tarea futura explícita).
   DB.**
 - **Adaptadores de entrada**: Server Actions/RSC, route handlers REST, MCP.
   Nunca contienen lógica; traducen entrada → servicio → salida.
-- **`lib/ai`**: proveedor elegible (Anthropic, OpenAI, Ollama) vía Vercel AI
+- **`lib/ai`**: proveedor elegible (Anthropic, OpenAI, servidor OpenAI-compatible) vía Vercel AI
   SDK, con tope de gasto y log. Solo *extracción y propuesta*; nunca cálculos.
 
 Regla de dependencia (lint con `eslint-plugin-boundaries`):
@@ -106,9 +106,11 @@ Base: `docs/04-DATOS.md`. Cambios y añadidos:
 ### Hogar, usuarios, sesión
 - `households` + `default_servings int not null default 2`,
   `expiry_alert_days int not null default 3`,
-  `ai_provider enum('none','anthropic','openai','ollama') not null default 'none'`,
-  `ai_model text`, `ai_base_url text` (Ollama), `ai_api_key_enc bytea`,
+  `ai_provider enum('none','anthropic','openai','openai_compatible') not null default 'none'`,
+  `ai_model text`, `ai_base_url text` (servidor local: `llama-server`, Ollama
+  `/v1`, LM Studio, vLLM), `ai_api_key_enc bytea`,
   `ai_monthly_cap_cents int not null default 0` (0 = sin tope),
+  `ai_structured_output bool not null default true`,
   `shoplist_list_token text`, `shoplist_fn_url text`, `shoplist_secret_enc bytea`,
   `shoplist_last_pushed_at timestamptz`, `plan_rules jsonb not null default '[]'`.
   **Se elimina `ai_spent_this_month_cents`**: el gasto del mes es
@@ -357,7 +359,7 @@ tiene visión). Exportar JSON; importar Mealie/Tandoor (fase 5).
 ### Ajustes
 Una ruta por sección (§3): hogar (nombre, raciones por defecto, alerta
 caducidad, salir/borrar hogar), miembros (alérgenos, `dietary_flags`, invitar,
-expulsar), IA (proveedor, modelo, clave, URL Ollama, tope, gasto del mes,
+expulsar), IA (proveedor, modelo, clave, URL del servidor local, tope, gasto del mes,
 "probar"), ShopList (URL función, secreto, token de lista; o "usando
 configuración del servidor" si vienen por env), tokens API (crear con scopes
 y perfil MCP, revocar, última vez; con instrucciones de conexión MCP),
@@ -420,17 +422,24 @@ Todos los servicios exponen esquemas zod de entrada/salida en
 
 - `getProvider(household)`: `LanguageModel` del AI SDK o `null`. Clave del
   hogar (descifrada) o de env (`AI_ANTHROPIC_API_KEY`, `AI_OPENAI_API_KEY`,
-  `AI_OLLAMA_BASE_URL`).
+  `AI_LOCAL_BASE_URL`, `AI_LOCAL_MODEL`). Adaptadores: `@ai-sdk/anthropic`,
+  `@ai-sdk/openai`, `@ai-sdk/openai-compatible` (local). Con backend local se
+  envía `response_format: json_schema` (llama.cpp lo compila a gramática GBNF;
+  Ollama lo acepta desde 0.5) — se activa con el flag
+  `households.ai_structured_output bool default true`.
 - `withBudget(household, op, fn)`: `SUM(cost_cents)` del mes < cap (si cap >
-  0), ejecuta, registra `ai_usage_log`. Ollama cuesta 0. Precios en
+  0), ejecuta, registra `ai_usage_log`. El proveedor local cuesta 0. Precios en
   `lib/ai/models.ts`.
 - Tareas (`generateObject` + zod, `maxRetries: 2`): `parseIngredientsFallback`
   (solo líneas `needsReview`), `importRecipeFromText/Image`,
   `estimateNutrition(foodName)`, `proposePlan(context)` → `plan_proposals`
   con `source='ai'`.
 - Modelos por defecto en `models.ts`: ids exactos de Anthropic/OpenAI se fijan
-  en W2(e) consultando la documentación oficial del proveedor; Ollama →
-  `qwen3:8b` (8 GB) / `qwen3:4b` (4 GB). Botón "probar".
+  en W2(e) consultando la documentación oficial del proveedor; local →
+  `qwen3-8b` Q4_K_M (8 GB VRAM) / `qwen3-4b` Q4_K_M (4 GB). Botón "probar".
+  README documenta el arranque recomendado:
+  `llama-server -m qwen3-8b-q4_k_m.gguf -ngl 99 -c 8192 -fa --jinja --port 8080`
+  y la alternativa Ollama.
 - Con modelos ≤ 8B: prompts cortos, un objeto de salida, sin tool calling en
   cadena.
 
@@ -468,7 +477,7 @@ details?}}`. `GET /api/openapi.json` desde zod; Swagger UI en `/api/docs`.
   `search_recipes`, `get_recipe`, para poder usarlo con un cliente real
   mientras W3 avanza (conserva el espíritu de `docs/07` "fase 2 a
   propósito"). W3(d) completa el resto.
-- Tests: cada herramienta con fixture; test opcional con `OLLAMA_TEST_MODEL`.
+- Tests: cada herramienta con fixture; test opcional con `AI_LOCAL_BASE_URL` + `AI_LOCAL_TEST_MODEL`.
 
 ## 13. ShopList
 

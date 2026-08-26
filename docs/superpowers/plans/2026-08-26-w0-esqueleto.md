@@ -1491,7 +1491,9 @@ DATABASE_URL_TEST=postgres://rezetapp:rezetapp@localhost:5432/rezetapp_test
 # IA (opcional; también configurable por hogar en Ajustes)
 AI_ANTHROPIC_API_KEY=
 AI_OPENAI_API_KEY=
-AI_OLLAMA_BASE_URL=
+# Servidor local OpenAI-compatible (llama-server, Ollama /v1, LM Studio…)
+AI_LOCAL_BASE_URL=
+AI_LOCAL_MODEL=
 # ShopList (opcional)
 SHOPLIST_FN_URL=
 SHOPLIST_IMPORT_SECRET=

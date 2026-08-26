@@ -49,7 +49,9 @@ Decisiones que el kit dejaba abiertas, cerradas el 2026-08-26:
 - **`zod`** como único esquema de validación: formularios, REST, herramientas MCP
   y OpenAPI (`zod-openapi`).
 - **IA con Vercel AI SDK**: adaptadores `@ai-sdk/anthropic`, `@ai-sdk/openai` y
-  Ollama. El hogar elige proveedor en ajustes. Tope de gasto en `lib/ai`.
+  `@ai-sdk/openai-compatible` (cualquier servidor local: `llama-server` de
+  llama.cpp recomendado, Ollama, LM Studio, vLLM). El hogar elige proveedor en
+  ajustes. Tope de gasto en `lib/ai`.
 - **SSE** con bus de eventos en proceso. Una sola instancia; sin Redis.
 - **Imágenes** en volumen local `./data/uploads`, servidas por Next.
 - **Tests**: `vitest` para dominio y unidades; `playwright` para flujos
@@ -66,8 +68,10 @@ Cerradas el 2026-08-26:
 2. **Raciones por hueco con default del hogar.** `households.default_servings`;
    cada `meal_plan_entries.servings` puede diferir (invitados).
 3. **Cocina en móvil.** Modo cocina para 6" en mano. Modo pared/tablet es fase 5.
-4. **IA: elegible entre Ollama y API cloud.** GPU objetivo 4–8 GB → modelos
-   4B–8B cuantizados. Las herramientas MCP se diseñan para ese caso: pocas,
+4. **IA: elegible entre servidor local OpenAI-compatible y API cloud.** GPU
+   objetivo 4–8 GB → modelos 4B–8B cuantizados (Q4_K_M) servidos con
+   `llama-server` (llama.cpp): salida estructurada por gramática, control de
+   VRAM. Ollama vale igual (misma API en `/v1`). Las herramientas MCP se diseñan para ese caso: pocas,
    nombres muy distintos, esquemas estrictos que fallan ruidosamente.
 
 ## Las siete reglas que no se negocian
@@ -81,7 +85,7 @@ Cerradas el 2026-08-26:
    restar despensa son operaciones deterministas del servidor. El modelo decide
    *qué* hacer; el código decide *cuánto*.
 
-3. **La app funciona entera sin IA.** Sin clave de API y sin Ollama sigue siendo
+3. **La app funciona entera sin IA.** Sin clave de API y sin modelo local sigue siendo
    un recetario completo. La IA acelera, nunca habilita.
 
 4. **`household_id` en cada fila desde el primer commit.** Aunque la interfaz

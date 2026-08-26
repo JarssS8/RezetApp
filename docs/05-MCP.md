@@ -72,7 +72,7 @@ comandos listos. Cuatro para empezar:
 
 ## Nota sobre modelos locales
 
-Si se usa Ollama, hay que probar pronto con el modelo real. Un modelo de 4 a 12 mil
+Si se usa un modelo local (llama-server, Ollama), hay que probar pronto con el modelo real. Un modelo de 4 a 12 mil
 millones de parámetros se confunde entre herramientas parecidas, inventa parámetros
 y a veces contesta sin llamar a nada. Lo que funciona con un modelo grande de API puede caerse con
 Gemma. Esquemas estrictos que fallen ruidosamente.

@@ -53,7 +53,7 @@ Orden de merge sugerido: (b) → (a) → (d) → (c) → (e) → (f) → (g) →
 | (a) cooking | `lib/services/cooking.ts` (`logCooked` transaccional §9.5 con `FOR UPDATE` + `GREATEST`, test de concurrencia), modo cocina `cook/[entryId]` y `cook/recipe/[id]`, wake lock, sobras |
 | (b) today | página Hoy completa, anillo kcal, caducidades, `useHouseholdEvents` en Hoy/Plan/Despensa |
 | (c) rest | todos los recursos §11, `openapi.json` desde zod, Swagger UI en `/api/docs` |
-| (d) mcp-full | 12 tools basic + 6 full, prompts, recurso `household://context`, `set_meal_plan` → propuesta, docs de conexión, test opcional con Ollama |
+| (d) mcp-full | 12 tools basic + 6 full, prompts, recurso `household://context`, `set_meal_plan` → propuesta, docs de conexión, test opcional con servidor local |
 
 ### W4 · Extras (6 ∥) — depende de W3
 (a) `plan-rules` en dominio + autorrelleno → propuesta `source='rules'`, evitar repetición · (b) temporizadores en pasos, voz, modo pared · (c) importar foto/PDF (visión), `scripts/import-mealie.ts`, `import-tandoor.ts`, `settings/data` · (d) etiquetas jerárquicas, colecciones, fusionar alimentos · (e) alérgenos por miembro en propuestas, estadísticas plan vs realidad · (f) PWA (manifest, SW shell), push VAPID en `app_settings`, `settings/notifications`.
