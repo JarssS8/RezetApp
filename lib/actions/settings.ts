@@ -10,10 +10,11 @@ import { PREFS_COOKIE } from '@/lib/prefs'
 import { createApiToken, revokeApiToken } from '@/lib/services/api-tokens'
 import { createInvite, deleteHousehold, leaveHousehold, updateHousehold, type HouseholdSummary, type HouseholdUpdate } from '@/lib/services/households'
 import { removeMember, updateMember, type MemberUpdate } from '@/lib/services/members'
+import { removePasskey, renamePasskey } from '@/lib/services/passkeys'
 import { updateUserPrefs, type UserPrefs } from '@/lib/services/user-prefs'
 import { ApiTokenCreateSchema } from '@/lib/validation/tokens'
 import { IdSchema } from '@/lib/validation/common'
-import { DeleteHouseholdSchema, HouseholdUpdateSchema, MemberUpdateSchema, UserPrefsSchema } from '@/lib/validation/household'
+import { DeleteHouseholdSchema, HouseholdUpdateSchema, MemberUpdateSchema, PasskeyIdSchema, PasskeyRenameSchema, UserPrefsSchema } from '@/lib/validation/household'
 import { type ActionResult, fail, fromError, ok } from './result'
 
 // Cierra la sesión de este hogar en el navegador: borra la fila de sesión y
@@ -154,6 +155,32 @@ export async function switchHouseholdAction(householdId: string): Promise<Action
     if (!parsed.success) return fail('validation', 'Identificador inválido')
     await switchHousehold(ctx.db, ctx.session.session.id, parsed.data)
     revalidatePath('/', 'layout')
+    return ok(null)
+  } catch (e) {
+    return fromError(e)
+  }
+}
+
+export async function renamePasskeyAction(credentialId: string, name: string): Promise<ActionResult<null>> {
+  try {
+    const ctx = await requireHousehold()
+    const parsed = PasskeyRenameSchema.safeParse({ credentialId, name })
+    if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
+    await renamePasskey(ctx, parsed.data.credentialId, parsed.data.name)
+    revalidatePath('/settings/passkeys')
+    return ok(null)
+  } catch (e) {
+    return fromError(e)
+  }
+}
+
+export async function removePasskeyAction(credentialId: string): Promise<ActionResult<null>> {
+  try {
+    const ctx = await requireHousehold()
+    const parsed = PasskeyIdSchema.safeParse(credentialId)
+    if (!parsed.success) return fail('validation', 'Identificador inválido')
+    await removePasskey(ctx, parsed.data)
+    revalidatePath('/settings/passkeys')
     return ok(null)
   } catch (e) {
     return fromError(e)

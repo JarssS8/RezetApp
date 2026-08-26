@@ -9,7 +9,7 @@ import { db } from '@/db'
 import { getKeys, verifySignedValue } from '@/lib/auth/crypto'
 import type { Locale } from '@/lib/domain/types'
 import { destroySession, switchHousehold } from '@/lib/auth/session'
-import { finishLogin, finishRegistration, startLogin, startRegistration } from '@/lib/auth/webauthn'
+import { addCredentialToUser, finishLogin, finishRegistration, startLogin, startRegistration } from '@/lib/auth/webauthn'
 import { ServiceError } from './ctx'
 import { acceptInvite, createUserWithHousehold, getInvite, isRegistrationOpen, listHouseholdsOf, registerViaInvite } from './households'
 
@@ -77,6 +77,19 @@ export async function loginVerify(input: {
   householdId ??= households[0]?.id
   if (!householdId) return null
   return { userId, householdId, inviteError }
+}
+
+// Tarea 36: alta de una passkey adicional desde ajustes (el usuario ya tiene
+// sesión, a diferencia de registerOptions/registerVerify que crean la cuenta).
+// excludeCredentials lo rellena startRegistration a partir de userId, así el
+// autenticador no deja registrar dos veces el mismo dispositivo.
+export function passkeyOptions(userId: string, displayName: string): Promise<{ challengeId: string; options: PublicKeyCredentialCreationOptionsJSON }> {
+  return startRegistration(db, displayName, userId)
+}
+
+export async function passkeyVerify(userId: string, input: { challengeId: string; response: RegistrationResponseJSON; name: string | null }): Promise<void> {
+  const credential = await finishRegistration(db, { challengeId: input.challengeId, response: input.response })
+  await addCredentialToUser(db, userId, credential, input.name)
 }
 
 export async function logoutSession(cookieValue: string | undefined): Promise<void> {

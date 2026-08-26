@@ -122,5 +122,21 @@
     "remove": "Expulsar",
     "removeConfirm": "¿Expulsar a {name} del hogar?",
     "error": "No se pudo completar la acción."
+  },
+  "passkeys": {
+    "add": "Añadir passkey",
+    "name": "Nombre del dispositivo",
+    "unnamed": "Sin nombre",
+    "rename": "Renombrar",
+    "remove": "Eliminar",
+    "removeConfirm": "¿Eliminar esta passkey? Tendrás que volver a registrarla si quieres usarla otra vez.",
+    "lastOne": "No puedes eliminar tu única passkey.",
+    "synced": "Sincronizada",
+    "device": "Solo este dispositivo",
+    "added": "Passkey añadida",
+    "createdAt": "Creada el {date}",
+    "lastUsed": "Último uso: {date}",
+    "never": "Nunca",
+    "error": "No se pudo completar la acción."
   }
 }

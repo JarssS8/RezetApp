@@ -122,5 +122,21 @@
     "remove": "Remove",
     "removeConfirm": "Remove {name} from the household?",
     "error": "Couldn't complete the action."
+  },
+  "passkeys": {
+    "add": "Add passkey",
+    "name": "Device name",
+    "unnamed": "Unnamed",
+    "rename": "Rename",
+    "remove": "Delete",
+    "removeConfirm": "Delete this passkey? You'll need to register it again to use it.",
+    "lastOne": "You can't delete your only passkey.",
+    "synced": "Synced",
+    "device": "This device only",
+    "added": "Passkey added",
+    "createdAt": "Created on {date}",
+    "lastUsed": "Last used: {date}",
+    "never": "Never",
+    "error": "Couldn't complete the action."
   }
 }
