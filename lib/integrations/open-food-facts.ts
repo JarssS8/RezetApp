@@ -2,6 +2,7 @@
 // Sin caché ni escritura: lookupBarcode (lib/services/foods.ts) decide qué
 // hacer con el resultado (crear alimento global source 'off').
 import type { FoodInput } from '@/lib/validation/foods'
+import type { ALLERGENS } from '@/lib/validation/household'
 
 export interface OffProduct {
   code: string
@@ -13,10 +14,12 @@ export interface OffProduct {
   carbs100g: number | null
   fat100g: number | null
   fiber100g: number | null
-  allergens: string[]
+  allergens: Allergen[]
   aliases: string[]
   gramsPerUnit: number | null
 }
+
+type Allergen = (typeof ALLERGENS)[number]
 
 export type OffErrorCode = 'network' | 'invalid'
 
@@ -50,7 +53,7 @@ const FIELDS = [
 // Etiquetas OFF (con prefijo "en:") → vocabulario de alérgenos de
 // lib/validation/household.ts::ALLERGENS. Lo que no está en el mapa se descarta:
 // preferimos perder una etiqueta rara a inventar un alérgeno que no existe.
-const ALLERGEN_MAP: Record<string, string> = {
+const ALLERGEN_MAP: Partial<Record<string, Allergen>> = {
   'en:gluten': 'gluten',
   'en:milk': 'lactose',
   'en:eggs': 'egg',
@@ -134,7 +137,13 @@ export async function fetchOffProduct(barcode: string, fetchImpl: typeof fetch =
   if (!name) return null
 
   const n = p.nutriments ?? {}
+  // Inferencia propia (no está en el brief ni en sus tests): serving_quantity
+  // solo tiene sentido como gramos-por-unidad cuando la unidad declarada es
+  // 'g'. A confirmar por quien implemente lookupBarcode (Tarea 3).
   const gramsPerUnit = p.serving_quantity_unit === 'g' ? num(p.serving_quantity) : null
+  // Inferencia propia: volcamos la marca (lista separada por comas) como
+  // aliases para que sea buscable. A confirmar por quien implemente
+  // lookupBarcode/createFood (Tarea 3).
   const aliases = (p.brands ?? '')
     .split(',')
     .map((b) => b.trim())
@@ -150,7 +159,7 @@ export async function fetchOffProduct(barcode: string, fetchImpl: typeof fetch =
     carbs100g: num(n.carbohydrates_100g),
     fat100g: num(n.fat_100g),
     fiber100g: num(n.fiber_100g),
-    allergens: (p.allergens_tags ?? []).map((t) => ALLERGEN_MAP[t]).filter((a): a is string => Boolean(a)),
+    allergens: (p.allergens_tags ?? []).map((t) => ALLERGEN_MAP[t]).filter((a): a is Allergen => a !== undefined),
     aliases,
     gramsPerUnit,
   }
@@ -171,7 +180,7 @@ export function offToFoodInput(p: OffProduct): FoodInput {
     fat100g: p.fat100g,
     fiber100g: p.fiber100g,
     barcode: p.code,
-    allergens: p.allergens as FoodInput['allergens'],
+    allergens: p.allergens,
     gramsPerUnit: p.gramsPerUnit,
     seasonalMonths: [],
   }
