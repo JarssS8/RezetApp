@@ -1,1 +1,15 @@
-{ "title": "Recetas" }
+{
+  "title": "Recetas",
+  "food": {
+    "searchPlaceholder": "Buscar alimento…",
+    "mine": "propio",
+    "estimated": "Nutrición estimada",
+    "correct": "Corregir alimento",
+    "unresolved": "Sin alimento asignado",
+    "create": "Crear alimento nuevo",
+    "createWithQuery": "Crear «{q}»",
+    "scanBarcode": "Escanear código de barras",
+    "barcodePlaceholder": "Código de barras…",
+    "barcodeNotFound": "Sin resultados para ese código"
+  }
+}

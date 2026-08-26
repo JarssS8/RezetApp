@@ -1,1 +1,15 @@
-{ "title": "Recipes" }
+{
+  "title": "Recipes",
+  "food": {
+    "searchPlaceholder": "Search food…",
+    "mine": "mine",
+    "estimated": "Estimated nutrition",
+    "correct": "Correct food",
+    "unresolved": "No food assigned",
+    "create": "Create new food",
+    "createWithQuery": "Create \"{q}\"",
+    "scanBarcode": "Scan barcode",
+    "barcodePlaceholder": "Barcode…",
+    "barcodeNotFound": "No matches for that barcode"
+  }
+}
