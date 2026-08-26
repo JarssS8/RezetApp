@@ -31,7 +31,7 @@ pnpm tsx scripts/build-foods-seed.ts --input ./data/usda
 ```
 
 `data/` está en `.gitignore`: los dumps de USDA nunca se commitean, solo el
-`foods.json` resultante (631 alimentos, muy por debajo de 1 MB).
+`foods.json` resultante (633 alimentos, muy por debajo de 1 MB).
 
 `build-foods-seed.ts` es determinista: con los mismos dumps, `foods-keywords.json`
 y `foods-translations.json`, siempre regenera el mismo `foods.json` byte a byte
@@ -61,29 +61,47 @@ orden de aparición en las descargas. Máximo 3 alimentos por palabra clave.
 Al ser una coincidencia de **prefijo** (no un buscador), hay efectos
 conocidos y aceptados:
 
-- De las 294 palabras clave, 251 tuvieron al menos una coincidencia; 43 no
+- De las 297 palabras clave, 270 tuvieron al menos una coincidencia; 27 no
   encontraron nada porque USDA nombra el alimento de otra forma (p. ej.
   `zucchini` está en USDA como "Squash, summer, zucchini…", no como
-  "Zucchini…"). No es un fallo: es el límite de un criterio por prefijo, y
-  cada palabra clave sin match es inofensiva (0 filas, no rompe nada).
-- `hake`, `fish, seabream`, `fish, sole`, `cheese, manchego`, `rice, arborio`,
-  `polenta` y `bread crumbs` **no están en USDA** (ni como prefijo ni en
-  ningún otro sitio del dataset): se han quitado de `foods-keywords.json` en
-  vez de dejarlos como palabras clave muertas. Se añadirán a mano el día que
-  haga falta un alimento manual (`source = 'manual'`) para cada uno.
+  "Zucchini…"): `scallions`, `zucchini`, `green beans`, `coconut`, `rabbit`,
+  `chorizo`, `surimi`, `tahini`, `salsa`, `pesto`, `broth, chicken`,
+  `broth, beef`, `broth, vegetable`, `stock`, `spices, mint`, `cilantro`,
+  `mint, fresh`, `chocolate chips`, `wine, table, red`, `wine, table, white`,
+  `beer`, `coffee, brewed`, `tea, brewed`, `water, tap`,
+  `beverages, soy milk`, `beverages, oat milk`, `coconut milk`. No es un
+  fallo: es el límite de un criterio por prefijo (la mayoría tiene un
+  alimento equivalente real bajo otra palabra clave: `zucchini` →
+  `squash, summer`, `coconut` → `nuts, coconut`, `broth, chicken` →
+  `soup, chicken broth`, `water, tap` → `beverages, water, tap`…), y cada
+  palabra clave sin match es inofensiva (0 filas, no rompe nada).
+- `hake`, `fish, seabream`, `cheese, manchego`, `rice, arborio`, `polenta` y
+  `bread crumbs` **no están en USDA** (ni como prefijo ni en ningún otro
+  sitio del dataset): se han quitado de `foods-keywords.json` en vez de
+  dejarlos como palabras clave muertas. `fish, sole` es distinto: el lenguado
+  sí está, pero USDA no lo separa de la platija — la única entrada es "Fish,
+  flatfish (flounder and sole species)". Se ha sustituido por la palabra
+  clave `fish, flatfish`, traducida como "lenguado" (con "platija" de alias).
+  Se añadirán a mano el día que haga falta un alimento manual
+  (`source = 'manual'`) para los seis que de verdad no existen.
 - `beer` ya no engancha nada: con el límite de palabra, "Beerwurst" queda
   fuera y no hay ninguna cerveza real en Foundation/SR Legacy con ese
   prefijo. Antes de esta corrección, `beer` devolvía por error tres
   "Beerwurst" (un embutido con cerveza) etiquetados como si fueran cerveza.
 - `butter` sí sigue encontrando alimentos reales, pero no necesariamente los
   mismos de una versión a otra del dataset: con la prioridad "con energía
-  conocida" por delante de "Foundation", si "Butter, stick, unsalted" (sin
+  fiable" por delante de "Foundation", si "Butter, stick, unsalted" (sin
   macros en esta versión de Foundation) compite con "Butter, salted" o
   "Butter, Clarified butter (ghee)" (SR Legacy, con energía completa), ganan
-  estos últimos. Es preferible tener 3 alimentos con datos reales a 2 con
-  datos reales y 1 sin ellos.
+  estos últimos y el "Butter, stick" se descarta (ver "Energía" abajo).
+- La deduplicación de descripciones idénticas dentro de un mismo grupo se
+  hace **después** de ordenar, no antes: si dos fdcId comparten
+  `description` exacta (p. ej. dos "Oil, canola", uno de Foundation sin
+  macros y otro de SR Legacy completo), gana el que el orden ya puso primero
+  (el que tiene energía fiable), no el que aparece antes en el fichero de
+  USDA.
 
-### Energía: 1008 → 2047 → 2048, y derivación por Atwater
+### Energía: 1008 → 2047 → 2048, y cuándo (no) se deriva por Atwater
 
 Algunas entradas de Foundation Foods no publican el nutriente 1008
 ("Energy") sino 2047 ("Energy, Atwater General factors") o 2048 ("Energy,
@@ -91,49 +109,64 @@ Atwater Specific factors"); `build-foods-seed.ts` prueba los tres en ese
 orden. Lo mismo pasa con la grasa: `1004` ("Total lipid (fat)") a veces falta
 y el dato está en `1085` ("Total fat (NLEA)") — se prueban ambos.
 
-Si ninguno de los tres nutrientes de energía existe, se deriva por Atwater:
+Si ninguno de los tres nutrientes de energía existe, **solo** se deriva por
+Atwater cuando proteína (1003), carbohidratos por diferencia (1005) **y**
+grasa (1004/1085) están los tres publicados:
 
 ```
-kcal100g = 4·proteína + 4·(carbohidratos o, si faltan, azúcares totales) + 9·grasa
+kcal100g = 4·proteína + 4·carbohidratos + 9·grasa
 ```
 
-usando 0 para lo que falte, y se marca `isEstimated: true` en ese alimento
-(columna `is_estimated` de `foods`). Para un alimento sin ningún
-macronutriente publicado (p. ej. "Salt, table, iodized", que en esta versión
-de Foundation no trae ni proteína ni grasa ni carbohidratos) esto da 0 kcal,
-que es el valor correcto: no hay en este seed ningún caso de "sin datos" que
-no sea, en la práctica, una sustancia sin energía (sal, agentes leudantes).
-`kcal.json`/`foods.json` no tiene ninguna fila con `kcal100g: null`.
+**Nunca** se usa `1063` ("Sugars, total") como sustituto de los
+carbohidratos: azúcares totales no incluye el almidón ni buena parte de la
+fibra, y usarlo como proxy infraestimaba mucho verduras y frutas con
+almidón/fibra (un puerro daba 18.5 kcal en vez de las ≈61 reales). Si faltan
+proteína, carbohidratos o grasa y **hay** en el mismo grupo un alimento con
+energía fiable (directa o Atwater completo), esta fila se descarta de
+`selectFoods` — es mejor perder una variante que enseñar un número
+inventado. Si **ningún** alimento del grupo tiene energía fiable, la fila se
+conserva con `kcal100g: null` e `isEstimated: true`: un "no lo sé" honesto.
+`foods.json` no tiene ninguna fila con `kcal100g: null` en esta versión del
+seed (todas las que se quedaban sin datos tenían un hermano con energía
+real y se descartaron, o resultaron tener los tres macros completos).
 
 ### Líquidos: unidad por defecto y densidad
 
 `defaultUnit` se decide por la **descripción** del alimento (no por la
 palabra clave que lo seleccionó), con coincidencias por palabra completa para
 evitar falsos positivos obvios (`watermelon`/`watercress` no son agua,
-`beerwurst`/`beer salami` no es cerveza). `milk` y `oil` van aparte: solo
-cuentan si abren la descripción o son "coconut milk/cream" o
-"beverages, `<algo>` milk" — en mitad de una frase casi siempre son un
-ingrediente, no el alimento (`"Cheese, ricotta, whole milk"`,
-`"Seeds, ..., oil roasted"`, `"Margarine-like, vegetable oil spread"` no son
-líquidos). También se ignora la palabra si solo describe el líquido de
-conserva de un alimento sólido: "canned in oil", "syrup pack", "juice pack",
-"water pack", "heavy/light syrup" (fruta o pescado en lata siguen siendo
-gramos, aunque vengan en almíbar, zumo, agua o aceite).
+`beerwurst`/`beer salami` no es cerveza, `gelatin ... prepared with water` no
+es agua). `milk` y `oil` van aparte: solo cuentan si abren la descripción o
+son "coconut milk/cream" o "beverages, `<algo>` milk" — en mitad de una
+frase casi siempre son un ingrediente, no el alimento
+(`"Cheese, ricotta, whole milk"`, `"Seeds, ..., oil roasted"`,
+`"Margarine-like, vegetable oil spread"` no son líquidos). También se
+ignora la palabra si solo describe el líquido de conserva de un alimento
+sólido: "canned in oil", "syrup pack", "juice pack", "water pack",
+"heavy/light syrup" (fruta o pescado en lata siguen siendo gramos, aunque
+vengan en almíbar, zumo, agua o aceite).
+
+La miel se queda en gramos a propósito, aunque sea líquida: en la despensa se
+pesa (el bote lo dice en gramos), y para recetas que la miden por cucharada
+está `gramsPerTbsp` (21 g). `nectar` sí es líquido (mililitros, densidad
+1.04) — antes se pesaba por no estar en la lista de palabras clave de
+líquidos.
 
 Densidad (g/ml) por palabra clave de la descripción, de más a menos
 específica, con 1.0 por defecto para un líquido reconocido que no está en la
-tabla:
+tabla. La miel no aparece aquí: como nunca cuenta como líquido, una fila de
+densidad para ella sería inalcanzable y daría una falsa sensación de que se
+usa en algún sitio.
 
 | Categoría | Densidad |
 |---|---|
 | Aceites | 0.91 |
-| Miel | 1.42 |
 | Siropes/jarabes | 1.33 |
 | Salsa de soja | 1.18 |
 | Vinagre | 1.01 |
 | Leche / bebida de soja | 1.03 |
 | Nata | 1.0 |
-| Zumos | 1.04 |
+| Zumos / néctares | 1.04 |
 | Vino | 0.99 |
 | Destilados | 0.94 |
 | Agua / caldo / stock | 1.0 |
@@ -154,13 +187,15 @@ AI_LOCAL_BASE_URL=http://localhost:8080/v1 AI_LOCAL_MODEL=qwen3-8b pnpm tsx scri
 ```
 
 El script **nunca pisa una entrada ya existente** en `foods-translations.json`:
-solo rellena los `sourceRef` que faltan. Las 631 traducciones actuales (610
-de la primera versión más 75 nuevas de la ronda de correcciones, con 54 bajas
-por deduplicado/reselección) se redactaron y se revisaron a mano (nombre en
-español tal como lo escribiría alguien de casa en una receta: singular,
-minúsculas, sin jerga de USDA ni marcas comerciales), sin depender de ningún
-servidor local. Cualquier corrección futura se hace editando este JSON
-directamente, nunca el prompt del script ni `foods.json`.
+solo rellena los `sourceRef` que faltan. Las 633 traducciones actuales se
+redactaron y se revisaron a mano (nombre en español tal como lo escribiría
+alguien de casa en una receta: singular, minúsculas, sin jerga de USDA ni
+marcas comerciales), sin depender de ningún servidor local. El fichero solo
+guarda entradas para alimentos que están en `foods.json`: cuando una
+reselección o un deduplicado saca un `fdcId` del seed, su traducción se
+quita también (no queda huérfana estorbando futuras revisiones). Cualquier
+corrección futura se hace editando este JSON directamente, nunca el prompt
+del script ni `foods.json`.
 
 ### Cómo añadir una palabra clave
 

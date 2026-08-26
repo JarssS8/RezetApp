@@ -21,14 +21,15 @@ export type FoodSeed = Translation & {
 // 2047/2048 = Energy (Atwater general/specific), usadas por algunas entradas
 // de Foundation Foods en vez de 1008. 1004 = Total lipid (fat); 1085 = Total
 // fat (NLEA), usada por algunas entradas de Foundation en vez de 1004.
-// 1005 = Carbohydrate, by difference; 1063 = Sugars, total — se usa solo como
-// aproximación de carbohidratos para la estimación de kcal cuando 1005 falta
-// (Foundation a veces solo publica azúcares, no el total de carbohidratos).
+// 1005 = Carbohydrate, by difference. NUNCA se usa 1063 (Sugars, total) como
+// sustituto de 1005 para estimar kcal: azúcares totales no es lo mismo que
+// carbohidratos totales (falta el almidón/fibra), y usarlo como proxy
+// infraestima mucho verduras y frutas con fibra/almidón (p. ej. puerro,
+// chalota, mora).
 const NUTRIENT = {
   kcal: [1008, 2047, 2048],
   protein: [1003],
   carbs: [1005],
-  carbsForEstimate: [1005, 1063],
   fat: [1004, 1085],
   fiber: [1079],
 } as const
@@ -39,7 +40,7 @@ const NUTRIENT = {
 // ser solo un ingrediente ("Cheese, ricotta, whole milk", "Seeds, ..., oil
 // roasted"), no el propio alimento.
 const LIQUID_HINTS: RegExp[] = [
-  /\bjuice\b/, /\bbroth\b/, /\bstock\b/, /\bvinegar\b/, /\bwine\b/,
+  /\bjuice\b/, /\bnectar\b/, /\bbroth\b/, /\bstock\b/, /\bvinegar\b/, /\bwine\b/,
   /^beer\b/, /\bcoffee\b/, /\btea\b/, /\bwater\b/, /\bcream, fluid\b/, /\bbeverages\b/, /\bsoy sauce\b/,
   /\bsyrups?\b/, /\balcoholic beverage\b/,
 ]
@@ -57,15 +58,16 @@ const OIL_HINT = /^oil\b/
 
 // Densidad por palabra clave de la descripción (g/ml); 1.0 por defecto para
 // líquidos no reconocidos en la tabla.
+// Miel no está en esta tabla a propósito: se pesa (defaultUnit 'g'), no
+// entra nunca por LIQUID_HINTS, así que una fila aquí sería inalcanzable.
 const DENSITY_TABLE: [RegExp, number][] = [
   [OIL_HINT, 0.91],
-  [/^honey\b/, 1.42],
   [/\bsyrups?\b/, 1.33],
   [/\bsoy sauce\b/, 1.18],
   [/\bvinegar\b/, 1.01],
   [/\b(milk|soymilk|coconut cream)\b/, 1.03],
   [/\bcream\b/, 1.0],
-  [/\bjuice\b/, 1.04],
+  [/\b(juice|nectar)\b/, 1.04],
   // "wine" antes que "alcoholic beverage": una entrada como "Alcoholic
   // Beverage, wine, table, red" no es un destilado (0.94) sino un vino (0.99).
   [/\bwine\b/, 0.99],
@@ -104,9 +106,24 @@ function kcalOf(f: UsdaFood): number | null {
   return nutrient(f, NUTRIENT.kcal)
 }
 
+// Solo se puede derivar kcal por Atwater con confianza cuando los tres
+// macronutrientes principales están publicados (nunca se rellena con 0 lo
+// que falta: para un aceite sin proteína/carbohidratos reportados, asumir 0
+// no es más honesto que no calcular nada).
+function hasFullMacros(f: UsdaFood): boolean {
+  return nutrient(f, NUTRIENT.protein) !== null && nutrient(f, NUTRIENT.carbs) !== null && nutrient(f, NUTRIENT.fat) !== null
+}
+
+function hasReliableEnergy(f: UsdaFood): boolean {
+  return kcalOf(f) !== null || hasFullMacros(f)
+}
+
 function isLiquid(description: string): boolean {
   const d = description.toLowerCase()
   if (PACKING_MEDIUM.test(d)) return false
+  // "Gelatin desserts, dry mix, prepared with water" es un postre gelificado,
+  // no agua: el agua es solo un paso de preparación.
+  if (/\bgelatin\b/.test(d)) return false
   return OIL_HINT.test(d) || MILK_HINTS.some((r) => r.test(d)) || LIQUID_HINTS.some((r) => r.test(d))
 }
 
@@ -142,26 +159,31 @@ export function selectFoods(all: UsdaFood[], kw: Keywords, maxPerKeyword = 3): {
         const forced = FORCE_INCLUDE.some((r) => r.test(d))
         return matchesKeyword && (forced || !excludeMatches(d, kw.exclude)) && !taken.has(f.fdcId)
       })
-      // Descarta duplicados exactos de descripción dentro del mismo grupo
-      // (USDA a veces publica el mismo alimento dos veces con fdcId distinto).
-      .filter((f) => {
-        const key = `${keyword}::${f.description.toLowerCase()}`
-        if (seenDescriptions.has(key)) return false
-        seenDescriptions.add(key)
-        return true
-      })
-      // Preferir crudo, luego con energía conocida, luego Foundation sobre SR
-      // Legacy; a igualdad, se respeta el orden de aparición en las descargas
-      // de USDA (Array.sort es estable).
+      // Preferir crudo, luego energía fiable (directa o macros completos),
+      // luego Foundation sobre SR Legacy; a igualdad, se respeta el orden de
+      // aparición en las descargas de USDA (Array.sort es estable).
       .sort((a, b) => {
         const rawA = /\braw\b/.test(a.description.toLowerCase()) ? 0 : 1
         const rawB = /\braw\b/.test(b.description.toLowerCase()) ? 0 : 1
         if (rawA !== rawB) return rawA - rawB
-        const kcalA = kcalOf(a) !== null ? 0 : 1
-        const kcalB = kcalOf(b) !== null ? 0 : 1
-        if (kcalA !== kcalB) return kcalA - kcalB
+        const energyA = hasReliableEnergy(a) ? 0 : 1
+        const energyB = hasReliableEnergy(b) ? 0 : 1
+        if (energyA !== energyB) return energyA - energyB
         if (a.dataType !== b.dataType) return a.dataType === 'Foundation' ? -1 : 1
         return 0
+      })
+      // Descarta duplicados exactos de descripción dentro del mismo grupo
+      // (USDA a veces publica el mismo alimento dos veces con fdcId distinto,
+      // p. ej. "Pears, raw, bartlett" con y sin boilerplate). Va DESPUÉS del
+      // sort a propósito: si dos fdcId comparten nombre pero uno tiene datos
+      // mejores (energía real vs. ninguna, como pasa con dos "Oil, canola"
+      // — uno de Foundation sin macros y otro de SR Legacy completo), gana
+      // el que el sort ya puso primero, no el que aparece antes en el fichero.
+      .filter((f) => {
+        const key = `${keyword}::${cleanNameEn(f.description).toLowerCase()}`
+        if (seenDescriptions.has(key)) return false
+        seenDescriptions.add(key)
+        return true
       })
       .slice(0, maxPerKeyword)
     for (const food of candidates) {
@@ -169,7 +191,24 @@ export function selectFoods(all: UsdaFood[], kw: Keywords, maxPerKeyword = 3): {
       out.push({ keyword, food })
     }
   }
-  return out
+  // Si, dentro de la misma palabra clave, algún seleccionado no tiene energía
+  // fiable pero otro sí, el primero se descarta: es mejor tener menos
+  // alimentos con datos reales que rellenar el hueco con un duplicado que no
+  // se puede calcular sin inventar el dato que falta.
+  const byKeyword = new Map<string, { keyword: string; food: UsdaFood }[]>()
+  for (const item of out) {
+    const list = byKeyword.get(item.keyword) ?? []
+    list.push(item)
+    byKeyword.set(item.keyword, list)
+  }
+  const result: { keyword: string; food: UsdaFood }[] = []
+  for (const item of out) {
+    const siblings = byKeyword.get(item.keyword) ?? []
+    const hasReliableSibling = siblings.some((s) => hasReliableEnergy(s.food))
+    if (!hasReliableEnergy(item.food) && hasReliableSibling) continue
+    result.push(item)
+  }
+  return result
 }
 
 export function toSeed(food: UsdaFood, keyword: string, tr: Translation | undefined): FoodSeed {
@@ -180,15 +219,14 @@ export function toSeed(food: UsdaFood, keyword: string, tr: Translation | undefi
   const fiber = nutrient(food, NUTRIENT.fiber)
   let kcal = kcalOf(food)
   let isEstimated = false
-  // Sin energía directa (1008/2047/2048): se deriva por Atwater a partir de lo
-  // que sí se conozca (proteína/carbohidratos-o-azúcares/grasa), tratando lo
-  // que falte como 0. Para un alimento sin ningún macronutriente reportado
-  // (p. ej. "Salt, table, iodized") esto da 0 kcal, que es lo correcto: no hay
-  // ningún caso en este seed de un alimento con macros totalmente ausentes que
-  // no sea, en efecto, una sustancia sin energía (sal, levaduras químicas...).
+  // Sin energía directa (1008/2047/2048): solo se deriva por Atwater cuando
+  // los tres macronutrientes principales están publicados (nunca con 1063
+  // como sustituto de los carbohidratos, ver NUTRIENT). Si faltan y esta fila
+  // no tiene ya un hermano fiable (selectFoods la habría descartado si lo
+  // tuviera), se guarda con kcal null: un "no lo sé" honesto es mejor que un
+  // número inventado.
   if (kcal === null) {
-    const carbsForEstimate = nutrient(food, NUTRIENT.carbsForEstimate)
-    kcal = 4 * (protein ?? 0) + 4 * (carbsForEstimate ?? 0) + 9 * (fat ?? 0)
+    if (protein !== null && carbs !== null && fat !== null) kcal = 4 * protein + 4 * carbs + 9 * fat
     isEstimated = true
   }
   return {
