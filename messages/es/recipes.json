@@ -1,1 +1,8 @@
-{ "title": "Recetas" }
+{
+  "title": "Recetas",
+  "ai": {
+    "analyze": "Analizar con IA",
+    "importText": "Importar con IA",
+    "estimate": "Estimar nutrición con IA"
+  }
+}

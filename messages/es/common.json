@@ -4,5 +4,6 @@
   "settings": "Ajustes",
   "nav": { "today": "Hoy", "cook": "Cocinar", "plan": "Plan", "pantry": "Despensa", "recipes": "Recetas" },
   "actions": { "save": "Guardar", "cancel": "Cancelar", "close": "Cerrar", "back": "Atrás", "delete": "Eliminar", "confirm": "Confirmar" },
-  "state": { "loading": "Cargando…", "empty": "Nada por aquí todavía", "comingSoon": "Pronto", "working": "Un momento…" }
+  "state": { "loading": "Cargando…", "empty": "Nada por aquí todavía", "comingSoon": "Pronto", "working": "Un momento…" },
+  "ai": { "unavailable": "Configura un proveedor de IA en Ajustes para usar esto", "working": "Pensando…" }
 }

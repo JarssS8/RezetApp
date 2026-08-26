@@ -70,6 +70,27 @@ internet.
   estos datos requiere atribuir a Open Food Facts y compartir bajo la misma
   licencia cualquier base de datos derivada.
 
+## IA opcional
+
+La IA es opcional en todo momento: sin proveedor configurado, RezetApp sigue
+siendo un recetario completo (analizar ingredientes, importar recetas,
+estimar nutrición y proponer semanas de menú son las únicas funciones que la
+usan). Cada hogar elige su proveedor en Ajustes → Inteligencia artificial:
+Anthropic, OpenAI, o un servidor propio compatible con la API de OpenAI.
+
+Para un servidor local, la opción recomendada es
+[`llama-server`](https://github.com/ggml-org/llama.cpp) con un modelo qwen3
+cuantizado (Q4_K_M): `qwen3-4b` para GPUs de 4 GB o `qwen3-8b` para 8 GB.
+
+```bash
+llama-server -m qwen3-8b-q4_k_m.gguf -ngl 99 -c 8192 -fa --jinja --port 8080
+```
+
+Apunta `AI_LOCAL_BASE_URL` (o la URL del servidor en Ajustes) a
+`http://localhost:8080/v1`. Ollama sirve igual de bien: expone la misma API en
+`/v1` (`http://localhost:11434/v1`), así que basta con apuntar ahí y usar el
+nombre del modelo que hayas descargado con `ollama pull`.
+
 ## Integración con ShopList
 
 RezetApp no lleva lista de la compra: calcula qué falta y lo empuja a ShopList.

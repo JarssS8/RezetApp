@@ -10,5 +10,26 @@
     "passkeys": "Passkeys",
     "data": "Data",
     "notifications": "Notifications"
+  },
+  "ai": {
+    "provider": "Provider",
+    "providers": {
+      "none": "No AI",
+      "anthropic": "Anthropic",
+      "openai": "OpenAI",
+      "openai_compatible": "Local server (OpenAI-compatible)"
+    },
+    "model": "Model",
+    "baseUrl": "Local server URL",
+    "apiKey": "API key",
+    "keySaved": "•••• (saved)",
+    "cap": "Monthly cap (€)",
+    "spent": "Spent this month: {amount}",
+    "structured": "Structured output (JSON Schema)",
+    "test": "Test connection",
+    "testOk": "Connected in {ms} ms",
+    "testFail": "Could not connect: {message}",
+    "localHint": "Recommended: llama-server with qwen3-8b Q4_K_M (8 GB) or qwen3-4b (4 GB).",
+    "ownerOnly": "Only the owner can change AI settings."
   }
 }

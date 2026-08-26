@@ -10,5 +10,26 @@
     "passkeys": "Passkeys",
     "data": "Datos",
     "notifications": "Notificaciones"
+  },
+  "ai": {
+    "provider": "Proveedor",
+    "providers": {
+      "none": "Sin IA",
+      "anthropic": "Anthropic",
+      "openai": "OpenAI",
+      "openai_compatible": "Servidor local (compatible OpenAI)"
+    },
+    "model": "Modelo",
+    "baseUrl": "URL del servidor local",
+    "apiKey": "Clave de API",
+    "keySaved": "•••• (guardada)",
+    "cap": "Tope mensual (€)",
+    "spent": "Gastado este mes: {amount}",
+    "structured": "Salida estructurada (JSON Schema)",
+    "test": "Probar conexión",
+    "testOk": "Conectado en {ms} ms",
+    "testFail": "No se pudo conectar: {message}",
+    "localHint": "Recomendado: llama-server con qwen3-8b Q4_K_M (8 GB) o qwen3-4b (4 GB).",
+    "ownerOnly": "Solo el propietario puede cambiar la IA."
   }
 }

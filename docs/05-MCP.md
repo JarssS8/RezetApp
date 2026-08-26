@@ -53,6 +53,14 @@ planificación de comidas con MCP e IA local.
 | `log_cooked` | Marca cocinado, descuenta despensa, registra nutrición | Las tres cosas de forma atómica. Cierra el bucle |
 | `get_household_context` | Miembros, alérgenos, objetivos, reglas, qué se cocinó hace poco | Una llamada al principio y el agente ya sabe con quién habla |
 
+## Modelos locales
+
+El MCP se diseña pensando también en modelos locales pequeños (4B–8B
+cuantizados, servidos con `llama-server` u Ollama sobre `/v1`): pocas
+herramientas, nombres muy distintos entre sí y esquemas estrictos que fallan
+con un error claro en vez de aceptar cualquier cosa. Ver la sección "IA
+opcional" del README para cómo levantar un servidor de este tipo.
+
 ## La regla de oro
 
 **Ningún cálculo se delega al modelo.** Escalar cantidades, sumar calorías,
