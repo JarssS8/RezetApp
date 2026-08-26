@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
 import type { Ctx } from '@/lib/services/ctx'
-import { createRecipe, getRecipe, prepareIngredients, softDeleteRecipe, updateRecipe } from './recipes'
+import { createRecipe, exportAll, getRecipe, prepareIngredients, searchRecipes, softDeleteRecipe, updateRecipe } from './recipes'
 
 let db: TestDb
 let ctxA: Ctx
@@ -141,5 +141,37 @@ describe('prepareIngredients', () => {
     const prepared = await prepareIngredients(ctxA, [{ rawText: 'queso secreto de b', foodId: foreign.id, scalesLinearly: true }], 'es')
     expect(prepared[0]?.foodId).not.toBe(foreign.id)
     expect(prepared[0]?.foodId).toBeNull()
+  })
+})
+
+describe('searchRecipes', () => {
+  it('full-text con websearch, filtros y orden; solo del hogar', async () => {
+    await createRecipe(ctxA, input)
+    await createRecipe(ctxA, { ...input, title: 'Tortilla de patatas', tags: ['clásico'], prepMinutes: 10, cookMinutes: 20, difficulty: 'easy' })
+    await createRecipe(ctxB, { ...input, title: 'Cebolla ajena' })
+    expect((await searchRecipes(ctxA, { q: 'cebolla', limit: 20, offset: 0, sort: 'relevance' })).items.map((r) => r.title)).toEqual(['Cebolla caramelizada'])
+    expect((await searchRecipes(ctxA, { tags: ['clasico'], limit: 20, offset: 0, sort: 'title' })).items.map((r) => r.title)).toEqual(['Tortilla de patatas'])
+    expect((await searchRecipes(ctxA, { maxMinutes: 25, limit: 20, offset: 0, sort: 'title' })).items).toHaveLength(0)
+    expect((await searchRecipes(ctxA, { maxMinutes: 30, difficulty: 'easy', limit: 20, offset: 0, sort: 'title' })).items).toHaveLength(1)
+    expect((await searchRecipes(ctxA, { hasIngredients: [saltId], limit: 20, offset: 0, sort: 'title' })).total).toBe(2)
+  })
+  it('onlyWithPantry: recetas cuyos alimentos con food_id están todos en la despensa', async () => {
+    await createRecipe(ctxA, input)
+    expect((await searchRecipes(ctxA, { onlyWithPantry: true, limit: 20, offset: 0, sort: 'title' })).items).toHaveLength(0)
+    await db.insert(schema.pantryItems).values([
+      { householdId: ctxA.householdId, foodId: onionId, quantity: 500, unit: 'g' },
+      { householdId: ctxA.householdId, foodId: saltId, quantity: 100, unit: 'g' },
+    ])
+    expect((await searchRecipes(ctxA, { onlyWithPantry: true, limit: 20, offset: 0, sort: 'title' })).items).toHaveLength(1)
+  })
+})
+
+describe('exportAll', () => {
+  it('exporta recetas con ingredientes, pasos y etiquetas, sin ids internos', async () => {
+    await createRecipe(ctxA, input)
+    const e = await exportAll(ctxA)
+    expect(e.version).toBe(1)
+    expect(e.recipes[0]).toMatchObject({ title: 'Cebolla caramelizada', servingsBase: 4, tags: expect.arrayContaining(['guarnición']) })
+    expect(JSON.stringify(e)).not.toContain(ctxA.householdId)
   })
 })

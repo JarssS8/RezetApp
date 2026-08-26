@@ -1,9 +1,9 @@
-import { and, eq, isNull, or, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { detectTimers, isNonLinearByDefault, normalizeSearchName, parseIngredientLine, recipeNutrition, scaleRecipe, toBaseUnit } from '@/lib/domain'
 import type { BaseUnit, IngredientWithFood, Locale, Nutrition, ScaledRecipe } from '@/lib/domain/types'
 import { emitHouseholdEvent } from '@/lib/events/bus'
-import type { RecipeInput } from '@/lib/validation/recipes'
+import type { RecipeInput, RecipeSearch } from '@/lib/validation/recipes'
 import { isUniqueViolation, type Ctx, type Db, ServiceError } from './ctx'
 import { getFoodsNutrition, resolveFoodName, resolveMany, type FoodWithNutrition, type ResolvedFood } from './foods'
 import { toIngredient, toIngredientWithFood, toRecipeForScaling } from './recipe-mapper'
@@ -345,6 +345,137 @@ export async function softDeleteRecipe(ctx: Ctx, id: string): Promise<void> {
     .returning({ id: schema.recipes.id })
   if (!r) throw new ServiceError('not_found', 'Receta no encontrada')
   emitHouseholdEvent(ctx.householdId, { type: 'recipe.changed', payload: { recipeId: id } })
+}
+
+export interface RecipeSummary {
+  id: string
+  title: string
+  imageUrl: string | null
+  totalMinutes: number | null
+  difficulty: 'easy' | 'medium' | 'hard' | null
+  kcalPerServing: number | null
+  servingsBase: number
+  timesCooked: number
+  tags: string[]
+  nutritionIsEstimated: boolean
+}
+
+// Búsqueda full-text (columna generada recipes.search_vector, índice GIN) + filtros.
+// El orden 'relevance' sin texto de búsqueda cae a lo más reciente: no hay ts_rank que calcular.
+export async function searchRecipes(ctx: Ctx, input: RecipeSearch): Promise<{ items: RecipeSummary[]; total: number }> {
+  const r = schema.recipes
+  const conds = [eq(r.householdId, ctx.householdId), isNull(r.deletedAt)]
+  const q = input.q?.trim()
+  if (q) conds.push(sql`${r.searchVector} @@ (websearch_to_tsquery('spanish', ${q}) || websearch_to_tsquery('english', ${q}))`)
+  if (input.maxMinutes !== undefined) {
+    // Receta sin ningún tiempo conocido (prep y cook ambos null) no entra en el filtro:
+    // no se puede asumir 0 minutos. Con solo uno de los dos presente, el otro cuenta como 0.
+    conds.push(
+      sql`NOT (${r.prepMinutes} IS NULL AND ${r.cookMinutes} IS NULL) AND coalesce(${r.prepMinutes}, 0) + coalesce(${r.cookMinutes}, 0) <= ${input.maxMinutes}`,
+    )
+  }
+  if (input.difficulty) conds.push(eq(r.difficulty, input.difficulty))
+  if (input.tags?.length) {
+    const slugs = input.tags.map((t) => slugify(t))
+    conds.push(
+      sql`EXISTS (SELECT 1 FROM ${schema.recipeTags} JOIN ${schema.tags} ON ${schema.tags.id} = ${schema.recipeTags.tagId}
+        WHERE ${schema.recipeTags.recipeId} = ${r.id} AND ${schema.tags.slug} IN (${sql.join(slugs.map((s) => sql`${s}`), sql`, `)}))`,
+    )
+  }
+  for (const foodId of input.hasIngredients ?? []) {
+    conds.push(sql`EXISTS (SELECT 1 FROM ${schema.recipeIngredients} WHERE ${schema.recipeIngredients.recipeId} = ${r.id} AND ${schema.recipeIngredients.foodId} = ${foodId})`)
+  }
+  if (input.onlyWithPantry) {
+    conds.push(
+      sql`NOT EXISTS (SELECT 1 FROM ${schema.recipeIngredients} WHERE ${schema.recipeIngredients.recipeId} = ${r.id} AND ${schema.recipeIngredients.foodId} IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM ${schema.pantryItems} WHERE ${schema.pantryItems.householdId} = ${ctx.householdId}
+          AND ${schema.pantryItems.foodId} = ${schema.recipeIngredients.foodId} AND ${schema.pantryItems.quantity} > 0))`,
+    )
+  }
+  const where = and(...conds)
+  const order =
+    input.sort === 'title'
+      ? sql`${r.title} asc`
+      : input.sort === 'recent'
+        ? sql`${r.updatedAt} desc`
+        : input.sort === 'most_cooked'
+          ? sql`${r.timesCooked} desc, ${r.title} asc`
+          : q
+            ? sql`ts_rank(${r.searchVector}, websearch_to_tsquery('spanish', ${q})) desc, ${r.title} asc`
+            : sql`${r.updatedAt} desc`
+  const [totalRow] = await ctx.db.select({ total: sql<number>`count(*)::int` }).from(r).where(where)
+  const rows = await ctx.db.select().from(r).where(where).orderBy(order).limit(input.limit).offset(input.offset)
+  const ids = rows.map((x) => x.id)
+  const tagRows = ids.length
+    ? await ctx.db
+        .select({ recipeId: schema.recipeTags.recipeId, name: schema.tags.name })
+        .from(schema.recipeTags)
+        .innerJoin(schema.tags, eq(schema.tags.id, schema.recipeTags.tagId))
+        .where(inArray(schema.recipeTags.recipeId, ids))
+    : []
+  const items: RecipeSummary[] = rows.map((x) => ({
+    id: x.id,
+    title: x.title,
+    imageUrl: x.imageUrls[0] ?? null,
+    totalMinutes: x.prepMinutes === null && x.cookMinutes === null ? null : (x.prepMinutes ?? 0) + (x.cookMinutes ?? 0),
+    difficulty: x.difficulty,
+    kcalPerServing: x.kcalPerServing,
+    servingsBase: x.servingsBase,
+    timesCooked: x.timesCooked,
+    tags: tagRows.filter((t) => t.recipeId === x.id).map((t) => t.name),
+    nutritionIsEstimated: x.nutritionIsEstimated,
+  }))
+  return { items, total: totalRow?.total ?? 0 }
+}
+
+export interface RecipeExport {
+  version: 1
+  exportedAt: string
+  recipes: (RecipeInput & { timesCooked: number; createdAt: string })[]
+}
+
+// Volcado completo del hogar para exportar/respaldar: sin ids internos (ni de receta ni de hogar),
+// listo para reimportarse en otra instancia con importRecipeFromText/UI de importación manual.
+export async function exportAll(ctx: Ctx): Promise<RecipeExport> {
+  const rows = await ctx.db
+    .select()
+    .from(schema.recipes)
+    .where(and(eq(schema.recipes.householdId, ctx.householdId), isNull(schema.recipes.deletedAt)))
+    .orderBy(schema.recipes.createdAt)
+  const out: RecipeExport['recipes'] = []
+  for (const r of rows) {
+    const d = await getRecipe(ctx, r.id)
+    if (!d) continue
+    out.push({
+      title: r.title,
+      description: r.description,
+      servingsBase: r.servingsBase,
+      prepMinutes: r.prepMinutes,
+      cookMinutes: r.cookMinutes,
+      difficulty: r.difficulty,
+      sourceUrl: r.sourceUrl,
+      imageUrls: r.imageUrls,
+      notes: r.notes,
+      yieldGrams: r.yieldGrams,
+      tags: d.tags.map((t) => t.name),
+      ingredients: d.ingredients.map((i) => ({
+        rawText: i.rawText,
+        foodId: null,
+        quantity: i.quantity,
+        unit: i.unit,
+        displayQuantity: i.displayQuantity,
+        displayUnit: i.displayUnit,
+        preparation: i.preparation,
+        groupLabel: i.groupLabel,
+        stepIndex: i.stepIndex,
+        scalesLinearly: i.scalesLinearly,
+      })),
+      steps: d.steps.map((s) => ({ text: s.text, timerSeconds: s.timerSeconds, imageUrl: s.imageUrl })),
+      timesCooked: r.timesCooked,
+      createdAt: r.createdAt.toISOString(),
+    })
+  }
+  return { version: 1, exportedAt: new Date().toISOString(), recipes: out }
 }
 
 export type { FoodWithNutrition }
