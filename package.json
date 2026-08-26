@@ -20,8 +20,8 @@
     "e2e": "playwright test",
     "check": "pnpm typecheck && pnpm lint && pnpm i18n:check && pnpm test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx scripts/migrate.ts",
-    "db:seed": "tsx scripts/seed.ts",
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
+    "db:seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

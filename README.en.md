@@ -27,8 +27,8 @@ Open `http://localhost:3000`.
 
 ```bash
 pnpm install
-docker compose up -d db
 cp .env.example .env
+docker compose up -d db
 pnpm db:migrate
 pnpm dev
 ```
@@ -38,6 +38,7 @@ Useful commands:
 ```bash
 pnpm check              # typecheck + lint + i18n + unit tests
 pnpm test -- <path>     # a single test file
+pnpm exec playwright install --with-deps chromium  # once (may need sudo)
 pnpm e2e                # end-to-end tests with Playwright
 ```
 

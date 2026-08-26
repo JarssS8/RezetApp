@@ -2,13 +2,21 @@ services:
   app:
     build: { context: ., dockerfile: docker/Dockerfile }
     ports: ["3000:3000"]
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: postgres://rezetapp:${POSTGRES_PASSWORD:-rezetapp}@db:5432/rezetapp
     volumes:
       - ./data/uploads:/app/data/uploads
     depends_on:
       db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
   db:
     image: postgres:17-alpine
@@ -16,7 +24,7 @@ services:
       POSTGRES_USER: rezetapp
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rezetapp}
       POSTGRES_DB: rezetapp
-    ports: ["5432:5432"]
+    ports: ["127.0.0.1:5432:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
