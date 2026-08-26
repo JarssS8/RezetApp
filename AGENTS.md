@@ -24,7 +24,7 @@ cuando difieren; los planes están en `docs/superpowers/plans/`.
 
 - `pnpm dev` — desarrollo (necesita Postgres: `docker compose up -d db`)
 - `pnpm build` · `pnpm start` — producción local
-- `pnpm check` — typecheck + lint + i18n + tests unitarios (lo que debe estar verde antes de cada commit)
+- `pnpm check` — typecheck + lint + i18n + tests + cobertura de `lib/domain` (lo que debe estar verde antes de cada commit)
 - `pnpm test` · `pnpm test -- lib/domain/scaling.test.ts` — todos / uno
 - `pnpm e2e` — Playwright (levanta `pnpm dev` si no hay `E2E_BASE_URL`)
 - `pnpm db:generate` — genera migración desde `db/schema/`
@@ -124,6 +124,9 @@ Estas tres son las que diferencian a RezetApp. Están detalladas en
 - Los componentes de shadcn se editan directamente — están en el repo por eso.
   No los envuelvas en capas para no tocarlos.
 - Cada función de `lib/domain` con su test. El resto, tests donde aporten.
+- Los tests que tocan Postgres van bajo `db/**`, `lib/services/**`, `lib/actions/**`,
+  `lib/auth/**` o `scripts/*.test.ts` (proyecto vitest `db`, ver `DB_TEST_GLOBS`):
+  solo ahí `getTestDb()` funciona, y solo ahí los ficheros corren en serie.
 - Commits en español, imperativo, cortos. **Sin trailers** (`Co-Authored-By`,
   `Generated with`…) ni menciones a herramientas de IA en commits, código, docs
   o colaboradores. El autor es siempre el usuario.

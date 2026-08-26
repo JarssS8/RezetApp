@@ -5,7 +5,7 @@ import boundaries from 'eslint-plugin-boundaries'
 const config = [
   ...nextVitals,
   ...nextTs,
-  { ignores: ['.next/**', 'dist/**', 'node_modules/**', 'playwright-report/**', 'test-results/**', '.worktrees/**'] },
+  { ignores: ['.next/**', 'dist/**', 'node_modules/**', 'playwright-report/**', 'test-results/**', 'coverage/**', '.worktrees/**'] },
   {
     // Versión fija: evita que eslint-plugin-react intente autodetectarla vía
     // context.getFilename(), método retirado en ESLint 10 y que rompe el lint.

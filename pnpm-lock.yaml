@@ -8,6 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@ai-sdk/anthropic':
+        specifier: 4.0.42
+        version: 4.0.42(zod@4.4.3)
+      '@ai-sdk/openai':
+        specifier: 4.0.47
+        version: 4.0.47(zod@4.4.3)
+      '@ai-sdk/openai-compatible':
+        specifier: 3.0.37
+        version: 3.0.37(zod@4.4.3)
       '@base-ui/react':
         specifier: 1.7.0
         version: 1.7.0(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -17,6 +26,9 @@ importers:
       '@simplewebauthn/server':
         specifier: 13.3.3
         version: 13.3.3
+      ai:
+        specifier: 7.0.79
+        version: 7.0.79(zod@4.4.3)
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -42,7 +54,7 @@ importers:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
       server-only:
-        specifier: ^0.0.1
+        specifier: 0.0.1
         version: 0.0.1
       sonner:
         specifier: 2.0.8
@@ -54,9 +66,6 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
-      '@ai-sdk/openai':
-        specifier: 4.0.47
-        version: 4.0.47(zod@4.4.3)
       '@playwright/test':
         specifier: 1.62.1
         version: 1.62.1
@@ -87,9 +96,6 @@ importers:
       '@vitest/coverage-v8':
         specifier: 4.1.11
         version: 4.1.11(vitest@4.1.11)
-      ai:
-        specifier: 7.0.79
-        version: 7.0.79(zod@4.4.3)
       drizzle-kit:
         specifier: 0.31.10
         version: 0.31.10
@@ -138,8 +144,20 @@ packages:
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
 
+  '@ai-sdk/anthropic@4.0.42':
+    resolution: {integrity: sha512-U3RJDo2/rWdH6SjSbA2Owd30ZawKwt4zFTqteTTn6Po0vEW1ec1KXf6s1nwNE3mxCqKrQWEavU21C46AfGYaeg==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/gateway@4.0.64':
     resolution: {integrity: sha512-iayK1z11I0b3sgbP3j6eKQypfpwO5Fbtaq1Mkwv7YxwGQG1YTNr5QAjyYsSfqyf/58WUOLWz2cTBpk+ExZVgpw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/openai-compatible@3.0.37':
+    resolution: {integrity: sha512-X9LfyiV73cyT89GSKCDUsCZ8nV6wZAn6elJJ4CzZF1WRdofBvAjWz5CL1VHj7jeR5ahiqsWml6X/B8vUDgiXtg==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -4765,11 +4783,23 @@ snapshots:
 
   '@adobe/css-tools@4.5.0': {}
 
+  '@ai-sdk/anthropic@4.0.42(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.8
+      '@ai-sdk/provider-utils': 5.0.30(zod@4.4.3)
+      zod: 4.4.3
+
   '@ai-sdk/gateway@4.0.64(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 4.0.8
       '@ai-sdk/provider-utils': 5.0.30(zod@4.4.3)
       '@vercel/oidc': 3.2.0
+      zod: 4.4.3
+
+  '@ai-sdk/openai-compatible@3.0.37(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.8
+      '@ai-sdk/provider-utils': 5.0.30(zod@4.4.3)
       zod: 4.4.3
 
   '@ai-sdk/openai@4.0.47(zod@4.4.3)':

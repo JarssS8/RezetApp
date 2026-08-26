@@ -153,8 +153,10 @@ Base: `docs/04-DATOS.md`. Cambios y añadidos:
 - `recipe_ingredients`: `quantity numeric nullable` y `unit enum('g','ml','ud')
   nullable` (base; **ambos null cuando no hay conversión**: "1 pizca",
   "al gusto", "un chorrito"), `display_quantity numeric nullable`,
-  `display_unit text nullable` (siempre lo que escribió el usuario, ya
-  normalizado: `1.5` + `cdta`), `group_label text nullable`,
+  `display_unit text nullable` (**id canónico de `units-data`**: `tsp`, `cup`,
+  `g`…, no la etiqueta que escribió el usuario; se pinta con `unitLabel(id,
+  qty, locale)`, así la misma receta se lee en es y en en: `1.5` + `tsp` →
+  "1 ½ cdtas" / "1 ½ tsp"), `group_label text nullable`,
   `scales_linearly bool not null default true`, `raw_text`, `food_id`
   nullable, `preparation`, `step_index` nullable, `sort_order`.
 - `recipe_steps` + `image_url nullable`.
@@ -166,8 +168,11 @@ Base: `docs/04-DATOS.md`. Cambios y añadidos:
   `factor_to_base numeric` (cdta→5 ml, cda→15 ml, taza→240 ml, oz→28.35 g,
   l→1000 ml, kg→1000 g). Las tazas *por alimento* se resuelven antes con
   `foods.grams_per_cup` si existe.
-- `tags`, `recipe_tags`, `collections` (fase 5: `household_id`, `name`,
-  `query jsonb`).
+- `tags`: `household_id` nullable (null = global del seed), `name` (español),
+  **`name_en text nullable`** (traducción; null en etiquetas propias del hogar
+  — se pinta con `displayTagName(tag, locale)`, que cae al español si falta),
+  `slug`, `parent_id`. `recipe_tags`, `collections` (fase 5: `household_id`,
+  `name`, `query jsonb`).
 
 ### Plan, despensa, cocina
 - `meal_plan_entries`: `slot enum('breakfast','lunch','dinner','snack')`,
@@ -186,9 +191,12 @@ Base: `docs/04-DATOS.md`. Cambios y añadidos:
   `resolved_by_user_id`.
 - `cooking_log` + `pantry_deductions jsonb` (`[{pantry_item_id, food_id,
   requested, deducted}]`) y `warnings jsonb` (faltantes).
-- `api_tokens`: `scopes text[]` de `recipes:read recipes:write plan:read
-  plan:write pantry:read pantry:write cooking:write shopping:push
-  household:read`; **`mcp_profile enum('basic','full') not null default
+- `api_tokens`: `scopes text[]` de `API_SCOPES` = `recipes:read recipes:write
+  plan:read plan:write pantry:read pantry:write cooking:write shopping:push
+  household:read household:write` (la lista vive duplicada a propósito en
+  `db/schema/tokens.ts` y `lib/validation/tokens.ts`, con
+  `tests/contracts/api-scopes.test.ts` de garantía; `household:write` es lo que
+  permite a un token crear invitaciones); **`mcp_profile enum('basic','full') not null default
   'basic'`**. Token visible `rz_` + 32 bytes base64url; se guarda sha256.
 - **Nueva `push_subscriptions`** (fase 5): `user_id`, `endpoint unique`,
   `keys jsonb`, `created_at`.
@@ -213,7 +221,8 @@ isNonLinearByDefault(foodName: string, locale: Locale): boolean
 
 // quantities.ts
 formatQuantity(qty: number | null, unit: string | null, locale: Locale): string
-   // "1 ½ cdta", "250 g", "0,5 l"; null → "" (la UI muestra raw/preparation)
+   // "1 ½ cdtas", "250 g", "0,5 l"; plural por encima de 1, singular hasta 1 inclusive ("¼ taza")
+   // null → "" (la UI muestra raw/preparation)
 toBaseUnit(qty: number, unit: string, locale: Locale, food?: FoodConversion): {qty: number, unit: BaseUnit} | null
    // orden: unit_aliases → grams_per_cup/tbsp/unit del alimento → density (ml↔g) → null
 toDisplayUnit(qty: number, base: BaseUnit, food: FoodConversion | null, system: UnitSystem, preferred?: string): DisplayQuantity
@@ -227,7 +236,11 @@ aggregateNutrition(entries: {nutrition: Nutrition, servings: number}[]): Nutriti
 
 // ingredients-parser.ts
 parseIngredientLine(raw: string, locale: Locale): ParsedIngredient
-   // {quantity?, unit?, foodName, preparation?, confidence: 0..1, needsReview}
+   // {quantity: number | null, unit: string | null, foodName: string,
+   //  preparation: string | null, confidence: 0..1, needsReview}  ← nullable, no opcional
+   // needsReview (confianza < 0.6) también con números dentro del alimento, conectores
+   // sueltos ("de"/"of"/"y"/"and") al principio o al final, unidad vaga sobre un nombre
+   // largo, o frase larga sin cantidad ni unidad
    // fracciones unicode, "1 y 1/2", rangos "2-3" (→ media), "un/una", "al gusto", "pizca", "chorrito", "c/s"
 
 // pantry.ts
@@ -242,7 +255,11 @@ entryStatus(e: {cooked_at, skipped_at}): 'planned' | 'cooked' | 'skipped'
 consolidateNeeds(entries: PlannedEntry[], pantry: PantryItem[]): ShoppingLine[]
    // excluye: leftover_of_entry_id != null, cooked_at != null, skipped_at != null
    // escala cada receta a entry.servings
-   // con food_id y base: agrupa por food_id, suma en base, resta despensa (suma de todos los items del food), descarta ≤ 0
+   // con food_id y base: agrupa por food_id (NO por food_id+unidad), convirtiendo entre unidades
+   //   base con la FoodConversion del ingrediente (grams_per_unit, density_g_per_ml); resta la
+   //   despensa convertida a la unidad de la línea y descarta ≤ 0
+   // si la conversión no es posible: NO se resta nada de ese ítem y la línea sale con
+   //   pantryUnmatched: true (y dos unidades irreconciliables del mismo alimento salen como dos líneas)
    // con base pero sin food_id: agrupa por foodName normalizado, suma, NO resta despensa, unresolved: true
    // sin base: una línea por food_id (o nombre) con quantity null, sin sumar ni restar
 toShopListItem(line: ShoppingLine): {name: string, quantity: number | null}
@@ -270,6 +287,12 @@ en `en` (fixture JSON).
   'preferred' }` (obligatorio: el login usa credenciales descubribles) →
   crea `users`, `households` ("Casa de <nombre>"), `household_members(owner)`,
   sesión.
+- **Quién puede registrarse**: `isRegistrationOpen(db)` = `ALLOW_OPEN_REGISTRATION
+  === 'true'` **o** tabla `users` vacía. Con el registro cerrado,
+  `POST /api/auth/register/options` y `/verify` sin `inviteToken` responden 403
+  `{error: {code: 'registration_closed'}}` y la pantalla `/register` enseña
+  `auth.register.closed` en vez del formulario; con una invitación válida se
+  registra igual.
 - Login: `generateAuthenticationOptions` sin `allowCredentials` → cookie.
 - `rpID`/`origin` desde `APP_URL`. En dev `localhost`.
 - Invitación: owner genera `household_invites` (token 24 h) → `/invite/<token>`

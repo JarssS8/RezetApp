@@ -32,7 +32,9 @@ export default defineConfig({
           // Los tests de este proyecto comparten una sola base de datos y la
           // truncan entre casos: correr ficheros en paralelo los pisaría entre sí.
           fileParallelism: false,
-          env: dbEnv,
+          // VITEST_PROJECT: db/test/setup.ts lo exige para no dejar que un test
+          // de otro proyecto trunque la base de datos de pruebas.
+          env: { ...dbEnv, VITEST_PROJECT: 'db' },
         },
       },
     ],
