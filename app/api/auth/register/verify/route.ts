@@ -17,7 +17,8 @@ export async function POST(request: Request): Promise<Response> {
   } catch (e) {
     if (e instanceof ServiceError) {
       const status = e.code === 'conflict' ? 409 : e.code === 'forbidden' ? 403 : 400
-      return Response.json({ error: { code: e.code, message: e.message } }, { status })
+      const code = e.code === 'forbidden' && !inviteToken ? 'registration_closed' : e.code
+      return Response.json({ error: { code, message: e.message } }, { status })
     }
     console.error('register/verify', e)
     if (isUniqueViolation(e)) return Response.json({ error: { code: 'conflict', message: 'Esta passkey ya está registrada' } }, { status: 409 })

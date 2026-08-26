@@ -36,6 +36,15 @@ export async function listHouseholdsOf(db: Db, userId: string): Promise<{ id: st
 
 // Invita el propietario con sesión o un token API con household:write (regla W1-R16).
 // El token guarda como autor al usuario dueño del token: household_invites.created_by es NOT NULL.
+// Registro abierto (regla W1-R18): con ALLOW_OPEN_REGISTRATION=true cualquiera
+// puede crear cuenta; si no, solo la primera persona de la instancia (tabla
+// users vacía). El resto entra por invitación.
+export async function isRegistrationOpen(db: Db): Promise<boolean> {
+  if (process.env.ALLOW_OPEN_REGISTRATION === 'true') return true
+  const [row] = await db.select({ id: schema.users.id }).from(schema.users).limit(1)
+  return row === undefined
+}
+
 export async function createInvite(ctx: Ctx): Promise<{ token: string; url: string; expiresAt: Date }> {
   const byToken = ctx.apiTokenId !== null && ctx.scopes.includes('household:write')
   if (!byToken && ctx.role !== 'owner') throw new ServiceError('forbidden', 'Solo el propietario puede invitar')

@@ -1,9 +1,9 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { eq, sql } from 'drizzle-orm'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
 import type { Ctx } from './ctx'
-import { acceptInvite, createInvite, createUserWithHousehold, deleteHousehold, getInvite, leaveHousehold, listHouseholdsOf, registerViaInvite } from './households'
+import { acceptInvite, createInvite, createUserWithHousehold, deleteHousehold, getInvite, isRegistrationOpen, leaveHousehold, listHouseholdsOf, registerViaInvite } from './households'
 import type { VerifiedCredential } from '@/lib/auth/webauthn'
 
 process.env.APP_URL = 'http://localhost:3000'
@@ -16,6 +16,24 @@ const tokenCtxOf = (householdId: string, apiTokenId: string, scopes: string[]): 
 beforeAll(async () => { db = await getTestDb() })
 afterAll(closeTestDb)
 beforeEach(async () => { await truncateAll(db) })
+
+describe('registro abierto o cerrado (W1-R18)', () => {
+  afterEach(() => {
+    delete process.env.ALLOW_OPEN_REGISTRATION
+  })
+  it('abierto sin usuarios, cerrado con el primero dentro', async () => {
+    expect(await isRegistrationOpen(db)).toBe(true)
+    await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    expect(await isRegistrationOpen(db)).toBe(false)
+  })
+  it('ALLOW_OPEN_REGISTRATION=true lo abre aunque haya usuarios', async () => {
+    await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    process.env.ALLOW_OPEN_REGISTRATION = 'true'
+    expect(await isRegistrationOpen(db)).toBe(true)
+    process.env.ALLOW_OPEN_REGISTRATION = 'false'
+    expect(await isRegistrationOpen(db)).toBe(false)
+  })
+})
 
 describe('households', () => {
   it('registro crea usuario, hogar "Casa de X", owner y credencial en una transacción', async () => {

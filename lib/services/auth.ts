@@ -11,15 +11,25 @@ import type { Locale } from '@/lib/domain/types'
 import { destroySession, switchHousehold } from '@/lib/auth/session'
 import { finishLogin, finishRegistration, startLogin, startRegistration } from '@/lib/auth/webauthn'
 import { ServiceError } from './ctx'
-import { acceptInvite, createUserWithHousehold, getInvite, listHouseholdsOf, registerViaInvite } from './households'
+import { acceptInvite, createUserWithHousehold, getInvite, isRegistrationOpen, listHouseholdsOf, registerViaInvite } from './households'
 
 export type RegisterOptionsResult =
   | { ok: true; challengeId: string; options: PublicKeyCredentialCreationOptionsJSON }
-  | { ok: false }
+  | { ok: false; reason: 'invalid_invite' | 'registration_closed' }
 
-// null en inviteToken cuando la invitación no existe o ha caducado
+// ¿Puede alguien crear cuenta sin invitación? (regla W1-R18)
+export function registrationOpen(): Promise<boolean> {
+  return isRegistrationOpen(db)
+}
+
+// invalid_invite cuando la invitación no existe o ha caducado;
+// registration_closed cuando no hay invitación y el registro está cerrado
 export async function registerOptions(displayName: string, inviteToken: string | undefined): Promise<RegisterOptionsResult> {
-  if (inviteToken && !(await getInvite(db, inviteToken))) return { ok: false }
+  if (inviteToken) {
+    if (!(await getInvite(db, inviteToken))) return { ok: false, reason: 'invalid_invite' }
+  } else if (!(await isRegistrationOpen(db))) {
+    return { ok: false, reason: 'registration_closed' }
+  }
   const r = await startRegistration(db, displayName)
   return { ok: true, ...r }
 }
@@ -31,6 +41,9 @@ export async function registerVerify(input: {
   locale: Locale
   response: RegistrationResponseJSON
 }): Promise<{ userId: string; householdId: string }> {
+  // Se revisa otra vez aquí: entre /options y /verify el registro pudo cerrarse,
+  // y /verify es el que crea la cuenta de verdad
+  if (!input.inviteToken && !(await isRegistrationOpen(db))) throw new ServiceError('forbidden', 'El registro está cerrado')
   const credential = await finishRegistration(db, { challengeId: input.challengeId, response: input.response })
   return input.inviteToken
     ? registerViaInvite(db, { token: input.inviteToken, displayName: input.displayName, credential, locale: input.locale })

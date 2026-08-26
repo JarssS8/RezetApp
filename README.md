@@ -14,6 +14,13 @@ docker compose up -d
 
 Abre `http://localhost:3000`.
 
+## Quién puede registrarse
+
+La primera persona que abre la instancia crea su cuenta y su hogar; a partir de
+ahí el registro queda **cerrado** y las siguientes entran por invitación (Ajustes
+→ Miembros). Para abrirlo a cualquiera, pon `ALLOW_OPEN_REGISTRATION=true` en
+`.env` (útil en una instancia de pruebas o en una red de confianza).
+
 ## Requisitos
 
 - Las passkeys necesitan HTTPS o `localhost`. Si accedes por IP o por un dominio
@@ -36,7 +43,7 @@ pnpm dev
 Comandos útiles:
 
 ```bash
-pnpm check              # typecheck + lint + i18n + tests unitarios
+pnpm check              # typecheck + lint + i18n + tests + cobertura de dominio
 pnpm test -- <ruta>     # un solo archivo de test
 pnpm exec playwright install --with-deps chromium  # una vez (puede pedir sudo)
 pnpm e2e                # tests end-to-end con Playwright

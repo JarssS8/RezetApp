@@ -14,6 +14,13 @@ docker compose up -d
 
 Open `http://localhost:3000`.
 
+## Who can register
+
+The first person to open the instance creates their account and household; from
+then on registration is **closed** and everyone else joins by invitation
+(Settings → Members). To open it to anyone, set `ALLOW_OPEN_REGISTRATION=true`
+in `.env` (handy on a test instance or a trusted network).
+
 ## Requirements
 
 - Passkeys need HTTPS or `localhost`. If you access the app over a bare IP or a
@@ -36,7 +43,7 @@ pnpm dev
 Useful commands:
 
 ```bash
-pnpm check              # typecheck + lint + i18n + unit tests
+pnpm check              # typecheck + lint + i18n + tests + domain coverage
 pnpm test -- <path>     # a single test file
 pnpm exec playwright install --with-deps chromium  # once (may need sudo)
 pnpm e2e                # end-to-end tests with Playwright
