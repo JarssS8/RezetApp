@@ -28,7 +28,8 @@ export function formatNumber(qty: number, unit: string | null, locale: Locale): 
   if (frac > 1 - FRACTION_TOLERANCE) return String(whole + 1)
   const hit = FRACTIONS.find(([v]) => Math.abs(v - frac) < FRACTION_TOLERANCE)
   if (hit) return whole === 0 ? hit[1] : `${whole} ${hit[1]}`
-  const oneDecimal = (Math.round(qty * 10) / 10).toFixed(1)
+  const oneDecimalValue = Math.round(qty * 10) / 10
+  const oneDecimal = Number.isInteger(oneDecimalValue) ? String(oneDecimalValue) : oneDecimalValue.toFixed(1)
   return locale === 'es' ? oneDecimal.replace('.', ',') : oneDecimal
 }
 

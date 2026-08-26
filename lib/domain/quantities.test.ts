@@ -30,6 +30,11 @@ describe('formatQuantity', () => {
     expect(formatQuantity(1.4, 'tbsp', 'es')).toBe('1,4 cdas')
     expect(formatQuantity(1.4, 'tbsp', 'en')).toBe('1.4 tbsp')
   })
+  it('redondeo a entero no deja decimal sobrante', () => {
+    expect(formatQuantity(0.95, 'tsp', 'es')).toBe('1 cdta')
+    expect(formatQuantity(1.95, 'tbsp', 'es')).toBe('2 cdas')
+    expect(formatQuantity(1.96, 'tsp', 'en')).toBe('2 tsp')
+  })
   it('null → cadena vacía; sin unidad → solo número', () => {
     expect(formatQuantity(null, 'g', 'es')).toBe('')
     expect(formatQuantity(3, null, 'es')).toBe('3')
@@ -46,6 +51,7 @@ describe('toBaseUnit', () => {
     expect(toBaseUnit(2, 'l', 'en')).toEqual({ qty: 2000, unit: 'ml' })
     expect(toBaseUnit(3, 'ud', 'es')).toEqual({ qty: 3, unit: 'ud' })
     expect(toBaseUnit(1, 'oz', 'en')?.qty).toBeCloseTo(28.35)
+    expect(toBaseUnit(1, 'cl', 'es')).toEqual({ qty: 10, unit: 'ml' })
   })
   it('taza es por alimento: harina ≠ azúcar', () => {
     expect(toBaseUnit(1, 'cup', 'es', flour)).toEqual({ qty: 120, unit: 'g' })
