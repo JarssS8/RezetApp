@@ -36,7 +36,7 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
     >
       <div className="flex items-center gap-1.5">
         <span className={cn('flex-1 truncate font-medium', skipped && 'line-through')}>{entry.title}</span>
-        <span className="shrink-0 text-xs text-text-2">×{entry.servings}</span>
+        <span className="shrink-0 text-xs text-text-2">{t('servingsShort', { n: entry.servings })}</span>
       </div>
       <div className="flex flex-wrap items-center gap-1">
         {entry.leftoverOfEntryId ? (

@@ -81,15 +81,15 @@ export function WeekView({ monday, days, entries: initialEntries, defaultServing
     return result
   }
 
-  // Aplica un cambio local (optimista), llama a la acción y, si falla,
-  // revierte y avisa por toast. `mutate` describe el cambio local a partir
-  // del estado previo; `run` es la llamada al servidor.
-  async function withOptimism(mutate: (prev: PlanEntryClient[]) => PlanEntryClient[], run: () => Promise<{ ok: boolean }>) {
-    const prev = entries
-    setEntries(mutate(prev))
+  // Aplica un cambio local (optimista) y, si la acción falla, revierte SOLO
+  // esa entrada con una actualización funcional (`revert` parte del estado
+  // más reciente, no de una foto de todo el array): así una edición optimista
+  // concurrente sobre otra entrada no se pisa cuando esta falla.
+  async function withOptimism(apply: () => void, revert: () => void, run: () => Promise<{ ok: boolean }>) {
+    apply()
     const result = await run()
     if (!result.ok) {
-      setEntries(prev)
+      revert()
       toast.error(t('errors.move'))
       return
     }
@@ -97,10 +97,13 @@ export function WeekView({ monday, days, entries: initialEntries, defaultServing
   }
 
   function move(id: string, date: string, slot: MealSlot) {
+    const previous = entries.find((e) => e.id === id)
+    if (!previous) return
     const target = byDaySlot.get(`${date}:${slot}`) ?? []
     const sortOrder = target.filter((e) => e.id !== id).length
     void withOptimism(
-      (prev) => prev.map((e) => (e.id === id ? { ...e, date, slot, sortOrder } : e)),
+      () => setEntries((cur) => cur.map((e) => (e.id === id ? { ...e, date, slot, sortOrder } : e))),
+      () => setEntries((cur) => cur.map((e) => (e.id === id ? { ...e, date: previous.date, slot: previous.slot, sortOrder: previous.sortOrder } : e))),
       () => movePlanEntryAction({ entryId: id, date, slot, sortOrder }),
     )
   }
@@ -115,22 +118,31 @@ export function WeekView({ monday, days, entries: initialEntries, defaultServing
   }
 
   function servingsChange(id: string, servings: number) {
+    const previous = entries.find((e) => e.id === id)
+    if (!previous) return
     void withOptimism(
-      (prev) => prev.map((e) => (e.id === id ? { ...e, servings } : e)),
+      () => setEntries((cur) => cur.map((e) => (e.id === id ? { ...e, servings } : e))),
+      () => setEntries((cur) => cur.map((e) => (e.id === id ? { ...e, servings: previous.servings } : e))),
       () => patchPlanEntryAction(id, { servings }),
     )
   }
 
   function skip(id: string, skipped: boolean) {
+    const previous = entries.find((e) => e.id === id)
+    if (!previous) return
     void withOptimism(
-      (prev) => prev.map((e) => (e.id === id ? { ...e, status: skipped ? 'skipped' : 'planned' } : e)),
+      () => setEntries((cur) => cur.map((e) => (e.id === id ? { ...e, status: skipped ? 'skipped' : 'planned' } : e))),
+      () => setEntries((cur) => cur.map((e) => (e.id === id ? { ...e, status: previous.status } : e))),
       () => patchPlanEntryAction(id, { skipped }),
     )
   }
 
   function remove(id: string) {
+    const previous = entries.find((e) => e.id === id)
+    if (!previous) return
     void withOptimism(
-      (prev) => prev.filter((e) => e.id !== id),
+      () => setEntries((cur) => cur.filter((e) => e.id !== id)),
+      () => setEntries((cur) => (cur.some((e) => e.id === id) ? cur : [...cur, previous])),
       () => applyPlanBatchAction({ add: [], remove: [id] }),
     )
   }

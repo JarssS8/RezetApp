@@ -5,12 +5,18 @@
   "today": "Today",
   "prevWeek": "Previous week",
   "nextWeek": "Next week",
-  "slots": { "breakfast": "Breakfast", "lunch": "Lunch", "dinner": "Dinner", "snack": "Snack" },
+  "slots": {
+    "breakfast": "Breakfast",
+    "lunch": "Lunch",
+    "dinner": "Dinner",
+    "snack": "Snack"
+  },
   "addTo": "Add to {slot}",
   "searchRecipe": "Search recipe…",
   "freeMeal": "Free meal",
   "freeMealTitle": "Title",
   "servings": "Servings",
+  "servingsShort": "×{n}",
   "leftover": "Leftovers",
   "skip": "Skip",
   "unskip": "Unskip",
@@ -25,5 +31,7 @@
   "proposals": "Proposals",
   "shopping": "Generate shopping list",
   "empty": "Empty week: add meals or ask for a proposal.",
-  "errors": { "move": "Couldn't move the meal" }
+  "errors": {
+    "move": "Couldn't move the meal"
+  }
 }

@@ -43,8 +43,16 @@ function DraggableChip({ entry, ...callbacks }: { entry: PlanEntryClient } & Chi
     data: { date: entry.date, slot: entry.slot },
   })
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
+  // Se mantiene el aria-roledescription por defecto de dnd-kit ("draggable");
+  // nuestra pista (dragHint) se añade como descripción adicional, sin pisar
+  // la descripción propia de dnd-kit (instrucciones de teclado).
+  const hintId = `plan-drag-hint-${entry.id}`
+  const describedBy = [attributes['aria-describedby'], hintId].filter(Boolean).join(' ')
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} aria-roledescription={t('dragHint')} className={cn('touch-none', isDragging && 'opacity-50')}>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} aria-describedby={describedBy} className={cn('touch-none', isDragging && 'opacity-50')}>
+      <span id={hintId} className="sr-only">
+        {t('dragHint')}
+      </span>
       <EntryChip entry={entry} {...callbacks} />
     </div>
   )

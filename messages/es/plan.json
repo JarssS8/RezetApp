@@ -5,12 +5,18 @@
   "today": "Hoy",
   "prevWeek": "Semana anterior",
   "nextWeek": "Semana siguiente",
-  "slots": { "breakfast": "Desayuno", "lunch": "Comida", "dinner": "Cena", "snack": "Picoteo" },
+  "slots": {
+    "breakfast": "Desayuno",
+    "lunch": "Comida",
+    "dinner": "Cena",
+    "snack": "Picoteo"
+  },
   "addTo": "Añadir a {slot}",
   "searchRecipe": "Buscar receta…",
   "freeMeal": "Comida libre",
   "freeMealTitle": "Título",
   "servings": "Raciones",
+  "servingsShort": "×{n}",
   "leftover": "Sobras",
   "skip": "Saltar",
   "unskip": "Reactivar",
@@ -25,5 +31,7 @@
   "proposals": "Propuestas",
   "shopping": "Generar compra",
   "empty": "Semana vacía: añade comidas o pide una propuesta.",
-  "errors": { "move": "No se pudo mover la comida" }
+  "errors": {
+    "move": "No se pudo mover la comida"
+  }
 }
