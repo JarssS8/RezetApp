@@ -47,9 +47,11 @@ como tarea futura explícita).
   SDK, con tope de gasto y log. Solo *extracción y propuesta*; nunca cálculos.
 
 Regla de dependencia (lint con `eslint-plugin-boundaries`):
-`domain` no importa nada del repo · `services` importa `domain`, `db`, `ai`,
-`integrations` · `app/` y `components/` importan `services` (solo desde
-servidor) y `domain` (libremente) · nadie importa `app/`.
+`app/` importa `services`, `actions`, `components`, `domain`… · `components/`
+importa `components`, `domain`, `validation`, `lib`, `events`, `actions`
+(recibe datos por props; **nunca `services` directamente**) · `lib/actions/`
+(server actions) importa `services`, `validation`, `auth`, `domain`, `events`,
+`lib`.
 
 ## 3. Estructura de directorios
 
@@ -79,6 +81,7 @@ components/
 lib/
   domain/                puro + tests colocalizados *.test.ts
   services/
+  actions/               server actions por agregado; único puente components → services
   ai/                    provider.ts, budget.ts, models.ts, tasks/*.ts
   integrations/shoplist.ts, open-food-facts.ts
   auth/                  session.ts, webauthn.ts, guards.ts, crypto.ts (HKDF, AES-GCM)

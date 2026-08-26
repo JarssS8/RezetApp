@@ -6,6 +6,10 @@ algo usable pronto y que cada fase se apoye en la anterior.
 Se ejecuta en oleadas paralelas (ver spec §17). El MCP mínimo se adelanta a W2
 para conservar el feedback temprano.
 
+Las secciones «Fase 0…5» de abajo son la narrativa original; **el contenido
+real de cada oleada es el de §17 del spec**. En particular, el esquema de
+Drizzle, los passkeys y `lib/domain` NO están en W0 (hecho): llegan en W1.
+
 ## Fase 0 · El esqueleto
 
 Aburrido, y lo único que no se puede añadir después sin dolor.

@@ -6,7 +6,8 @@ export async function pingDatabase(): Promise<boolean> {
   try {
     await db.execute(sql`select 1`)
     return true
-  } catch {
+  } catch (err) {
+    console.error('health: la base de datos no responde', err)
     return false
   }
 }
