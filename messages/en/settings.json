@@ -138,5 +138,10 @@
     "lastUsed": "Last used: {date}",
     "never": "Never",
     "error": "Couldn't complete the action."
+  },
+  "data": {
+    "export": "Export recipes",
+    "exportHint": "Export your recipes as JSON to keep a copy.",
+    "importSoon": "Import and migration from other apps arrives in W4."
   }
 }

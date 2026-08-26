@@ -138,5 +138,10 @@
     "lastUsed": "Último uso: {date}",
     "never": "Nunca",
     "error": "No se pudo completar la acción."
+  },
+  "data": {
+    "export": "Exportar recetas",
+    "exportHint": "Exporta tus recetas en JSON para tener copia.",
+    "importSoon": "Importar y migrar desde otras apps llega en W4."
   }
 }
