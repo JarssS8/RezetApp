@@ -12,7 +12,7 @@ import path from 'node:path'
 const { DATABASE_URL_TEST } = loadEnv('', process.cwd(), '')
 const dbEnv = DATABASE_URL_TEST ? { DATABASE_URL_TEST } : {}
 
-const DB_TEST_GLOBS = ['db/**/*.test.ts', 'lib/services/**/*.test.ts', 'lib/actions/**/*.test.ts', 'lib/auth/**/*.test.ts', 'scripts/seed.test.ts']
+const DB_TEST_GLOBS = ['db/**/*.test.ts', 'lib/services/**/*.test.ts', 'lib/actions/**/*.test.ts', 'lib/auth/**/*.test.ts', 'lib/ai/**/*.db.test.ts', 'scripts/seed.test.ts']
 
 export default defineConfig({
   plugins: [react()],
