@@ -51,6 +51,14 @@ describe('searchFoods', () => {
     const b = await searchFoods(ctxB, { q: 'cebolla' })
     expect(b.every((f) => f.householdId === null)).toBe(true)
   })
+  it('W2-R6: el alimento del hogar oculta al global homónimo (dos filas en la tabla, una en el resultado)', async () => {
+    await db.insert(schema.foods).values({ householdId: ctxA.householdId, nameEs: 'cebolla', nameEn: 'onion', searchNameEs: 'cebolla', searchNameEn: 'onion', source: 'manual', kcal100g: 38 })
+    const a = await searchFoods(ctxA, { q: 'cebolla' })
+    // 'cebolla morada' sigue apareciendo (nombre distinto); solo el global homónimo 'cebolla' se oculta
+    const named = a.filter((f) => f.name === 'cebolla')
+    expect(named).toHaveLength(1)
+    expect(named[0]?.householdId).toBe(ctxA.householdId)
+  })
 })
 
 describe('resolveFoodName', () => {
@@ -70,6 +78,14 @@ describe('resolveFoodName', () => {
   it('resolveMany conserva el orden y los nulls', async () => {
     const r = await resolveMany(ctxA, ['cebolla', 'nada', 'pimiento rojo'], 'es')
     expect(r.map((x) => x?.name ?? null)).toEqual(['cebolla', null, 'pimiento rojo'])
+  })
+  it('exacto y trigram cruzan de idioma: busca en search_name_es y search_name_en a la vez', async () => {
+    const exact = await resolveFoodName(ctxA, 'onion', 'es')
+    expect(exact?.method).toBe('exact')
+    expect(exact?.name).toBe('cebolla') // devuelve el nombre en el idioma pedido (es), aunque haya matcheado por en
+    const tri = await resolveFoodName(ctxA, 'onions', 'es')
+    expect(tri?.method).toBe('trigram')
+    expect(tri?.name).toBe('cebolla')
   })
 })
 

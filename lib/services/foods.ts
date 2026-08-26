@@ -28,16 +28,16 @@ export interface ResolvedFood {
 
 // Umbral de la cascada §9.4 (b): trigram ≥ 0.6 para resolver un nombre suelto
 const TRIGRAM_RESOLVE = 0.6
-// Umbral, más laxo, para sugerencias de búsqueda libre (no es una resolución automática)
-const TRIGRAM_SEARCH = 0.25
+// Umbral, más laxo, para sugerencias de búsqueda libre (no es una resolución automática).
+// Coincide con el umbral por defecto del operador `%` de pg_trgm (0.3): así el
+// prefiltro por índice GIN (`%`) no descarta candidatos que luego sí pasarían el corte.
+const TRIGRAM_SEARCH = 0.3
 
-// Visible para el hogar: global (household_id NULL) o propio, y no fusionado en otro (Task 3: merge)
+// Visible para el hogar: global (household_id NULL) o propio, y no fusionado en otro.
+// mergedIntoId apunta al alimento superviviente de una fusión; seguir el puntero
+// para redirigir al llamador es responsabilidad de la función de fusión (W4), no de esta.
 function visible(ctx: Ctx) {
   return and(or(isNull(schema.foods.householdId), eq(schema.foods.householdId, ctx.householdId)), isNull(schema.foods.mergedIntoId))
-}
-
-function searchColumn(locale: Locale) {
-  return locale === 'en' ? schema.foods.searchNameEn : schema.foods.searchNameEs
 }
 
 function nameColumn(locale: Locale) {
@@ -67,8 +67,9 @@ function toSummary(f: schema.Food, locale: Locale): FoodWithNutrition {
   }
 }
 
-// Búsqueda libre: coincide por trigram en el nombre del idioma pedido, el otro
-// idioma o cualquier alias (los alias se guardan ya normalizados, ver Task 3).
+// Búsqueda libre: coincide por trigram en cualquiera de los dos idiomas o en
+// cualquier alias (los alias se guardan ya normalizados: ver el contrato de
+// normalización de aliases en Task 3, createFood/correctFood).
 export async function searchFoods(ctx: Ctx, input: { q: string; locale?: Locale; limit?: number; offset?: number }): Promise<FoodSummary[]> {
   const locale = input.locale ?? ctx.locale
   const q = normalizeSearchName(input.q)
@@ -80,31 +81,47 @@ export async function searchFoods(ctx: Ctx, input: { q: string; locale?: Locale;
   const rows = await ctx.db
     .select({ f: schema.foods, sim })
     .from(schema.foods)
-    .where(and(visible(ctx), sql`(${simEs} >= ${TRIGRAM_SEARCH} or ${simEn} >= ${TRIGRAM_SEARCH} or ${simAlias} >= ${TRIGRAM_SEARCH})`))
+    .where(
+      and(
+        visible(ctx),
+        // `%` (umbral 0.3 de pg_trgm) usa el índice GIN como prefiltro barato;
+        // el corte real lo da el `sim >= TRIGRAM_SEARCH` de abajo.
+        or(sql`${schema.foods.searchNameEs} % ${q}`, sql`${schema.foods.searchNameEn} % ${q}`, sql`${simAlias} >= ${TRIGRAM_SEARCH}`),
+        sql`${sim} >= ${TRIGRAM_SEARCH}`,
+      ),
+    )
     // el alimento del hogar antes que el global en empate; luego similitud; luego nombre
     .orderBy(sql`(${schema.foods.householdId} is null)`, desc(sim), nameColumn(locale))
     .limit(input.limit ?? 20)
     .offset(input.offset ?? 0)
-  return rows.map((r) => toSummary(r.f, locale))
+  // W2-R6: un alimento del hogar oculta al global homónimo (mismo search_name_es
+  // normalizado) — el hogar siempre "gana" cuando hay solapamiento de nombre.
+  const householdSearchNames = new Set(rows.filter((r) => r.f.householdId === ctx.householdId).map((r) => r.f.searchNameEs))
+  const deduped = rows.filter((r) => r.f.householdId === ctx.householdId || !householdSearchNames.has(r.f.searchNameEs))
+  return deduped.map((r) => toSummary(r.f, locale))
 }
 
-// Cascada de resolución §9.4: (a) exacto por nombre normalizado o alias, (b) trigram ≥ 0.6.
-// El resto de la cascada (código de barras OFF, IA) vive en Task 3 / pista (e); la corrección manual siempre gana.
+// Cascada de resolución §9.4: (a) exacto por nombre normalizado o alias, en
+// cualquiera de los dos idiomas (un ingrediente puede llegar en inglés aunque
+// el hogar trabaje en español); (b) trigram ≥ 0.6, también en ambos idiomas.
+// El resto de la cascada (código de barras OFF, IA) vive en Task 3 / pista (e);
+// la corrección manual siempre gana.
 export async function resolveFoodName(ctx: Ctx, foodName: string, locale: Locale): Promise<ResolvedFood | null> {
   const q = normalizeSearchName(foodName)
   if (!q) return null
-  const col = searchColumn(locale)
   const nameCol = nameColumn(locale)
 
   const exact = await ctx.db
     .select({ id: schema.foods.id, name: nameCol })
     .from(schema.foods)
-    .where(and(visible(ctx), eq(col, q)))
+    .where(and(visible(ctx), or(eq(schema.foods.searchNameEs, q), eq(schema.foods.searchNameEn, q))))
     .orderBy(sql`(${schema.foods.householdId} is null)`)
     .limit(1)
   if (exact[0]) return { foodId: exact[0].id, method: 'exact', score: 1, name: exact[0].name }
 
-  // Alias: se guardan ya normalizados (Task 3), así que basta comparar en minúsculas
+  // Alias: un único array sin distinción de idioma; se guardan ya normalizados
+  // (Task 3 normaliza con normalizeSearchName antes de insertar/actualizar),
+  // así que aquí basta comparar en minúsculas sin volver a normalizar.
   const alias = await ctx.db
     .select({ id: schema.foods.id, name: nameCol })
     .from(schema.foods)
@@ -113,11 +130,20 @@ export async function resolveFoodName(ctx: Ctx, foodName: string, locale: Locale
     .limit(1)
   if (alias[0]) return { foodId: alias[0].id, method: 'alias', score: 0.95, name: alias[0].name }
 
-  const sim = sql<number>`similarity(${col}, ${q})`
+  const simEs = sql<number>`similarity(${schema.foods.searchNameEs}, ${q})`
+  const simEn = sql<number>`similarity(${schema.foods.searchNameEn}, ${q})`
+  const sim = sql<number>`greatest(${simEs}, ${simEn})`
   const trigram = await ctx.db
     .select({ id: schema.foods.id, name: nameCol, sim })
     .from(schema.foods)
-    .where(and(visible(ctx), sql`${sim} >= ${TRIGRAM_RESOLVE}`))
+    .where(
+      and(
+        visible(ctx),
+        // mismo patrón que searchFoods: `%` prefiltra por índice GIN, el corte real es el >= 0.6 explícito
+        or(sql`${schema.foods.searchNameEs} % ${q}`, sql`${schema.foods.searchNameEn} % ${q}`),
+        sql`${sim} >= ${TRIGRAM_RESOLVE}`,
+      ),
+    )
     .orderBy(desc(sim), sql`(${schema.foods.householdId} is null)`)
     .limit(1)
   if (trigram[0]) return { foodId: trigram[0].id, method: 'trigram', score: trigram[0].sim, name: trigram[0].name }
@@ -134,6 +160,10 @@ export async function resolveMany(ctx: Ctx, names: string[], locale: Locale): Pr
   return out
 }
 
+// Nutrición/conversión por id, en un mapa para que recipeNutrition la consulte de una vez.
+// Los ids que no existen o no son visibles para el hogar (privados de otro hogar,
+// fusionados) simplemente no aparecen en el mapa: el llamador decide qué hacer
+// con un id ausente, esta función nunca lanza por un id desconocido.
 export async function getFoodsNutrition(ctx: Ctx, foodIds: string[]): Promise<Map<string, FoodWithNutrition>> {
   const map = new Map<string, FoodWithNutrition>()
   if (foodIds.length === 0) return map
