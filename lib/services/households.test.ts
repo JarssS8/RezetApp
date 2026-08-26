@@ -3,7 +3,7 @@ import { eq, sql } from 'drizzle-orm'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
 import type { Ctx } from './ctx'
-import { acceptInvite, createInvite, createUserWithHousehold, deleteHousehold, getInvite, isRegistrationOpen, leaveHousehold, listHouseholdsOf, registerViaInvite } from './households'
+import { acceptInvite, createInvite, createUserWithHousehold, deleteHousehold, getInvite, isRegistrationOpen, leaveHousehold, listHouseholdsOf, registerViaInvite, updateHousehold } from './households'
 import type { VerifiedCredential } from '@/lib/auth/webauthn'
 
 process.env.APP_URL = 'http://localhost:3000'
@@ -117,5 +117,44 @@ describe('households', () => {
     expect(bHousehold?.name).toBe('Casa de Bo')
     expect(await db.select().from(schema.recipes).where(eq(schema.recipes.id, bRecipe!.id))).toHaveLength(1)
     expect(await db.select().from(schema.sessions).where(eq(schema.sessions.id, 's2'))).toHaveLength(1)
+  })
+})
+
+describe('updateHousehold', () => {
+  it('el propietario actualiza nombre, raciones y aviso de caducidad', async () => {
+    const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    const updated = await updateHousehold(ctxOf(a.householdId, a.userId, 'owner'), { name: 'Casa nueva', defaultServings: 4, expiryAlertDays: 5 })
+    expect(updated).toEqual({ id: a.householdId, name: 'Casa nueva', defaultServings: 4, expiryAlertDays: 5 })
+    const [h] = await db.select().from(schema.households).where(eq(schema.households.id, a.householdId))
+    expect(h?.name).toBe('Casa nueva')
+    expect(h?.defaultServings).toBe(4)
+    expect(h?.expiryAlertDays).toBe(5)
+  })
+
+  it('acepta un parche parcial sin tocar el resto de campos', async () => {
+    const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    const updated = await updateHousehold(ctxOf(a.householdId, a.userId, 'owner'), { defaultServings: 6 })
+    expect(updated.name).toBe('Casa de Ana')
+    expect(updated.defaultServings).toBe(6)
+    expect(updated.expiryAlertDays).toBe(3)
+  })
+
+  it('un miembro no puede editar el hogar', async () => {
+    const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    const b = await createUserWithHousehold(db, { displayName: 'Bo', credential: cred('c2'), locale: 'en' })
+    const inv = await createInvite(ctxOf(a.householdId, a.userId, 'owner'))
+    await acceptInvite(db, { token: inv.token, userId: b.userId })
+    await expect(updateHousehold(ctxOf(a.householdId, b.userId, 'member'), { name: 'Casa hackeada' })).rejects.toMatchObject({ code: 'forbidden' })
+    const [h] = await db.select().from(schema.households).where(eq(schema.households.id, a.householdId))
+    expect(h?.name).toBe('Casa de Ana')
+  })
+
+  it('aislamiento: el owner del hogar B no puede tocar el hogar A', async () => {
+    const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    const b = await createUserWithHousehold(db, { displayName: 'Bo', credential: cred('c2'), locale: 'en' })
+    // ctxOf fija el householdId de la petición: el hogar actualizado es siempre ctx.householdId
+    await updateHousehold(ctxOf(b.householdId, b.userId, 'owner'), { name: 'Casa de Bo renombrada' })
+    const [aHousehold] = await db.select().from(schema.households).where(eq(schema.households.id, a.householdId))
+    expect(aHousehold?.name).toBe('Casa de Ana')
   })
 })

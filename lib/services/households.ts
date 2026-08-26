@@ -1,8 +1,10 @@
 import { randomBytes } from 'node:crypto'
 import { and, eq, gt, inArray, isNull } from 'drizzle-orm'
+import type { z } from 'zod'
 import * as schema from '@/db/schema'
 import { saveCredential, type VerifiedCredential } from '@/lib/auth/webauthn'
 import type { Locale } from '@/lib/domain/types'
+import type { HouseholdUpdateSchema } from '@/lib/validation/household'
 import { type Ctx, type Db, ServiceError } from './ctx'
 
 const INVITE_HOURS = 24
@@ -155,4 +157,38 @@ export async function deleteHousehold(ctx: Ctx, confirmName: string): Promise<vo
     await tx.delete(schema.householdMembers).where(eq(schema.householdMembers.householdId, hid))
     await tx.delete(schema.households).where(eq(schema.households.id, hid))
   })
+}
+
+export type HouseholdUpdate = z.infer<typeof HouseholdUpdateSchema>
+export interface HouseholdSummary {
+  id: string
+  name: string
+  defaultServings: number
+  expiryAlertDays: number
+}
+
+const HOUSEHOLD_SUMMARY_COLUMNS = {
+  id: schema.households.id,
+  name: schema.households.name,
+  defaultServings: schema.households.defaultServings,
+  expiryAlertDays: schema.households.expiryAlertDays,
+}
+
+// Solo el propietario cambia nombre, raciones por defecto y días de aviso de
+// caducidad. `input` (HouseholdUpdateSchema) no lleva `id`: no hay forma de
+// que este parche apunte a otro hogar que ctx.householdId.
+export async function updateHousehold(ctx: Ctx, input: HouseholdUpdate): Promise<HouseholdSummary> {
+  if (ctx.role !== 'owner') throw new ServiceError('forbidden', 'Solo el propietario puede editar el hogar')
+  const patch: Partial<Pick<HouseholdSummary, 'name' | 'defaultServings' | 'expiryAlertDays'>> = {}
+  if (input.name !== undefined) patch.name = input.name
+  if (input.defaultServings !== undefined) patch.defaultServings = input.defaultServings
+  if (input.expiryAlertDays !== undefined) patch.expiryAlertDays = input.expiryAlertDays
+  if (Object.keys(patch).length === 0) {
+    const [h] = await ctx.db.select(HOUSEHOLD_SUMMARY_COLUMNS).from(schema.households).where(eq(schema.households.id, ctx.householdId)).limit(1)
+    if (!h) throw new ServiceError('not_found', 'Hogar no encontrado')
+    return h
+  }
+  const [updated] = await ctx.db.update(schema.households).set(patch).where(eq(schema.households.id, ctx.householdId)).returning(HOUSEHOLD_SUMMARY_COLUMNS)
+  if (!updated) throw new ServiceError('not_found', 'Hogar no encontrado')
+  return updated
 }

@@ -2,7 +2,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { sql } from 'drizzle-orm'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
-import { getRp, startLogin, startRegistration } from './webauthn'
+import type { RegistrationResponseJSON } from '@simplewebauthn/server'
+import { ChallengeUserMismatchError, finishRegistration, getRp, startLogin, startRegistration } from './webauthn'
 
 process.env.APP_URL = 'http://localhost:3000'
 let db: TestDb
@@ -45,5 +46,15 @@ describe('webauthn', () => {
     })
     const { options } = await startRegistration(db, 'Ana', u.id)
     expect(options.excludeCredentials?.map((c) => c.id)).toContain('cred-existente')
+  })
+
+  it('finishRegistration rechaza un reto pedido para otro usuario y no guarda ninguna credencial', async () => {
+    const [userA] = await db.insert(schema.users).values({ displayName: 'Ana' }).returning()
+    const [userB] = await db.insert(schema.users).values({ displayName: 'Bo' }).returning()
+    if (!userA || !userB) throw new Error('seed')
+    const { challengeId } = await startRegistration(db, 'Ana', userA.id)
+    const fakeResponse = {} as unknown as RegistrationResponseJSON
+    await expect(finishRegistration(db, { challengeId, response: fakeResponse, expectedUserId: userB.id })).rejects.toBeInstanceOf(ChallengeUserMismatchError)
+    expect(await db.select().from(schema.webauthnCredentials)).toHaveLength(0)
   })
 })

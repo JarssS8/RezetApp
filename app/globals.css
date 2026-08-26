@@ -58,15 +58,18 @@
   --overlay: rgba(0, 0, 0, .55);
 }
 
-/* Acentos, todos de comida */
-:root[data-accent="huerta"]    { --acc: #2F9E6B; }
-:root[data-accent="miel"]      { --acc: #D99A2B; }
-:root[data-accent="tomate"]    { --acc: #CE5540; }
-:root[data-accent="pistacho"]  { --acc: #7FA344; }
-:root[data-accent="higo"]      { --acc: #B4557A; }
-:root[data-accent="berenjena"] { --acc: #8C5A9E; }
-:root[data-accent="arandano"]  { --acc: #4A7FB5; }
-:root[data-accent="canela"]    { --acc: #A9764A; }
+/* Acentos, todos de comida. Selector sin :root para que "case" tanto en
+   <html data-accent> como en cualquier subárbol (p. ej. una muestra de
+   acento en el selector de Ajustes que quiere pintarse con su propio color
+   sin cambiar el tema de toda la página). */
+[data-accent="huerta"]    { --acc: #2F9E6B; }
+[data-accent="miel"]      { --acc: #D99A2B; }
+[data-accent="tomate"]    { --acc: #CE5540; }
+[data-accent="pistacho"]  { --acc: #7FA344; }
+[data-accent="higo"]      { --acc: #B4557A; }
+[data-accent="berenjena"] { --acc: #8C5A9E; }
+[data-accent="arandano"]  { --acc: #4A7FB5; }
+[data-accent="canela"]    { --acc: #A9764A; }
 
 /* ---------- Mapeo a las variables que usan los componentes shadcn ---------- */
 :root {
@@ -142,4 +145,13 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   }
+}
+
+@layer components {
+  /* Pinta con el --acc del propio subárbol (ver [data-accent] arriba): así
+     una muestra de acento en Ajustes se colorea sola sin depender de
+     utilidades de Tailwind resueltas en :root (bg-primary usaría el --acc
+     de <html>, no el de la muestra). Sigue siendo "solo tokens": ningún
+     literal de color en el componente. */
+  .accent-swatch { background: var(--acc); }
 }

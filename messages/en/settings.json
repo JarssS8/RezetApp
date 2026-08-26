@@ -10,5 +10,138 @@
     "passkeys": "Passkeys",
     "data": "Data",
     "notifications": "Notifications"
+  },
+  "tokens": {
+    "create": "Create token",
+    "name": "Name",
+    "scopes": "Permissions",
+    "scope": {
+      "recipes:read": "Read recipes",
+      "recipes:write": "Edit recipes",
+      "plan:read": "Read the plan",
+      "plan:write": "Edit the plan",
+      "pantry:read": "Read the pantry",
+      "pantry:write": "Edit the pantry",
+      "cooking:write": "Log cooking",
+      "shopping:push": "Push to shopping",
+      "household:read": "Read the household",
+      "household:write": "Edit the household"
+    },
+    "profile": "MCP profile",
+    "profiles": {
+      "basic": "Basic (12 tools, no editing or deleting)",
+      "full": "Full"
+    },
+    "created": "Token created. Copy it now: it won't be shown again.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "revoke": "Revoke",
+    "revokeConfirm": "Revoke this token? It will stop working immediately.",
+    "revoked": "Revoked",
+    "lastUsed": "Last used: {date}",
+    "never": "Never",
+    "empty": "No tokens. Create one to connect an assistant or a script.",
+    "mcpHint": "Use this token as `Authorization: Bearer` on `/mcp` or `/api/v1`. Connectors that require OAuth aren't supported yet; use a desktop MCP client or `mcp-remote --header`.",
+    "error": "Couldn't complete the action."
+  },
+  "appearance": {
+    "theme": "Theme",
+    "themes": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Soft dark"
+    },
+    "accent": "Accent",
+    "accents": {
+      "huerta": "Garden",
+      "miel": "Honey",
+      "tomate": "Tomato",
+      "pistacho": "Pistachio",
+      "higo": "Fig",
+      "berenjena": "Eggplant",
+      "arandano": "Blueberry",
+      "canela": "Cinnamon"
+    },
+    "units": "Units",
+    "unitsMetric": "Metric",
+    "unitsImperial": "Imperial",
+    "language": "Language",
+    "languages": {
+      "es": "Spanish",
+      "en": "English"
+    },
+    "displayName": "Your name",
+    "saved": "Saved",
+    "error": "Couldn't save the changes."
+  },
+  "household": {
+    "name": "Household name",
+    "defaultServings": "Default servings",
+    "expiryAlertDays": "Warn about expiry (days)",
+    "save": "Save",
+    "saved": "Saved",
+    "error": "Couldn't complete the action.",
+    "leave": "Leave household",
+    "leaveConfirm": "You'll lose access to this household's recipes and plan.",
+    "delete": "Delete household",
+    "deleteHint": "Type \"{name}\" to confirm. Everything gets deleted: recipes, plan, pantry, tokens.",
+    "deleteConfirmField": "Household name",
+    "switch": "Switch household",
+    "households": "Your households",
+    "current": "Current"
+  },
+  "members": {
+    "invite": "Invite",
+    "inviteUrl": "Invitation link (expires in 24 h)",
+    "copy": "Copy",
+    "copied": "Copied",
+    "role": {
+      "owner": "Owner",
+      "member": "Member"
+    },
+    "you": "you",
+    "allergens": "Allergies",
+    "allergen": {
+      "gluten": "Gluten",
+      "lactose": "Lactose",
+      "egg": "Egg",
+      "fish": "Fish",
+      "shellfish": "Crustaceans",
+      "nuts": "Tree nuts",
+      "peanut": "Peanut",
+      "soy": "Soy",
+      "sesame": "Sesame",
+      "celery": "Celery",
+      "mustard": "Mustard",
+      "sulphites": "Sulphites",
+      "lupin": "Lupin",
+      "mollusc": "Molluscs"
+    },
+    "dietaryFlags": "Preferences (e.g. vegetarian)",
+    "dietaryPlaceholder": "Type and press Enter",
+    "remove": "Remove",
+    "removeConfirm": "Remove {name} from the household?",
+    "error": "Couldn't complete the action."
+  },
+  "passkeys": {
+    "add": "Add passkey",
+    "name": "Device name",
+    "unnamed": "Unnamed",
+    "rename": "Rename",
+    "remove": "Delete",
+    "removeConfirm": "Delete this passkey? You'll need to register it again to use it.",
+    "lastOne": "You can't delete your only passkey.",
+    "synced": "Synced",
+    "device": "This device only",
+    "added": "Passkey added",
+    "createdAt": "Created on {date}",
+    "lastUsed": "Last used: {date}",
+    "never": "Never",
+    "error": "Couldn't complete the action."
+  },
+  "data": {
+    "export": "Export recipes",
+    "exportHint": "Export your recipes as JSON to keep a copy.",
+    "importSoon": "Import and migration from other apps arrives in W4."
   }
 }
