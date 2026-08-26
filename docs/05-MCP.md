@@ -11,11 +11,18 @@ planificación de comidas con MCP e IA local.
 
 - **HTTP, no solo stdio.** Stdio solo funciona en la misma máquina. Con HTTP en
   `/mcp` sirve desde el móvil o desde un cliente MCP de escritorio sin túneles.
+  Transporte: `WebStandardStreamableHTTPServerTransport` del SDK oficial sobre la
+  route handler.
+- **Autenticación:** Bearer `rz_…` (token visible en API con ese prefijo, guardado
+  con sha256). Los conectores que exigen OAuth no pueden conectarse directamente
+  (usar un cliente de escritorio o `mcp-remote --header`); OAuth queda como trabajo
+  futuro.
 - **Herramientas por acción, no una por endpoint.** Un servidor de Mealie expone
   246 herramientas en espejo de la API y otro las condensa en 11. Las condensadas
   funcionan mucho mejor, sobre todo con modelos locales pequeños.
 - **Perfiles.** `basico` (~12 herramientas, por defecto) y `completo`. Un servidor
-  de Tandoor expone 271 y sería inmanejable sin perfiles.
+  de Tandoor expone 271 y sería inmanejable sin perfiles. El perfil (`basic`/`full`)
+  lo fija cada token.
 - **Pocas herramientas con nombres muy distintos entre sí**, y descripciones que
   digan cuándo **no** usarlas.
 
@@ -38,7 +45,7 @@ planificación de comidas con MCP e IA local.
 | `create_recipe` | Crea una receta estructurada | Permitido; editar y borrar quedan fuera del básico |
 | `import_recipe` | Desde URL, texto o imagen | Un punto de entrada; la app decide el método |
 | `get_meal_plan` | Plan de un rango de fechas, con nutrición agregada | Rango, no hoy/semana/mes por separado |
-| `set_meal_plan` | Añade o quita entradas, en lote | Planificar una semana debe ser una llamada, no catorce |
+| `set_meal_plan` | Crea una propuesta de entradas a añadir o quitar, en lote | Planificar una semana debe ser una llamada, no catorce; la propuesta la aprueba el usuario |
 | `get_pantry` | Inventario, con filtro por lo que caduca antes de una fecha | Ese filtro habilita la mejor sugerencia del producto |
 | `update_pantry` | Suma o resta existencias | Deltas, no absolutos: menos errores de concurrencia |
 | `generate_shopping_list` | Consolida el plan y resta la despensa | Devuelve la lista calculada, no la envía |
@@ -72,7 +79,11 @@ comandos listos. Cuatro para empezar:
 
 ## Nota sobre modelos locales
 
-Si se usa un modelo local (llama-server, Ollama), hay que probar pronto con el modelo real. Un modelo de 4 a 12 mil
-millones de parámetros se confunde entre herramientas parecidas, inventa parámetros
-y a veces contesta sin llamar a nada. Lo que funciona con un modelo grande de API puede caerse con
+Si se usa un modelo local (un servidor local compatible con la API de OpenAI:
+llama-server de llama.cpp recomendado, Ollama, LM Studio, vLLM…), hay que
+probar pronto con el modelo real. Un modelo de 4 a 12 mil millones de parámetros
+se confunde entre herramientas parecidas, inventa parámetros y a veces contesta
+sin llamar a nada. Lo que funciona con un modelo grande de API puede caerse con
 Gemma. Esquemas estrictos que fallen ruidosamente.
+
+Un MCP mínimo (contexto, buscar, receta) llega en la oleada W2 para conservar el feedback temprano.

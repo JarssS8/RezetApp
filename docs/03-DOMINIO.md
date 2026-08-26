@@ -101,11 +101,14 @@ Una corrección manual barata vale más que un parser perfecto.
 
 ## 6. Despensa
 
-- Cantidades en unidad base, con `ubicacion`: `nevera | congelador | armario`.
-- `caduca_el` opcional. Alerta configurable, por defecto a 3 días.
+- Cantidades en unidad base, con `location`: `fridge | freezer | pantry`.
+- `expires_at` opcional. Alerta configurable, por defecto a 3 días.
 - **Descuento automático**: `log_cooked` resta los ingredientes de la receta,
   escalados a las raciones realmente cocinadas. Operación atómica junto con el
-  registro nutricional.
+  registro nutricional. El descuento saca primero de lo que antes caduca (FIFO
+  por `expires_at`, nulos al final, luego `added_at`) y se aplica con
+  `GREATEST(0, quantity − x)` atómico por fila; el aviso sale de lo realmente
+  descontado.
 - Si al descontar queda negativo, deja en 0 y registra un aviso — no falles.
 
 ## 7. Consolidación para la compra
@@ -118,6 +121,10 @@ Cuando se genera lo que hay que comprar (que luego se envía a ShopList):
 4. **Restar lo que hay en despensa.**
 5. Descartar lo que quede en ≤ 0.
 6. Convertir a formato de envío (ver `docs/06-SHOPLIST.md`).
+
+Se excluyen las entradas ya cocinadas o saltadas (además de las sobras). Líneas
+sin `food_id` se agrupan por nombre y no restan despensa; líneas sin unidad base
+salen con cantidad vacía.
 
 Los pasos 3 y 4 son la razón por la que esto se calcula aquí y no en ShopList.
 

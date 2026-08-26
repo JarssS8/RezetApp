@@ -15,16 +15,21 @@ pregunta — casi seguro es un malentendido.
 
 ## Estado del proyecto
 
-Repositorio inicializado (2026-08-26). Todavía no hay código. Se va a construir
-todo el roadmap (`docs/07-ROADMAP.md`, fases 0–5) en oleadas paralelas con
-subagentes; el spec (`docs/superpowers/specs/2026-08-26-rezetapp-design.md`)
-manda sobre estos docs cuando difieren, y el plan está en
-`docs/superpowers/plans/`.
+Fase 0 (W0) hecha el 2026-08-26: esqueleto Next 16, tema, i18n, shell de pantallas
+y ajustes, Drizzle y Docker Compose. Sin dominio todavía. El spec
+(`docs/superpowers/specs/2026-08-26-rezetapp-design.md`) manda sobre estos docs
+cuando difieren; los planes están en `docs/superpowers/plans/`.
 
 ## Comandos
 
-No existen aún. Cuando la fase 0 esté hecha, sustituir por: dev, build, lint,
-tests (todos y uno solo), migraciones de Drizzle y `docker compose up`.
+- `pnpm dev` — desarrollo (necesita Postgres: `docker compose up -d db`)
+- `pnpm build` · `pnpm start` — producción local
+- `pnpm check` — typecheck + lint + i18n + tests unitarios (lo que debe estar verde antes de cada commit)
+- `pnpm test` · `pnpm test -- lib/domain/scaling.test.ts` — todos / uno
+- `pnpm e2e` — Playwright (levanta `pnpm dev` si no hay `E2E_BASE_URL`)
+- `pnpm db:generate` — genera migración desde `db/schema/`
+- `pnpm db:migrate` · `pnpm db:seed` — aplicar migraciones / sembrar (idempotente)
+- `docker compose up -d` — app + Postgres; la app migra y siembra al arrancar
 
 ## Stack decidido
 

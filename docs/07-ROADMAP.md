@@ -3,6 +3,9 @@
 Construirlo todo de golpe es cómo mueren estos proyectos. Este orden hace que haya
 algo usable pronto y que cada fase se apoye en la anterior.
 
+Se ejecuta en oleadas paralelas (ver spec §17). El MCP mínimo se adelanta a W2
+para conservar el feedback temprano.
+
 ## Fase 0 · El esqueleto
 
 Aburrido, y lo único que no se puede añadir después sin dolor.

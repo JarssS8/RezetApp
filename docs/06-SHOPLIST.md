@@ -92,6 +92,8 @@ cambie `products`, se toca la función y RezetApp ni se entera.
 
 `lib/integrations/shoplist.ts`:
 
+*Nota: Los identificadores reales van en inglés: `ShoppingLine`, `toShopListItem`, `pushToShopList`. La configuración vive por hogar (cifrada) con fallback a las variables de entorno.*
+
 ```ts
 type Linea = { alimento: string; cantidad: number | null; unidad: string | null }
 

@@ -41,6 +41,8 @@ El texto corrido no pasa de ~65 caracteres de ancho.
 píldoras: 20px o 999px
 ```
 
+En Tailwind se mapean explícitamente `--radius-sm/md/lg/xl` → `--r-sm/--r-md/--r-lg/--r-lg`; no se usa `--radius`.
+
 ## Acentos elegibles
 
 Ocho, todos sacados de comida y ninguno de neón. El usuario elige uno; es una
@@ -76,7 +78,7 @@ Los cinco de la barra inferior: sol/plato, sartén, calendario, alacena, libro.
 - **Aviso de escalado no lineal**: fondo ámbar tenue, icono e importe en `--warn`.
 - **Modo cocina**: pantalla completa, un paso, temporizador pulsable, wake lock.
 - **Día del plan**: chips de comida, marca de sobras, presupuesto de tiempo.
-- **Fila de despensa**: nombre, cantidad, y días hasta caducar en ámbar si <7.
+- **Fila de despensa**: nombre, cantidad, y días hasta caducar en ámbar si < 7 días (fijo, visual); la alerta de Hoy usa `expiry_alert_days` del hogar.
 
 ## Reglas de tema
 
