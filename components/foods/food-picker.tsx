@@ -2,8 +2,7 @@
 import { useTranslations } from 'next-intl'
 import type { KeyboardEvent } from 'react'
 import { useEffect, useId, useRef, useState } from 'react'
-import { BarcodeIcon } from '@/components/icons/barcode'
-import { EstimatedIcon } from '@/components/icons/estimated'
+import { BarcodeIcon, EstimatedIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { lookupBarcodeAction, searchFoodsAction, type FoodSummary } from '@/lib/actions/foods'
@@ -43,17 +42,22 @@ export function FoodPicker({ value, onChange, locale, onCreateNew, allowBarcode,
   const [barcodeValue, setBarcodeValue] = useState('')
   const [barcodeNotFound, setBarcodeNotFound] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Descarta respuestas de búsquedas obsoletas: si el usuario ya escribió otra
+  // cosa, una respuesta lenta de la petición anterior no debe pisar la actual.
+  const reqId = useRef(0)
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current)
     const query = q.trim()
     timer.current = setTimeout(async () => {
+      const id = ++reqId.current
       if (query.length < MIN_CHARS) {
         setItems([])
         setActiveIndex(-1)
         return
       }
       const r = await searchFoodsAction(query)
+      if (reqId.current !== id) return // ya hay una búsqueda más reciente en curso: ignorar esta respuesta
       const found = r.ok ? r.data : []
       setItems(found)
       setOpen(true)
@@ -88,10 +92,18 @@ export function FoodPicker({ value, onChange, locale, onCreateNew, allowBarcode,
       setActiveIndex(-1)
       return
     }
+    if (e.key === 'ArrowDown' && !open) {
+      if (optionCount > 0) {
+        e.preventDefault()
+        setOpen(true)
+        setActiveIndex(0)
+      }
+      return
+    }
     if (!open || optionCount === 0) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setActiveIndex((i) => Math.min(i < 0 ? 0 : i + 1, optionCount - 1))
+      setActiveIndex((i) => Math.min(i + 1, optionCount - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setActiveIndex((i) => Math.max(i - 1, 0))

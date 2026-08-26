@@ -11,7 +11,7 @@ import {
   type FoodWithNutrition,
   type ResolvedFood,
 } from '@/lib/services/foods'
-import { BarcodeSchema, FoodCorrectionSchema, FoodInputSchema, FoodSearchSchema } from '@/lib/validation/foods'
+import { BarcodeSchema, FoodCorrectionSchema, FoodInputSchema, FoodNameSchema, FoodSearchSchema } from '@/lib/validation/foods'
 import { type ActionResult, fail, fromError, ok } from './result'
 
 // Tipos re-exportados para que components/* los use sin importar lib/services
@@ -32,7 +32,9 @@ export async function searchFoodsAction(q: string): Promise<ActionResult<FoodSum
 export async function resolveFoodAction(name: string): Promise<ActionResult<ResolvedFood | null>> {
   try {
     const ctx = await requireHousehold()
-    return ok(await resolveFoodName(ctx, name, ctx.locale))
+    const parsed = FoodNameSchema.safeParse(name)
+    if (!parsed.success) return fail('validation', 'Nombre de alimento inválido')
+    return ok(await resolveFoodName(ctx, parsed.data, ctx.locale))
   } catch (e) {
     return fromError(e)
   }

@@ -23,6 +23,8 @@ export const FoodInputSchema = z.strictObject({
 export type FoodInput = z.infer<typeof FoodInputSchema>
 export const FoodSearchSchema = PaginationSchema.extend({ q: z.string().trim().min(1).max(80), locale: LocaleSchema.default('es') })
 export const BarcodeSchema = z.string().regex(/^\d{8,14}$/)
+// Nombre suelto a resolver (resolveFoodAction): mismo límite que nameEs/nameEn de FoodInputSchema.
+export const FoodNameSchema = z.string().trim().min(1).max(120)
 
 // Corrección manual de un alimento (gana a cualquier fuente, §9.4). Todo opcional: se actualiza solo lo enviado.
 export const FoodCorrectionSchema = FoodInputSchema.partial().strict()

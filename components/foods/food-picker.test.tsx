@@ -1,8 +1,8 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import type { ComponentProps } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { searchFoodsAction, type FoodSummary } from '@/lib/actions/foods'
+import { lookupBarcodeAction, searchFoodsAction, type FoodSummary, type FoodWithNutrition } from '@/lib/actions/foods'
 import recipes from '@/messages/es/recipes.json'
 import { FoodPicker } from './food-picker'
 
@@ -14,6 +14,7 @@ vi.mock('@/lib/actions/foods', () => ({
 }))
 
 const mockedSearch = vi.mocked(searchFoodsAction)
+const mockedLookupBarcode = vi.mocked(lookupBarcodeAction)
 
 const cebolla: FoodSummary = {
   id: 'f1',
@@ -26,6 +27,20 @@ const cebolla: FoodSummary = {
   isEstimated: false,
   source: 'manual',
   allergens: [],
+}
+
+const cebolleta: FoodSummary = { ...cebolla, id: 'f2', name: 'cebolleta', nameEs: 'cebolleta', nameEn: 'scallion' }
+
+const cebollaConNutricion: FoodWithNutrition = {
+  ...cebolla,
+  protein100g: 1.1,
+  carbs100g: 9,
+  fat100g: 0.1,
+  fiber100g: 1.7,
+  gramsPerCup: null,
+  gramsPerTbsp: null,
+  gramsPerUnit: null,
+  densityGPerMl: null,
 }
 
 function renderPicker(props: Partial<ComponentProps<typeof FoodPicker>> = {}) {
@@ -42,6 +57,7 @@ function renderPicker(props: Partial<ComponentProps<typeof FoodPicker>> = {}) {
 describe('FoodPicker', () => {
   beforeEach(() => {
     mockedSearch.mockReset()
+    mockedLookupBarcode.mockReset()
   })
   afterEach(cleanup)
 
@@ -81,5 +97,61 @@ describe('FoodPicker', () => {
     await waitFor(() => expect(screen.getByRole('option', { name: /zzz/ })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('option', { name: /zzz/ }))
     expect(onCreateNew).toHaveBeenCalledWith('zzz')
+  })
+
+  it('ignora una respuesta de búsqueda obsoleta que llega tarde', async () => {
+    let resolveFirst!: (v: { ok: true; data: FoodSummary[] }) => void
+    let resolveSecond!: (v: { ok: true; data: FoodSummary[] }) => void
+    const firstPromise = new Promise<{ ok: true; data: FoodSummary[] }>((resolve) => {
+      resolveFirst = resolve
+    })
+    const secondPromise = new Promise<{ ok: true; data: FoodSummary[] }>((resolve) => {
+      resolveSecond = resolve
+    })
+    mockedSearch.mockImplementationOnce(() => firstPromise).mockImplementationOnce(() => secondPromise)
+
+    renderPicker()
+    const input = screen.getByRole('combobox')
+
+    fireEvent.change(input, { target: { value: 'ceb' } })
+    await waitFor(() => expect(mockedSearch).toHaveBeenNthCalledWith(1, 'ceb'))
+
+    fireEvent.change(input, { target: { value: 'cebolleta' } })
+    await waitFor(() => expect(mockedSearch).toHaveBeenNthCalledWith(2, 'cebolleta'))
+
+    // La respuesta más reciente llega antes que la obsoleta: la obsoleta no debe pisarla al llegar después.
+    await act(async () => {
+      resolveSecond({ ok: true, data: [cebolleta] })
+      await secondPromise
+    })
+    await waitFor(() => expect(screen.getByRole('option', { name: /cebolleta/ })).toBeInTheDocument())
+
+    await act(async () => {
+      resolveFirst({ ok: true, data: [cebolla] })
+      await firstPromise
+    })
+    expect(screen.queryByRole('option', { name: /^cebolla$/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /cebolleta/ })).toBeInTheDocument()
+  })
+
+  it('escanea un código de barras y selecciona el resultado', async () => {
+    mockedLookupBarcode.mockResolvedValue({ ok: true, data: cebollaConNutricion })
+    const { onChange } = renderPicker({ allowBarcode: true })
+    fireEvent.click(screen.getByRole('button', { name: /código de barras/i }))
+    const barcodeInput = screen.getByPlaceholderText('Código de barras…')
+    fireEvent.change(barcodeInput, { target: { value: '1234567890123' } })
+    fireEvent.keyDown(barcodeInput, { key: 'Enter' })
+    await waitFor(() => expect(mockedLookupBarcode).toHaveBeenCalledWith('1234567890123'))
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith(cebollaConNutricion))
+  })
+
+  it('avisa cuando el código de barras no tiene coincidencias', async () => {
+    mockedLookupBarcode.mockResolvedValue({ ok: true, data: null })
+    renderPicker({ allowBarcode: true })
+    fireEvent.click(screen.getByRole('button', { name: /código de barras/i }))
+    const barcodeInput = screen.getByPlaceholderText('Código de barras…')
+    fireEvent.change(barcodeInput, { target: { value: '0000000000000' } })
+    fireEvent.keyDown(barcodeInput, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByText('Sin resultados para ese código')).toBeInTheDocument())
   })
 })
