@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectTimers } from './timers'
+import { detectTimers, timerMinutes } from './timers'
 
 describe('detectTimers', () => {
   it('minutos en español', () => {
@@ -36,5 +36,14 @@ describe('detectTimers', () => {
   })
   it('rango usa el menor aunque el primero sea mayor', () => {
     expect(detectTimers('10-8 minutos', 'es')[0]?.seconds).toBe(480)
+  })
+})
+
+describe('timerMinutes', () => {
+  it('redondea segundos a minutos', () => {
+    expect(timerMinutes(90)).toBe(2)
+    expect(timerMinutes(89)).toBe(1)
+    expect(timerMinutes(600)).toBe(10)
+    expect(timerMinutes(0)).toBe(0)
   })
 })

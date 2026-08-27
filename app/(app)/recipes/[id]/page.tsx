@@ -21,7 +21,11 @@ export default async function RecipeDetailPage({
   const parsedQuery = RecipeGetQuerySchema.safeParse({ servings: rawServings })
   const requestedServings = parsedQuery.success ? parsedQuery.data.servings : undefined
 
-  const detail = await getRecipe(ctx, id, requestedServings !== undefined ? { servings: requestedServings } : {})
+  // La vista recalcula su propio escalado en cliente (scaleRecipe con
+  // servingsBase real); no hace falta pedirle a getRecipe que escale, así
+  // que aquí no se pasan las raciones pedidas — solo se guardan para el
+  // valor inicial del stepper.
+  const detail = await getRecipe(ctx, id)
   if (!detail) notFound()
 
   // JSON.parse(JSON.stringify(...)): getRecipe devuelve Date reales (createdAt,

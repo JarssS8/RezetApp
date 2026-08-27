@@ -9,7 +9,7 @@ import { ChevronLeftIcon, CookIcon, EditIcon, PlanIcon, RecipesIcon, TrashIcon }
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { deleteRecipeAction, type RecipeDetail } from '@/lib/actions/recipes'
-import { recipeNutrition, scaleRecipe } from '@/lib/domain'
+import { aggregateNutrition, scaleRecipe, timerMinutes } from '@/lib/domain'
 import type { Locale, UnitSystem } from '@/lib/domain/types'
 import { cn } from '@/lib/utils'
 import { buildIngredientRows, IngredientList, type DetailIngredient } from './ingredient-list'
@@ -54,16 +54,18 @@ export function RecipeDetailView({ detail, locale, units, initialServings }: Rec
     [detail, servings],
   )
 
-  const nutrition = useMemo(
-    () => (detail.ingredients.some((i) => i.food) ? recipeNutrition(detail.ingredients, detail.recipe.servingsBase, detail.recipe.yieldGrams) : null),
-    [detail],
-  )
+  // Nutrición ya calculada por el servicio (mismas entradas: ingredientes base
+  // + servingsBase + yieldGrams) — no se recalcula aquí, solo se lee.
+  const nutrition = detail.nutrition
 
   const rows = useMemo(() => buildIngredientRows(scaled, detail.ingredients, locale, units), [scaled, detail.ingredients, locale, units])
 
   // Las kcal por ración no cambian al escalar (docs/03-DOMINIO §2); lo que
-  // cambia es el total, proporcional a las raciones actuales.
-  const totalKcal = nutrition ? nutrition.perServing.kcal * servings : null
+  // cambia es el total. aggregateNutrition hace la multiplicación en el
+  // dominio (nunca a mano en el componente): un único "plan" de una entrada
+  // con las raciones actuales reutiliza exactamente la misma función que
+  // suma varias entradas del plan de comidas.
+  const totalKcal = nutrition ? aggregateNutrition([{ nutrition, servings }]).total.kcal : null
   const imageUrl = detail.recipe.imageUrls[0] ?? null
 
   async function handleDelete() {
@@ -105,7 +107,7 @@ export function RecipeDetailView({ detail, locale, units, initialServings }: Rec
         // eslint-disable-next-line @next/next/no-img-element
         <img src={imageUrl} alt="" className="mt-2 aspect-video w-full rounded-lg object-cover" />
       ) : (
-        <div className="mt-2 flex aspect-video w-full items-center justify-center rounded-lg bg-surface-2 text-muted">
+        <div className="mt-2 flex aspect-video w-full items-center justify-center rounded-lg bg-surface-2 text-text-2">
           <RecipesIcon size={40} />
         </div>
       )}
@@ -159,7 +161,7 @@ export function RecipeDetailView({ detail, locale, units, initialServings }: Rec
                 <div>
                   <p className="text-sm">{step.text}</p>
                   {step.timerSeconds ? (
-                    <span className="tabular text-xs text-text-2">{t('detail.timer', { minutes: Math.round(step.timerSeconds / 60) })}</span>
+                    <span className="tabular text-xs text-text-2">{t('detail.timer', { minutes: timerMinutes(step.timerSeconds) })}</span>
                   ) : null}
                 </div>
               </li>

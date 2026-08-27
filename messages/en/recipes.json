@@ -40,7 +40,7 @@
     "ingredients": "Ingredients",
     "steps": "Steps",
     "notes": "Notes",
-    "cooked": "Cooked {count} times",
+    "cooked": "{count, plural, one {Cooked # time} other {Cooked # times}}",
     "cook": "Cook",
     "addToPlan": "Add to plan",
     "edit": "Edit",

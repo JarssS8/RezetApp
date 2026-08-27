@@ -53,3 +53,9 @@ export function detectTimers(stepText: string, locale: Locale): TimerSpan[] {
   for (const m of text.matchAll(halfHour)) out.push({ start: m.index ?? 0, end: (m.index ?? 0) + m[0].length, seconds: 1800 })
   return mergeAdjacent(out, text)
 }
+
+// Minutos redondeados de un temporizador, para mostrar "12 min" en vez del
+// segundero exacto (docs/03 §1: siempre redondeado en la interfaz, nunca a mano en el componente).
+export function timerMinutes(seconds: number): number {
+  return Math.round(seconds / 60)
+}
