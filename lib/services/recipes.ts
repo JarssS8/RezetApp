@@ -3,6 +3,7 @@ import * as schema from '@/db/schema'
 import { detectTimers, isNonLinearByDefault, normalizeSearchName, parseIngredientLine, recipeNutrition, scaleRecipe, toBaseUnit } from '@/lib/domain'
 import type { BaseUnit, IngredientWithFood, Locale, Nutrition, ScaledRecipe } from '@/lib/domain/types'
 import { emitHouseholdEvent } from '@/lib/events/bus'
+import type { RecipeExportInput } from '@/lib/validation/data'
 import type { RecipeInput, RecipeSearch } from '@/lib/validation/recipes'
 import { isUniqueViolation, type Ctx, type Db, ServiceError } from './ctx'
 import { getFoodsNutrition, resolveFoodName, resolveMany, type FoodWithNutrition, type ResolvedFood } from './foods'
@@ -506,6 +507,26 @@ export async function exportAll(ctx: Ctx): Promise<RecipeExport> {
     })
   }
   return { version: 1, exportedAt: new Date().toISOString(), recipes: out }
+}
+
+// Reimporta un volcado de exportAll en el hogar del contexto. Cada receta va
+// por createRecipe: se reparsean los ingredientes, se resuelven los alimentos
+// de ESTE hogar y se recalcula la nutrición (los ids del origen no valen aquí).
+// Una receta que no cuela no aborta el resto: se apunta su título.
+export async function importAll(ctx: Ctx, data: RecipeExportInput): Promise<{ created: number; failed: string[] }> {
+  let created = 0
+  const failed: string[] = []
+  for (const recipe of data.recipes) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- se descartan aposta: el destructuring es la forma de quitarlos antes de createRecipe
+    const { timesCooked: _timesCooked, createdAt: _createdAt, ...input } = recipe
+    try {
+      await createRecipe(ctx, input)
+      created += 1
+    } catch {
+      failed.push(recipe.title)
+    }
+  }
+  return { created, failed }
 }
 
 export interface RecentlyCookedRecipe {

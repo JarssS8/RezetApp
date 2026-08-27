@@ -5,6 +5,7 @@ import { importRecipe, type RecipeDraft } from '@/lib/services/recipe-import'
 import {
   createRecipe,
   exportAll,
+  importAll,
   prepareIngredients,
   softDeleteRecipe,
   updateRecipe,
@@ -14,6 +15,7 @@ import {
   type RecipeSummary,
 } from '@/lib/services/recipes'
 import { MAX_UPLOAD_BYTES, saveImage, savePdf } from '@/lib/uploads/store'
+import { RecipeExportSchema } from '@/lib/validation/data'
 import { IdSchema } from '@/lib/validation/common'
 import { RecipeImportSchema, RecipeInputSchema, RecipeIngredientInputSchema } from '@/lib/validation/recipes'
 import { z } from 'zod'
@@ -136,6 +138,19 @@ export async function exportRecipesAction(): Promise<ActionResult<RecipeExport>>
   try {
     const ctx = await requireHousehold()
     return ok(await exportAll(ctx))
+  } catch (e) {
+    return fromError(e)
+  }
+}
+
+export async function importRecipesAction(json: unknown): Promise<ActionResult<{ created: number; failed: string[] }>> {
+  try {
+    const ctx = await requireHousehold()
+    const parsed = RecipeExportSchema.safeParse(json)
+    if (!parsed.success) return fail('validation', 'El fichero no es una exportación de RezetApp')
+    const result = await importAll(ctx, parsed.data)
+    revalidatePath('/recipes')
+    return ok(result)
   } catch (e) {
     return fromError(e)
   }

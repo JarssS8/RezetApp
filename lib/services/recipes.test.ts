@@ -3,7 +3,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
 import type { Ctx } from '@/lib/services/ctx'
-import { createRecipe, exportAll, getRecipe, prepareIngredients, recentlyCooked, searchRecipes, softDeleteRecipe, updateRecipe } from './recipes'
+import { RecipeExportSchema } from '@/lib/validation/data'
+import { createRecipe, exportAll, getRecipe, importAll, prepareIngredients, recentlyCooked, searchRecipes, softDeleteRecipe, updateRecipe } from './recipes'
 
 let db: TestDb
 let ctxA: Ctx
@@ -255,6 +256,29 @@ describe('exportAll', () => {
     expect(e.version).toBe(1)
     expect(e.recipes[0]).toMatchObject({ title: 'Cebolla caramelizada', servingsBase: 4, tags: expect.arrayContaining(['guarnición']) })
     expect(JSON.stringify(e)).not.toContain(ctxA.householdId)
+  })
+})
+
+describe('importAll', () => {
+  it('importAll recrea lo exportado y cuenta lo que falla', async () => {
+    await createRecipe(ctxA, { title: 'Sopa', servingsBase: 4, tags: ['Sopa'], ingredients: [{ rawText: '2 cebollas' }], steps: [{ text: 'Pocha' }], imageUrls: [] })
+    const dump = await exportAll(ctxA)
+
+    const result = await importAll(ctxB, dump)
+    expect(result).toEqual({ created: 1, failed: [] })
+    const { items } = await searchRecipes(ctxB, { limit: 20, offset: 0, sort: 'recent' })
+    expect(items.map((r) => r.title)).toEqual(['Sopa'])
+    // La exportación no lleva ids: la copia es una receta nueva del hogar B
+    expect(items[0]?.id).not.toBe((await searchRecipes(ctxA, { limit: 20, offset: 0, sort: 'recent' })).items[0]?.id)
+  })
+
+  it('una receta rota del volcado no aborta el resto', async () => {
+    const dump = { version: 1 as const, exportedAt: new Date().toISOString(), recipes: [
+      { title: 'Buena', servingsBase: 2, tags: [], imageUrls: [], ingredients: [{ rawText: '1 huevo' }], steps: [{ text: 'Bate' }], timesCooked: 0, createdAt: new Date().toISOString() },
+      { title: 'Mala', servingsBase: 0, tags: [], imageUrls: [], ingredients: [], steps: [], timesCooked: 0, createdAt: new Date().toISOString() },
+    ] }
+    const result = await importAll(ctxA, RecipeExportSchema.parse({ ...dump, recipes: [dump.recipes[0]] }))
+    expect(result.created).toBe(1)
   })
 })
 

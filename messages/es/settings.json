@@ -186,7 +186,13 @@
     "export": "Exportar recetas",
     "exportHint": "Exporta tus recetas en JSON para tener copia.",
     "exportFilename": "recetas-{date}.json",
-    "importSoon": "Importar y migrar desde otras apps llega en W4.",
-    "exportError": "No se pudo exportar"
+    "exportError": "No se pudo exportar",
+    "import": "Importar recetas",
+    "importHint": "Sube un fichero exportado desde otra instancia de RezetApp.",
+    "importDone": "{created} recetas importadas",
+    "importFailed": "{failed} no se pudieron importar",
+    "importError": "El fichero no es una exportación válida",
+    "migrate": "Migrar desde Mealie o Tandoor",
+    "migrateHint": "Se hace desde la línea de comandos del servidor: pnpm import:mealie '<fichero>' --household '<id>'. Está explicado en el README."
   }
 }
