@@ -12,7 +12,6 @@ import {
   listEntries,
   listProposals,
   moveEntry,
-  pantryForShopping,
   patchEntry,
   plannedEntriesForShopping,
   rangeNutrition,
@@ -416,29 +415,5 @@ describe('plannedEntriesForShopping', () => {
 
     const entries = await plannedEntriesForShopping(ctxOf(a), { from: '2026-09-01', to: '2026-09-01' })
     expect(entries).toEqual([])
-  })
-})
-
-describe('pantryForShopping', () => {
-  it('mapea pantry_items del hogar a PantryItem de dominio, con la conversión del alimento', async () => {
-    const a = await makeHousehold('Casa A')
-    const b = await makeHousehold('Casa B')
-    const harina = await makeFood('Harina', 'Flour', { gramsPerCup: 120 })
-    const [item] = await db.insert(schema.pantryItems).values({ householdId: a, foodId: harina, quantity: 500, unit: 'g' }).returning()
-    if (!item) throw new Error('seed')
-    await db.insert(schema.pantryItems).values({ householdId: b, foodId: harina, quantity: 1000, unit: 'g' })
-
-    const items = await pantryForShopping(ctxOf(a))
-    expect(items).toEqual([
-      {
-        id: item.id,
-        foodId: harina,
-        quantity: 500,
-        unit: 'g',
-        expiresAt: null,
-        addedAt: expect.any(Date),
-        conversion: { defaultUnit: 'g', gramsPerCup: 120, gramsPerTbsp: null, gramsPerUnit: null, densityGPerMl: null },
-      },
-    ])
   })
 })

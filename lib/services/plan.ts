@@ -2,7 +2,7 @@ import { and, desc, eq, gte, ilike, inArray, isNull, lte, type SQL } from 'drizz
 import * as schema from '@/db/schema'
 import { emitHouseholdEvent } from '@/lib/events/bus'
 import { aggregateNutrition, EMPTY_MACROS, entryStatus } from '@/lib/domain'
-import type { FoodConversion, Nutrition, PantryItem, PlannedEntry, ShoppingIngredient } from '@/lib/domain'
+import type { FoodConversion, Nutrition, PlannedEntry, ShoppingIngredient } from '@/lib/domain'
 import { ProposalPayloadSchema } from '@/lib/validation/plan'
 import type { MealSlot, PlanBatch, PlanEntryInput, PlanEntryMove, PlanEntryPatch, ProposalPayload } from '@/lib/validation/plan'
 import { type Ctx, type Db, ServiceError } from './ctx'
@@ -480,41 +480,6 @@ export async function plannedEntriesForShopping(ctx: Ctx, range: { from: string;
       cookedAt: null,
       skippedAt: null,
       recipe: { servingsBase: r.servingsBase, ingredients: ingredientsByRecipe.get(r.recipeId) ?? [] },
-    }),
-  )
-}
-
-// Despensa del hogar mapeada a PantryItem de dominio, para consolidateNeeds.
-// Decisión de esta pista (ver plan de la tarea): la pista (f) la sustituye por
-// pantryAsDomain de (d) al mergear.
-export async function pantryForShopping(ctx: Ctx): Promise<PantryItem[]> {
-  const rows = await ctx.db
-    .select({
-      id: schema.pantryItems.id,
-      foodId: schema.pantryItems.foodId,
-      quantity: schema.pantryItems.quantity,
-      unit: schema.pantryItems.unit,
-      expiresAt: schema.pantryItems.expiresAt,
-      addedAt: schema.pantryItems.addedAt,
-      defaultUnit: schema.foods.defaultUnit,
-      gramsPerCup: schema.foods.gramsPerCup,
-      gramsPerTbsp: schema.foods.gramsPerTbsp,
-      gramsPerUnit: schema.foods.gramsPerUnit,
-      densityGPerMl: schema.foods.densityGPerMl,
-    })
-    .from(schema.pantryItems)
-    .innerJoin(schema.foods, eq(schema.foods.id, schema.pantryItems.foodId))
-    .where(eq(schema.pantryItems.householdId, ctx.householdId))
-
-  return rows.map(
-    (r): PantryItem => ({
-      id: r.id,
-      foodId: r.foodId,
-      quantity: r.quantity,
-      unit: r.unit,
-      expiresAt: r.expiresAt !== null ? new Date(r.expiresAt) : null,
-      addedAt: r.addedAt,
-      conversion: foodConversionOf(r),
     }),
   )
 }

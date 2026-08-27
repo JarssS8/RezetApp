@@ -3,7 +3,8 @@ import { ShoppingSummary } from '@/components/plan/shopping-summary'
 import { requireHousehold } from '@/lib/auth/guards'
 import { consolidateNeeds } from '@/lib/domain'
 import { todayIso, weekRange } from '@/lib/plan-dates'
-import { pantryForShopping, plannedEntriesForShopping } from '@/lib/services/plan'
+import { pantryAsDomain } from '@/lib/services/pantry'
+import { plannedEntriesForShopping } from '@/lib/services/plan'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -29,15 +30,14 @@ function resolveRange(sp: SearchParams): { from: string; to: string } {
 }
 
 // /plan/shopping?from&to — lista de compra consolidada (sin botón de envío a
-// ShopList: lo añade la pista (f)). pantryForShopping vive aquí de forma
-// provisional; (f) la sustituye por pantryAsDomain de (d) al mergear.
+// ShopList: lo añade la pista (f)).
 export default async function PlanShoppingPage({ searchParams }: PlanShoppingPageProps) {
   const ctx = await requireHousehold()
   const sp = await searchParams
   const t = await getTranslations('plan')
 
   const range = resolveRange(sp)
-  const [entries, pantry] = await Promise.all([plannedEntriesForShopping(ctx, range), pantryForShopping(ctx)])
+  const [entries, pantry] = await Promise.all([plannedEntriesForShopping(ctx, range), pantryAsDomain(ctx)])
   const lines = consolidateNeeds(entries, pantry)
 
   return (

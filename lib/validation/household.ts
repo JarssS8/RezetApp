@@ -131,3 +131,16 @@ export const AiSettingsSchema = z.strictObject({
   monthlyCapCents: z.number().int().min(0).max(100_000),
   structuredOutput: z.boolean(),
 })
+
+// Tarea 30: ajustes de ShopList por hogar. secret opcional: ausente o ''
+// mantiene el guardado; null lo borra (mismo patrón que apiKey de arriba, ver
+// lib/services/shoplist-settings.ts). fnUrl exige https: la Edge Function de
+// ShopList es pública, a diferencia del servidor de IA que sí puede ser local.
+export const ShoplistSettingsSchema = z.strictObject({
+  fnUrl: z
+    .url()
+    .nullable()
+    .refine((v) => v === null || v.startsWith('https://'), { message: 'La URL de ShopList debe ser https' }),
+  secret: z.string().max(200).nullable().optional(),
+  listToken: z.string().max(120).nullable(),
+})
