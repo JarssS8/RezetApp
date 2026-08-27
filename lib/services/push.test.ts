@@ -156,6 +156,25 @@ describe('avisos de caducidad', () => {
     expect(notifications[0]?.body.match(/cebolla/g)).toHaveLength(1)
   })
 
+  // Fix 14 de la revisión final: antes se recorrían las pertenencias y se
+  // recalculaba expiringPantry() una vez por suscripción; con dos
+  // dispositivos del mismo usuario eso era el doble de trabajo para el mismo
+  // resultado. Se agrupa por userId, pero el aviso sigue siendo uno por
+  // dispositivo (cada endpoint es una entrega push distinta).
+  it('un usuario con dos dispositivos recibe un aviso por cada uno, con el mismo contenido', async () => {
+    const otroDispositivo = { endpoint: 'https://push.example/expira-2', keys: { p256dh: 'BPz2xy9zCD', auth: 'defXYZ456' } }
+    await subscribePush(db, anaId, sub)
+    await subscribePush(db, anaId, otroDispositivo)
+    await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-08-28' })
+
+    const notifications = await buildExpiringNotifications(db, new Date('2026-08-27T09:00:00Z'))
+    expect(notifications).toHaveLength(2)
+    const endpoints = notifications.map((n) => n.endpoint).sort()
+    expect(endpoints).toEqual([otroDispositivo.endpoint, sub.endpoint].sort())
+    expect(notifications[0]?.body).toBe(notifications[1]?.body)
+    expect(notifications[0]?.body).toContain('cebolla')
+  })
+
   it('no avisa si no caduca nada dentro de expiry_alert_days', async () => {
     await subscribePush(db, anaId, sub)
     await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-12-31' })
@@ -187,4 +206,13 @@ it('PushSubscriptionSchema rechaza endpoints http y claves no base64url', () => 
   expect(PushSubscriptionSchema.safeParse({ endpoint: 'http://169.254.169.254/x', keys }).success).toBe(false)
   expect(PushSubscriptionSchema.safeParse({ endpoint: 'https://push.example.com/s/1', keys: { p256dh: 'a b', auth: 'ok' } }).success).toBe(false)
   expect(PushSubscriptionSchema.safeParse({ endpoint: 'https://push.example.com/s/1', keys }).success).toBe(true)
+})
+
+// https tampoco basta (fix 3 de la revisión final): un hostname https puede
+// seguir apuntando al endpoint de metadatos de una nube o a la LAN del propio
+// servidor.
+it('PushSubscriptionSchema rechaza un endpoint https hacia un host privado o reservado', () => {
+  const keys = { p256dh: 'BPx', auth: 'ok' }
+  expect(PushSubscriptionSchema.safeParse({ endpoint: 'https://169.254.169.254/x', keys }).success).toBe(false)
+  expect(PushSubscriptionSchema.safeParse({ endpoint: 'https://192.168.1.20/x', keys }).success).toBe(false)
 })

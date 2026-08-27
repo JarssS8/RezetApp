@@ -125,6 +125,12 @@ const NAMES_IN_BODY = 3
 // Un aviso por dispositivo suscrito. `push_subscriptions` es por usuario (spec
 // §4 no le pone household_id) y un usuario puede estar en varios hogares: se
 // recorren todos los suyos y se junta lo que caduca en cada uno.
+//
+// Las pertenencias y lo que caduca son las mismas para todos los
+// dispositivos de una misma persona: se agrupa por userId y se calculan una
+// sola vez (fix 14 de la revisión final; antes se repetían por cada endpoint
+// suscrito), pero el resultado sigue siendo un `ExpiringNotification` por
+// dispositivo, porque cada endpoint es una entrega push distinta.
 export async function buildExpiringNotifications(db: Db, now: Date = new Date()): Promise<ExpiringNotification[]> {
   const subs = await db
     .select({
@@ -135,22 +141,29 @@ export async function buildExpiringNotifications(db: Db, now: Date = new Date())
     .from(schema.pushSubscriptions)
     .innerJoin(schema.users, eq(schema.users.id, schema.pushSubscriptions.userId))
 
-  const out: ExpiringNotification[] = []
+  const endpointsByUser = new Map<string, string[]>()
+  const localeByUser = new Map<string, 'es' | 'en'>()
   for (const sub of subs) {
-    // Se calcula una vez por suscripción: es el mismo valor para todos los
-    // hogares de esta persona, no hace falta recalcularlo en cada vuelta.
-    const locale = sub.locale === 'en' ? 'en' : 'es'
+    const endpoints = endpointsByUser.get(sub.userId) ?? []
+    endpoints.push(sub.endpoint)
+    endpointsByUser.set(sub.userId, endpoints)
+    localeByUser.set(sub.userId, sub.locale === 'en' ? 'en' : 'es')
+  }
+
+  const out: ExpiringNotification[] = []
+  for (const [userId, endpoints] of endpointsByUser) {
+    const locale = localeByUser.get(userId) ?? 'es'
     const memberships = await db
       .select({ householdId: schema.householdMembers.householdId, expiryAlertDays: schema.households.expiryAlertDays })
       .from(schema.householdMembers)
       .innerJoin(schema.households, eq(schema.households.id, schema.householdMembers.householdId))
-      .where(eq(schema.householdMembers.userId, sub.userId))
+      .where(eq(schema.householdMembers.userId, userId))
 
     // Set en vez de array: el mismo alimento puede caducar en dos hogares del
     // usuario ("cebolla" en casa A y en casa B) y no hace falta nombrarlo dos veces.
     const names = new Set<string>()
     for (const membership of memberships) {
-      const ctx: Ctx = { db, householdId: membership.householdId, userId: sub.userId, apiTokenId: null, role: null, locale, scopes: [] }
+      const ctx: Ctx = { db, householdId: membership.householdId, userId, apiTokenId: null, role: null, locale, scopes: [] }
       const expiring = await expiringPantry(ctx, membership.expiryAlertDays, now)
       for (const item of expiring) names.add(item.name)
     }
@@ -169,7 +182,7 @@ export async function buildExpiringNotifications(db: Db, now: Date = new Date())
           ? `${head} and ${rest} more`
           : `${head} y ${rest} más`
         : head
-    out.push({ endpoint: sub.endpoint, title, body, url: '/today' })
+    for (const endpoint of endpoints) out.push({ endpoint, title, body, url: '/today' })
   }
   return out
 }
