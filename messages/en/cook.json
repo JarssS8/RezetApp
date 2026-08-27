@@ -6,6 +6,7 @@
   "ingredients": "Ingredients for this step",
   "unassigned": "Not assigned to a step",
   "empty": "Nothing planned for today",
+  "noSteps": "This recipe has no steps",
   "timerMinutes": "{minutes} min",
   "timerDone": "Done!",
   "finish": "I'm done",
@@ -17,6 +18,6 @@
   "leftoverSlot": "Slot",
   "leftoverServings": "Leftover servings",
   "warnings": "Missing from the pantry",
-  "warningLine": "{missing} {unit} of {name} were missing",
+  "warningLine": "{missing} of {name} were missing",
   "slots": { "breakfast": "Breakfast", "lunch": "Lunch", "dinner": "Dinner", "snack": "Snack" }
 }

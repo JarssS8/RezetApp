@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { CookSession } from '@/components/cook/cook-session'
-import type { DetailIngredient } from '@/components/recipes/ingredient-list'
+import { toSerializableRecipe } from '@/components/cook/serialize'
 import { requireHousehold } from '@/lib/auth/guards'
 import { getEntry } from '@/lib/services/plan'
 import { getRecipe } from '@/lib/services/recipes'
@@ -16,8 +16,7 @@ export default async function CookEntryPage({ params }: { params: Promise<{ entr
   if (!entry || !entry.recipeId || entry.leftoverOfEntryId) notFound()
   const detail = await getRecipe(ctx, entry.recipeId)
   if (!detail) notFound()
-  // getRecipe devuelve Date reales que no cruzan la frontera servidor -> cliente.
-  const serializable = JSON.parse(JSON.stringify(detail)) as { ingredients: DetailIngredient[]; steps: { id: string; index: number; text: string; timerSeconds: number | null; imageUrl: string | null }[] }
+  const serializable = toSerializableRecipe(detail)
   return (
     <CookSession
       recipeId={entry.recipeId}

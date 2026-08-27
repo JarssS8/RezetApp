@@ -1,13 +1,12 @@
 import { notFound } from 'next/navigation'
 import { CookSession } from '@/components/cook/cook-session'
-import type { DetailIngredient } from '@/components/recipes/ingredient-list'
+import { toSerializableRecipe } from '@/components/cook/serialize'
 import { requireHousehold } from '@/lib/auth/guards'
 import { slotForHour } from '@/lib/domain'
 import { hourInHouseholdTz } from '@/lib/services/cooking'
 import { getRecipe } from '@/lib/services/recipes'
 import { IdSchema } from '@/lib/validation/common'
 import { RecipeGetQuerySchema } from '@/lib/validation/recipes'
-
 
 // Cocinar sin hueco en el plan: las raciones vienen de ?servings= (enlace del
 // detalle de receta) o, si no, de las raciones por defecto del hogar.
@@ -26,7 +25,7 @@ export default async function CookRecipePage({
   const parsed = RecipeGetQuerySchema.safeParse({ servings: raw })
   const detail = await getRecipe(ctx, id)
   if (!detail) notFound()
-  const serializable = JSON.parse(JSON.stringify(detail)) as { ingredients: DetailIngredient[]; steps: { id: string; index: number; text: string; timerSeconds: number | null; imageUrl: string | null }[] }
+  const serializable = toSerializableRecipe(detail)
   return (
     <CookSession
       recipeId={detail.recipe.id}

@@ -90,7 +90,7 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
   if (steps.length === 0) {
     return (
       <section className="flex min-h-[70dvh] flex-col items-center justify-center gap-2 text-center text-text-2">
-        <p>{t('empty')}</p>
+        <p>{t('noSteps')}</p>
       </section>
     )
   }

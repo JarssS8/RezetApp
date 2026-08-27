@@ -6,6 +6,7 @@
   "ingredients": "Ingredientes de este paso",
   "unassigned": "Sin asignar a un paso",
   "empty": "No hay nada planificado para hoy",
+  "noSteps": "Esta receta no tiene pasos",
   "timerMinutes": "{minutes} min",
   "timerDone": "¡Listo!",
   "finish": "He terminado",
@@ -17,6 +18,6 @@
   "leftoverSlot": "Hueco",
   "leftoverServings": "Raciones de sobra",
   "warnings": "Faltó en la despensa",
-  "warningLine": "Faltaron {missing} {unit} de {name}",
+  "warningLine": "Faltaron {missing} de {name}",
   "slots": { "breakfast": "Desayuno", "lunch": "Comida", "dinner": "Cena", "snack": "Picoteo" }
 }
