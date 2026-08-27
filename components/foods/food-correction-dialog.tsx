@@ -77,10 +77,11 @@ function numberToField(n: number | null): string {
   return n === null ? '' : String(n)
 }
 
-function emptyFormState(): FormState {
+function emptyFormState(initial?: FoodCorrectionDialogInitial): FormState {
+  const name = initial?.name ?? ''
   return {
-    nameEs: '',
-    nameEn: '',
+    nameEs: name,
+    nameEn: name,
     defaultUnit: 'g',
     kcal100g: '',
     protein100g: '',
@@ -95,8 +96,8 @@ function emptyFormState(): FormState {
   }
 }
 
-function toFormState(food: FoodWithNutrition | null): FormState {
-  if (!food) return emptyFormState()
+function toFormState(food: FoodWithNutrition | null, initial?: FoodCorrectionDialogInitial): FormState {
+  if (!food) return emptyFormState(initial)
   return {
     nameEs: food.nameEs,
     nameEn: food.nameEn,
@@ -165,12 +166,21 @@ function buildPatch(original: FoodWithNutrition, current: EditableFields): FoodC
   }
 }
 
+// Prellenado para el modo creación (food = null): el escáner de códigos de
+// barras (Task 16) llega aquí con un código sin resolver y, si lo conoce, el
+// nombre sugerido por el fabricante/Open Food Facts.
+export interface FoodCorrectionDialogInitial {
+  barcode?: string
+  name?: string
+}
+
 export interface FoodCorrectionDialogProps {
   food: FoodWithNutrition | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onSaved: (food: FoodWithNutrition) => void
   locale?: Locale
+  initial?: FoodCorrectionDialogInitial
   // Inyectables para tests; por defecto las server actions reales.
   correct?: (foodId: string, patch: FoodCorrection) => Promise<ActionResult<FoodWithNutrition>>
   create?: (input: FoodInput) => Promise<ActionResult<FoodWithNutrition>>
@@ -178,13 +188,13 @@ export interface FoodCorrectionDialogProps {
 
 // Diálogo de creación (food = null) y corrección manual (§9.4) de un alimento.
 // Reutilizado por recetas, despensa y el escáner (decisión 12 del plan).
-export function FoodCorrectionDialog({ food, open, onOpenChange, onSaved, locale, correct = correctFoodAction, create = createFoodAction }: FoodCorrectionDialogProps) {
+export function FoodCorrectionDialog({ food, open, onOpenChange, onSaved, locale, initial, correct = correctFoodAction, create = createFoodAction }: FoodCorrectionDialogProps) {
   const t = useTranslations('recipes')
   const tc = useTranslations('common')
   const fallbackLocale = useLocale()
   const activeLocale = locale ?? fallbackLocale
   const uid = useId()
-  const [form, setForm] = useState<FormState>(() => toFormState(food))
+  const [form, setForm] = useState<FormState>(() => toFormState(food, initial))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   // Ajuste de estado durante el renderizado (patrón recomendado por React en
@@ -195,7 +205,7 @@ export function FoodCorrectionDialog({ food, open, onOpenChange, onSaved, locale
   if (nextOpenKey !== openKey) {
     setOpenKey(nextOpenKey)
     if (open) {
-      setForm(toFormState(food))
+      setForm(toFormState(food, initial))
       setError(null)
     }
   }
@@ -230,7 +240,7 @@ export function FoodCorrectionDialog({ food, open, onOpenChange, onSaved, locale
         onSaved(result.data)
         onOpenChange(false)
       } else {
-        const parsed = FoodInputSchema.safeParse(current)
+        const parsed = FoodInputSchema.safeParse({ ...current, ...(initial?.barcode ? { barcode: initial.barcode } : {}) })
         if (!parsed.success) {
           setError(t('food.correction.error'))
           return

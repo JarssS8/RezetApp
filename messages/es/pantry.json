@@ -1,1 +1,35 @@
-{ "title": "Despensa" }
+{
+  "title": "Despensa",
+  "locations": { "fridge": "Nevera", "freezer": "Congelador", "pantry": "Armario" },
+  "add": "Añadir",
+  "scan": {
+    "title": "Escanear código",
+    "hint": "Apunta al código de barras",
+    "manual": "Introducir a mano",
+    "lookup": "Buscar",
+    "notFound": "No conocemos este producto. Puedes crearlo.",
+    "noCamera": "No hay cámara disponible o no se dio permiso.",
+    "found": "Encontrado: {name}"
+  },
+  "search": "Buscar en la despensa…",
+  "empty": "La despensa está vacía. Añade lo que tengas en casa.",
+  "expiresIn": "Caduca en {days} días",
+  "expiresToday": "Caduca hoy",
+  "expired": "Caducado",
+  "noExpiry": "Sin fecha",
+  "remove": "Quitar",
+  "decrease": "Menos",
+  "increase": "Más",
+  "whatToCook": "¿Qué cocino con lo que caduca?",
+  "expiringTitle": "Caduca pronto",
+  "form": {
+    "food": "Alimento",
+    "quantity": "Cantidad",
+    "unit": "Unidad",
+    "location": "Ubicación",
+    "expiresAt": "Caducidad",
+    "save": "Guardar",
+    "createFood": "Crear alimento nuevo",
+    "pickFood": "Elige un alimento para poder guardar"
+  }
+}

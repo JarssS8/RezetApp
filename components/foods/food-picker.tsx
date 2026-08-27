@@ -23,18 +23,21 @@ export interface FoodPickerProps {
   onCreateNew?: (q: string) => void
   allowBarcode?: boolean
   className?: string
+  // Texto inicial del combobox cuando no hay `value` (p. ej. el escáner de
+  // códigos de barras, Task 16, llega con un nombre sugerido sin alimento resuelto).
+  initialQuery?: string
 }
 
 // Combobox accesible (role=combobox + listbox) reutilizado por las pistas (a)
 // y (d). Llama directamente a searchFoodsAction/lookupBarcodeAction (los tests
 // sustituyen '@/lib/actions/foods' por un mock del módulo). Debounce 250 ms,
 // mínimo 2 caracteres.
-export function FoodPicker({ value, onChange, locale, onCreateNew, allowBarcode, className }: FoodPickerProps) {
+export function FoodPicker({ value, onChange, locale, onCreateNew, allowBarcode, className, initialQuery }: FoodPickerProps) {
   const t = useTranslations('recipes')
   const tc = useTranslations('common')
   const uid = useId()
   const listboxId = `${uid}-listbox`
-  const [q, setQ] = useState(value ? displayName(value, locale) : '')
+  const [q, setQ] = useState(value ? displayName(value, locale) : (initialQuery ?? ''))
   const [items, setItems] = useState<FoodSummary[]>([])
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
