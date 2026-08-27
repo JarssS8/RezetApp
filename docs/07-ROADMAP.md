@@ -57,9 +57,10 @@ Va pronto **a propósito**: es la parte con más riesgo de decepcionar. Cuanto a
 sepas si el flujo te convence, mejor. Conéctalo a un cliente MCP de escritorio y úsalo una
 semana entera antes de seguir.
 
-**Mínimo hecho en W2**: `/mcp` con `get_household_context`, `search_recipes` y
-`get_recipe`, tokens con alcance y perfil, conexión documentada. Las doce
-herramientas, los prompts y OpenAPI llegan en W3.
+**Hecha en W3**: las doce herramientas del perfil básico y las del completo
+(salvo `merge_foods`, W4), los cuatro prompts, el recurso `household://context`,
+tokens con alcance y perfil, `openapi.json` y Swagger autoalojado en
+`/api/docs`, conexión documentada en `docs/05-MCP.md`.
 
 ## Fase 3 · Plan
 
@@ -87,8 +88,8 @@ verdad.
 El bucle se cierra aquí. Es cuando el agente pasa de sugerir en abstracto a
 sugerir con conocimiento de causa.
 
-**Hecha en W2** salvo el descuento automático al marcar cocinado (`log_cooked`,
-W3) y la siembra de USDA (solo Open Food Facts por ahora).
+**Hecha en W2**; el descuento automático al marcar cocinado (`log_cooked`, modo
+cocina y Hoy) llegó en W3. Queda la siembra de USDA (solo Open Food Facts).
 
 ## Fase 5 · Lo que la hace tuya
 
