@@ -76,4 +76,30 @@ describe('eslint.config.mjs: boundaries', () => {
     )
     expect(result.messages.filter((m) => m.ruleId?.startsWith('boundaries/'))).toHaveLength(0)
   })
+
+  it('app/api/v1/_lib no puede importar @/db (ApiScope se deriva de lib/validation, no de db/schema)', async () => {
+    const result = await lint('app/api/v1/_lib/probe.ts', "import { db } from '@/db'\nexport const y = db\n")
+    expect(result.messages.some((m) => m.ruleId?.startsWith('boundaries/'))).toBe(true)
+  })
+
+  it('una ruta cualquiera de app/api/v1 no puede importar @/db', async () => {
+    const result = await lint('app/api/v1/probe/route.ts', "import { db } from '@/db'\nexport const y = db\n")
+    expect(result.messages.some((m) => m.ruleId?.startsWith('boundaries/'))).toBe(true)
+  })
+
+  it('lib/services/api-*.test.ts sí puede importar una ruta de app/api/v1 (patrón de la Tarea 13)', async () => {
+    const result = await lint(
+      'lib/services/api-probe.test.ts',
+      "import { GET } from '@/app/api/v1/household/route'\nexport const y = GET\n",
+    )
+    expect(result.messages.filter((m) => m.ruleId?.startsWith('boundaries/'))).toHaveLength(0)
+  })
+
+  it('un test cualquiera de lib/services no puede importar app/**', async () => {
+    const result = await lint(
+      'lib/services/probe.test.ts',
+      "import { GET } from '@/app/api/v1/household/route'\nexport const y = GET\n",
+    )
+    expect(result.messages.some((m) => m.ruleId?.startsWith('boundaries/'))).toBe(true)
+  })
 })

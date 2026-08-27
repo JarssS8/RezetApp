@@ -147,15 +147,16 @@ const config = [
               },
             },
             {
-              // Igual que 'app' pero además de 'db': respond.ts necesita el
-              // tipo ApiScope de db/schema (Tarea 13, W3) — única excepción
-              // documentada a "app nunca ve db directamente".
+              // Igual que 'app': app/api/v1/_lib vive dentro de app porque
+              // necesita 'services' (Tarea 13, W3). ApiScope se deriva del
+              // duplicado de lib/validation/tokens.ts, no de db/schema, así
+              // que este elemento no necesita 'db' (ronda de revisión W3-R3).
               from: { element: { type: 'api-lib' } },
               allow: {
                 to: {
                   element: {
                     types: {
-                      anyOf: ['api-lib', 'app', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads', 'ai', 'mcp', 'db'],
+                      anyOf: ['api-lib', 'app', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads', 'ai', 'mcp'],
                     },
                   },
                 },

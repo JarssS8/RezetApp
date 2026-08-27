@@ -8,14 +8,18 @@ import { GET as getHousehold } from '@/app/api/v1/household/route'
 // propósito (marca de RSC, no comprobación real): sin esto, cualquier test que
 // importe una ruta -que arrastra lib/auth/guards.ts- rompería en el import.
 vi.mock('server-only', () => ({}))
-// La ruta usa el singleton @/db (no ctx.db de getTestDb()): sin cabecera
-// authorization apunta ahí, así que aquí también debe mirar a la BD de tests.
-process.env.DATABASE_URL = process.env.DATABASE_URL_TEST
 // cookies() de Next exige un contexto de petición real (AsyncLocalStorage) que
 // no existe al llamar a la ruta directamente en un test: sin él lanza en vez
 // de devolver una jarra vacía. Se sustituye por una sin cookies, que es
 // justo lo que produciría una petición real sin cabecera Cookie.
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }), headers: async () => new Headers() }))
+
+// La ruta usa el singleton @/db (no ctx.db de getTestDb()) para lo que no pasa
+// por cabecera authorization: fijamos DATABASE_URL antes del primer acceso,
+// igual que en db/index.test.ts y lib/mcp/server.db.test.ts.
+beforeAll(() => {
+  if (process.env.DATABASE_URL_TEST) process.env.DATABASE_URL ??= process.env.DATABASE_URL_TEST
+})
 
 let db: TestDb, householdId: string, token: string
 
