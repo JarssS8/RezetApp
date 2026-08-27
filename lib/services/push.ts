@@ -137,24 +137,28 @@ export async function buildExpiringNotifications(db: Db, now: Date = new Date())
 
   const out: ExpiringNotification[] = []
   for (const sub of subs) {
+    // Se calcula una vez por suscripción: es el mismo valor para todos los
+    // hogares de esta persona, no hace falta recalcularlo en cada vuelta.
+    const locale = sub.locale === 'en' ? 'en' : 'es'
     const memberships = await db
       .select({ householdId: schema.householdMembers.householdId, expiryAlertDays: schema.households.expiryAlertDays })
       .from(schema.householdMembers)
       .innerJoin(schema.households, eq(schema.households.id, schema.householdMembers.householdId))
       .where(eq(schema.householdMembers.userId, sub.userId))
 
-    const names: string[] = []
+    // Set en vez de array: el mismo alimento puede caducar en dos hogares del
+    // usuario ("cebolla" en casa A y en casa B) y no hace falta nombrarlo dos veces.
+    const names = new Set<string>()
     for (const membership of memberships) {
-      const locale = sub.locale === 'en' ? 'en' : 'es'
       const ctx: Ctx = { db, householdId: membership.householdId, userId: sub.userId, apiTokenId: null, role: null, locale, scopes: [] }
       const expiring = await expiringPantry(ctx, membership.expiryAlertDays, now)
-      for (const item of expiring) names.push(item.name)
+      for (const item of expiring) names.add(item.name)
     }
-    if (names.length === 0) continue
+    if (names.size === 0) continue
 
-    const locale = sub.locale === 'en' ? 'en' : 'es'
-    const head = names.slice(0, NAMES_IN_BODY).join(', ')
-    const rest = names.length - Math.min(NAMES_IN_BODY, names.length)
+    const nameList = [...names]
+    const head = nameList.slice(0, NAMES_IN_BODY).join(', ')
+    const rest = nameList.length - Math.min(NAMES_IN_BODY, nameList.length)
     // Los textos de una notificación no pasan por next-intl (no hay petición ni
     // contexto de React aquí): se escriben en los dos idiomas a mano, que son
     // dos frases.
@@ -190,7 +194,13 @@ export async function notifyExpiring(
     const row = byEndpoint.get(notification.endpoint)
     if (!row) continue
     const keys = PushSubscriptionSchema.shape.keys.safeParse(row.keys)
-    if (!keys.success) continue
+    if (!keys.success) {
+      // No se cuenta como envío ni como baja: el tipo de retorno de esta
+      // función está congelado (§5), así que el aviso queda en el registro del
+      // proceso en vez de en un tercer contador.
+      console.warn(`push: claves inválidas para el endpoint ${row.endpoint}, se omite`)
+      continue
+    }
     const result = await send(
       { endpoint: row.endpoint, keys: keys.data },
       JSON.stringify({ title: notification.title, body: notification.body, url: notification.url }),

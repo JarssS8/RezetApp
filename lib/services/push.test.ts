@@ -141,6 +141,21 @@ describe('avisos de caducidad', () => {
     expect(notifications[0]?.body).toContain('cebolla')
   })
 
+  it('no repite el mismo alimento si caduca en dos hogares del usuario', async () => {
+    const [household2] = await db.insert(schema.households).values({ name: 'Casa de Ana (compartida)' }).returning()
+    if (!household2) throw new Error('setup')
+    await db.insert(schema.householdMembers).values({ householdId: household2.id, userId: anaId, role: 'member' })
+
+    await subscribePush(db, anaId, sub)
+    await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-08-28' })
+    await db.insert(schema.pantryItems).values({ householdId: household2.id, foodId: cebollaId, quantity: 200, unit: 'g', expiresAt: '2026-08-28' })
+
+    const notifications = await buildExpiringNotifications(db, new Date('2026-08-27T09:00:00Z'))
+    expect(notifications).toHaveLength(1)
+    // "cebolla" caduca en los dos hogares de Ana: el aviso la nombra una sola vez.
+    expect(notifications[0]?.body.match(/cebolla/g)).toHaveLength(1)
+  })
+
   it('no avisa si no caduca nada dentro de expiry_alert_days', async () => {
     await subscribePush(db, anaId, sub)
     await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-12-31' })
