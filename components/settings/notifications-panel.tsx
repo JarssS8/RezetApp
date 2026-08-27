@@ -112,13 +112,17 @@ export function NotificationsPanel({ subscribedEndpoints }: NotificationsPanelPr
       if (subscription) {
         const endpoint = subscription.endpoint
         await subscription.unsubscribe()
+        // El navegador ya está de baja: el estado local refleja eso aunque el
+        // aviso al servidor falle (su fila huérfana se poda con el 410 del cron).
+        setSubscribed(false)
         await fetch('/api/push/unsubscribe', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ endpoint }),
         })
+      } else {
+        setSubscribed(false)
       }
-      setSubscribed(false)
     } catch {
       setError(true)
     } finally {
