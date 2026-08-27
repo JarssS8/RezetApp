@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { FileIcon } from '@/components/icons'
 import { importRecipeAction, uploadImageAction, uploadPdfAction } from '@/lib/actions/recipes'
 import { actionErrorKey } from '@/lib/actions/result'
 
@@ -110,7 +111,19 @@ export function ImportForm() {
     <form onSubmit={(e) => void handleSubmit(e)} aria-busy={submitting} className="flex flex-col gap-4">
       <div role="group" aria-label={t('import.title')} className="flex flex-wrap gap-1">
         {KIND_ORDER.map((k) => (
-          <Button key={k} type="button" size="sm" variant={kind === k ? 'secondary' : 'outline'} aria-pressed={kind === k} onClick={() => setKind(k)}>
+          <Button
+            key={k}
+            type="button"
+            size="sm"
+            variant={kind === k ? 'secondary' : 'outline'}
+            aria-pressed={kind === k}
+            onClick={() => {
+              setKind(k)
+              // Sin esto, un fichero elegido en "foto" quedaría en el estado
+              // y se enviaría por error bajo la pestaña "PDF" (o viceversa).
+              setFile(null)
+            }}
+          >
             {t(`import.${KIND_LABEL[k]}`)}
           </Button>
         ))}
@@ -128,7 +141,10 @@ export function ImportForm() {
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <Label htmlFor="import-file">{t('import.file')}</Label>
+          <Label htmlFor="import-file" className="flex items-center gap-1.5">
+            {kind === 'pdf' ? <FileIcon size={18} /> : null}
+            {t('import.file')}
+          </Label>
           {/* Sin `required` nativo: la comprobación vive en handleSubmit
               (`if (!file) return`) porque jsdom no calcula bien la validez de
               un input[type=file] con ficheros asignados por script (siempre

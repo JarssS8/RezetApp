@@ -127,6 +127,18 @@ describe('ImportForm', () => {
     expect(RecipeImportSchema.safeParse(vi.mocked(importRecipe).mock.calls[0]?.[0]).success).toBe(true)
   })
 
+  it('en la pestaña de foto, enviar sin fichero no llama a ninguna acción y no deja el formulario colgado', async () => {
+    const user = userEvent.setup()
+    renderForm()
+    await user.click(screen.getByRole('button', { name: recipes.import.fromPhoto }))
+    const submitButton = screen.getByRole('button', { name: recipes.import.submit })
+    await user.click(submitButton)
+    expect(uploadImage).not.toHaveBeenCalled()
+    expect(importRecipe).not.toHaveBeenCalled()
+    expect(submitButton).toHaveAttribute('aria-busy', 'false')
+    expect(submitButton).not.toBeDisabled()
+  })
+
   it('un aviso de IA se enseña traducido en vez de dejar la pantalla en blanco', async () => {
     const user = userEvent.setup()
     vi.mocked(uploadPdf).mockResolvedValue({ ok: true, data: { url: '/api/uploads/h/abc.pdf', uploadId: 'abc.pdf' } })
