@@ -54,6 +54,30 @@ describe('useTimers', () => {
     expect(result.current.timers).toEqual([])
   })
 
+  // Fix 5 de la revisión final: el temporizador ancla su fin en reloj de
+  // pared, no en ticks contados. Un salto de reloj sin ticks intermedios
+  // (dispositivo suspendido, pantalla bloqueada) simula eso: `vi.setSystemTime`
+  // mueve el reloj sin disparar ningún `setInterval`, y solo al llegar el
+  // siguiente tick real se recalcula `remaining` desde el reloj ya saltado.
+  it('un salto de reloj de 5 minutos colapsa el remaining al valor real y avisa una sola vez', async () => {
+    const onFinish = vi.fn()
+    const { result } = renderHook(() => useTimers(onFinish))
+    act(() => result.current.start('a', 120, 'Arroz')) // 2 minutos
+    act(() => {
+      vi.setSystemTime(Date.now() + 5 * 60 * 1000) // el dispositivo se suspende 5 minutos
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(1000) // el primer tick tras despertar
+    })
+    expect(result.current.timers[0]).toMatchObject({ remaining: 0, running: false })
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    // Ticks posteriores no vuelven a avisar: ya está parado.
+    await act(async () => {
+      vi.advanceTimersByTime(3000)
+    })
+    expect(onFinish).toHaveBeenCalledTimes(1)
+  })
+
   it('sin ninguno corriendo no deja un intervalo vivo', () => {
     const { result, unmount } = renderHook(() => useTimers())
     act(() => result.current.start('a', 1, 'Arroz'))
