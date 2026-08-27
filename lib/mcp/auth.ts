@@ -4,7 +4,7 @@ import type { Ctx } from '@/lib/auth/ctx'
 
 // Contexto de una petición MCP autenticada: un token de API con perfil
 // (básico/completo) además de los campos habituales de Ctx.
-export type McpCtx = Ctx & { mcpProfile: 'basic' | 'full'; scopes: string[] }
+export type McpCtx = Ctx & { mcpProfile: 'basic' | 'full' }
 
 // El MCP solo acepta Bearer rz_…, nunca la cookie de sesión (a diferencia de
 // REST vía lib/auth/guards.ts::requireApiToken): un cliente MCP siempre trae

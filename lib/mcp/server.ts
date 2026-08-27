@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
+import { APP_NAME, APP_VERSION } from '@/lib/app-version'
 import { ApiAuthError } from '@/lib/auth/api-tokens'
 import { authenticateMcp, type McpCtx } from './auth'
 
@@ -18,7 +19,7 @@ const INSTRUCTIONS =
 // (perfiles "basic"/"full" de docs/05-MCP.md); de momento el servidor no expone
 // ninguna.
 export function buildMcpServer(ctx: McpCtx): McpServer {
-  const server = new McpServer({ name: 'rezetapp', version: '0.1.0' }, { instructions: INSTRUCTIONS })
+  const server = new McpServer({ name: APP_NAME, version: APP_VERSION }, { instructions: INSTRUCTIONS })
   void ctx
   // McpServer solo declara la capacidad "tools" (y por tanto responde a
   // tools/list) en cuanto se registra alguna herramienta con .tool()/
@@ -31,13 +32,29 @@ export function buildMcpServer(ctx: McpCtx): McpServer {
   return server
 }
 
+function methodNotAllowed(): Response {
+  return Response.json(
+    { jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed.' }, id: null },
+    { status: 405, headers: { Allow: 'POST' } },
+  )
+}
+
 // Handler HTTP del endpoint MCP: autentica por Bearer, construye un servidor y
 // un transporte nuevos para esta única petición (stateless: sessionIdGenerator
 // undefined) y delega en el SDK. enableJsonResponse evita el modo SSE por
 // defecto del transporte: con un servidor nuevo por petición no hay conexión
 // que mantener viva para empujar mensajes adicionales, así que la respuesta es
 // JSON puro y el transporte puede cerrarse en cuanto se resuelve.
+//
+// GET (stream SSE independiente) y DELETE (cierre de sesión) solo tienen
+// sentido con un transporte con estado que sobrevive entre peticiones; aquí
+// cada petición crea y cierra el suyo, así que no hay nada que un GET pudiera
+// empujar ni ninguna sesión que un DELETE pudiera cerrar. Se rechazan con 405
+// antes de autenticar y sin llegar a construir servidor ni transporte.
 export async function handleMcpRequest(request: Request): Promise<Response> {
+  if (request.method === 'GET' || request.method === 'DELETE') {
+    return methodNotAllowed()
+  }
   let ctx: McpCtx
   try {
     ctx = await authenticateMcp(request)

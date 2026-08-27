@@ -87,4 +87,16 @@ describe('handleMcpRequest (POST /mcp)', () => {
     const json = (await res.json()) as { result: { tools: unknown[] } }
     expect(json.result.tools).toEqual([])
   })
+
+  it('GET responde 405 con Allow: POST, sin autenticar (sin token ni servidor)', async () => {
+    const res = await handleMcpRequest(new Request('http://localhost/mcp', { method: 'GET' }))
+    expect(res.status).toBe(405)
+    expect(res.headers.get('allow')).toBe('POST')
+  })
+
+  it('DELETE responde 405, sin autenticar (sin token ni servidor)', async () => {
+    const res = await handleMcpRequest(new Request('http://localhost/mcp', { method: 'DELETE' }))
+    expect(res.status).toBe(405)
+    expect(res.headers.get('allow')).toBe('POST')
+  })
 })
