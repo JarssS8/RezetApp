@@ -13,6 +13,10 @@ describe('/api/docs', () => {
     // Nada de CDN: todo sale del propio servidor
     expect(html).not.toContain('//unpkg.com')
     expect(html).not.toContain('//cdn.')
+    // Sin el validador externo de Swagger UI, que filtraría el hostname
+    expect(html).toContain('validatorUrl: null')
+    // Ninguna URL absoluta a un host que no sea el propio
+    expect(html).not.toMatch(/https?:\/\/(?!localhost|127\.0\.0\.1)/)
   })
 
   it('sirve los tres ficheros de la lista blanca con su tipo', async () => {
