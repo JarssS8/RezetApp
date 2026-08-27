@@ -31,5 +31,15 @@
     "save": "Guardar",
     "createFood": "Crear alimento nuevo",
     "pickFood": "Elige un alimento para poder guardar"
+  },
+  "merge": {
+    "title": "Fusionar alimentos duplicados",
+    "hint": "El primero desaparece del catálogo y todo lo que lo usaba pasa al segundo. Nada se borra: la fusión se puede deshacer desde la base de datos.",
+    "from": "Alimento duplicado",
+    "into": "Alimento que se queda",
+    "search": "Buscar alimento",
+    "submit": "Fusionar",
+    "done": "{ingredients} ingredientes y {items} artículos actualizados",
+    "error": "No se pudo fusionar"
   }
 }
