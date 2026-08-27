@@ -8,6 +8,7 @@ import {
   applyBatch,
   createLeftover,
   createProposal,
+  dayProgress,
   decideProposal,
   listEntries,
   listProposals,
@@ -57,7 +58,7 @@ async function makeApiToken(householdId: string, userId: string): Promise<string
   return t.id
 }
 
-async function makeRecipe(householdId: string, title: string): Promise<string> {
+async function makeRecipe(householdId: string, title: string, overrides: Partial<typeof schema.recipes.$inferInsert> = {}): Promise<string> {
   const [r] = await db
     .insert(schema.recipes)
     .values({
@@ -71,6 +72,7 @@ async function makeRecipe(householdId: string, title: string): Promise<string> {
       servingsBase: 2,
       prepMinutes: 10,
       cookMinutes: 20,
+      ...overrides,
     })
     .returning()
   if (!r) throw new Error('seed')
@@ -220,6 +222,45 @@ describe('rangeNutrition', () => {
     const { byDate, total } = await rangeNutrition(ctxOf(a), { from: '2026-09-01', to: '2026-09-01' })
     expect(byDate['2026-09-01']?.total.kcal).toBe(800)
     expect(total.total.kcal).toBe(800)
+  })
+})
+
+describe('dayProgress', () => {
+  it('separa lo cocinado de lo planificado y excluye sobras y saltadas', async () => {
+    const a = await makeHousehold('Casa A')
+    const b = await makeHousehold('Casa B')
+    const recipeA = await makeRecipe(a, 'Sopa', { kcalPerServing: 300, servingsBase: 2 })
+    const [cooked] = await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-08-27', slot: 'lunch', recipeId: recipeA, servings: 2 }).returning()
+    if (!cooked) throw new Error('seed')
+    await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-08-27', slot: 'dinner', recipeId: recipeA, servings: 3 })
+    const [skipped] = await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-08-27', slot: 'snack', recipeId: recipeA, servings: 1 }).returning()
+    if (!skipped) throw new Error('seed')
+    await db.update(schema.mealPlanEntries).set({ cookedAt: new Date() }).where(eq(schema.mealPlanEntries.id, cooked.id))
+    await db.update(schema.mealPlanEntries).set({ skippedAt: new Date() }).where(eq(schema.mealPlanEntries.id, skipped.id))
+    await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-08-27', slot: 'dinner', recipeId: recipeA, servings: 2, leftoverOfEntryId: cooked.id })
+
+    const progress = await dayProgress(ctxOf(a), '2026-08-27')
+    expect(progress).toMatchObject({ date: '2026-08-27', plannedKcal: 1500, cookedKcal: 600 })
+
+    // Aislamiento entre hogares
+    expect(await dayProgress(ctxOf(b), '2026-08-27')).toMatchObject({ plannedKcal: 0, cookedKcal: 0 })
+  })
+
+  // Debt de la revisión de la Tarea 9: el innerJoin con recipes ya filtra por
+  // isNull(deletedAt), así que las entradas de una receta borrada dejan de
+  // contar en el anillo de Hoy (mismo criterio que lookupRecipeTitles).
+  it('una receta borrada deja de contar en el anillo del día', async () => {
+    const a = await makeHousehold('Casa A')
+    const recipeA = await makeRecipe(a, 'Sopa', { kcalPerServing: 300, servingsBase: 2 })
+    const [cooked] = await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-08-27', slot: 'lunch', recipeId: recipeA, servings: 2 }).returning()
+    if (!cooked) throw new Error('seed')
+    await db.update(schema.mealPlanEntries).set({ cookedAt: new Date() }).where(eq(schema.mealPlanEntries.id, cooked.id))
+
+    expect(await dayProgress(ctxOf(a), '2026-08-27')).toMatchObject({ plannedKcal: 600, cookedKcal: 600 })
+
+    await db.update(schema.recipes).set({ deletedAt: new Date() }).where(eq(schema.recipes.id, recipeA))
+
+    expect(await dayProgress(ctxOf(a), '2026-08-27')).toMatchObject({ plannedKcal: 0, cookedKcal: 0 })
   })
 })
 

@@ -1,1 +1,11 @@
-{ "title": "Hoy" }
+{
+  "title": "Hoy",
+  "ringLabel": "{cooked} de {planned} kcal cocinadas",
+  "ofPlanned": "de {planned} kcal",
+  "estimated": "estimado",
+  "emptyPlanLink": "No hay nada planificado. Ve al plan",
+  "expiring": "Caduca pronto",
+  "expiringLine": "{name} · en {days} días",
+  "addToPantry": "Añadir a despensa",
+  "proposeWeek": "Proponer semana"
+}

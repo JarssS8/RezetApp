@@ -89,4 +89,11 @@ describe('todayIso', () => {
   it('acepta una zona horaria distinta', () => {
     expect(todayIso('UTC')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
+
+  it('acepta un reloj inyectado: cerca de medianoche en Madrid ya es el día siguiente aunque en UTC no', () => {
+    // 23:30 UTC del 27 son las 01:30 CEST del 28: en Europe/Madrid ya es otro día.
+    const now = new Date('2026-08-27T23:30:00Z')
+    expect(todayIso('Europe/Madrid', now)).toBe('2026-08-28')
+    expect(todayIso('UTC', now)).toBe('2026-08-27')
+  })
 })

@@ -3,6 +3,7 @@ import * as pg from '@/db/schema/_types'
 import { API_SCOPES as dbScopes } from '@/db/schema/tokens'
 import { LOCALES as authLocales } from '@/lib/auth/ctx'
 import { LOCALES as domainLocales } from '@/lib/domain/types'
+import { MEAL_SLOTS as domainMealSlots } from '@/lib/domain/slots'
 import { ACCENTS, LOCALES as prefsLocales, THEMES } from '@/lib/prefs'
 import {
   AiProviderSchema, BaseUnitSchema, DifficultySchema, FoodSourceSchema, LocaleSchema, McpProfileSchema, MealSlotSchema,
@@ -50,5 +51,9 @@ describe('contrato de enums', () => {
   })
   it('ACCENTS de lib/prefs coincide con UserPrefsSchema.accent', () => {
     expect([...UserPrefsSchema.shape.accent.unwrap().options]).toEqual([...ACCENTS])
+  })
+  it('MEAL_SLOTS de dominio coincide con el enum meal_slot y con MealSlotSchema', () => {
+    expect([...domainMealSlots]).toEqual([...pg.mealSlotEnum.enumValues])
+    expect([...domainMealSlots]).toEqual([...MealSlotSchema.options])
   })
 })

@@ -25,6 +25,7 @@
   "unskip": "Unskip",
   "skipped": "Skipped",
   "cooked": "Cooked",
+  "cook": "Cook",
   "timeBudget": "Time available (min)",
   "kcalDay": "{kcal} kcal",
   "remove": "Remove from plan",

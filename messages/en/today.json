@@ -1,1 +1,11 @@
-{ "title": "Today" }
+{
+  "title": "Today",
+  "ringLabel": "{cooked} of {planned} kcal cooked",
+  "ofPlanned": "of {planned} kcal",
+  "estimated": "estimated",
+  "emptyPlanLink": "Nothing planned. Go to the plan",
+  "expiring": "Expiring soon",
+  "expiringLine": "{name} · in {days} days",
+  "addToPantry": "Add to pantry",
+  "proposeWeek": "Propose a week"
+}
