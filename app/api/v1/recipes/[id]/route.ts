@@ -1,16 +1,13 @@
 import { requireApiToken } from '@/lib/auth/guards'
-import { ServiceError } from '@/lib/services/ctx'
 import { getRecipe, softDeleteRecipe, updateRecipe } from '@/lib/services/recipes'
-import { IdSchema } from '@/lib/validation/common'
 import { RecipeGetQuerySchema, RecipeInputSchema } from '@/lib/validation/recipes'
-import { apiError, apiFailure, parseBody } from '../../_lib/respond'
+import { apiError, apiFailure, parseBody, requireId } from '../../_lib/respond'
 
 type RouteCtx = { params: Promise<{ id: string }> }
 
 async function idOf(routeCtx: RouteCtx): Promise<string> {
   const { id } = await routeCtx.params
-  if (!IdSchema.safeParse(id).success) throw new ServiceError('not_found', 'Receta no encontrada')
-  return id
+  return requireId(id, 'Receta no encontrada')
 }
 
 export async function GET(request: Request, routeCtx: RouteCtx): Promise<Response> {

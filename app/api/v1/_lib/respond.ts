@@ -3,6 +3,7 @@ import { ApiAuthError } from '@/lib/auth/api-tokens'
 import type { Ctx } from '@/lib/auth/ctx'
 import { readJson } from '@/lib/auth/http'
 import { ServiceError } from '@/lib/services/ctx'
+import { IdSchema } from '@/lib/validation/common'
 import { API_SCOPES } from '@/lib/validation/tokens'
 
 // Duplicado deliberado del tipo de db/schema/tokens.ts::ApiScope: las
@@ -43,6 +44,17 @@ export function requireAnyScope(ctx: Ctx, scopes: ApiScope[]): void {
 // Cuerpo JSON validado con un esquema zod. readJson ya devuelve null ante un
 // body no-JSON o vacío en lugar de dejar que request.json() lance: aquí solo
 // queda validar contra el esquema.
+// Valida un id de ruta ([id]/[itemId]/...) como UUID antes de tocar el
+// servicio: un id con forma inválida debe dar 404 igual que uno bien formado
+// pero inexistente, sin que el llamador tenga que distinguir los dos casos ni
+// filtrar por consulta si "existe pero no es tuyo" (una fuga de información).
+// Lanza (no devuelve Response) para que el try/catch de cada ruta lo traduzca
+// con apiFailure, igual que cualquier otro ServiceError de servicio.
+export function requireId(id: string, message: string): string {
+  if (!IdSchema.safeParse(id).success) throw new ServiceError('not_found', message)
+  return id
+}
+
 export async function parseBody<T>(
   request: Request,
   schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: { issues: { message: string }[] } } },
