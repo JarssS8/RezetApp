@@ -1,11 +1,12 @@
 // El bucle de docs/01-PRODUCTO.md: cocinar descuenta de la despensa. Todo pasa
 // en UNA transacción (spec §9.5) porque un descuento a medias deja la despensa
 // mintiendo, y de ahí abajo miente el sistema entero.
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import * as schema from '@/db/schema'
-import { aggregateNeeds, allocateDeductions, convertBase, scaleRecipe } from '@/lib/domain'
+import { aggregateNeeds, allocateDeductions, convertBase, scaleRecipe, slotForHour } from '@/lib/domain'
 import type { Allocation, BaseUnit, FoodConversion, MealSlot, Need, NeedInput, PantryItem as DomainPantryItem } from '@/lib/domain'
 import { emitHouseholdEvent } from '@/lib/events/bus'
+import { todayIso } from '@/lib/plan-dates'
 import type { LogCookedInput } from '@/lib/validation/cooking'
 import { type Ctx, type Db, ServiceError } from './ctx'
 import { toIngredient } from './recipe-mapper'
@@ -67,6 +68,35 @@ async function lockEntry(tx: Db, householdId: string, entryId: string): Promise<
   // tiene ingredientes que descontar ni nutrición que registrar.
   if (row.recipeId === null) throw new ServiceError('validation', 'Esa comida no tiene receta: no hay nada que descontar')
   return { id: row.id, date: row.date, slot: row.slot, recipeId: row.recipeId }
+}
+
+// Hora local del hogar para deducir el hueco (§9.5 paso 1). Los hogares aún no
+// tienen zona horaria propia (ver comentario en lib/plan-dates.ts::todayIso):
+// se usa la misma Europe/Madrid por defecto que ya usa todayIso(), para que
+// "hoy" y "el hueco de ahora" caigan en el mismo día pase lo que pase con el
+// huso horario del proceso del servidor (Date#getHours no es determinista).
+function hourInHouseholdTz(now: Date, tz = 'Europe/Madrid'): number {
+  return Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(now))
+}
+
+// Paso 1 de §9.5: cocinar desde una receta sin hueco en el plan crea la entrada
+// de hoy. El hueco lo elige el usuario si viene en `slot`; si no, se deduce de
+// la hora (lib/domain/slots.ts). A partir de aquí siempre hay entrada, así que
+// el resto del flujo (bloqueo, descuento, registro) es exactamente el mismo.
+async function createEntryForRecipe(tx: Db, ctx: Ctx, recipeId: string, servings: number, slot: LockedEntry['slot'] | undefined, now: Date): Promise<LockedEntry> {
+  const [recipe] = await tx
+    .select({ id: schema.recipes.id })
+    .from(schema.recipes)
+    .where(and(eq(schema.recipes.id, recipeId), eq(schema.recipes.householdId, ctx.householdId), isNull(schema.recipes.deletedAt)))
+    .limit(1)
+  if (!recipe) throw new ServiceError('not_found', 'Receta no encontrada')
+  const date = todayIso()
+  const [row] = await tx
+    .insert(schema.mealPlanEntries)
+    .values({ householdId: ctx.householdId, date, slot: slot ?? slotForHour(hourInHouseholdTz(now)), recipeId, servings })
+    .returning({ id: schema.mealPlanEntries.id, date: schema.mealPlanEntries.date, slot: schema.mealPlanEntries.slot })
+  if (!row) throw new ServiceError('conflict', 'No se pudo crear la entrada del plan')
+  return { id: row.id, date: row.date, slot: row.slot, recipeId }
 }
 
 interface RecipeForCooking {
@@ -236,11 +266,19 @@ function buildWarnings(needs: Need[], unmatched: Need[], outcomes: DeductionOutc
 }
 
 export async function logCooked(ctx: Ctx, input: LogCookedInput, now: Date = new Date()): Promise<CookedResult> {
-  if (!input.entryId) throw new ServiceError('validation', 'Falta la entrada del plan')
-  const entryId = input.entryId
-
   const outcome = await ctx.db.transaction(async (tx) => {
-    const entry = await lockEntry(tx, ctx.householdId, entryId)
+    // Paso 1 de §9.5: con entryId se bloquea la entrada existente; sin él, se
+    // cocina "a pelo" desde una receta y se crea la entrada de hoy. El esquema
+    // de validación (lib/validation/cooking.ts) ya garantiza que al menos uno
+    // de los dos viene informado; la comprobación de recipeId aquí es solo la
+    // guarda de tipos que TypeScript no puede deducir del refine de zod.
+    let entry: LockedEntry
+    if (input.entryId) {
+      entry = await lockEntry(tx, ctx.householdId, input.entryId)
+    } else {
+      if (!input.recipeId) throw new ServiceError('validation', 'Falta la receta o la entrada del plan')
+      entry = await createEntryForRecipe(tx, ctx, input.recipeId, input.servingsCooked, input.slot, now)
+    }
     const recipe = await loadRecipe(tx, ctx.householdId, entry.recipeId)
     const foodIds = [...new Set(recipe.ingredients.map((i) => i.foodId).filter((id): id is string => id !== null))]
     const { conversionByFoodId, nameByFoodId } = await loadFoodInfo(tx, foodIds, ctx.locale)
@@ -278,6 +316,28 @@ export async function logCooked(ctx: Ctx, input: LogCookedInput, now: Date = new
       .set({ cookedAt: now })
       .where(and(eq(schema.mealPlanEntries.id, entry.id), eq(schema.mealPlanEntries.householdId, ctx.householdId)))
 
+    // Paso 7 de §9.5: la sobra es una comida planificable más, ligada a la
+    // entrada original, que no genera compra (consolidateNeeds la excluye por
+    // leftover_of_entry_id). Se queda en 'planned': aún no se ha comido.
+    let leftoverEntryId: string | null = null
+    const dates = [entry.date]
+    if (input.leftovers) {
+      const [leftover] = await tx
+        .insert(schema.mealPlanEntries)
+        .values({
+          householdId: ctx.householdId,
+          date: input.leftovers.date,
+          slot: input.leftovers.slot,
+          recipeId: recipe.id,
+          servings: input.leftovers.servings,
+          leftoverOfEntryId: entry.id,
+        })
+        .returning({ id: schema.mealPlanEntries.id })
+      if (!leftover) throw new ServiceError('conflict', 'No se pudo crear la sobra')
+      leftoverEntryId = leftover.id
+      if (input.leftovers.date !== entry.date) dates.push(input.leftovers.date)
+    }
+
     return {
       result: {
         logId: log.id,
@@ -287,9 +347,9 @@ export async function logCooked(ctx: Ctx, input: LogCookedInput, now: Date = new
         kcalPerServing: recipe.kcalPerServing,
         deductions,
         warnings,
-        leftoverEntryId: null,
+        leftoverEntryId,
       } satisfies CookedResult,
-      dates: [entry.date],
+      dates,
       foodIds: [...new Set(deductions.map((d) => d.foodId))],
     }
   })
@@ -301,4 +361,47 @@ export async function logCooked(ctx: Ctx, input: LogCookedInput, now: Date = new
   // Ruling W3-R2: times_cooked/last_cooked_at cambiaron, así que la receta también avisa.
   emitHouseholdEvent(ctx.householdId, { type: 'recipe.changed', payload: { recipeId: outcome.result.recipeId } })
   return outcome.result
+}
+
+export interface CookingLogEntry {
+  id: string
+  recipeId: string
+  title: string
+  entryId: string | null
+  servingsCooked: number
+  cookedAt: string
+  kcalPerServing: number | null
+  warningCount: number
+}
+
+// Historial de cocinados del hogar, del más reciente al más antiguo. Lo usan la
+// pantalla Hoy (pista b) y el recurso household://context (pista d). Los avisos
+// se cuentan, no se devuelven: quien los quiera enteros lee cooking_log.
+export async function listCookingLog(ctx: Ctx, limit: number): Promise<CookingLogEntry[]> {
+  const rows = await ctx.db
+    .select({
+      id: schema.cookingLog.id,
+      recipeId: schema.cookingLog.recipeId,
+      title: schema.recipes.title,
+      entryId: schema.cookingLog.entryId,
+      servingsCooked: schema.cookingLog.servingsCooked,
+      cookedAt: schema.cookingLog.cookedAt,
+      kcalPerServing: schema.cookingLog.kcalPerServingSnapshot,
+      warnings: schema.cookingLog.warnings,
+    })
+    .from(schema.cookingLog)
+    .innerJoin(schema.recipes, eq(schema.recipes.id, schema.cookingLog.recipeId))
+    .where(eq(schema.cookingLog.householdId, ctx.householdId))
+    .orderBy(desc(schema.cookingLog.cookedAt))
+    .limit(limit)
+  return rows.map((r) => ({
+    id: r.id,
+    recipeId: r.recipeId,
+    title: r.title,
+    entryId: r.entryId,
+    servingsCooked: r.servingsCooked,
+    cookedAt: r.cookedAt.toISOString(),
+    kcalPerServing: r.kcalPerServing,
+    warningCount: Array.isArray(r.warnings) ? r.warnings.length : 0,
+  }))
 }

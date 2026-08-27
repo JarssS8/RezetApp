@@ -5,7 +5,7 @@ import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setu
 import type { Ctx } from '@/lib/services/ctx'
 import { createRecipe } from '@/lib/services/recipes'
 import { upsertPantryItem } from '@/lib/services/pantry'
-import { logCooked } from './cooking'
+import { listCookingLog, logCooked } from './cooking'
 
 let db: TestDb, ctxA: Ctx, ctxB: Ctx, onionId: string, recipeId: string
 
@@ -181,5 +181,106 @@ describe('logCooked', () => {
     expect(result.warnings).toEqual([])
     const [pantry] = await db.select().from(schema.pantryItems).where(eq(schema.pantryItems.id, item.id))
     expect(pantry?.quantity).toBeGreaterThan(9_900) // se descontó algo, muy lejos de agotarse
+  })
+
+  it('un déficit repartido entre dos artículos de despensa avisa una sola vez', async () => {
+    // Dos artículos de cebolla que, sumados, no llegan a los 300 g que pide la receta.
+    await upsertPantryItem(ctxA, { foodId: onionId, quantity: 50, unit: 'g', location: 'pantry' })
+    await upsertPantryItem(ctxA, { foodId: onionId, quantity: 30, unit: 'g', location: 'fridge' })
+    const entryId = await makeEntry(ctxA, '2026-08-27', 2)
+
+    const result = await logCooked(ctxA, { entryId, servingsCooked: 2 })
+
+    expect(result.deductions).toHaveLength(2) // se vacían los dos artículos
+    expect(result.warnings).toEqual([{ foodId: onionId, name: 'cebolla', requested: 300, deducted: 80, unit: 'g' }])
+  })
+
+  it('dos líneas del mismo alimento en unidades distintas se funden en una sola necesidad', async () => {
+    // 200 g + 1 ud (150 g/ud) de cebolla: una sola necesidad de 350 g, no dos.
+    const detail = await createRecipe(ctxA, {
+      title: 'Cebolla doble',
+      servingsBase: 2,
+      ingredients: [
+        { rawText: '200 g de cebolla', foodId: onionId, quantity: 200, unit: 'g', scalesLinearly: true },
+        { rawText: '1 ud de cebolla', foodId: onionId, quantity: 1, unit: 'ud', scalesLinearly: true },
+      ],
+      steps: [{ text: 'Pocha todo junto' }],
+      tags: [],
+      imageUrls: [],
+    })
+    const item = await upsertPantryItem(ctxA, { foodId: onionId, quantity: 1000, unit: 'g', location: 'pantry' })
+    const [entry] = await db
+      .insert(schema.mealPlanEntries)
+      .values({ householdId: ctxA.householdId, date: '2026-08-27', slot: 'dinner', recipeId: detail.recipe.id, servings: 2 })
+      .returning({ id: schema.mealPlanEntries.id })
+    if (!entry) throw new Error('setup')
+
+    const result = await logCooked(ctxA, { entryId: entry.id, servingsCooked: 2 })
+
+    expect(result.warnings).toEqual([])
+    expect(result.deductions).toEqual([{ pantryItemId: item.id, foodId: onionId, requested: 350, deducted: 350, unit: 'g' }])
+    const [pantry] = await db.select().from(schema.pantryItems).where(eq(schema.pantryItems.id, item.id))
+    expect(pantry?.quantity).toBe(650)
+  })
+
+  it('sin entrada, crea una de hoy con el hueco de la hora y la marca cocinada', async () => {
+    await upsertPantryItem(ctxA, { foodId: onionId, quantity: 1000, unit: 'g', location: 'pantry' })
+    // 20:30 UTC → 22:30 en Europe/Madrid en agosto (CEST) → cena (lib/domain/slots.ts)
+    const result = await logCooked(ctxA, { recipeId, servingsCooked: 2 }, new Date('2026-08-27T20:30:00Z'))
+    const [entry] = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.id, result.entryId))
+    expect(entry?.slot).toBe('dinner')
+    expect(entry?.servings).toBe(2)
+    expect(entry?.cookedAt).not.toBeNull()
+  })
+
+  it('el hueco explícito gana al de la hora', async () => {
+    await upsertPantryItem(ctxA, { foodId: onionId, quantity: 1000, unit: 'g', location: 'pantry' })
+    const result = await logCooked(ctxA, { recipeId, servingsCooked: 2, slot: 'breakfast' }, new Date('2026-08-27T20:30:00Z'))
+    const [entry] = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.id, result.entryId))
+    expect(entry?.slot).toBe('breakfast')
+  })
+
+  it('crea la entrada de sobras ligada a la original', async () => {
+    const entryId = await makeEntry(ctxA, '2026-08-27', 4)
+    const result = await logCooked(ctxA, { entryId, servingsCooked: 4, leftovers: { servings: 2, date: '2026-08-28', slot: 'lunch' } })
+    expect(result.leftoverEntryId).not.toBeNull()
+    const [left] = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.id, result.leftoverEntryId as string))
+    expect(left).toMatchObject({ date: '2026-08-28', slot: 'lunch', servings: 2, leftoverOfEntryId: entryId, recipeId })
+    expect(left?.cookedAt).toBeNull()
+  })
+
+  it('registrar dos veces la misma entrada da conflicto y no descuenta dos veces', async () => {
+    const item = await upsertPantryItem(ctxA, { foodId: onionId, quantity: 1000, unit: 'g', location: 'pantry' })
+    const entryId = await makeEntry(ctxA, '2026-08-27', 2)
+    await logCooked(ctxA, { entryId, servingsCooked: 2 })
+    await expect(logCooked(ctxA, { entryId, servingsCooked: 2 })).rejects.toMatchObject({ code: 'conflict' })
+    const [pantry] = await db.select().from(schema.pantryItems).where(eq(schema.pantryItems.id, item.id))
+    expect(pantry?.quantity).toBe(700)
+  })
+
+  // Riesgo §18.4 del spec: dos cocciones simultáneas sobre el mismo alimento.
+  it('dos logCooked a la vez nunca dejan negativo ni descuentan de más', async () => {
+    const item = await upsertPantryItem(ctxA, { foodId: onionId, quantity: 500, unit: 'g', location: 'pantry' })
+    const e1 = await makeEntry(ctxA, '2026-08-27', 2)
+    const e2 = await makeEntry(ctxA, '2026-08-28', 2)
+    const results = await Promise.all([logCooked(ctxA, { entryId: e1, servingsCooked: 2 }), logCooked(ctxA, { entryId: e2, servingsCooked: 2 })])
+    const [pantry] = await db.select().from(schema.pantryItems).where(eq(schema.pantryItems.id, item.id))
+    // 500 − 300 − 300 nunca baja de 0, y entre las dos se descontaron exactamente 500
+    expect(pantry?.quantity).toBe(0)
+    const totalDeducted = results.flatMap((r) => r.deductions).reduce((s, d) => s + d.deducted, 0)
+    expect(totalDeducted).toBe(500)
+    // La que llegó segunda avisa de lo que faltó
+    expect(results.some((r) => r.warnings.length === 1)).toBe(true)
+  })
+
+  it('listCookingLog devuelve el historial del hogar, lo más reciente primero, y aísla hogares', async () => {
+    const e1 = await makeEntry(ctxA, '2026-08-26', 2)
+    const e2 = await makeEntry(ctxA, '2026-08-27', 2)
+    await logCooked(ctxA, { entryId: e1, servingsCooked: 2 }, new Date('2026-08-26T20:00:00Z'))
+    await logCooked(ctxA, { entryId: e2, servingsCooked: 3 }, new Date('2026-08-27T20:00:00Z'))
+    const log = await listCookingLog(ctxA, 10)
+    expect(log.map((l) => l.servingsCooked)).toEqual([3, 2])
+    expect(log[0]?.title).toBe('Sopa de cebolla')
+    expect(await listCookingLog(ctxB, 10)).toEqual([])
   })
 })
