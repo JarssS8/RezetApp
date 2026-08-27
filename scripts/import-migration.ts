@@ -35,7 +35,14 @@ export async function readRecipeFiles(path: string): Promise<unknown[]> {
   if (info.isDirectory()) {
     const entries = (await readdir(path)).filter((name) => name.endsWith('.json')).sort()
     const out: unknown[] = []
-    for (const name of entries) out.push(JSON.parse(await readFile(join(path, name), 'utf8')))
+    for (const name of entries) {
+      try {
+        out.push(JSON.parse(await readFile(join(path, name), 'utf8')))
+      } catch (e) {
+        // Con cientos de ficheros exportados, el error debe nombrar al culpable.
+        throw new Error(`No se pudo leer ${name}: ${(e as Error).message}`)
+      }
+    }
     return out
   }
   const parsed: unknown = JSON.parse(await readFile(path, 'utf8'))

@@ -182,7 +182,7 @@ const config = [
               // escrita a mano. La alternativa -reimplementar el alta contra db-
               // duplicaría §9.1 entera.
               from: { element: { type: 'scripts' } },
-              allow: { to: { element: { types: { anyOf: ['scripts', 'db', 'domain', 'lib', 'services', 'validation', 'auth'] } } } },
+              allow: { to: { element: { types: { anyOf: ['scripts', 'db', 'domain', 'lib', 'services'] } } } },
             },
           ],
         },
