@@ -5,7 +5,10 @@ import { recentlyCooked } from '@/lib/services/recipes'
 import type { McpCtx } from '../auth'
 import { guarded, hasScope } from '../guards'
 
-const RECENTLY_COOKED_LIMIT = 5
+// Compartida con resources.ts (household://context enseña el mismo "lo
+// cocinado recientemente" que esta herramienta): un solo número, para que no
+// puedan volver a divergir.
+export const RECENT_LIMIT = 5
 
 const GetHouseholdContextInputSchema = z.strictObject({})
 
@@ -25,7 +28,7 @@ export function registerHouseholdTools(server: McpServer, ctx: McpCtx): boolean 
     },
     guarded('No se pudo obtener el contexto del hogar.', async () => {
       const overview = await getHouseholdOverview(ctx)
-      const recentlyCookedRecipes = await recentlyCooked(ctx, RECENTLY_COOKED_LIMIT)
+      const recentlyCookedRecipes = await recentlyCooked(ctx, RECENT_LIMIT)
       return { ...overview, recentlyCooked: recentlyCookedRecipes }
     }),
   )

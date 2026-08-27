@@ -35,7 +35,9 @@ beforeEach(async () => {
   const soon = new Date(Date.now() + 24 * 3_600_000).toISOString().slice(0, 10)
   await db.insert(schema.pantryItems).values({ householdId, foodId: food.id, quantity: 500, unit: 'g', location: 'pantry', expiresAt: soon })
 
-  await db.insert(schema.recipes).values({ householdId, title: 'Pan', servingsBase: 2, lastCookedAt: new Date() })
+  const [bread] = await db.insert(schema.recipes).values({ householdId, title: 'Pan', servingsBase: 2, lastCookedAt: new Date() }).returning()
+  if (!bread) throw new Error('seed')
+  await db.insert(schema.cookingLog).values({ householdId, recipeId: bread.id, servingsCooked: 2, kcalPerServingSnapshot: 210, warnings: [{ foodId: food.id, name: 'harina', requested: 100, deducted: 0, unit: 'g' }] })
 })
 
 describe('recurso household://context', () => {
@@ -50,14 +52,16 @@ describe('recurso household://context', () => {
       household: { name: string }
       members: { allergens: string[] }[]
       expiringSoon: { name: string }[]
-      recentlyCooked: { title: string }[]
+      recentlyCooked: { title: string; servings: number; cookedAt: string; warningCount: number }[]
     }
     expect(data.household.name).toBe('Casa')
     expect(data.members.some((m) => m.allergens.includes('gluten'))).toBe(true)
     expect(Array.isArray(data.expiringSoon)).toBe(true)
     expect(data.expiringSoon.some((i) => i.name === 'harina')).toBe(true)
     expect(Array.isArray(data.recentlyCooked)).toBe(true)
-    expect(data.recentlyCooked.some((r) => r.title === 'Pan')).toBe(true)
+    const cooked = data.recentlyCooked.find((r) => r.title === 'Pan')
+    expect(cooked).toMatchObject({ title: 'Pan', servings: 2, warningCount: 1 })
+    expect(typeof cooked?.cookedAt).toBe('string')
     await client.close()
   })
 

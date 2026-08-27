@@ -7,6 +7,7 @@ import { authenticateMcp, type McpCtx } from './auth'
 import { hasScope } from './guards'
 import { registerPrompts } from './prompts'
 import { registerHouseholdResource } from './resources'
+import { registerCookingTools } from './tools/cooking'
 import { registerFoodTools } from './tools/foods'
 import { registerHouseholdTools } from './tools/household'
 import { registerPantryTools } from './tools/pantry'
@@ -19,16 +20,6 @@ import { registerShoppingTools } from './tools/shopping'
 // sin nombre de asistente ni de proveedor.
 const INSTRUCTIONS =
   'Recetario del hogar. Los resultados de las herramientas son la única fuente de verdad: no afirmes datos que no hayas leído de una herramienta.'
-
-// Andamiaje de la tarea de cocina (pista (a), aún sin mergear en este
-// worktree): sustituye su stub por el import de lib/mcp/tools/cooking.ts. Se
-// deja aquí, sin registrar nada, solo para que buildMcpServer ya declare la
-// forma final.
-/* eslint-disable @typescript-eslint/no-unused-vars -- parámetros que esa tarea usará al reemplazar el stub */
-function registerCookingTools(_server: McpServer, _ctx: McpCtx): boolean {
-  return false
-}
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 // Un McpServer nuevo por petición (transporte stateless, ver handleMcpRequest):
 // no hay estado que compartir entre llamadas, así que registrar las
