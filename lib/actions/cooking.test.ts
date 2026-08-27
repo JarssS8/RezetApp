@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { LogCookedSchema } from '@/lib/validation/cooking'
 import { logCookedAction } from './cooking'
 
-// requireHousehold redirige a /login sin sesión: aquí solo se comprueba la
-// validación previa, que ocurre después del guard. Se simula el guard. El test
-// no toca Postgres (el mock lanza antes de llegar a ctx.db), así que no hace
-// falta db/test/setup: lib/actions no puede importar de db (frontera de
-// eslint-boundaries), y aquí tampoco aporta nada hacerlo.
+// requireHousehold redirige a /login sin sesión: en logCookedAction la
+// validación corre ANTES del guard (al revés que el resto de acciones, ver
+// nota en lib/actions/cooking.ts), así que aquí solo hace falta simular el
+// guard para que no intente resolver sesión real. El test no toca Postgres (el
+// mock lanza si algo llegara a invocarlo), así que no hace falta db/test/setup:
+// lib/actions no puede importar de db (frontera de eslint-boundaries), y aquí
+// tampoco aportaría nada hacerlo.
 vi.mock('@/lib/auth/guards', () => ({ requireHousehold: vi.fn(async () => { throw new Error('sin sesión') }) }))
 
 describe('logCookedAction', () => {

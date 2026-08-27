@@ -90,5 +90,8 @@ describe('EntryChip', () => {
     cleanup()
     renderChip({ entry: baseEntry({ recipeId: null, status: 'planned' }) })
     expect(screen.queryByRole('link', { name: /cocinar/i })).toBeNull()
+    cleanup()
+    renderChip({ entry: baseEntry({ recipeId: 'r1', leftoverOfEntryId: 'e0', status: 'planned' }) })
+    expect(screen.queryByRole('link', { name: /cocinar/i })).toBeNull()
   })
 })

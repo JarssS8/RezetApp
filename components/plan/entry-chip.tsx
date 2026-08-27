@@ -46,7 +46,7 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
             <LeftoversIcon size={14} />
           </span>
         ) : null}
-        {entry.recipeId && !cooked && !skipped ? (
+        {entry.recipeId && !entry.leftoverOfEntryId && !cooked && !skipped ? (
           <Button
             type="button"
             variant="ghost"
