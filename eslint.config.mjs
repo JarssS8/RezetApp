@@ -101,8 +101,11 @@ const config = [
               allow: {
                 to: {
                   element: {
+                    // 'ai' incluido: app/(app)/settings/ai/page.tsx lee el catálogo
+                    // de modelos (lib/ai/models.ts, puro, sin proveedor ni DB) para
+                    // decidir qué pasarle al formulario de ajustes de IA.
                     types: {
-                      anyOf: ['app', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads'],
+                      anyOf: ['app', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads', 'ai'],
                     },
                   },
                 },
@@ -163,6 +166,27 @@ const config = [
       'react/jsx-no-literals': [
         'error',
         { noStrings: true, ignoreProps: true, allowedStrings: ['·', '—', '–', '×', '%', '/', '(', ')', ':', '+', '−', '…', '&nbsp;'] },
+      ],
+    },
+  },
+  {
+    // Regla I3 de la revisión W2: `result.message` es texto de servicio/zod en
+    // español crudo -nunca debe pintarse tal cual en la interfaz-, salvo el
+    // texto que de verdad viene de un proveedor externo (IA, ShopList), donde
+    // no hay clave i18n posible. Esos dos sitios llevan su propia línea de
+    // desactivación con el motivo (ver shopping-push-button.tsx).
+    files: ['app/**/*.tsx', 'components/**/*.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.name='setError'] > MemberExpression[property.name='message']",
+          message: 'No pintes result.message crudo: traduce por result.code con actionErrorKey (lib/actions/result.ts).',
+        },
+        {
+          selector: "CallExpression[callee.object.name='toast'][callee.property.name='error'] > MemberExpression[property.name='message']",
+          message: 'No pintes result.message crudo: traduce por result.code con actionErrorKey (lib/actions/result.ts).',
+        },
       ],
     },
   },

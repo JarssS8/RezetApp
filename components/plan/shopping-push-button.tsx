@@ -40,6 +40,10 @@ export function ShoppingPushButton({ lines, canPush, deepLink }: ShoppingPushBut
     try {
       const result = await pushShoppingAction(lines)
       if (!result.ok) {
+        // Excepción legítima (I3/32): con code 'shoplist' el mensaje es el
+        // texto real que devolvió la Edge Function de ShopList (o su status
+        // HTTP), no un ServiceError/zod en español -no hay clave i18n posible-.
+        // eslint-disable-next-line no-restricted-syntax -- texto del proveedor externo
         toast.error(result.message)
         return
       }
