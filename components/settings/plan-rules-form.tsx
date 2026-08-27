@@ -6,6 +6,7 @@ import { PlusIcon, TrashIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import type { ActionResult } from '@/lib/actions/result'
 import type { PlanRuleInput } from '@/lib/validation/plan-rules'
 
@@ -57,12 +58,11 @@ export function PlanRulesForm({ initial, isOwner, updateAction }: PlanRulesFormP
           <li key={index} className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-card p-2">
             <div className="flex flex-col gap-1">
               <Label htmlFor={`plan-rule-${index}-day`}>{t('planRules.day')}</Label>
-              <select
+              <NativeSelect
                 id={`plan-rule-${index}-day`}
                 disabled={!isOwner}
                 value={rule.day === null ? '' : String(rule.day)}
                 onChange={(e) => patch(index, { day: e.target.value === '' ? null : Number(e.target.value) })}
-                className="h-11 rounded-sm border border-border bg-transparent px-2 text-sm"
               >
                 <option value="">{t('planRules.anyDay')}</option>
                 {DAYS.map((d) => (
@@ -70,16 +70,15 @@ export function PlanRulesForm({ initial, isOwner, updateAction }: PlanRulesFormP
                     {t(`planRules.days.${d}`)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor={`plan-rule-${index}-slot`}>{t('planRules.slot')}</Label>
-              <select
+              <NativeSelect
                 id={`plan-rule-${index}-slot`}
                 disabled={!isOwner}
                 value={rule.slot ?? ''}
                 onChange={(e) => patch(index, { slot: e.target.value === '' ? null : (e.target.value as PlanRuleInput['slot']) })}
-                className="h-11 rounded-sm border border-border bg-transparent px-2 text-sm"
               >
                 <option value="">{t('planRules.anySlot')}</option>
                 {SLOTS.map((s) => (
@@ -87,23 +86,22 @@ export function PlanRulesForm({ initial, isOwner, updateAction }: PlanRulesFormP
                     {t(`planRules.slots.${s}`)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor={`plan-rule-${index}-constraint`}>{t('planRules.constraint')}</Label>
-              <select
+              <NativeSelect
                 id={`plan-rule-${index}-constraint`}
                 disabled={!isOwner}
                 value={rule.constraint}
                 onChange={(e) => patch(index, { constraint: e.target.value as PlanRuleInput['constraint'], value: '' })}
-                className="h-11 rounded-sm border border-border bg-transparent px-2 text-sm"
               >
                 {CONSTRAINTS.map((c) => (
                   <option key={c} value={c}>
                     {t(`planRules.constraints.${c}`)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             {rule.constraint === 'no-meat' ? null : (
               <div className="flex flex-col gap-1">

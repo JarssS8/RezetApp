@@ -8,6 +8,7 @@ import { ServingsStepper } from '@/components/recipes/servings-stepper'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { applyPlanBatchAction, searchRecipesForPlanAction } from '@/lib/actions/plan'
 import { MEAL_SLOTS } from '@/lib/domain'
@@ -100,33 +101,23 @@ export function AddEntrySheet({ open, onOpenChange, days, defaultDate, defaultSl
           <div className="flex gap-2">
             <div className="flex flex-1 flex-col gap-1">
               <Label htmlFor="add-entry-date">{t('moveDate')}</Label>
-              <select
-                id="add-entry-date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-11 rounded-sm border border-border bg-transparent px-2 text-sm"
-              >
+              <NativeSelect id="add-entry-date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full">
                 {days.map((d) => (
                   <option key={d} value={d}>
                     {d}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             <div className="flex flex-1 flex-col gap-1">
               <Label htmlFor="add-entry-slot">{t('moveSlot')}</Label>
-              <select
-                id="add-entry-slot"
-                value={slot}
-                onChange={(e) => setSlot(e.target.value as MealSlot)}
-                className="h-11 rounded-sm border border-border bg-transparent px-2 text-sm"
-              >
+              <NativeSelect id="add-entry-slot" value={slot} onChange={(e) => setSlot(e.target.value as MealSlot)} className="w-full">
                 {MEAL_SLOTS.map((s) => (
                   <option key={s} value={s}>
                     {t(`slots.${s}`)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
           </div>
 
