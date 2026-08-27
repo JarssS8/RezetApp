@@ -61,3 +61,73 @@ export function avoidRecentRepeats(candidates: RecipeSummary[], history: CookedH
   const recent = new Set(history.filter((h) => h.daysAgo < days).map((h) => h.recipeId))
   return candidates.filter((r) => !recent.has(r.id))
 }
+
+// "Sin carne" se decide por etiqueta, no adivinando de los ingredientes: una
+// heurística sobre nombres de alimentos fallaría en dos idiomas y no sería
+// explicable al usuario. Los dos slugs vienen del seed (db/seed/tags.json).
+export const VEGETARIAN_TAG_SLUGS = ['vegetariano', 'vegano'] as const
+
+export function ruleAllows(rule: PlanRule, recipe: RecipeSummary): boolean {
+  if (rule.constraint === 'no-meat') return VEGETARIAN_TAG_SLUGS.some((slug) => recipe.tagSlugs.includes(slug))
+  if (rule.constraint === 'tag') return recipe.tagSlugs.includes(rule.value)
+  if (rule.constraint === 'not-tag') return !recipe.tagSlugs.includes(rule.value)
+  // max-minutes: una receta sin ningún tiempo conocido NO entra (mismo criterio
+  // que el filtro maxMinutes de searchRecipes: no se puede asumir que sea rápida).
+  const max = Number(rule.value)
+  if (!Number.isFinite(max)) return true
+  return recipe.totalMinutes !== null && recipe.totalMinutes <= max
+}
+
+// Por defecto se rellenan comida y cena: el desayuno y el picoteo casi nunca
+// salen del recetario, y proponerlos llenaría la semana de ruido.
+const DEFAULT_SLOTS: MealSlot[] = ['lunch', 'dinner']
+
+// Aritmética de fechas en UTC, duplicada a propósito: lib/plan-dates.ts es del
+// elemento `lib` y el dominio no puede importarlo (fronteras). Son seis líneas.
+function isoOf(date: Date): string {
+  const y = date.getUTCFullYear()
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(date.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+// Recorre los huecos de la semana en orden y elige, para cada uno, la primera
+// candidata que cumple TODAS las reglas aplicables a ese día y ese hueco.
+// Si no hay ninguna, el hueco se queda vacío: mejor un plan con agujeros que
+// un plan que se salta el "lunes sin carne".
+export function applyPlanRules(
+  rules: PlanRule[],
+  candidates: RecipeSummary[],
+  history: CookedHistory,
+  weekStart: Date,
+  options: PlanRulesOptions = {},
+): ProposalPayload {
+  const defaultServings = options.defaultServings ?? 2
+  const slots = options.slots ?? DEFAULT_SLOTS
+  const days = options.days ?? 7
+  const avoidRepeatDays = options.avoidRepeatDays ?? 14
+
+  const fresh = avoidRecentRepeats(candidates, history, avoidRepeatDays)
+  // Si la ventana antirrepetición deja el pozo vacío (hogar con pocas recetas),
+  // se repite antes que devolver una propuesta vacía.
+  const pool = fresh.length > 0 ? fresh : candidates
+
+  const used = new Set<string>()
+  const add: ProposalAdd[] = []
+  for (let i = 0; i < days; i += 1) {
+    const date = new Date(weekStart.getTime())
+    date.setUTCDate(date.getUTCDate() + i)
+    const dow = date.getUTCDay()
+    for (const slot of slots) {
+      const applicable = rules.filter((r) => (r.day === null || r.day === dow) && (r.slot === null || r.slot === slot))
+      const eligible = pool
+        .filter((r) => !used.has(r.id) && applicable.every((rule) => ruleAllows(rule, r)))
+        .sort((a, b) => a.timesCooked - b.timesCooked || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0))
+      const pick = eligible[0]
+      if (!pick) continue
+      used.add(pick.id)
+      add.push({ date: isoOf(date), slot, recipeId: pick.id, servings: defaultServings })
+    }
+  }
+  return { add, remove: [] }
+}
