@@ -15,8 +15,11 @@ pregunta — casi seguro es un malentendido.
 
 ## Estado del proyecto
 
-Fase 0 (W0) hecha el 2026-08-26: esqueleto Next 16, tema, i18n, shell de pantallas
-y ajustes, Drizzle y Docker Compose. Sin dominio todavía. El spec
+W0 (esqueleto) y W1 (contratos: esquema, dominio, auth, validación, eventos)
+hechas el 2026-08-26. **W2 (módulos) hecha el 2026-08-27**: alimentos, recetas,
+plan, despensa, IA opcional, ShopList, ajustes y MCP mínimo, todo en `main` con
+`pnpm check`, `pnpm build` y `pnpm e2e` verdes. Siguiente: W3 (el bucle:
+cocinar, Hoy, REST completa, MCP completo). El spec
 (`docs/superpowers/specs/2026-08-26-rezetapp-design.md`) manda sobre estos docs
 cuando difieren; los planes están en `docs/superpowers/plans/`.
 

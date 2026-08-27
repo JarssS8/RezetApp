@@ -57,6 +57,10 @@ Va pronto **a propósito**: es la parte con más riesgo de decepcionar. Cuanto a
 sepas si el flujo te convence, mejor. Conéctalo a un cliente MCP de escritorio y úsalo una
 semana entera antes de seguir.
 
+**Mínimo hecho en W2**: `/mcp` con `get_household_context`, `search_recipes` y
+`get_recipe`, tokens con alcance y perfil, conexión documentada. Las doce
+herramientas, los prompts y OpenAPI llegan en W3.
+
 ## Fase 3 · Plan
 
 - Calendario semanal y mensual con arrastrar y soltar
@@ -69,6 +73,8 @@ semana entera antes de seguir.
 Aquí entra tu pareja como usuaria real, que es cuando aparecen los problemas de
 verdad.
 
+**Hecha en W2** salvo el presupuesto de tiempo por día (W4).
+
 ## Fase 4 · Despensa y el bucle
 
 - Inventario con ubicaciones y caducidades
@@ -80,6 +86,9 @@ verdad.
 
 El bucle se cierra aquí. Es cuando el agente pasa de sugerir en abstracto a
 sugerir con conocimiento de causa.
+
+**Hecha en W2** salvo el descuento automático al marcar cocinado (`log_cooked`,
+W3) y la siembra de USDA (solo Open Food Facts por ahora).
 
 ## Fase 5 · Lo que la hace tuya
 
