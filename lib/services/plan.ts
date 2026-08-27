@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ilike, inArray, isNull, lte, type SQL } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNull, lte, type SQL } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { emitHouseholdEvent } from '@/lib/events/bus'
 import { aggregateNutrition, EMPTY_MACROS, entryStatus } from '@/lib/domain'
@@ -106,20 +106,6 @@ export async function listEntries(ctx: Ctx, range: { from: string; to: string })
   )
 }
 
-// Búsqueda ligera de recetas para la hoja de "añadir al plan" (solo id y título).
-// Implementación local a esta pista: (a) todavía no expone un servicio de recetas;
-// cuando lo haga, puede sustituir esta función sin tocar la acción que la llama.
-export async function searchRecipesLite(ctx: Ctx, q: string): Promise<{ id: string; title: string }[]> {
-  const term = q.trim()
-  if (term.length === 0) return []
-  return ctx.db
-    .select({ id: schema.recipes.id, title: schema.recipes.title })
-    .from(schema.recipes)
-    .where(and(eq(schema.recipes.householdId, ctx.householdId), isNull(schema.recipes.deletedAt), ilike(schema.recipes.title, `%${term}%`)))
-    .orderBy(desc(schema.recipes.updatedAt))
-    .limit(10)
-}
-
 // Núcleo transaccional de un lote: lo comparten applyBatch y decideProposal (aprobación de propuesta)
 async function applyBatchTx(tx: Db, householdId: string, batch: PlanBatch): Promise<{ addedIds: string[]; removed: string[]; dates: Set<string> }> {
   const dates = new Set<string>()
@@ -183,9 +169,15 @@ export interface ProposalView {
 
 type ProposalRow = typeof schema.planProposals.$inferSelect
 
-// Un único SELECT con inArray para todos los recipeId del lote (evita N consultas repetidas)
-async function lookupRecipeTitles(db: Db, recipeIds: string[]): Promise<Map<string, string>> {
-  const rows = await db.select({ id: schema.recipes.id, title: schema.recipes.title }).from(schema.recipes).where(inArray(schema.recipes.id, recipeIds))
+// Un único SELECT con inArray para todos los recipeId del lote (evita N consultas repetidas),
+// acotado al hogar y sin recetas borradas: los títulos de una propuesta pendiente nunca deben
+// filtrar el nombre (ni la existencia) de una receta de otro hogar (hallazgo C1 de la revisión final).
+// createProposal reutiliza esta misma consulta para validar que cada recipeId es del hogar.
+async function lookupRecipeTitles(ctx: Ctx, recipeIds: string[]): Promise<Map<string, string>> {
+  const rows = await ctx.db
+    .select({ id: schema.recipes.id, title: schema.recipes.title })
+    .from(schema.recipes)
+    .where(and(inArray(schema.recipes.id, recipeIds), eq(schema.recipes.householdId, ctx.householdId), isNull(schema.recipes.deletedAt)))
   return new Map(rows.map((r) => [r.id, r.title]))
 }
 
@@ -193,7 +185,7 @@ async function lookupRecipeTitles(db: Db, recipeIds: string[]): Promise<Map<stri
 // el remove son las PlanEntryView actuales de los ids que aún existan (los que ya no existen se omiten)
 async function buildProposalDiff(ctx: Ctx, payload: ProposalPayload): Promise<ProposalView['diff']> {
   const recipeIds = Array.from(new Set(payload.add.map((item) => item.recipeId).filter((id): id is string => id !== null && id !== undefined)))
-  const titleById = recipeIds.length > 0 ? await lookupRecipeTitles(ctx.db, recipeIds) : new Map<string, string>()
+  const titleById = recipeIds.length > 0 ? await lookupRecipeTitles(ctx, recipeIds) : new Map<string, string>()
   const add = payload.add.map(
     (item): PlanEntryInput & { title: string } => ({ ...item, title: (item.recipeId ? titleById.get(item.recipeId) : undefined) ?? item.customTitle ?? '' }),
   )
@@ -210,8 +202,16 @@ async function toProposalView(ctx: Ctx, row: ProposalRow): Promise<ProposalView>
   return { id: row.id, source: row.source, status: row.status, createdAt: row.createdAt.toISOString(), payload, diff }
 }
 
-// createdByUserId o createdByTokenId según ctx (exactamente uno no nulo, ver check plan_proposals_one_creator)
+// createdByUserId o createdByTokenId según ctx (exactamente uno no nulo, ver check plan_proposals_one_creator).
+// Valida antes de insertar que cada recipeId del lote sea del hogar y no esté borrado: hoy solo
+// escribe aiProposeWeek (que ya prefiltra), pero un cliente MCP puede llamar a esto con cualquier
+// UUID y los títulos de ProposalView.diff no deben poder filtrar el nombre de una receta ajena.
 export async function createProposal(ctx: Ctx, input: { source: 'ai' | 'rules' | 'mcp'; payload: ProposalPayload }): Promise<ProposalView> {
+  const recipeIds = Array.from(new Set(input.payload.add.map((item) => item.recipeId).filter((id): id is string => id !== null && id !== undefined)))
+  if (recipeIds.length > 0) {
+    const owned = await lookupRecipeTitles(ctx, recipeIds)
+    if (recipeIds.some((id) => !owned.has(id))) throw new ServiceError('validation', 'La receta no pertenece al hogar')
+  }
   const [row] = await ctx.db
     .insert(schema.planProposals)
     .values({ householdId: ctx.householdId, createdByUserId: ctx.userId, createdByTokenId: ctx.apiTokenId, source: input.source, payload: input.payload })
@@ -282,7 +282,7 @@ export async function moveEntry(ctx: Ctx, input: PlanEntryMove): Promise<PlanEnt
   await ctx.db
     .update(schema.mealPlanEntries)
     .set({ date: input.date, slot: input.slot, sortOrder: input.sortOrder })
-    .where(eq(schema.mealPlanEntries.id, input.entryId))
+    .where(and(eq(schema.mealPlanEntries.id, input.entryId), eq(schema.mealPlanEntries.householdId, ctx.householdId)))
   const view = await requireEntryView(ctx.db, ctx.householdId, input.entryId)
   const dates = existing.date === input.date ? [input.date] : [existing.date, input.date]
   emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates } })
@@ -302,7 +302,7 @@ export async function patchEntry(ctx: Ctx, id: string, patch: PlanEntryPatch): P
   if (patch.timeBudgetMinutes !== undefined) set.timeBudgetMinutes = patch.timeBudgetMinutes
   if (patch.skipped !== undefined) set.skippedAt = patch.skipped ? new Date() : null
   if (Object.keys(set).length > 0) {
-    await ctx.db.update(schema.mealPlanEntries).set(set).where(eq(schema.mealPlanEntries.id, id))
+    await ctx.db.update(schema.mealPlanEntries).set(set).where(and(eq(schema.mealPlanEntries.id, id), eq(schema.mealPlanEntries.householdId, ctx.householdId)))
   }
   const view = await requireEntryView(ctx.db, ctx.householdId, id)
   emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: [existing.date] } })
