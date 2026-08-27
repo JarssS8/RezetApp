@@ -4,7 +4,7 @@ import { detectTimers, isNonLinearByDefault, normalizeSearchName, parseIngredien
 import type { BaseUnit, IngredientWithFood, Locale, Nutrition, ScaledRecipe } from '@/lib/domain/types'
 import { emitHouseholdEvent } from '@/lib/events/bus'
 import type { RecipeExportInput } from '@/lib/validation/data'
-import type { RecipeInput, RecipeSearch } from '@/lib/validation/recipes'
+import { RecipeInputSchema, type RecipeInput, type RecipeSearch } from '@/lib/validation/recipes'
 import { isUniqueViolation, type Ctx, type Db, ServiceError } from './ctx'
 import { getFoodsNutrition, resolveFoodName, resolveMany, type FoodWithNutrition, type ResolvedFood } from './foods'
 import { toIngredient, toIngredientWithFood, toRecipeForScaling } from './recipe-mapper'
@@ -509,21 +509,50 @@ export async function exportAll(ctx: Ctx): Promise<RecipeExport> {
   return { version: 1, exportedAt: new Date().toISOString(), recipes: out }
 }
 
-// Reimporta un volcado de exportAll en el hogar del contexto. Cada receta va
-// por createRecipe: se reparsean los ingredientes, se resuelven los alimentos
-// de ESTE hogar y se recalcula la nutrición (los ids del origen no valen aquí).
-// Una receta que no cuela no aborta el resto: se apunta su título.
+// El volcado de exportAll trae dos campos que RecipeInputSchema no conoce
+// (timesCooked, createdAt: la copia empieza su historia de cero en el hogar
+// de destino). Se descartan aquí, antes de validar, para no tirar abajo una
+// receta exportada de verdad solo por traer esos dos campos de más.
+function stripExportExtras(raw: unknown): unknown {
+  if (raw === null || typeof raw !== 'object') return raw
+  const candidate = { ...(raw as Record<string, unknown>) }
+  delete candidate.timesCooked
+  delete candidate.createdAt
+  return candidate
+}
+
+// Título de una receta del volcado, para señalarla en `failed` cuando ni
+// siquiera pasa el esquema; si no es reconocible (ni siquiera es un objeto,
+// o el título no es texto), se identifica por su posición en el array.
+function importLabel(candidate: unknown, index: number): string {
+  if (candidate !== null && typeof candidate === 'object' && typeof (candidate as { title?: unknown }).title === 'string') {
+    return (candidate as { title: string }).title
+  }
+  return `recetas[${index}]`
+}
+
+// Reimporta un volcado de exportAll en el hogar del contexto. RecipeExportSchema
+// solo valida el sobre (version/exportedAt): cada receta se valida aparte,
+// aquí, contra RecipeInputSchema, así que una receta rota del volcado no
+// aborta el resto — se apunta su título (o su posición si no tiene). La que sí
+// pasa el esquema va por createRecipe: se reparsean los ingredientes, se
+// resuelven los alimentos de ESTE hogar y se recalcula la nutrición (los ids
+// del origen no valen aquí); un fallo ahí tampoco aborta el resto.
 export async function importAll(ctx: Ctx, data: RecipeExportInput): Promise<{ created: number; failed: string[] }> {
   let created = 0
   const failed: string[] = []
-  for (const recipe of data.recipes) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- se descartan aposta: el destructuring es la forma de quitarlos antes de createRecipe
-    const { timesCooked: _timesCooked, createdAt: _createdAt, ...input } = recipe
+  for (const [index, raw] of data.recipes.entries()) {
+    const candidate = stripExportExtras(raw)
+    const parsed = RecipeInputSchema.safeParse(candidate)
+    if (!parsed.success) {
+      failed.push(importLabel(candidate, index))
+      continue
+    }
     try {
-      await createRecipe(ctx, input)
+      await createRecipe(ctx, parsed.data)
       created += 1
     } catch {
-      failed.push(recipe.title)
+      failed.push(parsed.data.title)
     }
   }
   return { created, failed }

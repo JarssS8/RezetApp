@@ -273,12 +273,21 @@ describe('importAll', () => {
   })
 
   it('una receta rota del volcado no aborta el resto', async () => {
-    const dump = { version: 1 as const, exportedAt: new Date().toISOString(), recipes: [
+    const dump = RecipeExportSchema.parse({ version: 1 as const, exportedAt: new Date().toISOString(), recipes: [
       { title: 'Buena', servingsBase: 2, tags: [], imageUrls: [], ingredients: [{ rawText: '1 huevo' }], steps: [{ text: 'Bate' }], timesCooked: 0, createdAt: new Date().toISOString() },
       { title: 'Mala', servingsBase: 0, tags: [], imageUrls: [], ingredients: [], steps: [], timesCooked: 0, createdAt: new Date().toISOString() },
-    ] }
-    const result = await importAll(ctxA, RecipeExportSchema.parse({ ...dump, recipes: [dump.recipes[0]] }))
-    expect(result.created).toBe(1)
+    ] })
+    // La receta mala viaja de verdad por importAll (RecipeExportSchema ya no
+    // valida cada receta, solo el sobre): servingsBase 0 no pasa
+    // RecipeInputSchema (mínimo 1), así que se cuenta como fallida por título.
+    const result = await importAll(ctxA, dump)
+    expect(result).toEqual({ created: 1, failed: ['Mala'] })
+  })
+
+  it('una receta sin título reconocible se señala por su posición', async () => {
+    const dump = RecipeExportSchema.parse({ version: 1 as const, exportedAt: new Date().toISOString(), recipes: [{ servingsBase: 0 }] })
+    const result = await importAll(ctxA, dump)
+    expect(result).toEqual({ created: 0, failed: ['recetas[0]'] })
   })
 })
 

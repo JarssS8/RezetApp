@@ -6,6 +6,8 @@ import { UploadIcon } from '@/components/icons'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { importRecipesAction } from '@/lib/actions/recipes'
+import { actionErrorKey } from '@/lib/actions/result'
+import { MAX_IMPORT_BYTES } from '@/lib/validation/data'
 
 // FileReader en vez de file.text(): la lectura de texto de Blob/File por
 // promesa no está implementada en jsdom (entorno de los tests de componentes),
@@ -20,28 +22,42 @@ function readFileAsText(file: File): Promise<string> {
 }
 
 // Lee el JSON en el navegador y manda el objeto ya parseado a la acción: un
-// fichero que no es JSON se corta aquí, sin gastar un viaje al servidor.
+// fichero que no es JSON, o que pesa más de la cuenta, se corta aquí, sin
+// gastar un viaje al servidor (que repite igualmente la comprobación de
+// tamaño: esta acción también es alcanzable sin pasar por este componente).
 export function ImportButton() {
   const t = useTranslations('settings')
+  const te = useTranslations('errors')
   const [result, setResult] = useState<{ created: number; failed: string[] } | null>(null)
-  const [error, setError] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function onFile(file: File) {
     setResult(null)
-    setError(false)
+    setErrorMessage(null)
     setBusy(true)
     try {
+      if (file.size > MAX_IMPORT_BYTES) {
+        setErrorMessage(te('too_large'))
+        return
+      }
       let parsed: unknown
       try {
         parsed = JSON.parse(await readFileAsText(file))
       } catch {
-        setError(true)
+        setErrorMessage(t('data.importError'))
         return
       }
       const res = await importRecipesAction(parsed)
-      if (res.ok) setResult(res.data)
-      else setError(true)
+      if (res.ok) {
+        setResult(res.data)
+        return
+      }
+      // Regla I3: nunca se pinta res.message (texto crudo); se traduce por
+      // código. 'validation' conserva su copia propia de settings (el fichero
+      // no es un volcado de RezetApp); el resto usa el namespace 'errors'
+      // (mismo patrón que components/recipes/import-form.tsx).
+      setErrorMessage(res.code === 'validation' ? t('data.importError') : te(actionErrorKey(res.code)))
     } finally {
       setBusy(false)
     }
@@ -73,9 +89,9 @@ export function ImportButton() {
           {t('data.importFailed', { failed: result.failed.length })}
         </p>
       ) : null}
-      {error ? (
+      {errorMessage ? (
         <p role="alert" className="text-sm text-warn">
-          {t('data.importError')}
+          {errorMessage}
         </p>
       ) : null}
     </div>

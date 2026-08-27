@@ -15,7 +15,7 @@ import {
   type RecipeSummary,
 } from '@/lib/services/recipes'
 import { MAX_UPLOAD_BYTES, saveImage, savePdf } from '@/lib/uploads/store'
-import { RecipeExportSchema } from '@/lib/validation/data'
+import { MAX_IMPORT_BYTES, RecipeExportSchema } from '@/lib/validation/data'
 import { IdSchema } from '@/lib/validation/common'
 import { RecipeImportSchema, RecipeInputSchema, RecipeIngredientInputSchema } from '@/lib/validation/recipes'
 import { z } from 'zod'
@@ -146,6 +146,11 @@ export async function exportRecipesAction(): Promise<ActionResult<RecipeExport>>
 export async function importRecipesAction(json: unknown): Promise<ActionResult<{ created: number; failed: string[] }>> {
   try {
     const ctx = await requireHousehold()
+    // El navegador ya comprueba el tamaño del fichero (ImportButton) antes de
+    // parsearlo y llamar aquí, pero esta acción también es alcanzable sin ese
+    // guardián (llamada directa), así que se repite server-side sobre el JSON
+    // ya parseado.
+    if (Buffer.byteLength(JSON.stringify(json), 'utf8') > MAX_IMPORT_BYTES) return fail('too_large', 'El fichero es demasiado grande')
     const parsed = RecipeExportSchema.safeParse(json)
     if (!parsed.success) return fail('validation', 'El fichero no es una exportación de RezetApp')
     const result = await importAll(ctx, parsed.data)
