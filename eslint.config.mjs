@@ -31,6 +31,7 @@ const config = [
         { type: 'actions', pattern: 'lib/actions/**' },
         { type: 'services', pattern: 'lib/services/**' },
         { type: 'uploads', pattern: 'lib/uploads/**' },
+        { type: 'mcp', pattern: 'lib/mcp/**' },
         { type: 'lib', pattern: 'lib/*.ts', mode: 'file' },
         { type: 'lib', pattern: 'lib/*' },
         { type: 'components', pattern: 'components/**' },
@@ -93,6 +94,13 @@ const config = [
               allow: { to: { element: { types: { anyOf: ['uploads', 'lib'] } } } },
             },
             {
+              // 'db' incluido: lib/mcp/auth.ts autentica el Bearer con
+              // authenticateApiToken(db, …) igual que lib/auth/guards.ts, así
+              // que necesita la misma conexión (auth -> db ya está permitido).
+              from: { element: { type: 'mcp' } },
+              allow: { to: { element: { types: { anyOf: ['mcp', 'services', 'validation', 'auth', 'domain', 'db', 'lib'] } } } },
+            },
+            {
               from: { element: { type: 'components' } },
               allow: { to: { element: { types: { anyOf: ['components', 'domain', 'validation', 'lib', 'events', 'actions'] } } } },
             },
@@ -102,7 +110,7 @@ const config = [
                 to: {
                   element: {
                     types: {
-                      anyOf: ['app', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads'],
+                      anyOf: ['app', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads', 'mcp'],
                     },
                   },
                 },
