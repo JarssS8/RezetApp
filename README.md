@@ -99,4 +99,6 @@ Ver [`docs/06-SHOPLIST.md`](docs/06-SHOPLIST.md) para el contrato entre ambas.
 ## MCP
 
 RezetApp expone un endpoint MCP en `/mcp` para manejar el recetario desde un
-cliente MCP de escritorio. Ver [`docs/05-MCP.md`](docs/05-MCP.md) (fase W3).
+cliente MCP de escritorio o un asistente de código. Cómo conectarlo (token,
+configuración del cliente y una prueba manual con `curl`) en la sección
+["Conexión" de `docs/05-MCP.md`](docs/05-MCP.md#conexión).
