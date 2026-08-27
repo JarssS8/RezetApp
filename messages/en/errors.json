@@ -11,5 +11,8 @@
   "no_provider": "Set up an AI provider in Settings to use this.",
   "ai_budget": "The monthly AI spending cap has been reached.",
   "ai_unsupported": "The AI model does not support this task.",
-  "ai_output": "The AI did not return a valid response."
+  "ai_output": "The AI did not return a valid response.",
+  "no_candidates": "The household does not have any recipes yet to fill the plan.",
+  "allergen_conflict": "All the household's recipes clash with a member's allergen.",
+  "rules_unsatisfiable": "No recipe satisfies the household's plan rules."
 }

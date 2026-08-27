@@ -110,21 +110,25 @@ export async function proposeWeekFromRules(ctx: Ctx, input: { from: string; to: 
 
   const rules = await getPlanRules(ctx)
   const { candidates, history } = await planCandidates(ctx, CANDIDATE_LIMIT, now)
-  if (candidates.length === 0) throw new ServiceError('validation', 'El hogar no tiene recetas para rellenar el plan')
+  // Los tres motivos de fallo de aquí abajo tenían el mismo código
+  // 'validation' (fix 4 de la revisión final W4): la interfaz no podía decir
+  // si el problema era "no hay recetas", "todas chocan con un alérgeno" o
+  // "ninguna cumple las reglas", que piden explicaciones y acciones distintas.
+  if (candidates.length === 0) throw new ServiceError('no_candidates', 'El hogar no tiene recetas para rellenar el plan')
 
   // Filtro determinista de alérgenos (spec §17 W4(e)): una receta que choca con
   // un alérgeno de cualquier miembro no se ofrece. No se descarta por `unknown`
   // (ingredientes sin alimento resuelto): eso dejaría fuera medio recetario.
   const conflicting = await conflictingRecipeIds(ctx, candidates.map((c) => c.id))
   const safe = candidates.filter((c) => !conflicting.has(c.id))
-  if (safe.length === 0) throw new ServiceError('validation', 'Todas las recetas del hogar chocan con algún alérgeno de sus miembros')
+  if (safe.length === 0) throw new ServiceError('allergen_conflict', 'Todas las recetas del hogar chocan con algún alérgeno de sus miembros')
 
   const days = Math.floor((Date.parse(input.to) - Date.parse(input.from)) / MS_PER_DAY) + 1
   const payload = applyPlanRules(rules, safe, history, new Date(`${input.from}T00:00:00Z`), {
     defaultServings: household.defaultServings,
     days: Math.max(1, days),
   })
-  if (payload.add.length === 0) throw new ServiceError('validation', 'Ninguna receta cumple las reglas del hogar')
+  if (payload.add.length === 0) throw new ServiceError('rules_unsatisfiable', 'Ninguna receta cumple las reglas del hogar')
 
   return createProposal(ctx, { source: 'rules', payload })
 }

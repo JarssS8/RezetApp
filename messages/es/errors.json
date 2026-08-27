@@ -11,5 +11,8 @@
   "no_provider": "Configura un proveedor de IA en Ajustes para usar esto.",
   "ai_budget": "Se ha alcanzado el tope de gasto mensual de IA.",
   "ai_unsupported": "El modelo de IA no admite esta tarea.",
-  "ai_output": "La IA no ha devuelto una respuesta válida."
+  "ai_output": "La IA no ha devuelto una respuesta válida.",
+  "no_candidates": "El hogar todavía no tiene recetas para rellenar el plan.",
+  "allergen_conflict": "Todas las recetas del hogar chocan con algún alérgeno de sus miembros.",
+  "rules_unsatisfiable": "Ninguna receta cumple las reglas del plan del hogar."
 }

@@ -19,7 +19,18 @@ export function apiError(code: string, message: string, status: number, details?
   return Response.json({ error: details === undefined ? { code, message } : { code, message, details } }, { status })
 }
 
-const SERVICE_STATUS: Record<ServiceError['code'], number> = { not_found: 404, forbidden: 403, conflict: 409, validation: 400 }
+// no_candidates/allergen_conflict/rules_unsatisfiable (fix 4 de la revisión
+// final W4, proposeWeekFromRules): mismo estado 400 que 'validation', del que
+// se distinguieron solo para que el código dijera el motivo exacto.
+const SERVICE_STATUS: Record<ServiceError['code'], number> = {
+  not_found: 404,
+  forbidden: 403,
+  conflict: 409,
+  validation: 400,
+  no_candidates: 400,
+  allergen_conflict: 400,
+  rules_unsatisfiable: 400,
+}
 
 // Traduce cualquier error de servicio o de autenticación a respuesta HTTP. Un
 // error desconocido se relanza a propósito: que Next lo registre como 500 en

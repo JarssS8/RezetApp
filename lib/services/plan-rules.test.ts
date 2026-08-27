@@ -84,7 +84,7 @@ describe('plan-rules', () => {
   })
 
   it('sin recetas devuelve un error de validación explicable, no una propuesta vacía', async () => {
-    await expect(proposeWeekFromRules(ctxA, { from: '2026-08-31', to: '2026-09-06' })).rejects.toMatchObject({ code: 'validation' })
+    await expect(proposeWeekFromRules(ctxA, { from: '2026-08-31', to: '2026-09-06' })).rejects.toMatchObject({ code: 'no_candidates' })
   })
 
   it('usa las raciones por defecto del hogar', async () => {
@@ -109,6 +109,6 @@ describe('plan-rules', () => {
     await db.update(schema.householdMembers).set({ allergens: ['gluten'] }).where(eq(schema.householdMembers.householdId, ctxA.householdId))
     const harina = await createFood(ctxA, foodInput({ nameEs: 'harina', nameEn: 'flour', allergens: ['gluten'] }))
     await createRecipe(ctxA, { title: 'Bizcocho', servingsBase: 8, tags: [], imageUrls: [], ingredients: [{ rawText: '200 g de harina', foodId: harina.id, quantity: 200, unit: 'g' }], steps: [{ text: 'Hornea' }] })
-    await expect(proposeWeekFromRules(ctxA, { from: '2026-08-31', to: '2026-09-06' })).rejects.toMatchObject({ code: 'validation' })
+    await expect(proposeWeekFromRules(ctxA, { from: '2026-08-31', to: '2026-09-06' })).rejects.toMatchObject({ code: 'allergen_conflict' })
   })
 })

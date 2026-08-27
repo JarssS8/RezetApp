@@ -39,6 +39,9 @@ const KNOWN_ERROR_CODES = [
   'ai_budget',
   'ai_unsupported',
   'ai_output',
+  'no_candidates',
+  'allergen_conflict',
+  'rules_unsatisfiable',
 ] as const
 type KnownErrorCode = (typeof KNOWN_ERROR_CODES)[number]
 const KNOWN_ERROR_CODE_SET: ReadonlySet<string> = new Set(KNOWN_ERROR_CODES)
