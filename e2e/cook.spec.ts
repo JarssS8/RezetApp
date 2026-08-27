@@ -56,4 +56,30 @@ test.describe('cocinar', () => {
     await page.goto('/pantry')
     await expect(page.getByText(/700 g/)).toBeVisible()
   })
+
+  test('el modo cocina cuenta atrás y se puede poner en modo pared', async ({ page }) => {
+    await enableVirtualAuthenticator(page)
+    await page.goto('/register')
+    await page.getByLabel(/nombre|name/i).fill(uniqueName('Cocinero'))
+    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
+    await expect(page).toHaveURL(/\/today$/)
+
+    const title = uniqueName('Sopa')
+    await page.goto('/recipes/new')
+    await page.getByLabel(/^título|^title/i).fill(title)
+    await page.getByLabel(/ingredientes|ingredients/i).fill('300 g de cebolla')
+    await page.getByLabel(/ingredientes|ingredients/i).blur()
+    await expect(page.getByText(/reconocido|recognized/i).first()).toBeVisible()
+    await page.getByLabel(/^pasos$|^steps$/i).fill('Pocha la cebolla 20 minutos')
+    await page.getByRole('button', { name: /guardar receta|save recipe/i }).click()
+    await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/)
+
+    await page.locator('main').getByRole('link', { name: /^(cocinar|cook)$/i }).click()
+    await expect(page.getByText(/Pocha la cebolla/)).toBeVisible()
+
+    await page.getByRole('button', { name: /min$/ }).first().click()
+    await expect(page.getByRole('status').first()).toContainText(/\d\d:\d\d/)
+    await page.getByRole('button', { name: /modo pared/i }).click()
+    await expect(page.getByTestId('cook-step')).toHaveClass(/text-4xl/)
+  })
 })
