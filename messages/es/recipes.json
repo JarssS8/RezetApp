@@ -74,7 +74,9 @@
     "recent": "Recientes",
     "most_cooked": "Más cocinadas",
     "title": "Título",
-    "apply": "Filtrar"
+    "apply": "Filtrar",
+    "tags": "Etiquetas",
+    "clearTags": "Quitar etiquetas"
   },
   "import": {
     "title": "Importar receta",

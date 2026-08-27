@@ -4,8 +4,10 @@ import { PlusIcon, SettingsIcon, UploadIcon } from '@/components/icons'
 import { RecipeCard } from '@/components/recipes/recipe-card'
 import { RecipeFilters } from '@/components/recipes/recipe-filters'
 import { RecipesLiveRefresh } from '@/components/recipes/recipes-live-refresh'
+import { TagFilter } from '@/components/recipes/tag-filter'
 import { requireHousehold } from '@/lib/auth/guards'
 import { searchRecipes } from '@/lib/services/recipes'
+import { listTags } from '@/lib/services/tags'
 import { RecipeSearchSchema } from '@/lib/validation/recipes'
 
 const PAGE_SIZE = 20
@@ -28,7 +30,7 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
     offset: (page - 1) * PAGE_SIZE,
   })
   const query = parsed.success ? parsed.data : RecipeSearchSchema.parse({})
-  const { items, total } = await searchRecipes(ctx, query)
+  const [{ items, total }, tags] = await Promise.all([searchRecipes(ctx, query), listTags(ctx)])
 
   const baseParams = Object.fromEntries(Object.entries(sp).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
 
@@ -50,6 +52,7 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
       <RecipeFilters initial={query} />
+      <TagFilter tags={tags.filter((tag) => tag.recipeCount > 0 || tag.parentId === null)} selected={query.tags ?? []} baseParams={baseParams} />
       {items.length === 0 ? (
         <p className="mt-6 text-text-2">{total === 0 && !query.q ? t('empty') : t('noResults')}</p>
       ) : (
