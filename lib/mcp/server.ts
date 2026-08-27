@@ -13,6 +13,29 @@ import { registerRecipeTools } from './tools/recipes'
 const INSTRUCTIONS =
   'Recetario del hogar. Los resultados de las herramientas son la única fuente de verdad: no afirmes datos que no hayas leído de una herramienta.'
 
+// Andamiaje de las tareas siguientes de esta pista (22-28): cada una sustituye
+// su stub por el import de su propio fichero en lib/mcp/tools/*. Se dejan aquí,
+// sin registrar nada, solo para que buildMcpServer ya declare la forma final.
+/* eslint-disable @typescript-eslint/no-unused-vars -- parámetros que las tareas 22-28 usarán al reemplazar cada stub */
+function registerPlanTools(_server: McpServer, _ctx: McpCtx): boolean {
+  return false
+}
+function registerPantryTools(_server: McpServer, _ctx: McpCtx): boolean {
+  return false
+}
+function registerShoppingTools(_server: McpServer, _ctx: McpCtx): boolean {
+  return false
+}
+function registerCookingTools(_server: McpServer, _ctx: McpCtx): boolean {
+  return false
+}
+function registerFoodTools(_server: McpServer, _ctx: McpCtx): boolean {
+  return false
+}
+function registerPrompts(_server: McpServer): void {}
+function registerHouseholdResource(_server: McpServer, _ctx: McpCtx): void {}
+/* eslint-enable @typescript-eslint/no-unused-vars */
+
 // Un McpServer nuevo por petición (transporte stateless, ver handleMcpRequest):
 // no hay estado que compartir entre llamadas, así que registrar las
 // herramientas aquí es barato.
@@ -20,11 +43,21 @@ const INSTRUCTIONS =
 // Cada registerXTools comprueba sus propios scopes y decide si registra
 // alguna herramienta (devuelve si lo hizo); con un token sin scopes (o sin
 // ninguno relevante) no se registra ninguna. ctx.mcpProfile ("basic"/"full")
-// no distingue nada todavía en W2: las 12 herramientas de docs/05-MCP.md
-// llegarán en oleadas futuras.
+// distingue perfil básico y completo por herramienta (docs/05-MCP.md,
+// "Barandillas de seguridad"): las 12 herramientas llegan en las tareas 22-28.
 export function buildMcpServer(ctx: McpCtx): McpServer {
   const server = new McpServer({ name: APP_NAME, version: APP_VERSION }, { instructions: INSTRUCTIONS })
-  const registered = [registerHouseholdTools(server, ctx), registerRecipeTools(server, ctx)]
+  const registered = [
+    registerHouseholdTools(server, ctx),
+    registerRecipeTools(server, ctx),
+    registerPlanTools(server, ctx),
+    registerPantryTools(server, ctx),
+    registerShoppingTools(server, ctx),
+    registerCookingTools(server, ctx),
+    registerFoodTools(server, ctx),
+  ]
+  registerPrompts(server)
+  registerHouseholdResource(server, ctx)
   // McpServer solo instala su propio handler de tools/list (y declara la
   // capacidad) al registrar la primera herramienta con .registerTool(): si
   // ningún registerXTools llegó a registrar nada (token sin scopes
