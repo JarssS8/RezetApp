@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server'
 import { MonthView, type MonthDayCell } from '@/components/plan/month-view'
+import { PlanLiveRefresh } from '@/components/plan/plan-live-refresh'
 import { MEAL_SLOTS } from '@/components/plan/types'
 import { requireHousehold } from '@/lib/auth/guards'
 import { addDays, monthRange, todayIso, weekRange } from '@/lib/plan-dates'
@@ -76,6 +77,7 @@ export default async function PlanMonthPage({ searchParams }: PlanMonthPageProps
 
   return (
     <main className="flex flex-col gap-3 pb-4">
+      <PlanLiveRefresh />
       <h1 className="text-2xl">{t('month')}</h1>
       <MonthView month={month} weeks={weeks} todayIso={today} prevMonth={shiftMonth(month, -1)} nextMonth={shiftMonth(month, 1)} />
     </main>
