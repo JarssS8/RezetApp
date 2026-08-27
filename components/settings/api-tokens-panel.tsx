@@ -186,7 +186,9 @@ function CreateTokenDialog({ createAction }: { createAction: CreateApiTokenFn })
               {t('tokens.created')}
             </p>
             <div className="flex items-center gap-2 rounded-sm border border-border bg-surface-2 p-2">
-              <code className="tabular flex-1 overflow-x-auto text-sm">{result.token}</code>
+              <code data-testid="new-token" className="tabular flex-1 overflow-x-auto text-sm">
+                {result.token}
+              </code>
               <Button type="button" variant="ghost" size="icon-sm" onClick={onCopy} aria-label={t('tokens.copy')}>
                 {copied ? <CheckIcon size={16} /> : <CopyIcon size={16} />}
               </Button>
