@@ -1,6 +1,7 @@
 // Reexporta todos los iconos propios (SVG dibujados a mano, sin librerías externas).
 export { Icon, type IconProps } from './icon'
 export { BarcodeIcon } from './barcode'
+export { BellIcon } from './bell'
 export { BookmarkIcon } from './bookmark'
 export { CalendarMonthIcon } from './calendar-month'
 export { ChartIcon } from './chart'

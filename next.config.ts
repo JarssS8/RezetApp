@@ -15,6 +15,20 @@ const nextConfig: NextConfig = {
   // La clave es un glob (picomatch): los corchetes del segmento dinámico hay
   // que escaparlos, si no `[file]` se lee como una clase de caracteres.
   outputFileTracingIncludes: { '/api/docs/assets/\\[file\\]': ['./node_modules/swagger-ui-dist/swagger-ui*.{css,js}'] },
+  // El service worker no se cachea nunca: si el navegador guarda una versión
+  // vieja, la app se queda con ella hasta que caduque. Y Service-Worker-Allowed
+  // deja explícito el ámbito raíz aunque el fichero se sirva desde /.
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+    ]
+  },
 }
 
 export default withNextIntl(nextConfig)

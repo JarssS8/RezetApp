@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:scripts": "esbuild scripts/migrate.ts scripts/seed.ts --bundle --platform=node --format=esm --target=node24 --outdir=dist/scripts --out-extension:.js=.mjs --external:pg-native --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "build:icons": "tsx scripts/build-icons.ts",
+    "build:scripts": "esbuild scripts/migrate.ts scripts/seed.ts scripts/notify-expiring.ts --bundle --platform=node --format=esm --target=node24 --outdir=dist/scripts --out-extension:.js=.mjs --external:pg-native --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
@@ -25,6 +26,7 @@
     "db:seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
     "import:mealie": "tsx --env-file-if-exists=.env scripts/import-mealie.ts",
     "import:tandoor": "tsx --env-file-if-exists=.env scripts/import-tandoor.ts",
+    "notify:expiring": "tsx --env-file-if-exists=.env scripts/notify-expiring.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
@@ -53,6 +55,7 @@
     "sonner": "2.0.8",
     "swagger-ui-dist": "5.32.14",
     "tailwind-merge": "3.6.0",
+    "web-push": "3.6.7",
     "zod": "4.4.3",
     "zod-openapi": "6.0.1"
   },
@@ -66,6 +69,7 @@
     "@types/pg": "8.15.6",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "@types/web-push": "3.6.4",
     "@vitejs/plugin-react": "5.1.2",
     "@vitest/coverage-v8": "4.1.11",
     "drizzle-kit": "0.31.10",

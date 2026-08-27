@@ -58,9 +58,29 @@ connections are the ones you explicitly configure:
   OpenAI-compatible server).
 - Open Food Facts, when scanning a barcode in the pantry.
 - ShopList, if you enable sending the shopping list.
+- Your own browser's push service, if you turn on expiry alerts: the message
+  reaches it already encrypted, so it cannot read it.
 
 With none of those configured, the app works entirely without reaching the
 internet.
+
+## Notifications
+
+Each device opts in to expiry alerts from Settings → Notifications. It needs
+HTTPS (or `localhost` in development) and browser permission.
+
+The alert is triggered by an external cron job, not a scheduler inside the
+app (the app deliberately doesn't ship one): `pnpm notify:expiring` in
+development, or in production
+
+```
+0 9 * * *  docker compose exec -T app node dist/scripts/notify-expiring.mjs
+```
+
+VAPID keys are generated once, on first use, and stored encrypted in
+`app_settings` — nothing to configure by hand. No data leaves the server to
+any third party except the browser's own push service, which delivers the
+message already encrypted.
 
 ## Data licenses
 

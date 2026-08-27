@@ -179,8 +179,8 @@ const config = [
               // 'services' incluido: los scripts de migración (W4(c)) crean las
               // recetas con createRecipe, el mismo servicio que usa la interfaz,
               // para que resuelvan alimentos y nutrición igual que una receta
-              // escrita a mano. La alternativa -reimplementar el alta contra db-
-              // duplicaría §9.1 entera.
+              // escrita a mano (y scripts/notify-expiring.ts llama a
+              // notifyExpiring desde un cron externo, sin pasar por Next).
               from: { element: { type: 'scripts' } },
               allow: { to: { element: { types: { anyOf: ['scripts', 'db', 'domain', 'lib', 'services'] } } } },
             },
@@ -257,6 +257,15 @@ const config = [
           message: 'No pintes result.message crudo: traduce por result.code con actionErrorKey (lib/actions/result.ts).',
         },
       ],
+    },
+  },
+  {
+    // El service worker es JavaScript de navegador con sus propios globales
+    // (self, caches, clients). No pertenece a ningún elemento de boundaries.
+    files: ['public/sw.js'],
+    languageOptions: {
+      globals: { self: 'readonly', caches: 'readonly', clients: 'readonly', fetch: 'readonly' },
+      sourceType: 'script',
     },
   },
 ]

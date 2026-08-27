@@ -213,5 +213,17 @@
     "importError": "El fichero no es una exportación válida",
     "migrate": "Migrar desde Mealie o Tandoor",
     "migrateHint": "Se hace desde la línea de comandos del servidor: pnpm import:mealie '<fichero>' --household '<id>'. Está explicado en el README."
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "hint": "Avisos de lo que está a punto de caducar en la despensa. Se activan por dispositivo.",
+    "enable": "Activar en este dispositivo",
+    "disable": "Desactivar en este dispositivo",
+    "enabled": "Activadas en este dispositivo",
+    "unsupported": "Este navegador no admite notificaciones push. En iPhone hay que añadir la app a la pantalla de inicio primero.",
+    "denied": "Has bloqueado las notificaciones para este sitio. Se cambia desde los ajustes del navegador.",
+    "error": "No se pudo cambiar la suscripción",
+    "devices": "Dispositivos suscritos: {count}",
+    "cron": "El servidor envía los avisos una vez al día; quien lo administra lo configura según el README."
   }
 }
