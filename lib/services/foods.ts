@@ -272,6 +272,26 @@ export async function correctFood(ctx: Ctx, foodId: string, patch: FoodCorrectio
   }
 
   if (f.householdId === null) {
+    // Antes de crear la copia, busca si el hogar ya tiene una con el mismo nombre
+    // normalizado (p. ej. dos correcciones seguidas del mismo global, o un alimento
+    // manual que casualmente coincide): si existe, se actualiza esa en vez de
+    // duplicarla (I18/fix 18 de la revisión final). searchNameEs es el mismo que
+    // calculará toInsert para la fila nueva, así que la comparación es consistente.
+    const searchNameEs = normalizeSearchName(merged.nameEs)
+    const [existingCopy] = await ctx.db
+      .select()
+      .from(schema.foods)
+      .where(and(eq(schema.foods.householdId, ctx.householdId), eq(schema.foods.searchNameEs, searchNameEs), isNull(schema.foods.mergedIntoId)))
+      .limit(1)
+    if (existingCopy) {
+      const [updated] = await ctx.db
+        .update(schema.foods)
+        .set({ ...toInsert(merged, ctx.householdId, 'manual', false), updatedAt: new Date() })
+        .where(eq(schema.foods.id, existingCopy.id))
+        .returning()
+      if (!updated) throw new ServiceError('conflict', 'No se pudo actualizar la copia del alimento')
+      return toSummary(updated, ctx.locale)
+    }
     const [copy] = await ctx.db
       .insert(schema.foods)
       .values(toInsert(merged, ctx.householdId, 'manual', false))

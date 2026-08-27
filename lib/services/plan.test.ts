@@ -240,6 +240,66 @@ describe('createProposal', () => {
     expect(rowToken?.createdByTokenId).toBe(tokenId)
     expect(rowToken?.createdByUserId).toBeNull()
   })
+
+  // C1 de la revisión final: un cliente MCP (source: 'mcp') puede mandar cualquier UUID
+  // como recipeId; createProposal debe cortar antes de insertar, no solo al aprobar.
+  it('rechaza un recipeId que no pertenece al hogar (validation), sin crear la propuesta', async () => {
+    const a = await makeHousehold('Casa A')
+    const b = await makeHousehold('Casa B')
+    const ownerA = await makeUser('Ana')
+    const recipeB = await makeRecipe(b, 'Ajena')
+
+    await expectServiceErrorCode(
+      createProposal(ctxOf(a, { userId: ownerA }), {
+        source: 'mcp',
+        payload: { add: [{ date: '2026-09-02', slot: 'lunch', recipeId: recipeB, servings: 2 }], remove: [] },
+      }),
+      'validation',
+    )
+    const rows = await db.select().from(schema.planProposals).where(eq(schema.planProposals.householdId, a))
+    expect(rows).toHaveLength(0)
+  })
+
+  it('también rechaza un recipeId de una receta propia pero borrada', async () => {
+    const a = await makeHousehold('Casa A')
+    const ownerA = await makeUser('Ana')
+    const recipeA = await makeRecipe(a, 'Borrada')
+    await db.update(schema.recipes).set({ deletedAt: new Date() }).where(eq(schema.recipes.id, recipeA))
+
+    await expectServiceErrorCode(
+      createProposal(ctxOf(a, { userId: ownerA }), {
+        source: 'mcp',
+        payload: { add: [{ date: '2026-09-02', slot: 'lunch', recipeId: recipeA, servings: 2 }], remove: [] },
+      }),
+      'validation',
+    )
+  })
+
+  // El SELECT de lookupRecipeTitles nunca debe filtrar el título de una receta de otro
+  // hogar: aquí se comprueba tanto en createProposal (via la validación de arriba) como
+  // en el diff que se construye al listar la propuesta.
+  it('los títulos del diff nunca vienen de una receta de otro hogar', async () => {
+    const a = await makeHousehold('Casa A')
+    const b = await makeHousehold('Casa B')
+    const ownerA = await makeUser('Ana')
+    const recipeA = await makeRecipe(a, 'Propia')
+    const recipeB = await makeRecipe(b, 'Secreta de B')
+
+    const proposal = await createProposal(ctxOf(a, { userId: ownerA }), {
+      source: 'rules',
+      payload: { add: [{ date: '2026-09-02', slot: 'lunch', recipeId: recipeA, customTitle: 'Secreta de B', servings: 2 }], remove: [] },
+    })
+    expect(proposal.diff.add[0]?.title).toBe('Propia')
+
+    // Manipular el payload guardado para simular un recipeId ajeno colado antes del fix de
+    // createProposal (defensa en profundidad de lookupRecipeTitles en el propio diff).
+    await db
+      .update(schema.planProposals)
+      .set({ payload: { add: [{ date: '2026-09-02', slot: 'lunch', recipeId: recipeB, servings: 2 }], remove: [] } })
+      .where(eq(schema.planProposals.id, proposal.id))
+    const [reloaded] = await listProposals(ctxOf(a, { userId: ownerA }))
+    expect(reloaded?.diff.add[0]?.title).toBe('')
+  })
 })
 
 describe('listProposals', () => {

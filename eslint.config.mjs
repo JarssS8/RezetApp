@@ -47,8 +47,10 @@ const config = [
           policies: [
             { from: { element: { type: 'domain' } }, allow: { to: { element: { type: 'domain' } } } },
             {
+              // 'lib' incluido: lib/net-hosts.ts (clasificación SSRF de hosts) la
+              // usan tanto lib/validation/household.ts como lib/services/recipe-import.ts.
               from: { element: { type: 'validation' } },
-              allow: { to: { element: { types: { anyOf: ['validation', 'domain'] } } } },
+              allow: { to: { element: { types: { anyOf: ['validation', 'domain', 'lib'] } } } },
             },
             { from: { element: { type: 'db' } }, allow: { to: { element: { type: 'db' } } } },
             {

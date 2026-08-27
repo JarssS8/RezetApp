@@ -118,19 +118,23 @@ async function prepareIngredientsWithFoods(ctx: Ctx, inputs: IngredientInput[], 
       // sin quantity/unit -no tiene datos de conversión del alimento en el
       // cliente-: se convierte aquí, con la conversión real del alimento
       // (food, si se resolvió), y se respeta scalesLinearly tal cual lo
-      // mandó el llamador (es una corrección explícita, no un "no sé").
+      // mandó el llamador (es una corrección explícita, no un "no sé"); si no
+      // lo mandó (undefined: p. ej. un cliente MCP sin ese campo), se aplica
+      // la misma heurística que en el caso 1 en vez de asumir 'lineal'.
       const base = displayQuantity !== null && displayUnit !== null ? toBaseUnit(displayQuantity, displayUnit, locale, food ?? undefined) : null
       quantity = base?.qty ?? null
       unit = base?.unit ?? null
-      scalesLinearly = i.scalesLinearly
+      scalesLinearly = i.scalesLinearly ?? !isNonLinearByDefault(food?.name ?? p.foodName, locale)
       needsReview = foodId === null || quantity === null
     } else {
       // 3) Línea ya resuelta del todo (quantity explícito, típicamente una
       // fila que el editor no tocó y reenvía tal cual): se conserva todo,
-      // incluido scalesLinearly, que el usuario pudo corregir a mano.
+      // incluido scalesLinearly, que el usuario pudo corregir a mano; si no
+      // llega (undefined), se aplica la heurística en vez de asumir 'lineal'
+      // (mismo motivo que en el caso 2: un cliente MCP puede omitirlo).
       quantity = i.quantity ?? null
       unit = i.unit ?? null
-      scalesLinearly = i.scalesLinearly
+      scalesLinearly = i.scalesLinearly ?? !isNonLinearByDefault(food?.name ?? p.foodName, locale)
       needsReview = foodId === null
     }
 
@@ -463,6 +467,12 @@ export async function exportAll(ctx: Ctx): Promise<RecipeExport> {
     .where(and(eq(schema.recipes.householdId, ctx.householdId), isNull(schema.recipes.deletedAt)))
     .orderBy(schema.recipes.createdAt)
   const out: RecipeExport['recipes'] = []
+  // N+1 aceptado (Minor, revisión final): una consulta por receta vía getRecipe en
+  // vez de traer ingredientes/pasos/tags de todo el hogar de una vez. Se acepta
+  // porque exportAll es una operación manual y poco frecuente (backup/exportación
+  // desde ajustes, no un listado que se repinte en cada carga de página) y porque
+  // reutilizar getRecipe evita duplicar su lógica de ensamblado; si el hogar llega
+  // a tener cientos de recetas y la exportación se nota lenta, se puede batchear.
   for (const r of rows) {
     const d = await getRecipe(ctx, r.id)
     if (!d) continue

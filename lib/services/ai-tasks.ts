@@ -204,8 +204,11 @@ async function buildProposePlanContext(ctx: Ctx, household: Household, input: { 
 
   const cutoff = new Date()
   cutoff.setUTCDate(cutoff.getUTCDate() + household.expiryAlertDays)
+  // Nombre en el idioma del hogar (no siempre español): el modelo recibe el
+  // contexto en ctx.locale (ver proposePlanSystemPrompt), y el nombre de un
+  // alimento que caduca debía respetar ese mismo idioma (I8 de la revisión final).
   const expiringRows = await ctx.db
-    .select({ name: schema.foods.nameEs })
+    .select({ name: ctx.locale === 'en' ? schema.foods.nameEn : schema.foods.nameEs })
     .from(schema.pantryItems)
     .innerJoin(schema.foods, eq(schema.foods.id, schema.pantryItems.foodId))
     .where(and(eq(schema.pantryItems.householdId, ctx.householdId), isNotNull(schema.pantryItems.expiresAt), lte(schema.pantryItems.expiresAt, dateOnly(cutoff))))

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { and, eq } from 'drizzle-orm'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
 import type { OffProduct } from '@/lib/integrations/open-food-facts'
@@ -124,6 +125,19 @@ describe('createFood / correctFood', () => {
     // el global sigue intacto y el hogar A ahora resuelve a su copia
     expect((await getFood(ctxB, g!.id))?.kcal100g).toBe(40)
     expect((await resolveFoodName(ctxA, 'pimiento rojo', 'es'))?.foodId).toBe(c.id)
+  })
+
+  it('corregir el mismo global dos veces reutiliza la copia del hogar en vez de duplicarla', async () => {
+    const [g] = await searchFoods(ctxA, { q: 'pimiento rojo' })
+    const first = await correctFood(ctxA, g!.id, { kcal100g: 31 })
+    const second = await correctFood(ctxA, g!.id, { kcal100g: 33 })
+    expect(second.id).toBe(first.id)
+    expect(second.kcal100g).toBe(33)
+    const copies = await db
+      .select()
+      .from(schema.foods)
+      .where(and(eq(schema.foods.householdId, ctxA.householdId), eq(schema.foods.searchNameEs, 'pimiento rojo')))
+    expect(copies).toHaveLength(1)
   })
 
   it('correctFood sobre un alimento propio actualiza in situ; sobre uno ajeno → not_found', async () => {

@@ -80,7 +80,11 @@ function rowsFromInput(ingredients: RecipeInput['ingredients'], foodNames?: (str
     preparation: i.preparation ?? null,
     groupLabel: i.groupLabel ?? null,
     stepIndex: i.stepIndex ?? null,
-    scalesLinearly: i.scalesLinearly,
+    // Undefined solo puede llegar de un borrador de IA (lib/validation/recipes.ts ya
+    // no le pone default): se muestra como lineal hasta que el usuario lo corrija o
+    // el reanálisis del servidor lo recalcule; una receta ya guardada siempre trae
+    // un booleano real aquí (recipe-mapper.ts::detailToInput).
+    scalesLinearly: i.scalesLinearly ?? true,
     sortOrder: index,
     needsReview: (i.foodId ?? null) === null,
     touched: true,

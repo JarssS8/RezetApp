@@ -1,11 +1,13 @@
 'use server'
 
+import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { requireHousehold } from '@/lib/auth/guards'
 import { IdSchema } from '@/lib/validation/common'
 import { CreateLeftoverInputSchema, PlanBatchSchema, PlanEntryMoveSchema, PlanEntryPatchSchema, ProposalDecisionSchema } from '@/lib/validation/plan'
 import type { PlanBatch, PlanEntryMove, PlanEntryPatch } from '@/lib/validation/plan'
-import { applyBatch, createLeftover, decideProposal, moveEntry, patchEntry, searchRecipesLite, type PlanEntryView, type ProposalView } from '@/lib/services/plan'
+import { applyBatch, createLeftover, decideProposal, moveEntry, patchEntry, type PlanEntryView, type ProposalView } from '@/lib/services/plan'
+import { searchRecipes } from '@/lib/services/recipes'
 import { type ActionResult, fail, fromError, ok } from './result'
 
 const PLAN_PATH = '/plan'
@@ -79,12 +81,18 @@ export async function decideProposalAction(id: string, decision: 'approve' | 're
   }
 }
 
-// Búsqueda de recetas para la hoja de "añadir al plan" (ver lib/services/plan.ts::searchRecipesLite)
+const PlanRecipeSearchQuerySchema = z.string().trim().min(1).max(120)
+
+// Búsqueda de recetas para la hoja de "añadir al plan": delega en el servicio de
+// recetas (lib/services/recipes.ts::searchRecipes) y se queda solo con id/título,
+// que es lo único que necesita components/plan/add-entry-sheet.tsx.
 export async function searchRecipesForPlanAction(q: string): Promise<ActionResult<{ id: string; title: string }[]>> {
   try {
+    const parsed = PlanRecipeSearchQuerySchema.safeParse(q)
+    if (!parsed.success) return fail('validation', 'Búsqueda inválida')
     const ctx = await requireHousehold()
-    const results = await searchRecipesLite(ctx, q)
-    return ok(results)
+    const { items } = await searchRecipes(ctx, { q: parsed.data, limit: 10, offset: 0, sort: 'recent' })
+    return ok(items.map((r) => ({ id: r.id, title: r.title })))
   } catch (e) {
     return fromError(e)
   }

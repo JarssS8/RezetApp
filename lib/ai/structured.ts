@@ -5,17 +5,38 @@
 // se pide validación estricta del esquema (grado máximo de cumplimiento que
 // admite ese adaptador en llamadas por-petición: el modo de gramática GBNF en
 // sí depende de cómo se construyó el modelo en lib/ai/provider.ts).
-import { generateObject } from 'ai'
+import { generateObject, NoObjectGeneratedError } from 'ai'
 import type { LanguageModel, ModelMessage } from 'ai'
 import type { z } from 'zod'
 import type { AiConfig } from './provider'
 
+// Uso real reportado por el proveedor aunque la llamada haya fallado (p. ej. el
+// modelo generó texto pero no un objeto válido): withBudget lo usa para registrar
+// el gasto real en vez de una fila a 0 tokens cuando fn(model) lanza (fix 5 de la
+// revisión final). undefined cuando el proveedor no reportó ningún uso.
+export interface AiUsage {
+  inputTokens: number
+  outputTokens: number
+}
+
 export class AiStructuredError extends Error {
   readonly code = 'ai_invalid_output'
-  constructor(message = 'El modelo no devolvió un objeto válido') {
+  readonly usage: AiUsage | undefined
+  constructor(message = 'El modelo no devolvió un objeto válido', usage?: AiUsage) {
     super(message)
     this.name = 'AiStructuredError'
+    this.usage = usage
   }
+}
+
+// NoObjectGeneratedError (AI SDK) adjunta el `usage` de la llamada aunque no
+// haya podido validar la salida como objeto; otros errores (de red, del
+// proveedor) no lo traen.
+function usageFromError(err: unknown): AiUsage | undefined {
+  if (!NoObjectGeneratedError.isInstance(err)) return undefined
+  const usage = err.usage
+  if (!usage) return undefined
+  return { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 }
 }
 
 export interface StructuredPrompt {
@@ -49,6 +70,6 @@ export async function generateStructured<S extends z.ZodType>(
     })
     return { result: object as z.infer<S>, usage: { inputTokens: usage.inputTokens ?? 0, outputTokens: usage.outputTokens ?? 0 } }
   } catch (err) {
-    throw new AiStructuredError(err instanceof Error ? err.message : 'Error desconocido')
+    throw new AiStructuredError(err instanceof Error ? err.message : 'Error desconocido', usageFromError(err))
   }
 }

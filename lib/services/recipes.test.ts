@@ -205,6 +205,26 @@ describe('prepareIngredients con displayQuantity corregido a mano (sin quantity)
   })
 })
 
+// I6/fix 3 de la revisión final: un cliente que manda quantity/unit ya resueltos
+// (típico de MCP) pero omite scalesLinearly no debe colar una especia como lineal
+// (antes, z.boolean().default(true) lo indistinguía de un 'true' explícito).
+describe('prepareIngredients con quantity/unit resueltos y scalesLinearly omitido (estilo MCP)', () => {
+  it('sin el campo, aplica la heurística por nombre del alimento (sal → false)', async () => {
+    const prepared = await prepareIngredients(ctxA, [{ rawText: '2 cucharaditas de sal', foodId: saltId, quantity: 10, unit: 'g' }], 'es')
+    expect(prepared[0]).toMatchObject({ quantity: 10, unit: 'g', scalesLinearly: false })
+  })
+
+  it('sin el campo, un alimento que sí escala linealmente da true', async () => {
+    const prepared = await prepareIngredients(ctxA, [{ rawText: '100 g de cebolla', foodId: onionId, quantity: 100, unit: 'g' }], 'es')
+    expect(prepared[0]).toMatchObject({ quantity: 100, unit: 'g', scalesLinearly: true })
+  })
+
+  it('con scalesLinearly explícito, se respeta en vez de la heurística', async () => {
+    const prepared = await prepareIngredients(ctxA, [{ rawText: '2 cucharaditas de sal', foodId: saltId, quantity: 10, unit: 'g', scalesLinearly: true }], 'es')
+    expect(prepared[0]).toMatchObject({ scalesLinearly: true })
+  })
+})
+
 describe('searchRecipes', () => {
   it('full-text con websearch, filtros y orden; solo del hogar', async () => {
     await createRecipe(ctxA, input)

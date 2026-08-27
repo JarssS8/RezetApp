@@ -5,6 +5,7 @@ import { requireHousehold } from '@/lib/auth/guards'
 import type { ParsedIngredient } from '@/lib/domain/types'
 import { getAiSettings, testAiConnection, updateAiSettings, type AiConnectionResult, type AiSettingsView } from '@/lib/services/ai-settings'
 import { aiEstimateFood, aiImportRecipe, aiParseIngredients, aiProposeWeek, type AiImportRecipeInput, type AiResult, type FoodWithNutrition } from '@/lib/services/ai-tasks'
+import { MAX_UPLOAD_BYTES } from '@/lib/uploads/store'
 import { DateSchema } from '@/lib/validation/common'
 import { AiSettingsSchema } from '@/lib/validation/household'
 import type { RecipeInput } from '@/lib/validation/recipes'
@@ -30,8 +31,14 @@ export async function aiParseIngredientsAction(lines: string[]): Promise<ActionR
 const ImportRecipeInputSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('text'), text: z.string().trim().min(10).max(20_000) }),
   // Desviación documentada (ver lib/services/ai-tasks.ts::AiImportRecipeInput):
-  // sin `lib/uploads` en este worktree, se pasan los bytes ya leídos.
-  z.strictObject({ kind: z.literal('image'), bytes: z.instanceof(Uint8Array), mime: z.string().max(100) }),
+  // sin `lib/uploads` en este worktree, se pasan los bytes ya leídos. Se acota al
+  // mismo tope que una subida normal (MAX_UPLOAD_BYTES): sin esto, una imagen
+  // enorme llegaría intacta hasta el proveedor de IA sin ningún límite de tamaño.
+  z.strictObject({
+    kind: z.literal('image'),
+    bytes: z.instanceof(Uint8Array).refine((b) => b.byteLength <= MAX_UPLOAD_BYTES, { message: 'Imagen demasiado grande' }),
+    mime: z.string().max(100),
+  }),
 ])
 
 export async function aiImportRecipeAction(input: AiImportRecipeInput): Promise<ActionResult<RecipeInput>> {

@@ -191,8 +191,12 @@ describe('aiProposeWeek', () => {
 
     const proposals = await db.select().from(schema.planProposals).where(eq(schema.planProposals.householdId, householdId))
     expect(proposals).toHaveLength(0)
+    // I5 de la revisión final: withBudget ahora registra el intento fallido (AiOutputError
+    // no trae usage propio, así que la fila queda a 0 tokens/0 coste) en vez de no dejar
+    // ningún rastro de que el modelo llegó a responder pero con nada aprovechable.
     const usage = await db.select().from(schema.aiUsageLog).where(eq(schema.aiUsageLog.householdId, householdId))
-    expect(usage).toHaveLength(0)
+    expect(usage).toHaveLength(1)
+    expect(usage[0]).toMatchObject({ operation: 'propose_week:error', tokensIn: 0, tokensOut: 0, costCents: 0 })
   })
 
   it('un hogar sin recetas propias no ve las de otro hogar (aislamiento) y devuelve ai_output', async () => {
@@ -308,5 +312,39 @@ describe('contexto de aiProposeWeek acotado', () => {
     expect(sentContext.recipes.map((r) => r.id)).toEqual([neverCookedFew, neverCookedMany, recentlyCooked])
     const withTags = sentContext.recipes.find((r) => r.id === neverCookedFew)
     expect(withTags?.tags).toHaveLength(5)
+  })
+
+  // I8 de la revisión final: el nombre de un alimento que caduca se mandaba
+  // siempre en español (nameEs), aunque el hogar trabajara en inglés.
+  it('nombra los alimentos que caducan en el idioma del ctx (en → nameEn)', async () => {
+    const { ctx } = await makeHousehold()
+    const enCtx: Ctx = { ...ctx, locale: 'en' }
+    await configureOpenAi(enCtx)
+
+    const [food] = await db
+      .insert(schema.foods)
+      .values({ nameEs: 'leche', nameEn: 'milk', searchNameEs: 'leche', searchNameEn: 'milk', source: 'usda' })
+      .returning({ id: schema.foods.id })
+    if (!food) throw new Error('no se pudo crear el alimento de prueba')
+    const soonDate = new Date()
+    soonDate.setUTCDate(soonDate.getUTCDate() + 1)
+    await db.insert(schema.pantryItems).values({
+      householdId: enCtx.householdId,
+      foodId: food.id,
+      quantity: 1000,
+      unit: 'ml',
+      expiresAt: soonDate.toISOString().slice(0, 10),
+    })
+    const recipe = await insertRecipe(enCtx.householdId, 'Batido')
+
+    const model = modelReturning(JSON.stringify({ picks: [{ date: '2026-08-25', slot: 'lunch', recipeId: recipe }] }))
+    const result = await aiProposeWeek(enCtx, { from: '2026-08-24', to: '2026-08-30' }, { model: model as unknown as LanguageModel })
+    expect(result.ok).toBe(true)
+
+    const userMessage = model.doGenerateCalls[0]?.prompt.find((m) => m.role === 'user')
+    const userContent = userMessage?.content as Array<{ type: string; text: string }> | undefined
+    const text = userContent?.[0]?.text ?? ''
+    const sentContext = JSON.parse(text) as { expiringFoods: string[] }
+    expect(sentContext.expiringFoods).toEqual(['milk'])
   })
 })
