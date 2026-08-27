@@ -29,7 +29,7 @@ export async function saveImage(householdId: string, bytes: Uint8Array): Promise
     .toBuffer()
   const name = `${randomUUID()}.webp`
   const dir = join(uploadsDir(), householdId)
-  await mkdir(dir, { recursive: true })
+  await mkdir(dir, { recursive: true, mode: 0o750 })
   const path = join(dir, name)
   await writeFile(path, webp)
   return { path, url: `/api/uploads/${householdId}/${name}` }

@@ -1,5 +1,32 @@
 {
   "title": "Recetas",
+  "new": "Nueva receta",
+  "empty": "Aún no hay recetas. Crea la primera o importa una.",
+  "noResults": "Sin resultados con esos filtros.",
+  "more": "Siguiente",
+  "pagination": "Paginación",
+  "perServing": "ración",
+  "minutes": "min",
+  "kcalUnit": "kcal",
+  "filters": {
+    "search": "Buscar…",
+    "difficulty": "Dificultad",
+    "any": "Cualquiera",
+    "easy": "Fácil",
+    "medium": "Media",
+    "hard": "Difícil",
+    "maxMinutes": "Máx. minutos",
+    "onlyWithPantry": "Tengo los ingredientes",
+    "sort": "Orden",
+    "relevance": "Relevancia",
+    "recent": "Recientes",
+    "most_cooked": "Más cocinadas",
+    "title": "Título",
+    "apply": "Filtrar"
+  },
+  "import": {
+    "title": "Importar receta"
+  },
   "food": {
     "searchPlaceholder": "Buscar alimento…",
     "mine": "propio",

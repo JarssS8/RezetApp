@@ -1,5 +1,32 @@
 {
   "title": "Recipes",
+  "new": "New recipe",
+  "empty": "No recipes yet. Create the first one or import one.",
+  "noResults": "No results for those filters.",
+  "more": "Next",
+  "pagination": "Pagination",
+  "perServing": "serving",
+  "minutes": "min",
+  "kcalUnit": "kcal",
+  "filters": {
+    "search": "Search…",
+    "difficulty": "Difficulty",
+    "any": "Any",
+    "easy": "Easy",
+    "medium": "Medium",
+    "hard": "Hard",
+    "maxMinutes": "Max minutes",
+    "onlyWithPantry": "I have the ingredients",
+    "sort": "Sort",
+    "relevance": "Relevance",
+    "recent": "Recent",
+    "most_cooked": "Most cooked",
+    "title": "Title",
+    "apply": "Filter"
+  },
+  "import": {
+    "title": "Import recipe"
+  },
   "food": {
     "searchPlaceholder": "Search food…",
     "mine": "mine",
