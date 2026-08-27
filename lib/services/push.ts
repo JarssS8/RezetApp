@@ -1,10 +1,16 @@
 // Claves VAPID y suscripciones de push (spec §4, §15).
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
+import { db } from '@/db'
 import * as schema from '@/db/schema'
 import { decryptSecret, encryptSecret, getKeys } from '@/lib/crypto'
 import { generateVapidKeys, type VapidKeys } from '@/lib/integrations/web-push'
+import type { PushSubscriptionInput } from '@/lib/validation/push'
 import type { Db } from './ctx'
 import { ServiceError } from './ctx'
+
+// Reexportada para las rutas de app/api/push: las fronteras de eslint-boundaries
+// no dejan a `app` importar `db` directamente, solo a través de `services`.
+export { db }
 
 export const VAPID_SETTINGS_KEY = 'vapid'
 
@@ -80,4 +86,26 @@ export async function getOrCreateVapidKeys(db: Db): Promise<VapidKeys> {
 
 export async function getVapidPublicKey(db: Db): Promise<string> {
   return (await getOrCreateVapidKeys(db)).publicKey
+}
+
+// El endpoint es único en toda la instalación (lo impone el esquema): si el
+// mismo navegador se usa con otra cuenta, la suscripción cambia de dueño en
+// vez de fallar con una violación de unicidad.
+export async function subscribePush(db: Db, userId: string, sub: PushSubscriptionInput): Promise<void> {
+  await db
+    .insert(schema.pushSubscriptions)
+    .values({ userId, endpoint: sub.endpoint, keys: sub.keys })
+    .onConflictDoUpdate({ target: schema.pushSubscriptions.endpoint, set: { userId, keys: sub.keys } })
+}
+
+export async function unsubscribePush(db: Db, userId: string, endpoint: string): Promise<void> {
+  await db.delete(schema.pushSubscriptions).where(and(eq(schema.pushSubscriptions.userId, userId), eq(schema.pushSubscriptions.endpoint, endpoint)))
+}
+
+export async function listPushSubscriptions(db: Db, userId: string): Promise<{ endpoint: string; createdAt: Date }[]> {
+  return db
+    .select({ endpoint: schema.pushSubscriptions.endpoint, createdAt: schema.pushSubscriptions.createdAt })
+    .from(schema.pushSubscriptions)
+    .where(eq(schema.pushSubscriptions.userId, userId))
+    .orderBy(schema.pushSubscriptions.createdAt)
 }

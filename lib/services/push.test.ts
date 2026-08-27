@@ -3,15 +3,23 @@ import { eq } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import { decryptSecret, getKeys } from '@/lib/crypto'
-import { getOrCreateVapidKeys, getVapidPublicKey, VAPID_SETTINGS_KEY } from './push'
+import { getOrCreateVapidKeys, getVapidPublicKey, listPushSubscriptions, subscribePush, unsubscribePush, VAPID_SETTINGS_KEY } from './push'
 
 process.env.APP_SECRET = 'secreto-de-prueba-con-suficiente-longitud-1234'
 
 let db: TestDb
+let anaId: string, boId: string
 
 beforeAll(async () => { db = await getTestDb() })
 afterAll(closeTestDb)
-beforeEach(async () => { await truncateAll(db) })
+beforeEach(async () => {
+  await truncateAll(db)
+  const [ana] = await db.insert(schema.users).values({ displayName: 'Ana' }).returning()
+  const [bo] = await db.insert(schema.users).values({ displayName: 'Bo' }).returning()
+  if (!ana || !bo) throw new Error('setup')
+  anaId = ana.id
+  boId = bo.id
+})
 
 async function readRawRow(testDb: TestDb): Promise<Record<string, unknown>> {
   const rows = await testDb.select().from(schema.appSettings).where(eq(schema.appSettings.key, VAPID_SETTINGS_KEY))
@@ -64,5 +72,33 @@ describe('push', () => {
     // Una segunda lectura ya no vuelve a reescribir: sigue devolviendo lo mismo
     const again = await getOrCreateVapidKeys(db)
     expect(again).toEqual(legacy)
+  })
+})
+
+describe('suscripciones de push', () => {
+  const sub = { endpoint: 'https://push.example/abc', keys: { p256dh: 'BPk…', auth: 'xyz' } }
+
+  it('guarda la suscripción y la reemplaza si el mismo endpoint vuelve con otro usuario', async () => {
+    await subscribePush(db, anaId, sub)
+    expect(await listPushSubscriptions(db, anaId)).toHaveLength(1)
+    // El endpoint es único global (lo es en el esquema): si el dispositivo cambia
+    // de dueño, la fila pasa al nuevo, no revienta con 23505.
+    await subscribePush(db, boId, sub)
+    expect(await listPushSubscriptions(db, anaId)).toEqual([])
+    expect(await listPushSubscriptions(db, boId)).toHaveLength(1)
+  })
+
+  it('suscribirse dos veces con el mismo endpoint no duplica', async () => {
+    await subscribePush(db, anaId, sub)
+    await subscribePush(db, anaId, sub)
+    expect(await listPushSubscriptions(db, anaId)).toHaveLength(1)
+  })
+
+  it('darse de baja solo borra la propia', async () => {
+    await subscribePush(db, anaId, sub)
+    await unsubscribePush(db, boId, sub.endpoint)
+    expect(await listPushSubscriptions(db, anaId)).toHaveLength(1)
+    await unsubscribePush(db, anaId, sub.endpoint)
+    expect(await listPushSubscriptions(db, anaId)).toEqual([])
   })
 })
