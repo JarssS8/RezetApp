@@ -66,7 +66,7 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
             >
               <MinusIcon size={12} />
             </Button>
-            <span className="text-xs tabular-nums">{entry.servings}</span>
+            <span className="text-xs tabular">{entry.servings}</span>
             <Button
               type="button"
               variant="ghost"

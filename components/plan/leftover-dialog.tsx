@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { LeftoversIcon, MinusIcon, PlusIcon } from '@/components/icons'
+import { LeftoversIcon } from '@/components/icons'
+import { ServingsStepper } from '@/components/recipes/servings-stepper'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -94,13 +95,7 @@ export function LeftoverDialog({ fromEntryId, sourceSlot, onCreated }: LeftoverD
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm">{t('servings')}</span>
-            <Button type="button" variant="ghost" size="icon-sm" aria-label={t('servingsDec')} onClick={() => setServings((s) => Math.max(1, s - 1))}>
-              <MinusIcon size={14} />
-            </Button>
-            <span className="w-6 text-center text-sm tabular-nums">{servings}</span>
-            <Button type="button" variant="ghost" size="icon-sm" aria-label={t('servingsInc')} onClick={() => setServings((s) => s + 1)}>
-              <PlusIcon size={14} />
-            </Button>
+            <ServingsStepper value={servings} onChange={setServings} />
           </div>
         </div>
         <DialogFooter>

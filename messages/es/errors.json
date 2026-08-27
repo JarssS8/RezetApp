@@ -1,1 +1,15 @@
-{ "generic": "Algo ha fallado. Inténtalo de nuevo." }
+{
+  "generic": "Algo ha fallado. Inténtalo de nuevo.",
+  "not_found": "No se ha encontrado.",
+  "forbidden": "No tienes permiso para hacer esto.",
+  "conflict": "Ese dato ya existe o ha cambiado mientras tanto.",
+  "validation": "Revisa los datos introducidos.",
+  "internal": "Algo ha fallado. Inténtalo de nuevo.",
+  "too_large": "El archivo es demasiado grande.",
+  "unsupported": "Todavía no se puede hacer esto.",
+  "shoplist": "No se pudo hablar con ShopList.",
+  "no_provider": "Configura un proveedor de IA en Ajustes para usar esto.",
+  "ai_budget": "Se ha alcanzado el tope de gasto mensual de IA.",
+  "ai_unsupported": "El modelo de IA no admite esta tarea.",
+  "ai_output": "La IA no ha devuelto una respuesta válida."
+}

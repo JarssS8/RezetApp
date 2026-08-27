@@ -1,1 +1,15 @@
-{ "generic": "Something went wrong. Try again." }
+{
+  "generic": "Something went wrong. Try again.",
+  "not_found": "That could not be found.",
+  "forbidden": "You do not have permission to do this.",
+  "conflict": "That already exists or has changed meanwhile.",
+  "validation": "Check the data you entered.",
+  "internal": "Something went wrong. Try again.",
+  "too_large": "The file is too large.",
+  "unsupported": "This is not possible yet.",
+  "shoplist": "Could not reach ShopList.",
+  "no_provider": "Set up an AI provider in Settings to use this.",
+  "ai_budget": "The monthly AI spending cap has been reached.",
+  "ai_unsupported": "The AI model does not support this task.",
+  "ai_output": "The AI did not return a valid response."
+}

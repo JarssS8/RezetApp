@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { z } from 'zod'
 import { LinkIcon } from '@/components/icons'
 import { updateShoplistSettingsAction } from '@/lib/actions/shopping'
+import { actionErrorKey } from '@/lib/actions/result'
 import type { ShoplistSettingsSchema } from '@/lib/validation/household'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,6 +39,7 @@ function OpenListLink({ deepLink, t }: { deepLink: string; t: ReturnType<typeof 
 export function ShoplistSettingsForm(props: ShoplistSettingsFormProps) {
   const t = useTranslations('settings.shoplist')
   const c = useTranslations('common')
+  const te = useTranslations('errors')
 
   const [fnUrl, setFnUrl] = useState(props.fnUrl ?? '')
   const [secret, setSecret] = useState('')
@@ -75,7 +77,7 @@ export function ShoplistSettingsForm(props: ShoplistSettingsFormProps) {
       }
       const result = await updateShoplistSettingsAction(payload)
       if (!result.ok) {
-        setSaveError(result.message)
+        setSaveError(te(actionErrorKey(result.code)))
         return
       }
       setHasSecret(result.data.hasSecret)

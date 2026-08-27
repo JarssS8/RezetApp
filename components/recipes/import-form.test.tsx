@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import errors from '@/messages/es/errors.json'
 import recipes from '@/messages/es/recipes.json'
 import { RecipeImportSchema, RecipeInputSchema } from '@/lib/validation/recipes'
 import type { RecipeDraft } from '@/lib/actions/recipes'
@@ -26,7 +27,7 @@ afterEach(() => {
 
 function renderForm() {
   render(
-    <NextIntlClientProvider locale="es" messages={{ recipes }}>
+    <NextIntlClientProvider locale="es" messages={{ recipes, errors }}>
       <ImportForm />
     </NextIntlClientProvider>,
   )
@@ -98,14 +99,16 @@ describe('ImportForm', () => {
     expect(screen.getByText('No se detectaron pasos.')).toBeInTheDocument()
   })
 
-  it('en un fallo muestra el mensaje de error y no navega ni guarda nada', async () => {
-    vi.mocked(importRecipeAction).mockResolvedValue({ ok: false, code: 'validation', message: 'Entrada inválida' })
+  // Regla I3/15: `result.message` (texto crudo de zod) no se pinta tal cual;
+  // se traduce por `result.code` (namespace 'errors').
+  it('en un fallo muestra el error traducido por código, no el mensaje crudo, y no navega ni guarda nada', async () => {
+    vi.mocked(importRecipeAction).mockResolvedValue({ ok: false, code: 'validation', message: 'Entrada inválida (texto crudo)' })
     renderForm()
 
     fireEvent.change(screen.getByLabelText('Dirección de la receta'), { target: { value: 'https://example.com/receta' } })
     fireEvent.click(screen.getByRole('button', { name: 'Importar' }))
 
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Entrada inválida'))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Revisa los datos introducidos.'))
     expect(push).not.toHaveBeenCalled()
     expect(sessionStorage.getItem(DRAFT_KEY)).toBeNull()
   })

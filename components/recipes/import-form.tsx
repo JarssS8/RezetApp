@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { importRecipeAction } from '@/lib/actions/recipes'
+import { actionErrorKey } from '@/lib/actions/result'
 
 // Misma clave que lee components/recipes/recipe-editor.tsx en /recipes/new?draft=1
 // (Tarea 12: importar por URL/texto deja aquí el borrador antes de navegar).
@@ -32,6 +33,7 @@ function isWarningKey(w: string): w is WarningKey {
 // ?draft=1, que lo recoge (components/recipes/recipe-editor.tsx).
 export function ImportForm() {
   const t = useTranslations('recipes')
+  const te = useTranslations('errors')
   const router = useRouter()
 
   const [kind, setKind] = useState<ImportKind>('url')
@@ -50,7 +52,7 @@ export function ImportForm() {
       const input = kind === 'url' ? { kind: 'url' as const, url: url.trim() } : { kind: 'text' as const, text: text.trim() }
       const result = await importRecipeAction(input)
       if (!result.ok) {
-        setError(result.message)
+        setError(te(actionErrorKey(result.code)))
         return
       }
       // El borrador se guarda sin `warnings`: RecipeInputSchema es estricto y

@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server'
 import { PlusIcon, SettingsIcon, UploadIcon } from '@/components/icons'
 import { RecipeCard } from '@/components/recipes/recipe-card'
 import { RecipeFilters } from '@/components/recipes/recipe-filters'
+import { RecipesLiveRefresh } from '@/components/recipes/recipes-live-refresh'
 import { requireHousehold } from '@/lib/auth/guards'
 import { searchRecipes } from '@/lib/services/recipes'
 import { RecipeSearchSchema } from '@/lib/validation/recipes'
@@ -33,6 +34,7 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
 
   return (
     <main>
+      <RecipesLiveRefresh />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl">{t('title')}</h1>
         <div className="flex gap-1">

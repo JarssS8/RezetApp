@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import common from '@/messages/es/common.json'
 import plan from '@/messages/es/plan.json'
+import recipes from '@/messages/es/recipes.json'
 import { CreateLeftoverInputSchema } from '@/lib/validation/plan'
 import { LeftoverDialog } from './leftover-dialog'
 import type { LeftoverDialogProps } from './leftover-dialog'
@@ -18,7 +19,7 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 function renderDialog(props: Partial<LeftoverDialogProps> = {}) {
   const defaults: LeftoverDialogProps = { fromEntryId: 'e1', sourceSlot: 'lunch' }
   render(
-    <NextIntlClientProvider locale="es" messages={{ plan, common }}>
+    <NextIntlClientProvider locale="es" messages={{ plan, common, recipes }}>
       <LeftoverDialog {...defaults} {...props} />
     </NextIntlClientProvider>,
   )
@@ -69,11 +70,11 @@ describe('LeftoverDialog', () => {
     expect(refresh).toHaveBeenCalled()
   })
 
-  it('cambia las raciones con el stepper (botones +/- con aria-label propio) antes de enviar', async () => {
+  it('cambia las raciones con el stepper (botones +/- de ServingsStepper) antes de enviar', async () => {
     createLeftoverAction.mockResolvedValue({ ok: true, data: {} })
     renderDialog({ fromEntryId: 'e7', sourceSlot: 'snack' })
     openDialog()
-    fireEvent.click(screen.getByRole('button', { name: 'Aumentar raciones' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Más raciones' }))
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
     await waitFor(() => expect(createLeftoverAction).toHaveBeenCalledWith({ ofEntryId: 'e7', date: '2026-08-27', slot: 'snack', servings: 2 }))
   })
@@ -81,7 +82,7 @@ describe('LeftoverDialog', () => {
   it('el botón de disminuir raciones no baja de 1', () => {
     renderDialog({ fromEntryId: 'e8', sourceSlot: 'lunch' })
     openDialog()
-    fireEvent.click(screen.getByRole('button', { name: 'Disminuir raciones' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Menos raciones' }))
     expect(screen.getByText('1')).toBeInTheDocument()
   })
 
@@ -100,7 +101,7 @@ describe('LeftoverDialog', () => {
     openDialog()
     fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-09-01' } })
     fireEvent.change(screen.getByLabelText('Hueco'), { target: { value: 'lunch' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Aumentar raciones' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Más raciones' }))
     expect(screen.getByLabelText('Fecha')).toHaveValue('2026-09-01')
 
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))

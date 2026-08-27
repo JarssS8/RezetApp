@@ -99,7 +99,7 @@ export function PantryRow({ item, unitSystem, onRemoved, adjust = adjustPantryIt
         <Button type="button" variant="outline" size="icon-sm" aria-label={t('decrease')} disabled={busy} onClick={() => void handleAdjust(-step)}>
           <MinusIcon size={16} />
         </Button>
-        <span className="w-14 text-center text-sm tabular-nums">{formatQuantity(display.quantity, display.unit, locale)}</span>
+        <span className="w-14 text-center text-sm tabular">{formatQuantity(display.quantity, display.unit, locale)}</span>
         <Button type="button" variant="outline" size="icon-sm" aria-label={t('increase')} disabled={busy} onClick={() => void handleAdjust(step)}>
           <PlusIcon size={16} />
         </Button>

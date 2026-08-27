@@ -70,7 +70,7 @@ export function MonthView({ weeks, todayIso, prevMonth, nextMonth }: MonthViewPr
                   cell.date === todayIso && 'border-primary bg-accent',
                 )}
               >
-                <span className="text-sm font-medium tabular-nums">{cell.day}</span>
+                <span className="text-sm font-medium tabular">{cell.day}</span>
                 {cell.slots.length > 0 ? (
                   <span data-testid={`meals-${cell.date}`} aria-label={t('plannedMeals', { n: cell.slots.length })} className="flex gap-0.5">
                     {cell.slots.map((slot) => (
@@ -78,7 +78,7 @@ export function MonthView({ weeks, todayIso, prevMonth, nextMonth }: MonthViewPr
                     ))}
                   </span>
                 ) : null}
-                {cell.kcal !== null ? <span className="text-xs tabular-nums text-text-2">{t('kcalDay', { kcal: cell.kcal })}</span> : null}
+                {cell.kcal !== null ? <span className="text-xs tabular text-text-2">{t('kcalDay', { kcal: cell.kcal })}</span> : null}
               </Link>
             )
           }),

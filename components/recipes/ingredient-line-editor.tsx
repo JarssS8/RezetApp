@@ -127,6 +127,7 @@ export function IngredientLineEditor({ line, onChange, onRemove, locale }: Ingre
           <Input
             id={`${uid}-qty`}
             type="number"
+            min={0}
             inputMode="decimal"
             value={line.displayQuantity ?? ''}
             onChange={(e) => handleQuantityChange(e.target.value)}

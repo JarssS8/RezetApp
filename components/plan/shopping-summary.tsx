@@ -56,7 +56,7 @@ function ShoppingGroup({ title, lines, locale, amber, showQuantity = true }: Sho
             <span className="truncate">{line.name}</span>
             <span className="flex shrink-0 items-center gap-2">
               {line.pantryUnmatched ? <span className="text-xs text-warn">{t('shopping.pantryUnmatched')}</span> : null}
-              {showQuantity ? <span className="tabular-nums text-text-2">{formatQuantity(line.quantity, line.unit, locale)}</span> : null}
+              {showQuantity ? <span className="tabular text-text-2">{formatQuantity(line.quantity, line.unit, locale)}</span> : null}
             </span>
           </li>
         ))}

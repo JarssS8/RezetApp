@@ -97,7 +97,7 @@ export function DayColumn({ date, isToday, kcal, onAdd, entriesBySlot, ...callba
         <span className="text-sm font-medium capitalize">{label}</span>
         {isToday ? <span className="text-xs">{t('today')}</span> : null}
       </div>
-      {kcal !== null ? <p className="px-1.5 text-xs tabular-nums text-text-2">{t('kcalDay', { kcal })}</p> : null}
+      {kcal !== null ? <p className="px-1.5 text-xs tabular text-text-2">{t('kcalDay', { kcal })}</p> : null}
       {MEAL_SLOTS.map((slot) => (
         <SlotCell key={slot} date={date} slot={slot} entries={entriesBySlot[slot]} onAdd={onAdd} {...callbacks} />
       ))}

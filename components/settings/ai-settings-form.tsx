@@ -3,6 +3,7 @@ import { useFormatter, useTranslations } from 'next-intl'
 import { useState } from 'react'
 import type { z } from 'zod'
 import { testAiConnectionAction, updateAiSettingsAction } from '@/lib/actions/ai'
+import { actionErrorKey } from '@/lib/actions/result'
 import type { AiSettingsSchema } from '@/lib/validation/household'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,7 +14,28 @@ import { Switch } from '@/components/ui/switch'
 type AiSettings = z.infer<typeof AiSettingsSchema>
 type Provider = AiSettings['provider']
 
+// Item 4 (revisión W2): households.ai_price_in_cents_per_mtok / _out todavía
+// no están en AiSettingsSchema de este worktree (los añade la mitad de
+// backend de esta misma tanda de fixes); se declaran aparte y se mandan con
+// spread condicional para no chocar con el `z.strictObject` real hasta que
+// el esquema los incorpore.
+interface AiSettingsPayload extends AiSettings {
+  priceInCentsPerMtok?: number | null
+  priceOutCentsPerMtok?: number | null
+}
+
 const PROVIDERS: readonly Provider[] = ['none', 'anthropic', 'openai', 'openai_compatible']
+
+// Catálogo de modelos con precio conocido (lib/ai/models.ts): solo provider+id,
+// nada de precios ni de PII. La página (app/(app)/settings/ai/page.tsx, la
+// única capa de esta pantalla con permiso de boundaries para leer lib/ai) lo
+// calcula y lo pasa aquí para que el formulario decida en vivo -mientras el
+// usuario escribe, sin guardar- si el modelo elegido tiene precio de catálogo
+// o hay que pedirle el suyo (párrafo `modelHint` + los dos campos de precio).
+export interface KnownAiModel {
+  provider: Provider
+  id: string
+}
 
 export interface AiSettingsFormProps {
   provider: Provider
@@ -23,6 +45,9 @@ export interface AiSettingsFormProps {
   monthlyCapCents: number
   structuredOutput: boolean
   spentThisMonthCents: number
+  knownModels: KnownAiModel[]
+  priceInCentsPerMtok?: number | null
+  priceOutCentsPerMtok?: number | null
   /** true para miembros que no son propietarios: solo lectura. */
   readOnly: boolean
 }
@@ -32,9 +57,19 @@ interface TestState {
   message: string
 }
 
+// '' o no numérico -> null (sin precio propio); si no, céntimos por millón de
+// tokens redondeados a entero (nunca negativos: el input ya tiene min={0}).
+function parsePriceCents(raw: string): number | null {
+  const trimmed = raw.trim()
+  if (trimmed === '') return null
+  const n = Number(trimmed)
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : null
+}
+
 export function AiSettingsForm(props: AiSettingsFormProps) {
   const t = useTranslations('settings.ai')
   const c = useTranslations('common')
+  const te = useTranslations('errors')
   const format = useFormatter()
 
   const [provider, setProvider] = useState<Provider>(props.provider)
@@ -45,6 +80,8 @@ export function AiSettingsForm(props: AiSettingsFormProps) {
   const [capEuros, setCapEuros] = useState(String(props.monthlyCapCents / 100))
   const [structuredOutput, setStructuredOutput] = useState(props.structuredOutput)
   const [spentThisMonthCents, setSpentThisMonthCents] = useState(props.spentThisMonthCents)
+  const [priceIn, setPriceIn] = useState(props.priceInCentsPerMtok != null ? String(props.priceInCentsPerMtok) : '')
+  const [priceOut, setPriceOut] = useState(props.priceOutCentsPerMtok != null ? String(props.priceOutCentsPerMtok) : '')
 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -52,6 +89,13 @@ export function AiSettingsForm(props: AiSettingsFormProps) {
   const [testResult, setTestResult] = useState<TestState | null>(null)
 
   const spentAmount = format.number(spentThisMonthCents / 100, { style: 'currency', currency: 'EUR' })
+
+  const trimmedModel = model.trim()
+  // Regla I1/4: sin modelo de catálogo (anthropic siempre, o un id que el
+  // hogar escribió a mano en openai/openai_compatible) `resolvePrices` no
+  // tiene de dónde sacar el precio -el gasto se contabilizaría como 0 y el
+  // tope nunca saltaría-, así que aquí se le pide el suyo.
+  const knownModel = trimmedModel !== '' && props.knownModels.some((m) => m.provider === provider && m.id === trimmedModel)
 
   if (props.readOnly) {
     return (
@@ -74,6 +118,12 @@ export function AiSettingsForm(props: AiSettingsFormProps) {
     try {
       const result = await testAiConnectionAction()
       if (!result.ok) {
+        // Excepción legítima (I3/32, revisión W2): esta rama comparte la misma
+        // variable de estado que el resultado de la prueba en sí (más abajo,
+        // `result.data.message`), que sí es texto real del proveedor y no
+        // tiene clave i18n posible -no llama a `setError` ni `toast.error`
+        // (la regla de eslint 32 no aplica aquí), pero se deja crudo por la
+        // misma razón y para no bifurcar `TestState` en dos formas de mensaje.
         setTestResult({ ok: false, message: result.message })
         return
       }
@@ -92,17 +142,21 @@ export function AiSettingsForm(props: AiSettingsFormProps) {
     setSaving(true)
     setSaveError(null)
     try {
-      const payload: AiSettings = {
+      const priceInValue = !knownModel ? parsePriceCents(priceIn) : null
+      const priceOutValue = !knownModel ? parsePriceCents(priceOut) : null
+      const payload: AiSettingsPayload = {
         provider,
         model: model.trim() === '' ? null : model.trim(),
         baseUrl: provider === 'openai_compatible' ? (baseUrl.trim() === '' ? null : baseUrl.trim()) : null,
         apiKey,
         monthlyCapCents: Math.round(Number(capEuros || 0) * 100),
         structuredOutput,
+        ...(priceInValue !== null && { priceInCentsPerMtok: priceInValue }),
+        ...(priceOutValue !== null && { priceOutCentsPerMtok: priceOutValue }),
       }
       const result = await updateAiSettingsAction(payload)
       if (!result.ok) {
-        setSaveError(result.message)
+        setSaveError(te(actionErrorKey(result.code)))
         return
       }
       setHasKey(result.data.hasKey)
@@ -161,6 +215,22 @@ export function AiSettingsForm(props: AiSettingsFormProps) {
           autoComplete="off"
         />
       </div>
+
+      {!knownModel && (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-text-2">{t('modelHint')}</p>
+          <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="ai-price-in">{t('priceIn')}</Label>
+              <Input id="ai-price-in" type="number" min={0} step="1" value={priceIn} onChange={(e) => setPriceIn(e.target.value)} className="w-28" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="ai-price-out">{t('priceOut')}</Label>
+              <Input id="ai-price-out" type="number" min={0} step="1" value={priceOut} onChange={(e) => setPriceOut(e.target.value)} className="w-28" />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="ai-cap">{t('cap')}</Label>

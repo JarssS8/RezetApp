@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import common from '@/messages/es/common.json'
+import errors from '@/messages/es/errors.json'
 import settings from '@/messages/es/settings.json'
 import { ShoplistSettingsSchema } from '@/lib/validation/household'
 import { ShoplistSettingsForm, type ShoplistSettingsFormProps } from './shoplist-settings-form'
@@ -25,7 +26,7 @@ const BASE_PROPS: ShoplistSettingsFormProps = {
 
 function renderForm(props: Partial<ShoplistSettingsFormProps> = {}) {
   return render(
-    <NextIntlClientProvider locale="es" messages={{ common, settings }}>
+    <NextIntlClientProvider locale="es" messages={{ common, settings, errors }}>
       <ShoplistSettingsForm {...BASE_PROPS} {...props} />
     </NextIntlClientProvider>,
   )
@@ -69,6 +70,16 @@ describe('ShoplistSettingsForm', () => {
     const payload = updateShoplistSettingsAction.mock.calls[0]?.[0]
     expect(ShoplistSettingsSchema.safeParse(payload).success).toBe(true)
     expect(payload).toMatchObject({ secret: null })
+  })
+
+  // Regla I3/14/24: `result.message` (ServiceError/zod en español crudo) no
+  // se pinta tal cual; se traduce por `result.code`.
+  it('Guardar traduce el error por código en vez de pintar result.message crudo', async () => {
+    updateShoplistSettingsAction.mockResolvedValueOnce({ ok: false, code: 'validation', message: 'fnUrl inválida (texto crudo de zod)' })
+    renderForm()
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByText('Revisa los datos introducidos.')).toBeInTheDocument()
+    expect(screen.queryByText(/texto crudo de zod/)).not.toBeInTheDocument()
   })
 
   it('en solo lectura muestra el aviso de propietario, la fuente y el enlace a ShopList', () => {

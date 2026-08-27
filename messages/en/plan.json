@@ -65,14 +65,13 @@
   "empty": "Empty week: add meals or ask for a proposal.",
   "errors": {
     "move": "Couldn't move the meal",
-    "leftover": "Couldn't create the leftover"
+    "leftover": "Couldn't create the leftover",
+    "addEntry": "Couldn't add to the plan"
   },
   "prevMonth": "Previous month",
   "nextMonth": "Next month",
   "createLeftover": "Add leftover",
   "leftoverDate": "Date",
   "leftoverSlot": "Slot",
-  "plannedMeals": "{n} planned meals",
-  "servingsInc": "Increase servings",
-  "servingsDec": "Decrease servings"
+  "plannedMeals": "{n} planned meals"
 }

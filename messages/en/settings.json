@@ -31,6 +31,9 @@
     "testOk": "Connected in {ms} ms",
     "testFail": "Could not connect: {message}",
     "localHint": "Recommended: llama-server with qwen3-8b Q4_K_M (8 GB) or qwen3-4b (4 GB).",
+    "modelHint": "Enter the id exactly as documented by the provider.",
+    "priceIn": "Input price (¢/Mtok)",
+    "priceOut": "Output price (¢/Mtok)",
     "ownerOnly": "Only the owner can change AI settings."
   },
   "shoplist": {
@@ -182,6 +185,7 @@
   "data": {
     "export": "Export recipes",
     "exportHint": "Export your recipes as JSON to keep a copy.",
+    "exportFilename": "recipes-{date}.json",
     "importSoon": "Import and migration from other apps arrives in W4.",
     "exportError": "Export failed"
   }
