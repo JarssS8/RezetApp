@@ -25,7 +25,21 @@
     "apply": "Filter"
   },
   "import": {
-    "title": "Import recipe"
+    "title": "Import recipe",
+    "fromUrl": "From a URL",
+    "fromText": "From text",
+    "url": "Recipe address",
+    "text": "Paste the recipe",
+    "submit": "Import",
+    "warnings": {
+      "no_recipe_found": "No recipe was found on that page; paste the text instead.",
+      "no_ingredients": "No ingredients were detected.",
+      "no_steps": "No steps were detected.",
+      "fetch_failed": "The page could not be downloaded.",
+      "empty": "The text is empty.",
+      "invalid_url": "That address is not valid or points to a disallowed host.",
+      "body_too_large": "The page is too large to import."
+    }
   },
   "detail": {
     "servings": "Servings",

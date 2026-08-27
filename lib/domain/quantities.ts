@@ -54,6 +54,9 @@ export function toBaseUnit(qty: number, unit: string, locale: Locale, food?: Foo
   // se pasa a gramos; si no, 'ud' se queda como pieza (no hay base más
   // genérica) y el resto -sin factor propio- no se puede convertir.
   if (u.kind === 'count') {
+    // Para envases (lata/bote/sobre) gramsPerUnit es el peso neto de UN
+    // envase, no de una unidad suelta del alimento (p. ej. una lata de
+    // garbanzos ≈ 240 g netos escurridos, no el peso de un garbanzo).
     if (food?.gramsPerUnit) return { qty: qty * food.gramsPerUnit, unit: 'g' }
     return u.id === 'ud' ? { qty, unit: 'ud' } : null
   }

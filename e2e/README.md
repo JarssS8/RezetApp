@@ -31,3 +31,22 @@ Si en otro entorno faltan más librerías, el error de Chromium las nombra una
 a una (p. ej. `libXcomposite.so.1` → paquete `libxcomposite1`); se añaden al
 mismo `apt-get download` y no hace falta ampliar `LD_LIBRARY_PATH` (todo
 queda bajo el mismo directorio `usr/lib/x86_64-linux-gnu`).
+
+## `e2e/recipes.spec.ts` necesita el seed de alimentos en la base de dev
+
+Sin `E2E_BASE_URL`, Playwright levanta la app con `pnpm dev`, que usa
+`DATABASE_URL` (la base de **desarrollo**, no `DATABASE_URL_TEST`). El
+análisis de ingredientes de la receta de prueba ("lentejas", "cebolla",
+"sal") solo reconoce alimentos si esa base tiene el catálogo cargado:
+
+```bash
+pnpm db:migrate && pnpm db:seed
+```
+
+El seed es idempotente (upsert por clave natural): se puede ejecutar tantas
+veces como haga falta sin duplicar nada. Después:
+
+```bash
+export LD_LIBRARY_PATH=$HOME/.local/chromium-deps/usr/lib/x86_64-linux-gnu
+pnpm exec playwright test e2e/recipes.spec.ts
+```

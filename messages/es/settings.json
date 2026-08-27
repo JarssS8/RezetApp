@@ -10,5 +10,9 @@
     "passkeys": "Passkeys",
     "data": "Datos",
     "notifications": "Notificaciones"
+  },
+  "data": {
+    "export": "Exportar recetas",
+    "exportError": "No se pudo exportar"
   }
 }

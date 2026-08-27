@@ -18,7 +18,9 @@ export function NutritionRow({ perServingKcal, totalKcal, per100gKcal, isEstimat
   return (
     <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
       <span className="flex items-baseline gap-1.5">
-        <span className="tabular font-display text-3xl">{nf.format(perServingKcal)}</span>
+        <span data-testid="kcal-per-serving" className="tabular font-display text-3xl">
+          {nf.format(perServingKcal)}
+        </span>
         <span className="text-sm text-text-2">{t('detail.kcalPerServing')}</span>
         {isEstimated ? <EstimatedIcon size={14} title={t('detail.estimated')} /> : null}
       </span>

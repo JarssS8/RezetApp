@@ -43,6 +43,8 @@ passkey, crear un hogar e invitar a alguien.
 **Listo cuando:** ya sustituye a tu método actual de guardar recetas. Ese es el
 listón para pasar de fase, no una lista de tareas marcadas.
 
+**Hecha en W2**: `/recipes` sustituye al método anterior de guardar recetas.
+
 ## Fase 2 · El MCP
 
 - Endpoint `/mcp` con las doce herramientas del perfil básico

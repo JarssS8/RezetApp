@@ -25,7 +25,21 @@
     "apply": "Filtrar"
   },
   "import": {
-    "title": "Importar receta"
+    "title": "Importar receta",
+    "fromUrl": "Desde una URL",
+    "fromText": "Desde texto",
+    "url": "Dirección de la receta",
+    "text": "Pega la receta",
+    "submit": "Importar",
+    "warnings": {
+      "no_recipe_found": "No se encontró una receta en esa página; pega el texto.",
+      "no_ingredients": "No se detectaron ingredientes.",
+      "no_steps": "No se detectaron pasos.",
+      "fetch_failed": "No se pudo descargar la página.",
+      "empty": "El texto está vacío.",
+      "invalid_url": "Esa dirección no es válida o apunta a un host no permitido.",
+      "body_too_large": "La página es demasiado grande para importarla."
+    }
   },
   "detail": {
     "servings": "Raciones",
