@@ -3,8 +3,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import * as schema from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import type { Ctx } from '@/lib/services/ctx'
+import { createFood } from '@/lib/services/foods'
 import { createRecipe } from '@/lib/services/recipes'
+import type { FoodInput } from '@/lib/validation/foods'
 import { getPlanRules, planCandidates, proposeWeekFromRules, updatePlanRules } from './plan-rules'
+
+function foodInput(overrides: Partial<FoodInput> & Pick<FoodInput, 'nameEs' | 'nameEn'>): FoodInput {
+  return { aliases: [], defaultUnit: 'g', allergens: [], seasonalMonths: [], ...overrides }
+}
 
 let db: TestDb
 let ctxA: Ctx
@@ -86,5 +92,23 @@ describe('plan-rules', () => {
     await createRecipe(ctxA, { title: 'Sopa', servingsBase: 2, tags: [], ingredients: [{ rawText: '1 cebolla' }], steps: [{ text: 'Pocha' }], imageUrls: [] })
     const view = await proposeWeekFromRules(ctxA, { from: '2026-08-31', to: '2026-09-06' })
     expect(view.payload.add.every((a) => a.servings === 5)).toBe(true)
+  })
+
+  it('no propone recetas que choquen con un alérgeno del hogar', async () => {
+    await db.update(schema.householdMembers).set({ allergens: ['gluten'] }).where(eq(schema.householdMembers.householdId, ctxA.householdId))
+    const harina = await createFood(ctxA, foodInput({ nameEs: 'harina', nameEn: 'flour', allergens: ['gluten'] }))
+    await createRecipe(ctxA, { title: 'Bizcocho', servingsBase: 8, tags: [], imageUrls: [], ingredients: [{ rawText: '200 g de harina', foodId: harina.id, quantity: 200, unit: 'g' }], steps: [{ text: 'Hornea' }] })
+    await createRecipe(ctxA, { title: 'Ensalada', servingsBase: 2, tags: [], imageUrls: [], ingredients: [{ rawText: '1 lechuga' }], steps: [{ text: 'Corta' }] })
+
+    const view = await proposeWeekFromRules(ctxA, { from: '2026-08-31', to: '2026-09-06' })
+    expect(view.diff.add.map((a) => a.title)).not.toContain('Bizcocho')
+    expect(view.diff.add.length).toBeGreaterThan(0)
+  })
+
+  it('si todas chocan, falla con un motivo explicable en vez de proponer algo prohibido', async () => {
+    await db.update(schema.householdMembers).set({ allergens: ['gluten'] }).where(eq(schema.householdMembers.householdId, ctxA.householdId))
+    const harina = await createFood(ctxA, foodInput({ nameEs: 'harina', nameEn: 'flour', allergens: ['gluten'] }))
+    await createRecipe(ctxA, { title: 'Bizcocho', servingsBase: 8, tags: [], imageUrls: [], ingredients: [{ rawText: '200 g de harina', foodId: harina.id, quantity: 200, unit: 'g' }], steps: [{ text: 'Hornea' }] })
+    await expect(proposeWeekFromRules(ctxA, { from: '2026-08-31', to: '2026-09-06' })).rejects.toMatchObject({ code: 'validation' })
   })
 })
