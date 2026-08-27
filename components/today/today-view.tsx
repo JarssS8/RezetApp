@@ -20,7 +20,7 @@ export interface ExpiringItem {
 export interface TodayViewProps {
   date: string
   entries: PlanEntryClient[]
-  progress: { date: string; plannedKcal: number; cookedKcal: number; hasEstimates: boolean }
+  progress: { date: string; plannedKcal: number; cookedKcal: number; hasEstimates: boolean; hasUnknownKcal: boolean }
   expiring: ExpiringItem[]
   aiEnabled: boolean
 }
@@ -43,7 +43,12 @@ export function TodayView({ date, entries, progress, expiring, aiEnabled }: Toda
     <main className="flex flex-col gap-5 pb-4">
       <h1 className="text-2xl">{t('title')}</h1>
 
-      <KcalRing plannedKcal={progress.plannedKcal} cookedKcal={progress.cookedKcal} isEstimated={progress.hasEstimates} />
+      <KcalRing
+        plannedKcal={progress.plannedKcal}
+        cookedKcal={progress.cookedKcal}
+        isEstimated={progress.hasEstimates}
+        hasUnknownKcal={progress.hasUnknownKcal}
+      />
 
       {entries.length === 0 ? (
         <p className="text-sm text-text-2">

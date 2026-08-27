@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest'
 import messages from '@/messages/es/today.json'
 import { KcalRing } from './kcal-ring'
 
-function renderRing(planned: number, cooked: number, isEstimated = false) {
+function renderRing(planned: number, cooked: number, isEstimated = false, hasUnknownKcal = false) {
   return render(
     <NextIntlClientProvider locale="es" messages={{ today: messages }}>
-      <KcalRing plannedKcal={planned} cookedKcal={cooked} isEstimated={isEstimated} />
+      <KcalRing plannedKcal={planned} cookedKcal={cooked} isEstimated={isEstimated} hasUnknownKcal={hasUnknownKcal} />
     </NextIntlClientProvider>,
   )
 }
@@ -31,5 +31,13 @@ describe('KcalRing', () => {
   it('marca la nutrición estimada', () => {
     renderRing(1000, 500, true)
     expect(screen.getByText(/estimad/i)).toBeInTheDocument()
+  })
+  it('avisa cuando alguna receta no tiene kcal', () => {
+    renderRing(1000, 500, false, true)
+    expect(screen.getByText(/no tiene kcal/i)).toBeInTheDocument()
+  })
+  it('no avisa cuando todas las recetas tienen kcal', () => {
+    renderRing(1000, 500, false, false)
+    expect(screen.queryByText(/no tiene kcal/i)).toBeNull()
   })
 })

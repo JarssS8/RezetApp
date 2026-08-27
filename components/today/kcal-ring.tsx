@@ -4,6 +4,7 @@ export interface KcalRingProps {
   plannedKcal: number
   cookedKcal: number
   isEstimated: boolean
+  hasUnknownKcal?: boolean
 }
 
 const RADIUS = 46
@@ -12,7 +13,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 // Anillo informativo: cocinado sobre planificado de HOY. Sin objetivo diario ni
 // diario alimentario (respuesta 1 de AGENTS.md). Sin librería de gráficos: dos
 // círculos SVG y una máscara de trazo.
-export function KcalRing({ plannedKcal, cookedKcal, isEstimated }: KcalRingProps) {
+export function KcalRing({ plannedKcal, cookedKcal, isEstimated, hasUnknownKcal }: KcalRingProps) {
   const t = useTranslations('today')
   const locale = useLocale()
   const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 })
@@ -40,6 +41,7 @@ export function KcalRing({ plannedKcal, cookedKcal, isEstimated }: KcalRingProps
         <span className="tabular text-3xl font-medium">{nf.format(cookedKcal)}</span>
         <span className="tabular text-sm text-text-2">{t('ofPlanned', { planned: nf.format(plannedKcal) })}</span>
         {isEstimated ? <span className="text-xs text-text-2">{t('estimated')}</span> : null}
+        {hasUnknownKcal ? <span className="text-xs text-text-2">{t('unknownKcal')}</span> : null}
       </figcaption>
     </figure>
   )

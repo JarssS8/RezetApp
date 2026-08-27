@@ -22,7 +22,7 @@ function renderToday(over: Partial<Parameters<typeof TodayView>[0]> = {}) {
       <TodayView
         date="2026-08-27"
         entries={[entry]}
-        progress={{ date: '2026-08-27', plannedKcal: 600, cookedKcal: 0, hasEstimates: false }}
+        progress={{ date: '2026-08-27', plannedKcal: 600, cookedKcal: 0, hasEstimates: false, hasUnknownKcal: false }}
         expiring={[{ id: 'p1', name: 'yogur', daysToExpiry: 1 }]}
         aiEnabled={false}
         {...over}

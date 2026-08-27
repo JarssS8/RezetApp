@@ -3,6 +3,7 @@
   "ringLabel": "{cooked} of {planned} kcal cooked",
   "ofPlanned": "of {planned} kcal",
   "estimated": "estimated",
+  "unknownKcal": "Some recipe has no kcal: the total is partial",
   "emptyPlanLink": "Nothing planned. Go to the plan",
   "expiring": "Expiring soon",
   "expiringLine": "{name} · in {days, plural, one {# day} other {# days}}",
