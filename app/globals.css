@@ -116,7 +116,13 @@
   --color-warn-soft: color-mix(in srgb, var(--warn) 14%, var(--surf));
   --color-surface-2: var(--surf-2);
   --color-text-2: var(--text-2);
-  --color-text-muted: var(--muted);
+  /* Item 27 (revisión W2): `--muted` de la sección de tokens de diseño (arriba)
+     y el `--muted` de shadcn (línea 86 de este fichero) comparten nombre; el
+     segundo gana en cascada, así que `var(--muted)` aquí resolvía al fondo
+     `--surf-2`, no al gris de texto apagado que pedía el diseño. `text-muted`
+     usa el `--muted-foreground` de shadcn (-> `--text-2`), que sí es un color
+     de texto. */
+  --color-text-muted: var(--muted-foreground);
   --color-acc-ink: var(--acc-ink);
 
   /* Radios explícitos: NO derivar de --radius */

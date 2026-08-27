@@ -31,6 +31,9 @@
     "testOk": "Conectado en {ms} ms",
     "testFail": "No se pudo conectar: {message}",
     "localHint": "Recomendado: llama-server con qwen3-8b Q4_K_M (8 GB) o qwen3-4b (4 GB).",
+    "modelHint": "Escribe el id tal como lo documenta el proveedor.",
+    "priceIn": "Precio entrada (¢/Mtok)",
+    "priceOut": "Precio salida (¢/Mtok)",
     "ownerOnly": "Solo el propietario puede cambiar la IA."
   },
   "shoplist": {
@@ -182,6 +185,7 @@
   "data": {
     "export": "Exportar recetas",
     "exportHint": "Exporta tus recetas en JSON para tener copia.",
+    "exportFilename": "recetas-{date}.json",
     "importSoon": "Importar y migrar desde otras apps llega en W4.",
     "exportError": "No se pudo exportar"
   }

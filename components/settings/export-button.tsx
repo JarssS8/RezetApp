@@ -26,7 +26,7 @@ export function ExportButton() {
       const today = new Date().toISOString().slice(0, 10)
       const link = document.createElement('a')
       link.href = objectUrl
-      link.download = `recetas-${today}.json`
+      link.download = t('data.exportFilename', { date: today })
       document.body.appendChild(link)
       link.click()
       link.remove()
