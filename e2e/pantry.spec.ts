@@ -50,7 +50,9 @@ test.describe('despensa', () => {
     await expect(page.getByText('510 g')).toBeVisible()
 
     await expect(page.getByRole('heading', { name: /caduca pronto|expiring soon/i })).toBeVisible()
-    await expect(page.getByRole('link', { name: /qué cocino con lo que caduca|what can i cook with what's expiring/i })).toBeVisible()
+    const cookLink = page.getByRole('link', { name: /qué cocino con lo que caduca|what can i cook with what's expiring/i })
+    await expect(cookLink).toBeVisible()
+    await expect(cookLink).toHaveAttribute('href', /hasIngredients=[^&]+&sort=most_cooked/)
 
     await page.getByRole('button', { name: /quitar|remove/i }).click()
     await expect(page.getByText(/la despensa está vacía|the pantry is empty/i)).toBeVisible()

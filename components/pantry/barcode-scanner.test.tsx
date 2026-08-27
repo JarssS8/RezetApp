@@ -98,6 +98,18 @@ describe('BarcodeScanner', () => {
     expect(pushMock).not.toHaveBeenCalled()
   })
 
+  it('si la búsqueda falla, avisa y mantiene la entrada manual visible para reintentar', async () => {
+    mockedLookup.mockResolvedValue({ ok: false, code: 'internal', message: 'Error interno' })
+    renderScanner()
+
+    await typeAndLookup('8410000810004')
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: pantry.scan.lookup })).toBeInTheDocument()
+    expect(pushMock).not.toHaveBeenCalled()
+  })
+
   it('rechaza un código con formato inválido sin llamar a la búsqueda', async () => {
     renderScanner()
     await waitFor(() => expect(screen.getByText(pantry.scan.noCamera)).toBeInTheDocument())

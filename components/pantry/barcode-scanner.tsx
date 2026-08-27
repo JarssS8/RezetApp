@@ -62,6 +62,11 @@ export function BarcodeScanner({ lookup = lookupBarcodeAction }: BarcodeScannerP
     try {
       const result = await lookup(code)
       if (!result.ok) {
+        // Si la cámara ya detectó y paró (showManual pudiera seguir en false),
+        // el fallo de búsqueda debe abrir la entrada manual junto al aviso:
+        // sin esto el error quedaba huérfano o el usuario se quedaba sin forma
+        // de reintentar.
+        setManualOpen(true)
         setManualError(true)
         return
       }
