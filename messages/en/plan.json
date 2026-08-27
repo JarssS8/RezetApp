@@ -51,11 +51,16 @@
   },
   "shopping": {
     "title": "Generate shopping list",
+    "range": "From {from} to {to}",
     "resolved": "To buy",
     "unresolved": "No matching food",
     "noQuantity": "No quantity set",
     "pantryUnmatched": "Pantry has some in another unit",
-    "empty": "Nothing to buy for this range."
+    "empty": "Nothing to buy for this range.",
+    "send": "Send to ShopList",
+    "sent": "Sent to ShopList: {count} lines",
+    "openList": "Open in ShopList",
+    "noConfig": "ShopList isn't set up. Turn it on in Settings → ShopList."
   },
   "empty": "Empty week: add meals or ask for a proposal.",
   "errors": {

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { CalendarMonthIcon, ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from '@/components/icons'
+import { CalendarMonthIcon, ChevronLeftIcon, ChevronRightIcon, SendIcon, SparklesIcon } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { applyPlanBatchAction, movePlanEntryAction, patchPlanEntryAction } from '@/lib/actions/plan'
@@ -170,18 +170,21 @@ export function WeekView({
         <Button variant="outline" size="icon-sm" aria-label={t('prevWeek')} render={<Link href={`/plan?week=${prevWeek}`} />}>
           <ChevronLeftIcon size={18} />
         </Button>
-        <div className="flex items-center gap-2">
-          <Link href={`/plan?week=${todayIso}`} className="inline-flex min-h-11 items-center rounded-sm border border-border px-3 text-sm font-medium">
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+          <Link href={`/plan?week=${todayIso}`} className="inline-flex min-h-11 shrink-0 items-center rounded-sm border border-border px-3 text-sm font-medium">
             {t('today')}
           </Link>
           <Link
             href={`/plan/month?month=${monday.slice(0, 7)}`}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium"
           >
             <CalendarMonthIcon size={16} />
             {t('month')}
           </Link>
-          <Link href="/plan/proposals" className="relative inline-flex min-h-11 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium">
+          <Link
+            href="/plan/proposals"
+            className="relative inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium"
+          >
             <SparklesIcon size={16} />
             {t('proposals.title')}
             {pendingProposals > 0 ? (
@@ -189,6 +192,10 @@ export function WeekView({
                 {pendingProposals}
               </Badge>
             ) : null}
+          </Link>
+          <Link href="/plan/shopping" className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium">
+            <SendIcon size={16} />
+            {t('shopping.title')}
           </Link>
         </div>
         <Button variant="outline" size="icon-sm" aria-label={t('nextWeek')} render={<Link href={`/plan?week=${nextWeek}`} />}>

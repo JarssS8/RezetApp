@@ -33,6 +33,24 @@
     "localHint": "Recommended: llama-server with qwen3-8b Q4_K_M (8 GB) or qwen3-4b (4 GB).",
     "ownerOnly": "Only the owner can change AI settings."
   },
+  "shoplist": {
+    "fnUrl": "Import function URL",
+    "secret": "Secret",
+    "secretSaved": "•••• (saved)",
+    "secretClear": "Clear saved secret",
+    "listToken": "List token",
+    "status": "Status",
+    "source": {
+      "household": "Set for this household",
+      "env": "Set on the server",
+      "none": "Not set"
+    },
+    "lastPushed": "Last sent: {date}",
+    "open": "Open in ShopList",
+    "hint": "RezetApp works out what's missing and sends it to ShopList; the list itself lives there.",
+    "ownerOnly": "Only the owner can change the ShopList settings.",
+    "error": "Could not complete the action."
+  },
   "tokens": {
     "create": "Create token",
     "name": "Name",

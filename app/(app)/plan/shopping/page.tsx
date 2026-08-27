@@ -1,10 +1,10 @@
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
+import { ShoppingPushButton } from '@/components/plan/shopping-push-button'
 import { ShoppingSummary } from '@/components/plan/shopping-summary'
 import { requireHousehold } from '@/lib/auth/guards'
-import { consolidateNeeds } from '@/lib/domain'
+import { getShopListLinkAction } from '@/lib/actions/shopping'
 import { todayIso, weekRange } from '@/lib/plan-dates'
-import { pantryAsDomain } from '@/lib/services/pantry'
-import { plannedEntriesForShopping } from '@/lib/services/plan'
+import { generateShopping } from '@/lib/services/shopping'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -29,21 +29,29 @@ function resolveRange(sp: SearchParams): { from: string; to: string } {
   return { from: week.from, to: week.to }
 }
 
-// /plan/shopping?from&to — lista de compra consolidada (sin botón de envío a
-// ShopList: lo añade la pista (f)).
+// /plan/shopping?from&to — lista de compra consolidada, con botón de envío a
+// ShopList cuando el hogar (o el entorno) tiene la integración configurada.
 export default async function PlanShoppingPage({ searchParams }: PlanShoppingPageProps) {
   const ctx = await requireHousehold()
   const sp = await searchParams
   const t = await getTranslations('plan')
 
   const range = resolveRange(sp)
-  const [entries, pantry] = await Promise.all([plannedEntriesForShopping(ctx, range), pantryAsDomain(ctx)])
-  const lines = consolidateNeeds(entries, pantry)
+  const [{ lines }, linkResult] = await Promise.all([generateShopping(ctx, range), getShopListLinkAction()])
+  const deepLink = linkResult.ok ? linkResult.data.deepLink : null
+
+  const locale = (await getLocale()) === 'en' ? 'en' : 'es'
+  const dateFormat = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' })
+  const rangeText = t('shopping.range', { from: dateFormat.format(new Date(`${range.from}T00:00:00`)), to: dateFormat.format(new Date(`${range.to}T00:00:00`)) })
 
   return (
     <main className="flex flex-col gap-3 pb-4">
-      <h1 className="text-2xl">{t('shopping.title')}</h1>
+      <div>
+        <h1 className="text-2xl">{t('shopping.title')}</h1>
+        <p className="text-sm text-text-2">{rangeText}</p>
+      </div>
       <ShoppingSummary lines={lines} />
+      <ShoppingPushButton lines={lines} canPush={deepLink !== null} deepLink={deepLink} />
     </main>
   )
 }

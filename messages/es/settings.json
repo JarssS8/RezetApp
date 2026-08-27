@@ -33,6 +33,24 @@
     "localHint": "Recomendado: llama-server con qwen3-8b Q4_K_M (8 GB) o qwen3-4b (4 GB).",
     "ownerOnly": "Solo el propietario puede cambiar la IA."
   },
+  "shoplist": {
+    "fnUrl": "URL de la función de importación",
+    "secret": "Secreto",
+    "secretSaved": "•••• (guardado)",
+    "secretClear": "Borrar el secreto guardado",
+    "listToken": "Token de la lista",
+    "status": "Estado",
+    "source": {
+      "household": "Configurado en este hogar",
+      "env": "Configurado en el servidor",
+      "none": "Sin configurar"
+    },
+    "lastPushed": "Último envío: {date}",
+    "open": "Abrir en ShopList",
+    "hint": "RezetApp calcula qué falta y lo envía a ShopList; la lista vive allí.",
+    "ownerOnly": "Solo el propietario puede cambiar los ajustes de ShopList.",
+    "error": "No se pudo completar la acción."
+  },
   "tokens": {
     "create": "Crear token",
     "name": "Nombre",

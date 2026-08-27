@@ -51,11 +51,16 @@
   },
   "shopping": {
     "title": "Generar compra",
+    "range": "Del {from} al {to}",
     "resolved": "Para comprar",
     "unresolved": "Sin alimento identificado",
     "noQuantity": "Sin cantidad definida",
     "pantryUnmatched": "Hay en despensa en otra unidad",
-    "empty": "No hace falta comprar nada para este rango."
+    "empty": "No hace falta comprar nada para este rango.",
+    "send": "Enviar a ShopList",
+    "sent": "Enviado a ShopList: {count} líneas",
+    "openList": "Abrir en ShopList",
+    "noConfig": "ShopList no está configurado. Actívalo en Ajustes → ShopList."
   },
   "empty": "Semana vacía: añade comidas o pide una propuesta.",
   "errors": {

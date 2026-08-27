@@ -55,5 +55,12 @@ test.describe('plan', () => {
     const todayCell = page.locator('a.border-primary')
     await expect(todayCell).toBeVisible()
     await expect(todayCell.getByTestId('meal-dot')).toHaveCount(1)
+
+    // La comida libre no tiene receta ni ingredientes: el resumen de compra
+    // de la semana está vacío. Sin SHOPLIST_* en el entorno de e2e, tampoco
+    // hay botón de envío (ni con líneas lo habría: nada que consolidar).
+    await page.goto('/plan/shopping')
+    await expect(page.getByText(/no hace falta comprar nada para este rango|nothing to buy for this range/i)).toBeVisible()
+    await expect(page.getByRole('button', { name: /^(enviar a shoplist|send to shoplist)$/i })).toHaveCount(0)
   })
 })
