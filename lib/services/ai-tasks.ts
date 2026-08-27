@@ -14,7 +14,7 @@ import type { AiConfig } from '@/lib/ai/provider'
 import { resolveAiConfig } from '@/lib/ai/provider'
 import { AiStructuredError } from '@/lib/ai/structured'
 import { estimateNutrition } from '@/lib/ai/tasks/estimate-nutrition'
-import { AiUnsupportedError, importRecipeFromImageAi, importRecipeFromTextAi } from '@/lib/ai/tasks/import-recipe'
+import { AiUnsupportedError, importRecipeFromImageAi, importRecipeFromPdfAi, importRecipeFromTextAi } from '@/lib/ai/tasks/import-recipe'
 import { parseIngredientsFallback } from '@/lib/ai/tasks/parse-ingredients'
 import { proposePlan, type ProposePlanContext, type ProposePlanPlannedEntry, type ProposePlanRecipe, type ProposePlanSlot } from '@/lib/ai/tasks/propose-plan'
 import type { BaseUnit, ParsedIngredient } from '@/lib/domain/types'
@@ -40,6 +40,7 @@ export type AiImportRecipeInput =
   // (a) adapta `aiImportRecipeAction` al mergear: lee `UPLOADS_DIR`/`uploadUrl`
   // y pasa los bytes aquí.
   | { kind: 'image'; bytes: Uint8Array; mime: string }
+  | { kind: 'pdf'; bytes: Uint8Array }
 
 export type { FoodWithNutrition }
 
@@ -99,11 +100,11 @@ export async function aiParseIngredients(ctx: Ctx, lines: string[], deps: AiTask
 }
 
 export async function aiImportRecipe(ctx: Ctx, input: AiImportRecipeInput, deps: AiTaskDeps = {}): Promise<AiResult<RecipeInput>> {
-  return runAiTask(ctx, deps, 'import_recipe', (cfg, model) =>
-    input.kind === 'text'
-      ? importRecipeFromTextAi(cfg, model, input.text, ctx.locale)
-      : importRecipeFromImageAi(cfg, model, { bytes: input.bytes, mime: input.mime }, ctx.locale),
-  )
+  return runAiTask(ctx, deps, 'import_recipe', (cfg, model) => {
+    if (input.kind === 'text') return importRecipeFromTextAi(cfg, model, input.text, ctx.locale)
+    if (input.kind === 'pdf') return importRecipeFromPdfAi(cfg, model, { bytes: input.bytes }, ctx.locale)
+    return importRecipeFromImageAi(cfg, model, { bytes: input.bytes, mime: input.mime }, ctx.locale)
+  })
 }
 
 // Construye el `FoodInput` de la estimación de IA (§9.4, Task 3): sin alias,

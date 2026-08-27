@@ -39,6 +39,10 @@ const ImportRecipeInputSchema = z.discriminatedUnion('kind', [
     bytes: z.instanceof(Uint8Array).refine((b) => b.byteLength <= MAX_UPLOAD_BYTES, { message: 'Imagen demasiado grande' }),
     mime: z.string().max(100),
   }),
+  z.strictObject({
+    kind: z.literal('pdf'),
+    bytes: z.instanceof(Uint8Array).refine((b) => b.byteLength <= MAX_UPLOAD_BYTES, { message: 'Documento demasiado grande' }),
+  }),
 ])
 
 export async function aiImportRecipeAction(input: AiImportRecipeInput): Promise<ActionResult<RecipeInput>> {

@@ -65,6 +65,15 @@ export function supportsVision(cfg: { provider: AiProviderId; model: string }): 
   return LOCAL_VISION_MODEL_RE.test(cfg.model)
 }
 
+// Visión no implica PDF. El adaptador de nube documental acepta una parte
+// `file` con mediaType application/pdf y la procesa entera; el resto de
+// adaptadores solo admiten imágenes, así que un PDF llegaría como bytes
+// opacos. Conservador a propósito: mejor decir "no puedo" que mandar 8 MB
+// que el proveedor va a rechazar (y cobrar).
+export function supportsPdf(cfg: { provider: AiProviderId; model: string }): boolean {
+  return cfg.provider === 'anthropic'
+}
+
 export function estimateCostCents(info: ModelInfo | null, tokensIn: number, tokensOut: number): number {
   if (!info) return 0
   return Math.round((tokensIn * info.inputCentsPerM) / 1_000_000 + (tokensOut * info.outputCentsPerM) / 1_000_000)

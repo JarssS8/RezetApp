@@ -48,5 +48,8 @@ export const RecipeImportSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('url'), url: z.url() }),
   z.strictObject({ kind: z.literal('text'), text: z.string().min(10).max(20_000) }),
   z.strictObject({ kind: z.literal('image'), uploadId: z.string().max(200) }),
+  // W4(c): importar desde PDF (spec §8, §17). Rama nueva de una unión
+  // discriminada: no rompe a ningún cliente que ya mandara url/text/image.
+  z.strictObject({ kind: z.literal('pdf'), uploadId: z.string().max(200) }),
 ])
 export const RecipeGetQuerySchema = z.object({ servings: z.coerce.number().int().min(1).max(100).optional() })

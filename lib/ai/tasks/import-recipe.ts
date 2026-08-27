@@ -6,7 +6,7 @@ import { z } from 'zod'
 import type { LanguageModel, ModelMessage } from 'ai'
 import type { Locale } from '@/lib/domain/types'
 import { RecipeInputSchema, type RecipeInput } from '@/lib/validation/recipes'
-import { supportsVision } from '../models'
+import { supportsPdf, supportsVision } from '../models'
 import type { AiConfig } from '../provider'
 import { generateStructured } from '../structured'
 import { importRecipeImageUserText, importRecipeSystemPrompt } from './prompts'
@@ -72,6 +72,22 @@ export async function importRecipeFromImageAi(
       content: [
         { type: 'text', text: importRecipeImageUserText(locale) },
         { type: 'file', data: image.bytes, mediaType: image.mime },
+      ],
+    },
+  ]
+  const { result, usage } = await generateStructured(cfg, model, AiRecipeSchema, { system: importRecipeSystemPrompt(locale), user: userMessage })
+  return { result: toRecipeInput(result), usage }
+}
+
+export async function importRecipeFromPdfAi(cfg: AiConfig, model: LanguageModel, pdf: { bytes: Uint8Array }, locale: Locale): Promise<ImportRecipeAiResult> {
+  if (!supportsPdf(cfg)) throw new AiUnsupportedError('El modelo configurado no admite documentos PDF')
+
+  const userMessage: ModelMessage[] = [
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: importRecipeImageUserText(locale) },
+        { type: 'file', data: pdf.bytes, mediaType: 'application/pdf' },
       ],
     },
   ]

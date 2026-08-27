@@ -5,7 +5,7 @@ import { MockLanguageModelV3 } from 'ai/test'
 import sharp from 'sharp'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import type { VerifiedCredential } from '@/lib/auth/webauthn'
-import { saveImage } from '@/lib/uploads/store'
+import { saveImage, savePdf } from '@/lib/uploads/store'
 import { updateAiSettings } from './ai-settings'
 import type { Ctx } from './ctx'
 import { createUserWithHousehold } from './households'
@@ -243,9 +243,14 @@ describe('importRecipe: kind image (W4-c)', () => {
   }
 
   // gpt-4o-mini admite visión en el catálogo (lib/ai/models.ts): es el proveedor
-  // configurado para que aiImportRecipe con kind 'image' no corte en ai_unsupported.
-  async function configureAiProvider(ctx: Ctx): Promise<void> {
-    await updateAiSettings(ctx, { provider: 'openai', model: 'gpt-4o-mini', baseUrl: null, apiKey: 'sk-test', monthlyCapCents: 0, structuredOutput: true })
+  // por defecto para que aiImportRecipe con kind 'image'/'pdf' no corte en
+  // ai_unsupported. Los tests de kind 'pdf' pasan otros proveedores a propósito
+  // (uno que admite documentos, otro que no).
+  async function configureAiProvider(
+    ctx: Ctx,
+    settings: { provider: 'openai' | 'anthropic' | 'openai_compatible'; model: string; baseUrl?: string } = { provider: 'openai', model: 'gpt-4o-mini' },
+  ): Promise<void> {
+    await updateAiSettings(ctx, { provider: settings.provider, model: settings.model, baseUrl: settings.baseUrl ?? null, apiKey: 'sk-test', monthlyCapCents: 0, structuredOutput: true })
   }
 
   async function sharpOnePixelPng(): Promise<Uint8Array> {
@@ -310,6 +315,46 @@ describe('importRecipe: kind image (W4-c)', () => {
     const png = await sharpOnePixelPng()
     const saved = await saveImage(ctxB.householdId, png)
     const draft = await importRecipe(ctxA, { kind: 'image', uploadId: saved.name })
+    expect(draft.warnings).toEqual(['upload_not_found'])
+  })
+
+  it('importa de un PDF cuando el proveedor lo admite', async () => {
+    const ctxA = await makeHousehold('Ana')
+    await configureAiProvider(ctxA, { provider: 'anthropic', model: 'un-modelo' })
+    const saved = await savePdf(ctxA.householdId, new TextEncoder().encode('%PDF-1.4\n%%EOF\n'))
+    const draft = await importRecipe(
+      ctxA,
+      { kind: 'pdf', uploadId: saved.name },
+      {
+        model: modelReturning({
+          title: 'Del PDF',
+          description: null,
+          servingsBase: 2,
+          prepMinutes: null,
+          cookMinutes: null,
+          difficulty: null,
+          tags: [],
+          ingredients: [{ rawText: '1 huevo' }],
+          steps: [{ text: 'Bate', timerSeconds: null }],
+        }) as unknown as LanguageModel,
+      },
+    )
+    expect(draft.title).toBe('Del PDF')
+  })
+
+  it('con un proveedor sin soporte de PDF avisa en vez de fallar', async () => {
+    const ctxA = await makeHousehold('Ana')
+    await configureAiProvider(ctxA, { provider: 'openai_compatible', model: 'qwen3-8b', baseUrl: 'http://localhost:8080/v1' })
+    const saved = await savePdf(ctxA.householdId, new TextEncoder().encode('%PDF-1.4\n%%EOF\n'))
+    const draft = await importRecipe(ctxA, { kind: 'pdf', uploadId: saved.name })
+    expect(draft.warnings).toEqual(['ai_unsupported'])
+  })
+
+  it('un uploadId de PDF que no existe (o de otro hogar) avisa sin filtrar nada', async () => {
+    const ctxA = await makeHousehold('Ana')
+    const ctxB = await makeHousehold('Bea')
+    const saved = await savePdf(ctxB.householdId, new TextEncoder().encode('%PDF-1.4\n%%EOF\n'))
+    const draft = await importRecipe(ctxA, { kind: 'pdf', uploadId: saved.name })
     expect(draft.warnings).toEqual(['upload_not_found'])
   })
 })

@@ -2,7 +2,7 @@ import * as cheerio from 'cheerio'
 import type { z } from 'zod'
 import type { Locale } from '@/lib/domain/types'
 import { isPrivateOrReservedHost } from '@/lib/net-hosts'
-import { readImage } from '@/lib/uploads/store'
+import { readImage, readPdf } from '@/lib/uploads/store'
 import type { RecipeImportSchema, RecipeInput } from '@/lib/validation/recipes'
 import { aiImportRecipe, type AiFailureCode, type AiTaskDeps } from './ai-tasks'
 import type { Ctx } from './ctx'
@@ -289,16 +289,36 @@ function draftWithWarning(warning: RecipeImportWarning): RecipeDraft {
   return { ...emptyDraft(), warnings: [warning] }
 }
 
+// Avisos de contenido vacío también en el camino de IA (revisión de la Task 11):
+// un modelo puede devolver una receta "válida" según su esquema pero sin
+// ingredientes ni pasos (p. ej. una foto/PDF ilegible), y eso merece el mismo
+// aviso que el resto de importadores, no un borrador silenciosamente vacío.
+function warningsFromDraft(data: RecipeInput): RecipeImportWarning[] {
+  const warnings: RecipeImportWarning[] = []
+  if (!data.ingredients.length) warnings.push('no_ingredients')
+  if (!data.steps.length) warnings.push('no_steps')
+  return warnings
+}
+
 // Punto único de importación para los tres adaptadores (acción, REST y MCP).
 // `deps` solo se usa en los tests, para inyectar un modelo de prueba.
 export async function importRecipe(ctx: Ctx, input: z.infer<typeof RecipeImportSchema>, deps: AiTaskDeps = {}): Promise<RecipeDraft> {
   if (input.kind === 'url') return importRecipeFromUrl(input.url)
   if (input.kind === 'text') return importRecipeFromText(input.text, ctx.locale)
+  if (input.kind === 'pdf') {
+    // readPdf ya acota el nombre del fichero y el hogar: un uploadId de otro
+    // hogar simplemente no se encuentra, sin decir si existe en algún sitio.
+    const pdf = await readPdf(ctx.householdId, input.uploadId)
+    if (!pdf) return draftWithWarning('upload_not_found')
+    const result = await aiImportRecipe(ctx, { kind: 'pdf', bytes: new Uint8Array(pdf) }, deps)
+    if (!result.ok) return draftWithWarning(AI_WARNING[result.code])
+    return { ...result.data, warnings: warningsFromDraft(result.data) }
+  }
   // readImage ya acota el nombre del fichero y el hogar: un uploadId de otro
   // hogar simplemente no se encuentra, sin decir si existe en algún sitio.
   const bytes = await readImage(ctx.householdId, input.uploadId)
   if (!bytes) return draftWithWarning('upload_not_found')
   const result = await aiImportRecipe(ctx, { kind: 'image', bytes: new Uint8Array(bytes), mime: 'image/webp' }, deps)
   if (!result.ok) return draftWithWarning(AI_WARNING[result.code])
-  return { ...result.data, warnings: [] }
+  return { ...result.data, warnings: warningsFromDraft(result.data) }
 }
