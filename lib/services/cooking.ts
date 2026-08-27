@@ -279,7 +279,13 @@ const STORAGE_EPSILON = 1e-3
 // varios artículos salga como un único aviso, y se convierten siempre a la
 // unidad de la NECESIDAD (la que el usuario reconoce, "faltaron 200 g de cebolla"),
 // nunca a la del artículo de despensa que causó el recorte.
-function buildWarnings(needs: Need[], unmatched: Need[], outcomes: DeductionOutcome[], conversionByFoodId: Map<string, FoodConversion>, nameByFoodId: Map<string, string>): CookingWarning[] {
+// Exportada solo para test: un `exhausted` con hueco real entre `requested` y
+// `deducted` exige antes una operación imposible en columnas numeric(12,3) (el
+// margen de coma flotante que deja una conversión de unidad ronda 1e-7, muy
+// por debajo de STORAGE_EPSILON) o una carrera real entre dos logCooked, así
+// que probar la atribución correcta con dos needs incompatibles pasa por
+// llamar a esta función pura directamente en vez de reproducirla con Postgres.
+export function buildWarnings(needs: Need[], unmatched: Need[], outcomes: DeductionOutcome[], conversionByFoodId: Map<string, FoodConversion>, nameByFoodId: Map<string, string>): CookingWarning[] {
   const deficitByKey = new Map<string, number>()
   for (const u of unmatched) {
     const key = `${u.foodId}|${u.unit}`
@@ -289,9 +295,16 @@ function buildWarnings(needs: Need[], unmatched: Need[], outcomes: DeductionOutc
     if (!exhausted) continue
     const shortfall = d.requested - d.deducted
     if (shortfall <= STORAGE_EPSILON) continue
-    const need = needs.find((n) => n.foodId === d.foodId)
+    const conversion = conversionByFoodId.get(d.foodId) ?? null
+    // Del alimento puede haber varios needs en unidades distintas (p. ej. uno
+    // en gramos y otro en unidades, sin gramsPerUnit que los relacione): solo
+    // vale el que convertBase pueda alcanzar de verdad desde la unidad del
+    // artículo de despensa. Sin fallback: mezclar unidades a ciegas es lo que
+    // producía un `deducted` negativo.
+    const need = needs.find((n) => n.foodId === d.foodId && convertBase(shortfall, d.unit, n.unit, conversion) !== null)
     if (!need) continue
-    const shortfallInNeedUnit = convertBase(shortfall, d.unit, need.unit, conversionByFoodId.get(d.foodId) ?? null) ?? shortfall
+    const shortfallInNeedUnit = convertBase(shortfall, d.unit, need.unit, conversion)
+    if (shortfallInNeedUnit === null) continue
     const key = `${need.foodId}|${need.unit}`
     deficitByKey.set(key, (deficitByKey.get(key) ?? 0) + shortfallInNeedUnit)
   }
