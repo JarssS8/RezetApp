@@ -31,7 +31,11 @@ self.addEventListener('fetch', (event) => {
   // Solo navegaciones GET del propio origen: todo lo demás va a la red sin
   // que el service worker se meta por medio.
   if (request.method !== 'GET' || request.mode !== 'navigate') return
-  event.respondWith(fetch(request).catch(() => caches.match('/offline')))
+  event.respondWith(
+    fetch(request).catch(() =>
+      caches.match('/offline').then((cached) => cached || new Response('Sin conexión', { status: 503, headers: { 'Content-Type': 'text/plain' } })),
+    ),
+  )
 })
 
 self.addEventListener('push', (event) => {

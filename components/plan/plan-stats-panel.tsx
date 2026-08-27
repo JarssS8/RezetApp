@@ -24,6 +24,11 @@ export function PlanStatsPanel({ stats }: PlanStatsPanelProps) {
   const t = useTranslations('plan')
   const locale = useLocale()
   const percent = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 })
+  // `stats.from`/`stats.to` llegan como fecha ISO sin hora ('YYYY-MM-DD'): se
+  // formatean con el locale del hogar en vez de enseñarlas crudas (fix 9 de
+  // la revisión final). `timeZone: 'UTC'` evita que `new Date('YYYY-MM-DD')`
+  // (medianoche UTC) se lea como el día anterior en un huso horario negativo.
+  const dateFormat = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
   const cards = [
     { key: 'planned', value: stats.planned },
@@ -34,7 +39,7 @@ export function PlanStatsPanel({ stats }: PlanStatsPanelProps) {
 
   return (
     <section className="flex flex-col gap-4">
-      <p className="text-sm text-text-2">{t('stats.range', { from: stats.from, to: stats.to })}</p>
+      <p className="text-sm text-text-2">{t('stats.range', { from: dateFormat.format(new Date(stats.from)), to: dateFormat.format(new Date(stats.to)) })}</p>
 
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {cards.map((card) => (

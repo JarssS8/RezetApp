@@ -215,7 +215,6 @@
     "migrateHint": "It runs from the server command line: pnpm import:mealie '<file>' --household '<id>'. The README explains it."
   },
   "notifications": {
-    "title": "Notifications",
     "hint": "Alerts about pantry items that are about to expire. Enabled per device.",
     "enable": "Enable on this device",
     "disable": "Disable on this device",

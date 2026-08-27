@@ -48,7 +48,7 @@ export function registerFoodTools(server: McpServer, ctx: McpCtx): boolean {
     {
       title: 'Fusionar dos alimentos duplicados',
       description:
-        'Fusiona un alimento duplicado del hogar en otro: las recetas y la despensa que usaban el primero pasan a usar el segundo, y el primero deja de aparecer en las búsquedas. Solo perfil completo. Úsala cuando el usuario confirme que dos alimentos son el mismo. No la uses para corregir un nombre (eso es una corrección del alimento), ni para alimentos que solo se parecen, ni sobre alimentos globales del catálogo: no inventes ids, léelos antes de search_foods o de la despensa.',
+        'Fusiona un alimento duplicado del hogar en otro: las recetas y la despensa que usaban el primero pasan a usar el segundo, y el primero deja de aparecer en las búsquedas. Solo perfil completo. Úsala cuando el usuario confirme que dos alimentos son el mismo. No la uses para corregir un nombre (eso es una corrección del alimento), ni para alimentos que solo se parecen, ni sobre alimentos globales del catálogo: no inventes ids, léelos antes de get_pantry o get_recipe.',
       inputSchema: MergeFoodsInput,
     },
     guarded('No se pudieron fusionar los alimentos.', async (input: z.infer<typeof MergeFoodsInput>) => mergeFoods(ctx, input.fromId, input.intoId)),

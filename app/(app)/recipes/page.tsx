@@ -45,6 +45,7 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
     ...(query.maxMinutes !== undefined ? { maxMinutes: query.maxMinutes } : {}),
     ...(query.difficulty ? { difficulty: query.difficulty } : {}),
     ...(query.onlyWithPantry ? { onlyWithPantry: true } : {}),
+    ...(query.sort ? { sort: query.sort } : {}),
   })
 
   return (

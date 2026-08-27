@@ -215,7 +215,6 @@
     "migrateHint": "Se hace desde la línea de comandos del servidor: pnpm import:mealie '<fichero>' --household '<id>'. Está explicado en el README."
   },
   "notifications": {
-    "title": "Notificaciones",
     "hint": "Avisos de lo que está a punto de caducar en la despensa. Se activan por dispositivo.",
     "enable": "Activar en este dispositivo",
     "disable": "Desactivar en este dispositivo",
