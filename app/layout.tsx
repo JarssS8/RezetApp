@@ -11,7 +11,17 @@ const dmSans = DM_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'
 const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-jetbrains-mono', display: 'swap' })
 
 export const metadata: Metadata = { title: 'RezetApp', applicationName: 'RezetApp' }
-export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover' }
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  // Dos colores para que la barra del sistema acompañe al tema del usuario
+  // (los valores salen de design-tokens.css: --bg claro y --bg oscuro).
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FBFBFC' },
+    { media: '(prefers-color-scheme: dark)', color: '#16130F' },
+  ],
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const prefs = readPrefs((await cookies()).get(PREFS_COOKIE)?.value)
