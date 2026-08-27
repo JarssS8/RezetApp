@@ -13,7 +13,7 @@ export default async function CookPage() {
   const ctx = await requireHousehold()
   const today = todayIso()
   const entries = await listEntries(ctx, { from: today, to: today })
-  const cookable = entries.filter((e) => e.recipeId !== null && e.status === 'planned')
+  const cookable = entries.filter((e) => e.recipeId !== null && e.leftoverOfEntryId === null && e.status === 'planned')
 
   return (
     <main>

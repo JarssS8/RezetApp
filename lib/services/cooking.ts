@@ -80,7 +80,7 @@ async function lockEntry(tx: Db, householdId: string, entryId: string): Promise<
 // se usa la misma Europe/Madrid por defecto que ya usa todayIso(), para que
 // "hoy" y "el hueco de ahora" caigan en el mismo día pase lo que pase con el
 // huso horario del proceso del servidor (Date#getHours no es determinista).
-function hourInHouseholdTz(now: Date, tz = 'Europe/Madrid'): number {
+export function hourInHouseholdTz(now: Date, tz = 'Europe/Madrid'): number {
   return Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(now))
 }
 
