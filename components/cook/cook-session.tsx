@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { scaleRecipe } from '@/lib/domain'
 import type { Locale, UnitSystem } from '@/lib/domain/types'
 import { IngredientChecklist } from './ingredient-checklist'
+import { StepTimers } from './step-timers'
+import { useWakeLock } from './use-wake-lock'
 
 export interface CookStep {
   id: string
@@ -43,6 +45,9 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set())
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
 
+  // Mantiene la pantalla encendida mientras dura la sesión de cocina (spec §8).
+  useWakeLock(true)
+
   const scaled = useMemo(() => scaleRecipe({ servingsBase, ingredients }, servings), [servingsBase, ingredients, servings])
   const rows = useMemo(() => buildIngredientRows(scaled, ingredients, locale, units), [scaled, ingredients, locale, units])
 
@@ -55,6 +60,16 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
     return rows.filter((r) => idsOfStep.has(r.id))
   }, [ingredients, rows, index])
 
+  // Ingredientes sin paso asignado cuando la receta reparte el resto: no
+  // pertenecen a ninguno en concreto, así que se enseñan en todos (regla del
+  // repaso de la Tarea 6: antes se perdían al no encajar en ningún índice).
+  const unassignedRows = useMemo(() => {
+    const hasStepIndex = ingredients.some((i) => i.stepIndex !== null)
+    if (!hasStepIndex) return []
+    const idsUnassigned = new Set(ingredients.filter((i) => i.stepIndex === null).map((i) => i.id))
+    return rows.filter((r) => idsUnassigned.has(r.id))
+  }, [ingredients, rows])
+
   function toggle(id: string) {
     setChecked((prev) => {
       const next = new Set(prev)
@@ -62,6 +77,16 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
       else next.add(id)
       return next
     })
+  }
+
+  // Receta sin pasos: no hay nada que recorrer (repaso de la Tarea 6, antes no
+  // se pintaba nada en absoluto).
+  if (steps.length === 0) {
+    return (
+      <section className="flex min-h-[70dvh] flex-col items-center justify-center gap-2 text-center text-text-2">
+        <p>{t('empty')}</p>
+      </section>
+    )
   }
 
   return (
@@ -96,7 +121,16 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
 
       {step ? <p className="text-2xl leading-snug">{step.text}</p> : null}
 
+      {step ? <StepTimers text={step.text} locale={locale} /> : null}
+
       {stepRows.length > 0 ? <IngredientChecklist rows={stepRows} checked={checked} onToggle={toggle} /> : null}
+
+      {unassignedRows.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          <p className="text-sm text-text-2">{t('unassigned')}</p>
+          <IngredientChecklist rows={unassignedRows} checked={checked} onToggle={toggle} />
+        </div>
+      ) : null}
 
       <div className="mt-auto flex items-center justify-between gap-3">
         <Button type="button" variant="outline" size="lg" disabled={index === 0} aria-label={t('previous')} onClick={() => setIndex((i) => Math.max(0, i - 1))}>

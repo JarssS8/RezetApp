@@ -4,5 +4,8 @@
   "previous": "Paso anterior",
   "next": "Paso siguiente",
   "ingredients": "Ingredientes de este paso",
-  "empty": "No hay nada planificado para hoy"
+  "unassigned": "Sin asignar a un paso",
+  "empty": "No hay nada planificado para hoy",
+  "timerMinutes": "{minutes} min",
+  "timerDone": "¡Listo!"
 }

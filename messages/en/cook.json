@@ -4,5 +4,8 @@
   "previous": "Previous step",
   "next": "Next step",
   "ingredients": "Ingredients for this step",
-  "empty": "Nothing planned for today"
+  "unassigned": "Not assigned to a step",
+  "empty": "Nothing planned for today",
+  "timerMinutes": "{minutes} min",
+  "timerDone": "Done!"
 }

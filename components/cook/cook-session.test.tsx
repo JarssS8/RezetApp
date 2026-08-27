@@ -52,4 +52,31 @@ describe('CookSession', () => {
     await user.click(box)
     expect(box).toBeChecked()
   })
+
+  it('enseña los ingredientes sin paso asignado en todos los pasos', async () => {
+    const mixedIngredients = [
+      { id: 'i1', foodId: 'f1', rawText: '300 g de cebolla', quantity: 300, unit: 'g' as const, displayQuantity: 300, displayUnit: 'g', preparation: null, groupLabel: null, stepIndex: 0, scalesLinearly: true, sortOrder: 0, food: null },
+      { id: 'i2', foodId: 'f2', rawText: '1 pizca de sal', quantity: 1, unit: 'g' as const, displayQuantity: 1, displayUnit: 'g', preparation: null, groupLabel: null, stepIndex: null, scalesLinearly: false, sortOrder: 1, food: null },
+    ]
+    const user = userEvent.setup()
+    render(
+      <NextIntlClientProvider locale="es" messages={{ cook: messages, common, recipes }}>
+        <CookSession recipeId="r1" entryId="e1" title="Sopa de cebolla" servingsBase={2} initialServings={2} ingredients={mixedIngredients} steps={steps} locale="es" units="metric" />
+      </NextIntlClientProvider>,
+    )
+    expect(screen.getByText(/sin asignar/i)).toBeInTheDocument()
+    expect(screen.getByText(/pizca de sal/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /siguiente/i }))
+    expect(screen.getByText(/sin asignar/i)).toBeInTheDocument()
+    expect(screen.getByText(/pizca de sal/i)).toBeInTheDocument()
+  })
+
+  it('muestra el estado vacío cuando la receta no tiene pasos', () => {
+    render(
+      <NextIntlClientProvider locale="es" messages={{ cook: messages, common, recipes }}>
+        <CookSession recipeId="r1" entryId="e1" title="Sopa de cebolla" servingsBase={2} initialServings={2} ingredients={ingredients} steps={[]} locale="es" units="metric" />
+      </NextIntlClientProvider>,
+    )
+    expect(screen.getByText(/no hay nada planificado/i)).toBeInTheDocument()
+  })
 })
