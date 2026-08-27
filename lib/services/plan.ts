@@ -1,8 +1,8 @@
 import { and, eq, gte, inArray, isNull, lte, type SQL } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { emitHouseholdEvent } from '@/lib/events/bus'
-import { aggregateNutrition, EMPTY_MACROS, entryStatus } from '@/lib/domain'
-import type { FoodConversion, Nutrition, PlannedEntry, ShoppingIngredient } from '@/lib/domain'
+import { aggregateNutrition, EMPTY_MACROS, entryStatus, planAdherence } from '@/lib/domain'
+import type { FoodConversion, Nutrition, PlanAdherence, PlannedEntry, ShoppingIngredient } from '@/lib/domain'
 import { ProposalPayloadSchema } from '@/lib/validation/plan'
 import type { MealSlot, PlanBatch, PlanEntryInput, PlanEntryMove, PlanEntryPatch, ProposalPayload } from '@/lib/validation/plan'
 import { type Ctx, type Db, ServiceError } from './ctx'
@@ -443,6 +443,75 @@ export async function dayProgress(ctx: Ctx, date: string): Promise<DayProgress> 
     cookedKcal: Math.round(cooked.total.kcal),
     hasEstimates: rows.some((r) => r.nutritionIsEstimated),
     hasUnknownKcal: rows.some((r) => r.kcalPerServing === null),
+  }
+}
+
+export interface PlanStats extends PlanAdherence {
+  from: string
+  to: string
+  cookedOffPlan: number
+  topRecipes: { title: string; times: number }[]
+}
+
+const TOP_RECIPES_LIMIT = 5
+
+// Plan frente a realidad del rango (spec §17 W4(e)). Los recuentos los hace el
+// dominio (planAdherence); aquí solo se traen las filas y se cuenta lo cocinado
+// sin entrada previa, que es la otra mitad de la verdad: lo que se improvisó.
+export async function planStats(ctx: Ctx, range: { from: string; to: string }): Promise<PlanStats> {
+  const rows = await ctx.db
+    .select({
+      cookedAt: schema.mealPlanEntries.cookedAt,
+      skippedAt: schema.mealPlanEntries.skippedAt,
+      leftoverOfEntryId: schema.mealPlanEntries.leftoverOfEntryId,
+      servings: schema.mealPlanEntries.servings,
+      kcalPerServing: schema.recipes.kcalPerServing,
+    })
+    .from(schema.mealPlanEntries)
+    .leftJoin(schema.recipes, eq(schema.recipes.id, schema.mealPlanEntries.recipeId))
+    .where(
+      and(
+        eq(schema.mealPlanEntries.householdId, ctx.householdId),
+        gte(schema.mealPlanEntries.date, range.from),
+        lte(schema.mealPlanEntries.date, range.to),
+      ),
+    )
+
+  const adherence = planAdherence(
+    rows.map((r) => ({
+      status: entryStatus({ cookedAt: r.cookedAt, skippedAt: r.skippedAt }),
+      isLeftover: r.leftoverOfEntryId !== null,
+      kcalPerServing: r.kcalPerServing,
+      servings: r.servings,
+    })),
+  )
+
+  const logRows = await ctx.db
+    .select({ entryId: schema.cookingLog.entryId, title: schema.recipes.title })
+    .from(schema.cookingLog)
+    .innerJoin(schema.recipes, eq(schema.recipes.id, schema.cookingLog.recipeId))
+    .where(
+      and(
+        eq(schema.cookingLog.householdId, ctx.householdId),
+        gte(schema.cookingLog.cookedAt, new Date(`${range.from}T00:00:00Z`)),
+        // El día `to` cuenta entero: hasta el final de su jornada UTC.
+        lte(schema.cookingLog.cookedAt, new Date(`${range.to}T23:59:59.999Z`)),
+      ),
+    )
+
+  const times = new Map<string, number>()
+  for (const row of logRows) times.set(row.title, (times.get(row.title) ?? 0) + 1)
+  const topRecipes = Array.from(times.entries())
+    .map(([title, count]) => ({ title, times: count }))
+    .sort((a, b) => b.times - a.times || (a.title < b.title ? -1 : 1))
+    .slice(0, TOP_RECIPES_LIMIT)
+
+  return {
+    ...adherence,
+    from: range.from,
+    to: range.to,
+    cookedOffPlan: logRows.filter((r) => r.entryId === null).length,
+    topRecipes,
   }
 }
 
