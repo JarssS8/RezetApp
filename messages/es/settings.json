@@ -133,6 +133,25 @@
     "households": "Tus hogares",
     "current": "Actual"
   },
+  "planRules": {
+    "title": "Reglas del plan",
+    "hint": "El autorrelleno propone recetas que cumplan estas reglas. Nunca escribe el plan: siempre lo apruebas tú.",
+    "add": "Añadir regla",
+    "remove": "Quitar regla",
+    "save": "Guardar reglas",
+    "saved": "Reglas guardadas",
+    "error": "No se pudieron guardar las reglas",
+    "empty": "Sin reglas: el autorrelleno solo evita repetir lo cocinado hace poco.",
+    "day": "Día",
+    "anyDay": "Cualquier día",
+    "slot": "Hueco",
+    "anySlot": "Cualquier hueco",
+    "constraint": "Condición",
+    "value": "Valor",
+    "days": { "0": "Domingo", "1": "Lunes", "2": "Martes", "3": "Miércoles", "4": "Jueves", "5": "Viernes", "6": "Sábado" },
+    "slots": { "breakfast": "Desayuno", "lunch": "Comida", "dinner": "Cena", "snack": "Picoteo" },
+    "constraints": { "no-meat": "Sin carne", "max-minutes": "Como mucho X minutos", "tag": "Con la etiqueta", "not-tag": "Sin la etiqueta" }
+  },
   "members": {
     "invite": "Invitar",
     "inviteUrl": "Enlace de invitación (caduca en 24 h)",
