@@ -1,10 +1,29 @@
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import tagsSeed from '@/db/seed/tags.json'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
 import type { Ctx } from '@/lib/services/ctx'
 import { RecipeExportSchema } from '@/lib/validation/data'
 import { createRecipe, exportAll, getRecipe, importAll, prepareIngredients, recentlyCooked, searchRecipes, softDeleteRecipe, updateRecipe } from './recipes'
+
+type TagSeed = { slug: string; name: { es: string; en: string }; parent: string | null }
+
+// Etiquetas globales de db/seed/tags.json, sin pasar por scripts/seed.ts
+// (los tests de servicios no pueden depender de 'scripts': ver eslint boundaries).
+// Dos pasadas: padres (parent null) antes que hijos, igual que seedTags.
+async function seedGlobalTags(db: TestDb): Promise<void> {
+  const list = tagsSeed as TagSeed[]
+  const idBySlug = new Map<string, string>()
+  for (const pass of [0, 1]) {
+    for (const t of list) {
+      if ((t.parent === null) !== (pass === 0)) continue
+      const parentId = t.parent ? (idBySlug.get(t.parent) ?? null) : null
+      const [row] = await db.insert(schema.tags).values({ householdId: null, slug: t.slug, name: t.name.es, nameEn: t.name.en, parentId }).returning({ id: schema.tags.id })
+      if (row) idBySlug.set(t.slug, row.id)
+    }
+  }
+}
 
 let db: TestDb
 let ctxA: Ctx
@@ -246,6 +265,12 @@ describe('searchRecipes', () => {
       { householdId: ctxA.householdId, foodId: saltId, quantity: 100, unit: 'g' },
     ])
     expect((await searchRecipes(ctxA, { onlyWithPantry: true, limit: 20, offset: 0, sort: 'title' })).items).toHaveLength(1)
+  })
+  it('buscar por una etiqueta padre encuentra las recetas de sus hijas', async () => {
+    await seedGlobalTags(db)
+    await createRecipe(ctxA, { title: 'Lentejas', servingsBase: 4, tags: ['Vegetariano'], ingredients: [{ rawText: '300 g de lentejas' }], steps: [{ text: 'Cuece' }], imageUrls: [] })
+    const { items } = await searchRecipes(ctxA, { tags: ['dieta'], limit: 20, offset: 0, sort: 'recent' })
+    expect(items.map((r) => r.title)).toEqual(['Lentejas'])
   })
 })
 

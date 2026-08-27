@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { normalizeSearchName } from '@/lib/domain/quantities'
 import type { BaseUnit, FoodNutrition, Locale } from '@/lib/domain/types'
+import { emitHouseholdEvent } from '@/lib/events/bus'
 import { fetchOffProduct, offToFoodInput, type OffProduct } from '@/lib/integrations/open-food-facts'
 import { BarcodeSchema, type FoodCorrection, type FoodInput } from '@/lib/validation/foods'
 import { ALLERGENS } from '@/lib/validation/household'
@@ -347,4 +348,64 @@ export async function lookupBarcode(ctx: Ctx, barcode: string, fetcher: BarcodeF
   if (!off) return null
 
   return createFood(ctx, offToFoodInput(off), 'off')
+}
+
+export interface MergeFoodsResult {
+  fromId: string
+  intoId: string
+  ingredientsRepointed: number
+  pantryItemsRepointed: number
+}
+
+// Fusiona `from` en `into` (spec §9.4). No borra nada: el origen se queda con
+// merged_into_id puesto y visible() lo saca de búsquedas y resolución, así que
+// una fusión equivocada se deshace poniendo esa columna a null.
+//
+// El ORIGEN tiene que ser del hogar: fusionar un alimento global afectaría a
+// todas las casas de la instancia. El DESTINO puede ser global (es justo el
+// caso útil: mandar el duplicado local al alimento canónico del seed).
+export async function mergeFoods(ctx: Ctx, fromId: string, intoId: string): Promise<MergeFoodsResult> {
+  if (fromId === intoId) throw new ServiceError('validation', 'Un alimento no se fusiona consigo mismo')
+
+  const rows = await ctx.db.select().from(schema.foods).where(inArray(schema.foods.id, [fromId, intoId]))
+  const from = rows.find((f) => f.id === fromId)
+  const into = rows.find((f) => f.id === intoId)
+  // "No es tuyo" y "no existe" se responden igual: distinguirlos delataría
+  // el catálogo de otro hogar.
+  if (!from || (from.householdId !== null && from.householdId !== ctx.householdId)) throw new ServiceError('not_found', 'Alimento no encontrado')
+  if (!into || (into.householdId !== null && into.householdId !== ctx.householdId)) throw new ServiceError('not_found', 'Alimento no encontrado')
+  if (from.householdId === null) throw new ServiceError('forbidden', 'Un alimento global no se puede fusionar: lo comparten todos los hogares')
+  if (into.mergedIntoId !== null) throw new ServiceError('validation', 'El alimento de destino ya está fusionado en otro')
+
+  const result = await ctx.db.transaction(async (tx) => {
+    // Solo las recetas del hogar: un ingrediente de otra casa nunca apunta a
+    // un alimento propio de esta, pero el filtro lo deja explícito.
+    const ingredients = await tx
+      .update(schema.recipeIngredients)
+      .set({ foodId: intoId })
+      .where(
+        and(
+          eq(schema.recipeIngredients.foodId, fromId),
+          sql`EXISTS (SELECT 1 FROM ${schema.recipes} WHERE ${schema.recipes.id} = ${schema.recipeIngredients.recipeId} AND ${schema.recipes.householdId} = ${ctx.householdId})`,
+        ),
+      )
+      .returning({ id: schema.recipeIngredients.id })
+
+    const pantry = await tx
+      .update(schema.pantryItems)
+      .set({ foodId: intoId })
+      .where(and(eq(schema.pantryItems.foodId, fromId), eq(schema.pantryItems.householdId, ctx.householdId)))
+      .returning({ id: schema.pantryItems.id })
+
+    await tx.update(schema.foods).set({ mergedIntoId: intoId, updatedAt: new Date() }).where(eq(schema.foods.id, fromId))
+    // Aplana la cadena: si algo ya se había fusionado en `from`, pasa a apuntar
+    // directamente a `into`. Sin esto, resolver un alimento exigiría seguir
+    // saltos encadenados y una fusión circular sería posible.
+    await tx.update(schema.foods).set({ mergedIntoId: intoId }).where(eq(schema.foods.mergedIntoId, fromId))
+
+    return { fromId, intoId, ingredientsRepointed: ingredients.length, pantryItemsRepointed: pantry.length }
+  })
+
+  emitHouseholdEvent(ctx.householdId, { type: 'pantry.changed', payload: { foodIds: [fromId, intoId] } })
+  return result
 }

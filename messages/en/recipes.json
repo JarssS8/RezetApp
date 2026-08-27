@@ -52,6 +52,15 @@
       "mollusc": "Molluscs"
     }
   },
+  "collections": {
+    "title": "Collections",
+    "save": "Save filter",
+    "name": "Collection name",
+    "confirm": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete collection",
+    "error": "Could not save the collection"
+  },
   "new": "New recipe",
   "empty": "No recipes yet. Create the first one or import one.",
   "noResults": "No results for those filters.",
@@ -74,7 +83,9 @@
     "recent": "Recent",
     "most_cooked": "Most cooked",
     "title": "Title",
-    "apply": "Filter"
+    "apply": "Filter",
+    "tags": "Tags",
+    "clearTags": "Clear tags"
   },
   "import": {
     "title": "Import recipe",

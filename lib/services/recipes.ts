@@ -8,6 +8,7 @@ import { RecipeInputSchema, type RecipeInput, type RecipeSearch } from '@/lib/va
 import { isUniqueViolation, type Ctx, type Db, ServiceError } from './ctx'
 import { getFoodsNutrition, resolveFoodName, resolveMany, type FoodWithNutrition, type ResolvedFood } from './foods'
 import { toIngredient, toIngredientWithFood, toRecipeForScaling } from './recipe-mapper'
+import { expandTagSlugs } from './tags'
 
 export interface RecipeDetail {
   recipe: schema.Recipe
@@ -401,7 +402,9 @@ export async function searchRecipes(ctx: Ctx, input: RecipeSearch): Promise<{ it
   }
   if (input.difficulty) conds.push(eq(r.difficulty, input.difficulty))
   if (input.tags?.length) {
-    const slugs = input.tags.map((t) => slugify(t))
+    // Filtrar por una etiqueta padre incluye a sus hijas (W4(d)): "dieta"
+    // encuentra las vegetarianas y las veganas.
+    const slugs = await expandTagSlugs(ctx, input.tags)
     conds.push(
       sql`EXISTS (SELECT 1 FROM ${schema.recipeTags} JOIN ${schema.tags} ON ${schema.tags.id} = ${schema.recipeTags.tagId}
         WHERE ${schema.recipeTags.recipeId} = ${r.id} AND ${schema.tags.slug} IN (${sql.join(slugs.map((s) => sql`${s}`), sql`, `)}))`,

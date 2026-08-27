@@ -5,18 +5,21 @@ import {
   correctFood,
   createFood,
   lookupBarcode,
+  mergeFoods,
   resolveFoodName,
   searchFoods,
   type FoodSummary,
   type FoodWithNutrition,
+  type MergeFoodsResult,
   type ResolvedFood,
 } from '@/lib/services/foods'
+import { IdSchema } from '@/lib/validation/common'
 import { BarcodeSchema, FoodCorrectionSchema, FoodInputSchema, FoodNameSchema, FoodSearchSchema } from '@/lib/validation/foods'
 import { type ActionResult, fail, fromError, ok } from './result'
 
 // Tipos re-exportados para que components/* los use sin importar lib/services
 // directamente (la frontera de eslint-boundaries prohíbe components -> services).
-export type { FoodSummary, FoodWithNutrition, ResolvedFood }
+export type { FoodSummary, FoodWithNutrition, MergeFoodsResult, ResolvedFood }
 
 export async function searchFoodsAction(q: string): Promise<ActionResult<FoodSummary[]>> {
   try {
@@ -74,6 +77,21 @@ export async function correctFoodAction(foodId: string, patch: unknown): Promise
     revalidatePath('/recipes')
     revalidatePath('/pantry')
     return ok(f)
+  } catch (e) {
+    return fromError(e)
+  }
+}
+
+export async function mergeFoodsAction(fromId: string, intoId: string): Promise<ActionResult<MergeFoodsResult>> {
+  try {
+    const ctx = await requireHousehold()
+    const from = IdSchema.safeParse(fromId)
+    const into = IdSchema.safeParse(intoId)
+    if (!from.success || !into.success) return fail('validation', 'Identificador inválido')
+    const result = await mergeFoods(ctx, from.data, into.data)
+    revalidatePath('/pantry')
+    revalidatePath('/recipes')
+    return ok(result)
   } catch (e) {
     return fromError(e)
   }

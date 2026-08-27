@@ -3,8 +3,17 @@ import { and, eq } from 'drizzle-orm'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
 import type { OffProduct } from '@/lib/integrations/open-food-facts'
+import { listPantry, upsertPantryItem } from '@/lib/services/pantry'
+import { createRecipe, getRecipe } from '@/lib/services/recipes'
 import type { Ctx } from '@/lib/services/ctx'
-import { correctFood, createFood, getFood, getFoodsNutrition, lookupBarcode, resolveFoodName, resolveMany, searchFoods } from './foods'
+import type { FoodInput } from '@/lib/validation/foods'
+import { correctFood, createFood, getFood, getFoodsNutrition, lookupBarcode, mergeFoods, resolveFoodName, resolveMany, searchFoods } from './foods'
+
+// Atajo para construir un FoodInput válido en los tests de mergeFoods: solo
+// hace falta variar el nombre, el resto son los valores por defecto del esquema.
+function foodInput(overrides: Pick<FoodInput, 'nameEs' | 'nameEn'>): FoodInput {
+  return { aliases: [], defaultUnit: 'g', allergens: [], seasonalMonths: [], ...overrides }
+}
 
 let db: TestDb
 let ctxA: Ctx
@@ -180,5 +189,47 @@ describe('lookupBarcode', () => {
 
   it('lanza validation si el código de barras no tiene formato válido', async () => {
     await expect(lookupBarcode(ctxA, 'no-es-un-codigo', async () => null)).rejects.toMatchObject({ code: 'validation' })
+  })
+})
+
+describe('mergeFoods', () => {
+  it('reapunta ingredientes y despensa, y esconde el fusionado de las búsquedas', async () => {
+    const cebolla = await createFood(ctxA, foodInput({ nameEs: 'cebolla', nameEn: 'onion' }))
+    const cebollita = await createFood(ctxA, foodInput({ nameEs: 'cebolla blanca', nameEn: 'white onion' }))
+    const recipe = await createRecipe(ctxA, { title: 'Sopa', servingsBase: 2, tags: [], imageUrls: [], ingredients: [{ rawText: '2 cebolla blanca', foodId: cebollita.id, quantity: 300, unit: 'g' }], steps: [{ text: 'Pocha' }] })
+    await upsertPantryItem(ctxA, { foodId: cebollita.id, quantity: 500, unit: 'g', location: 'pantry' })
+
+    const result = await mergeFoods(ctxA, cebollita.id, cebolla.id)
+    expect(result).toMatchObject({ ingredientsRepointed: 1, pantryItemsRepointed: 1 })
+
+    const detail = await getRecipe(ctxA, recipe.recipe.id)
+    expect(detail?.ingredients[0]?.foodId).toBe(cebolla.id)
+    const pantry = await listPantry(ctxA, {})
+    expect(pantry.every((i) => i.foodId === cebolla.id)).toBe(true)
+    // El fusionado desaparece de la búsqueda (visible() ya excluye merged_into_id)
+    expect((await searchFoods(ctxA, { q: 'cebolla blanca' })).map((f) => f.id)).not.toContain(cebollita.id)
+  })
+
+  it('no fusiona un alimento consigo mismo, ni uno global, ni uno de otro hogar', async () => {
+    const propio = await createFood(ctxA, foodInput({ nameEs: 'cebolla mía', nameEn: 'my onion' }))
+    const [global] = await db.insert(schema.foods).values({ nameEs: 'sal', nameEn: 'salt', searchNameEs: 'sal', searchNameEn: 'salt' }).returning()
+    const ajeno = await createFood(ctxB, foodInput({ nameEs: 'ajena', nameEn: 'theirs' }))
+
+    await expect(mergeFoods(ctxA, propio.id, propio.id)).rejects.toMatchObject({ code: 'validation' })
+    // El origen tiene que ser del hogar: un alimento global lo comparten todos
+    await expect(mergeFoods(ctxA, global!.id, propio.id)).rejects.toMatchObject({ code: 'forbidden' })
+    await expect(mergeFoods(ctxA, ajeno.id, propio.id)).rejects.toMatchObject({ code: 'not_found' })
+    // El destino sí puede ser global: fusionar el duplicado local en el canónico
+    await expect(mergeFoods(ctxA, propio.id, global!.id)).resolves.toMatchObject({ intoId: global!.id })
+  })
+
+  it('fusionar dos veces en cadena no deja un alimento apuntando a otro fusionado', async () => {
+    const a = await createFood(ctxA, foodInput({ nameEs: 'a', nameEn: 'a' }))
+    const b = await createFood(ctxA, foodInput({ nameEs: 'b', nameEn: 'b' }))
+    const c = await createFood(ctxA, foodInput({ nameEs: 'c', nameEn: 'c' }))
+    await mergeFoods(ctxA, a.id, b.id)
+    await expect(mergeFoods(ctxA, b.id, c.id)).resolves.toBeTruthy()
+    const rows = await db.select().from(schema.foods).where(eq(schema.foods.id, a.id))
+    expect(rows[0]?.mergedIntoId).toBe(c.id) // la cadena se aplana: a -> c, no a -> b -> c
   })
 })

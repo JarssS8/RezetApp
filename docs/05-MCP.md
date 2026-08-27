@@ -58,9 +58,7 @@ Las doce ya existen.
 ## Las herramientas del perfil completo
 
 Se registran solo si el token tiene el perfil completo (`mcp_profile = 'full'` en la base de datos) **y** el alcance
-que les corresponde. `merge_foods` (fusionar dos alimentos duplicados) queda
-pendiente de la oleada W4, junto con las etiquetas jerárquicas: registrarla
-vacía sería peor que no tenerla, un modelo pequeño la intentaría igual.
+que les corresponde.
 
 | Herramienta | Qué hace | Por qué solo en completo |
 |---|---|---|
@@ -69,7 +67,7 @@ vacía sería peor que no tenerla, un modelo pequeño la intentaría igual.
 | `update_meal_plan_entry` | Cambia raciones, marca saltada o mueve de día/hueco una entrada ya existente | Toca una entrada sin pasar por la propuesta de `set_meal_plan` |
 | `delete_pantry_item` | Elimina del inventario un artículo entero | Para dejarlo a cero sin perder ubicación ni caducidad basta `update_pantry` con un delta negativo |
 | `create_food` | Añade un alimento al catálogo con su nutrición por 100 g | Un dato mal escrito (una densidad inventada, por ejemplo) estropea el escalado de cualquier receta que lo use |
-| `merge_foods` | — | Pendiente de W4 |
+| `merge_foods` | Fusiona un alimento duplicado en otro: recetas y despensa se reapuntan | Reescribe ingredientes de recetas que ya existen; el básico no puede tocar nada existente |
 
 ## Alcance (scopes)
 
@@ -93,7 +91,7 @@ herramienta para la que le falte cualquiera de los dos.
 | `update_meal_plan_entry` | `plan:write` | completo |
 | `delete_pantry_item` | `pantry:write` | completo |
 | `create_food` | `recipes:write` | completo |
-| `merge_foods` | — | pendiente (W4) |
+| `merge_foods` | `recipes:write` | completo |
 
 ## Conexión
 
@@ -107,7 +105,7 @@ desarrollo). Hace falta un token: créalo en **Ajustes → Tokens de API**
 - **Perfil** — `básico` o `completo`. El básico puede leer todo y crear
   (recetas, alimentos) pero no editar ni borrar nada que ya exista; el
   completo añade `update_recipe`, `delete_recipe`, `update_meal_plan_entry`,
-  `delete_pantry_item` y `create_food` (`merge_foods` llega en W4). El perfil
+  `delete_pantry_item`, `create_food` y `merge_foods`. El perfil
   se fija al crear el token, no por sesión.
 
 El token en claro (`rz_…`) solo se muestra una vez, al crearlo: guárdalo, la

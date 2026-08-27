@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { createFood } from '@/lib/services/foods'
-import { BaseUnitSchema } from '@/lib/validation/common'
+import { createFood, mergeFoods } from '@/lib/services/foods'
+import { BaseUnitSchema, IdSchema } from '@/lib/validation/common'
 import { FoodInputSchema } from '@/lib/validation/foods'
 import type { McpCtx } from '../auth'
 import { guarded, hasScope, isFull } from '../guards'
@@ -22,9 +22,11 @@ const CreateFoodInput = z.strictObject({
   gramsPerUnit: z.number().positive().nullable().optional().describe('Gramos que pesa una pieza, si el alimento se cuenta por piezas'),
 })
 
-// merge_foods (perfil completo en spec §12) NO se registra en W3: el servicio
-// de fusión llega en W4(d) junto con las etiquetas jerárquicas. Registrarla
-// vacía sería peor que no tenerla: un modelo pequeño la intentaría igual.
+const MergeFoodsInput = z.strictObject({
+  fromId: IdSchema.describe('Identificador del alimento DUPLICADO, el que desaparece del catálogo'),
+  intoId: IdSchema.describe('Identificador del alimento que se queda y recibe todo lo del duplicado'),
+})
+
 export function registerFoodTools(server: McpServer, ctx: McpCtx): boolean {
   if (!isFull(ctx) || !hasScope(ctx, 'recipes:write')) return false
   server.registerTool(
@@ -40,6 +42,16 @@ export function registerFoodTools(server: McpServer, ctx: McpCtx): boolean {
     // CreateFoodInput no declara: mismo patrón que search_recipes reparsando
     // contra RecipeSearchSchema (lib/mcp/tools/recipes.ts).
     guarded('No se pudo crear el alimento.', async (input: z.infer<typeof CreateFoodInput>) => createFood(ctx, FoodInputSchema.parse(input), 'manual')),
+  )
+  server.registerTool(
+    'merge_foods',
+    {
+      title: 'Fusionar dos alimentos duplicados',
+      description:
+        'Fusiona un alimento duplicado del hogar en otro: las recetas y la despensa que usaban el primero pasan a usar el segundo, y el primero deja de aparecer en las búsquedas. Solo perfil completo. Úsala cuando el usuario confirme que dos alimentos son el mismo. No la uses para corregir un nombre (eso es una corrección del alimento), ni para alimentos que solo se parecen, ni sobre alimentos globales del catálogo: no inventes ids, léelos antes de search_foods o de la despensa.',
+      inputSchema: MergeFoodsInput,
+    },
+    guarded('No se pudieron fusionar los alimentos.', async (input: z.infer<typeof MergeFoodsInput>) => mergeFoods(ctx, input.fromId, input.intoId)),
   )
   return true
 }
