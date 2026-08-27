@@ -1,1 +1,8 @@
-{ "title": "Cocinar" }
+{
+  "title": "Cocinar",
+  "stepOf": "Paso {current} de {total}",
+  "previous": "Paso anterior",
+  "next": "Paso siguiente",
+  "ingredients": "Ingredientes de este paso",
+  "empty": "No hay nada planificado para hoy"
+}

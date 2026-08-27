@@ -106,6 +106,12 @@ export async function listEntries(ctx: Ctx, range: { from: string; to: string })
   )
 }
 
+// Una entrada por id, o null si no es del hogar. La necesita el modo cocina.
+export async function getEntry(ctx: Ctx, id: string): Promise<PlanEntryView | null> {
+  const [view] = await queryEntryViews(ctx.db, and(eq(schema.mealPlanEntries.householdId, ctx.householdId), eq(schema.mealPlanEntries.id, id)))
+  return view ?? null
+}
+
 // Núcleo transaccional de un lote: lo comparten applyBatch y decideProposal (aprobación de propuesta)
 async function applyBatchTx(tx: Db, householdId: string, batch: PlanBatch): Promise<{ addedIds: string[]; removed: string[]; dates: Set<string> }> {
   const dates = new Set<string>()
