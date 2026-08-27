@@ -57,7 +57,7 @@ Las doce ya existen.
 
 ## Las herramientas del perfil completo
 
-Se registran solo si el token tiene `mcp_profile = completo` **y** el alcance
+Se registran solo si el token tiene el perfil completo (`mcp_profile = 'full'` en la base de datos) **y** el alcance
 que les corresponde. `merge_foods` (fusionar dos alimentos duplicados) queda
 pendiente de la oleada W4, junto con las etiquetas jerárquicas: registrarla
 vacía sería peor que no tenerla, un modelo pequeño la intentaría igual.

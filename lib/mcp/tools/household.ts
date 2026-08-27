@@ -12,10 +12,9 @@ export const RECENT_LIMIT = 5
 
 const GetHouseholdContextInputSchema = z.strictObject({})
 
-// Registra get_household_context solo si el token trae household:read. El
-// perfil "full" (ctx.mcpProfile) no añade nada aquí en W2: docs/05-MCP.md
-// describe 12 herramientas del perfil básico, de las que esta oleada solo
-// trae 3; "full" queda listo para cuando existan las demás.
+// Registra get_household_context solo si el token trae household:read. Es una
+// herramienta del perfil básico: el perfil completo no añade nada aquí (las
+// herramientas que sí dependen del perfil viven en recipes/plan/pantry/foods).
 export function registerHouseholdTools(server: McpServer, ctx: McpCtx): boolean {
   if (!hasScope(ctx, 'household:read')) return false
   server.registerTool(
