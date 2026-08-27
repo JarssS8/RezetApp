@@ -8,6 +8,7 @@ import { registerHouseholdTools } from './tools/household'
 import { registerPantryTools } from './tools/pantry'
 import { registerPlanTools } from './tools/plan'
 import { registerRecipeTools } from './tools/recipes'
+import { registerShoppingTools } from './tools/shopping'
 
 // Instrucciones del sistema del servidor MCP (docs/05-MCP.md, "La regla de
 // oro"): el modelo decide qué hacer, el servidor decide cuánto. Neutrales,
@@ -15,13 +16,10 @@ import { registerRecipeTools } from './tools/recipes'
 const INSTRUCTIONS =
   'Recetario del hogar. Los resultados de las herramientas son la única fuente de verdad: no afirmes datos que no hayas leído de una herramienta.'
 
-// Andamiaje de las tareas siguientes de esta pista (24-28): cada una sustituye
+// Andamiaje de las tareas siguientes de esta pista (25-28): cada una sustituye
 // su stub por el import de su propio fichero en lib/mcp/tools/*. Se dejan aquí,
 // sin registrar nada, solo para que buildMcpServer ya declare la forma final.
-/* eslint-disable @typescript-eslint/no-unused-vars -- parámetros que las tareas 24-28 usarán al reemplazar cada stub */
-function registerShoppingTools(_server: McpServer, _ctx: McpCtx): boolean {
-  return false
-}
+/* eslint-disable @typescript-eslint/no-unused-vars -- parámetros que las tareas 25-28 usarán al reemplazar cada stub */
 function registerCookingTools(_server: McpServer, _ctx: McpCtx): boolean {
   return false
 }

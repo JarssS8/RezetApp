@@ -30,6 +30,11 @@ const UpdatePantryInput = z
   .refine((v) => (v.itemId !== undefined && v.delta !== undefined) || (v.foodId !== undefined && v.quantity !== undefined && v.unit !== undefined), {
     message: 'Ajusta un artículo existente (itemId + delta) o crea uno nuevo (foodId + quantity + unit)',
   })
+  // Un delta de 0 no ajusta nada: sería una llamada sin efecto que además
+  // dispara el evento pantry.changed de balde (mismo espíritu que
+  // PantryAdjustSchema en lib/validation/pantry.ts, que este esquema no
+  // reutiliza por no ser z.strictObject).
+  .refine((v) => v.delta === undefined || v.delta !== 0, { message: 'delta no puede ser 0: no habría nada que ajustar' })
 
 export function registerPantryTools(server: McpServer, ctx: McpCtx): boolean {
   let any = false
@@ -44,7 +49,23 @@ export function registerPantryTools(server: McpServer, ctx: McpCtx): boolean {
           'Inventario del hogar, con filtro opcional por ubicación, texto o fecha de caducidad. Úsala antes de proponer comidas para gastar lo que caduca. No la uses para buscar recetas (search_recipes).',
         inputSchema: GetPantryInput,
       },
-      guarded('No se pudo leer la despensa.', async (input: z.infer<typeof GetPantryInput>) => listPantry(ctx, input)),
+      guarded('No se pudo leer la despensa.', async (input: z.infer<typeof GetPantryInput>) => {
+        const rows = await listPantry(ctx, input)
+        // Se aplana cada fila (PantryRow trae además openedAt, addedAt y el
+        // alimento completo anidado): el modelo solo necesita lo justo para
+        // decidir qué cocinar, sin tener que navegar una forma interna.
+        return rows.map((row) => ({
+          id: row.id,
+          foodId: row.foodId,
+          name: row.name,
+          quantity: row.quantity,
+          unit: row.unit,
+          location: row.location,
+          expiresAt: row.expiresAt,
+          daysToExpiry: row.daysToExpiry,
+          kcal100g: row.food.kcal100g,
+        }))
+      }),
     )
   }
 
@@ -60,13 +81,19 @@ export function registerPantryTools(server: McpServer, ctx: McpCtx): boolean {
       },
       guarded('No se pudo ajustar la despensa.', async (input: z.infer<typeof UpdatePantryInput>) => {
         if (input.itemId !== undefined && input.delta !== undefined) return adjustPantryItem(ctx, { itemId: input.itemId, delta: input.delta })
-        return upsertPantryItem(ctx, {
-          foodId: input.foodId as string,
-          quantity: input.quantity as number,
-          unit: input.unit as 'g' | 'ml' | 'ud',
-          location: input.location ?? 'pantry',
-          ...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}),
-        })
+        // El refine del esquema ya garantiza esta otra combinación cuando la
+        // primera no se cumple: se repite la comprobación aquí (en vez de
+        // "as") para que TypeScript estreche los tipos sin castear a mano.
+        if (input.foodId !== undefined && input.quantity !== undefined && input.unit !== undefined) {
+          return upsertPantryItem(ctx, {
+            foodId: input.foodId,
+            quantity: input.quantity,
+            unit: input.unit,
+            location: input.location ?? 'pantry',
+            ...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}),
+          })
+        }
+        throw new Error('Combinación de argumentos inalcanzable: el esquema ya la descarta')
       }),
     )
   }

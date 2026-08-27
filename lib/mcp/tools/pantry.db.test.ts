@@ -53,10 +53,23 @@ beforeEach(async () => {
 })
 
 describe('herramientas MCP de despensa', () => {
-  it('get_pantry sin filtros devuelve todos los artículos del hogar', async () => {
+  it('get_pantry sin filtros devuelve todos los artículos del hogar, aplanados', async () => {
     const client = await connectedClient(mcpCtxOf(['pantry:read']))
-    const out = JSON.parse(textOf(await callTool(client, { name: 'get_pantry', arguments: {} }))) as unknown[]
+    const out = JSON.parse(textOf(await callTool(client, { name: 'get_pantry', arguments: {} }))) as Record<string, unknown>[]
     expect(out).toHaveLength(2)
+    expect(out[0]).toEqual({
+      id: expect.any(String),
+      foodId,
+      name: 'cebolla',
+      quantity: expect.any(Number),
+      unit: 'g',
+      location: expect.any(String),
+      expiresAt: expect.any(String),
+      daysToExpiry: expect.any(Number),
+      kcal100g: 40,
+    })
+    expect(out[0]).not.toHaveProperty('food')
+    expect(out[0]).not.toHaveProperty('addedAt')
     await client.close()
   })
 
@@ -103,6 +116,13 @@ describe('herramientas MCP de despensa', () => {
   it('update_pantry sin itemId+delta ni foodId+quantity+unit falla en el esquema', async () => {
     const client = await connectedClient(mcpCtxOf(['pantry:read', 'pantry:write']))
     const result = await callTool(client, { name: 'update_pantry', arguments: { itemId } })
+    expect(result.isError).toBe(true)
+    await client.close()
+  })
+
+  it('update_pantry con delta 0 falla en el esquema (no habría nada que ajustar)', async () => {
+    const client = await connectedClient(mcpCtxOf(['pantry:read', 'pantry:write']))
+    const result = await callTool(client, { name: 'update_pantry', arguments: { itemId, delta: 0 } })
     expect(result.isError).toBe(true)
     await client.close()
   })
