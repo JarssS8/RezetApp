@@ -40,6 +40,7 @@
     "search": "Buscar alimento",
     "submit": "Fusionar",
     "done": "{ingredients} ingredientes y {items} artículos actualizados",
-    "error": "No se pudo fusionar"
+    "error": "No se pudo fusionar",
+    "sameFood": "Los dos alimentos son el mismo"
   }
 }

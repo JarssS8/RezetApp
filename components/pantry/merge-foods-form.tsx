@@ -1,116 +1,36 @@
 'use client'
-import { useTranslations } from 'next-intl'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
+import { useState } from 'react'
+import { FoodPicker } from '@/components/foods/food-picker'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { actionErrorKey } from '@/lib/actions/result'
-import { mergeFoodsAction, searchFoodsAction, type FoodSummary, type MergeFoodsResult } from '@/lib/actions/foods'
+import { mergeFoodsAction, type FoodSummary, type MergeFoodsResult } from '@/lib/actions/foods'
 
-const DEBOUNCE_MS = 250
-const MIN_CHARS = 2
-
-interface FoodSearchFieldProps {
-  label: string
-  placeholder: string
-  value: FoodSummary | null
-  onChange: (food: FoodSummary | null) => void
-}
-
-// Buscador de un único alimento, con el mismo retardo/mínimo de caracteres
-// que el combobox de FoodPicker (components/foods/food-picker.tsx), pero sin
-// su ARIA de combobox: aquí basta una lista simple de resultados, porque cada
-// instancia solo elige un alimento fijo para la fusión (sin "crear nuevo" ni
-// código de barras).
-function FoodSearchField({ label, placeholder, value, onChange }: FoodSearchFieldProps) {
-  const id = useId()
-  const [q, setQ] = useState(value?.name ?? '')
-  const [items, setItems] = useState<FoodSummary[]>([])
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Descarta respuestas de búsquedas obsoletas, igual que FoodPicker.
-  const reqId = useRef(0)
-  // El propio `select` cambia `q` a `food.name`: sin este cortafuegos ese
-  // cambio dispararía una nueva búsqueda que reabriría la lista justo tras
-  // elegir.
-  const skipNextSearch = useRef(false)
-
-  useEffect(() => {
-    if (skipNextSearch.current) {
-      skipNextSearch.current = false
-      return
-    }
-    if (timer.current) clearTimeout(timer.current)
-    const query = q.trim()
-    timer.current = setTimeout(() => {
-      void (async () => {
-        const currentId = ++reqId.current
-        if (query.length < MIN_CHARS) {
-          setItems([])
-          return
-        }
-        const r = await searchFoodsAction(query)
-        if (reqId.current !== currentId) return
-        setItems(r.ok ? r.data : [])
-      })()
-    }, DEBOUNCE_MS)
-    return () => {
-      if (timer.current) clearTimeout(timer.current)
-    }
-  }, [q])
-
-  function select(food: FoodSummary) {
-    skipNextSearch.current = true
-    onChange(food)
-    setQ(food.name)
-    setItems([])
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        value={q}
-        placeholder={placeholder}
-        onChange={(e) => {
-          setQ(e.target.value)
-          if (value) onChange(null)
-        }}
-      />
-      {items.length > 0 ? (
-        <ul className="flex flex-col gap-1 rounded-md border border-border bg-card p-1 shadow-card">
-          {items.map((food) => (
-            <li key={food.id}>
-              <button
-                type="button"
-                onClick={() => select(food)}
-                className="flex min-h-11 w-full items-center rounded-sm px-2 text-left text-sm hover:bg-surface-2"
-              >
-                {food.name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  )
-}
-
-// Fusión de duplicados desde la despensa (Tarea 24): dos buscadores
-// independientes -el duplicado que desaparece y el alimento que se queda-
-// resueltos ambos con searchFoodsAction, y un botón que llama a
-// mergeFoodsAction (Tarea 23). Bloqueado hasta elegir dos alimentos distintos.
+// Fusión de duplicados desde la despensa (Tarea 24): dos FoodPicker
+// (components/foods/food-picker.tsx) -el duplicado que desaparece y el
+// alimento que se queda- resueltos ambos con searchFoodsAction, y un botón
+// que llama a mergeFoodsAction (Tarea 23). Reutiliza FoodPicker en vez de un
+// buscador propio: ya trae combobox/listbox accesible, navegación por
+// teclado y cierre al perder el foco. Bloqueado hasta elegir dos alimentos
+// distintos.
 export function MergeFoodsForm() {
   const t = useTranslations('pantry')
   const te = useTranslations('errors')
+  const locale = useLocale()
 
   const [from, setFrom] = useState<FoodSummary | null>(null)
   const [into, setInto] = useState<FoodSummary | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<MergeFoodsResult | null>(null)
+  // Cambia tras cada fusión con éxito para remontar los dos FoodPicker: es la
+  // única forma de vaciar su texto interno, que no se resincroniza solo
+  // porque `value` vuelva a null (no hay useEffect para eso en FoodPicker).
+  const [resetKey, setResetKey] = useState(0)
 
-  const canSubmit = from !== null && into !== null && from.id !== into.id
+  const sameFood = from !== null && into !== null && from.id === into.id
+  const canSubmit = from !== null && into !== null && !sameFood
 
   async function handleSubmit() {
     if (!from || !into) return
@@ -126,6 +46,7 @@ export function MergeFoodsForm() {
       setResult(res.data)
       setFrom(null)
       setInto(null)
+      setResetKey((k) => k + 1)
     } finally {
       setSaving(false)
     }
@@ -133,8 +54,15 @@ export function MergeFoodsForm() {
 
   return (
     <div className="flex flex-col gap-4">
-      <FoodSearchField label={t('merge.from')} placeholder={t('merge.search')} value={from} onChange={setFrom} />
-      <FoodSearchField label={t('merge.into')} placeholder={t('merge.search')} value={into} onChange={setInto} />
+      <div data-testid="merge-from" className="flex flex-col gap-2">
+        <Label>{t('merge.from')}</Label>
+        <FoodPicker key={`from-${resetKey}`} value={from} onChange={setFrom} locale={locale} />
+      </div>
+      <div data-testid="merge-into" className="flex flex-col gap-2">
+        <Label>{t('merge.into')}</Label>
+        <FoodPicker key={`into-${resetKey}`} value={into} onChange={setInto} locale={locale} />
+      </div>
+      {sameFood ? <p className="text-xs text-warn">{t('merge.sameFood')}</p> : null}
       <Button type="button" aria-busy={saving} disabled={!canSubmit || saving} onClick={() => void handleSubmit()}>
         {t('merge.submit')}
       </Button>

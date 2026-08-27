@@ -40,6 +40,7 @@
     "search": "Search food",
     "submit": "Merge",
     "done": "{ingredients} ingredients and {items} items updated",
-    "error": "Could not merge"
+    "error": "Could not merge",
+    "sameFood": "Both foods are the same"
   }
 }
