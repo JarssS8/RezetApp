@@ -1,14 +1,9 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { enableVirtualAuthenticator } from './helpers/webauthn'
+import { registerHousehold } from './helpers/session'
 
 test.describe('hoy', () => {
   test('recién registrado: anillo a cero y enlace al plan; con una comida, la comida', async ({ page }) => {
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(`Hoy-${randomUUID().slice(0, 8)}`)
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Hoy')
 
     await expect(page.getByRole('img', { name: /0 de 0|0 of 0/ })).toBeVisible()
     await expect(page.getByRole('link', { name: /no hay nada planificado|nothing planned/i })).toBeVisible()

@@ -1,21 +1,10 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { enableVirtualAuthenticator } from './helpers/webauthn'
-
-// Nombre único por ejecución: el servidor de e2e usa la base de datos de
-// desarrollo (no se trunca entre ejecuciones), así que evitamos nombres fijos.
-function uniqueName(base: string): string {
-  return `${base}-${randomUUID().slice(0, 8)}`
-}
+import { registerHousehold } from './helpers/session'
 
 test.describe('recetas', () => {
   test('crear receta, ver escalado y nutrición, editar y borrar', async ({ page }) => {
     // registro
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(uniqueName('Ana'))
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Ana')
 
     await page.goto('/recipes/new')
     await page.getByLabel(/^título|^title/i).fill('Lentejas e2e')
@@ -53,11 +42,7 @@ test.describe('recetas', () => {
 
   test('importar desde texto abre el editor con el borrador', async ({ page }) => {
     // registro
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(uniqueName('Bea'))
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Bea')
 
     await page.goto('/recipes/import')
     await page.getByRole('button', { name: /desde texto|from text/i }).click()

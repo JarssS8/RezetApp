@@ -1,10 +1,5 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { enableVirtualAuthenticator } from './helpers/webauthn'
-
-function uniqueName(base: string): string {
-  return `${base}-${randomUUID().slice(0, 8)}`
-}
+import { registerHousehold, uniqueName } from './helpers/session'
 
 // Igual que cook.spec.ts: el nombre de alimento que muestra FoodPicker
 // depende del locale del usuario (resuelto de Accept-Language al
@@ -13,11 +8,7 @@ test.use({ locale: 'es-ES' })
 
 test.describe('estadísticas del plan', () => {
   test('receta planificada y cocinada hoy: /plan/stats la cuenta', async ({ page }) => {
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(uniqueName('Estadístico'))
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Estadístico')
 
     // 1) Receta
     const title = uniqueName('Sopa')

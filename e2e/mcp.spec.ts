@@ -1,12 +1,5 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { enableVirtualAuthenticator } from './helpers/webauthn'
-
-// Nombre único por ejecución: mismo motivo que en auth.spec.ts y settings.spec.ts
-// (base de datos compartida entre ejecuciones).
-function uniqueName(base: string): string {
-  return `${base}-${randomUUID().slice(0, 8)}`
-}
+import { registerHousehold } from './helpers/session'
 
 // El transporte MCP exige que el cliente acepte los dos formatos aunque el
 // servidor (stateless) responda siempre JSON (docs/05-MCP.md).
@@ -14,11 +7,7 @@ const MCP_HEADERS = { 'content-type': 'application/json', accept: 'application/j
 
 test.describe('mcp', () => {
   test('token creado en ajustes: tools/list y una llamada real', async ({ page, request, baseURL }) => {
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(uniqueName('Mcp'))
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Mcp')
 
     // Token con lectura de hogar y de recetas: alcanza para get_household_context,
     // search_recipes y get_recipe, pero no para herramientas de escritura del plan.

@@ -1,10 +1,5 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { enableVirtualAuthenticator } from './helpers/webauthn'
-
-function uniqueName(base: string): string {
-  return `${base}-${randomUUID().slice(0, 8)}`
-}
+import { registerHousehold, uniqueName } from './helpers/session'
 
 // Locale fijo a es: igual que pantry.spec.ts, el nombre de alimento que
 // muestra FoodPicker depende del locale del usuario (resuelto de
@@ -13,11 +8,7 @@ test.use({ locale: 'es-ES' })
 
 test.describe('cocinar', () => {
   test('receta → modo cocina → cocinado: la despensa baja', async ({ page }) => {
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(uniqueName('Cocinero'))
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Cocinero')
 
     // 1) Receta con un ingrediente resoluble contra el seed de alimentos
     const title = uniqueName('Sopa')
@@ -58,11 +49,7 @@ test.describe('cocinar', () => {
   })
 
   test('el modo cocina cuenta atrás y se puede poner en modo pared', async ({ page }) => {
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(uniqueName('Cocinero'))
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Cocinero')
 
     const title = uniqueName('Sopa')
     await page.goto('/recipes/new')

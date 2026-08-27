@@ -1,20 +1,9 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { enableVirtualAuthenticator } from './helpers/webauthn'
-
-// Nombre único por ejecución: mismo motivo que en auth.spec.ts (base de datos compartida entre ejecuciones).
-function uniqueName(base: string): string {
-  return `${base}-${randomUUID().slice(0, 8)}`
-}
+import { registerHousehold } from './helpers/session'
 
 test.describe('ajustes', () => {
   test('recorre apariencia, hogar, tokens, miembros, passkeys y cierre de sesión', async ({ page, request }) => {
-    const name = uniqueName('Cata')
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(name)
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Cata')
 
     // Apariencia: acento "miel" y tema "Noche suave" se reflejan en <html>.
     await page.goto('/settings/appearance')

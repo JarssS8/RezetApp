@@ -1,10 +1,5 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { enableVirtualAuthenticator } from './helpers/webauthn'
-
-function uniqueName(base: string): string {
-  return `${base}-${randomUUID().slice(0, 8)}`
-}
+import { registerHousehold } from './helpers/session'
 
 test.describe('pwa', () => {
   test('el manifiesto y el service worker responden sin sesión', async ({ request }) => {
@@ -18,12 +13,7 @@ test.describe('pwa', () => {
   })
 
   test('ajustes de notificaciones se ve con sesión', async ({ page }) => {
-    const name = uniqueName('Cata')
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(name)
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Cata')
 
     await page.goto('/settings/notifications')
     await expect(page.getByRole('heading', { name: /notificaciones|notifications/i })).toBeVisible()

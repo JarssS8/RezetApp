@@ -1,20 +1,9 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { enableVirtualAuthenticator } from './helpers/webauthn'
-
-// Nombre único por ejecución: mismo motivo que en recipes.spec.ts (base de
-// datos de desarrollo compartida entre ejecuciones).
-function uniqueName(base: string): string {
-  return `${base}-${randomUUID().slice(0, 8)}`
-}
+import { registerHousehold } from './helpers/session'
 
 test.describe('datos', () => {
   test('exportar recetas descarga un JSON y la sección de importar/migrar está visible', async ({ page }) => {
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(uniqueName('Cris'))
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Cris')
 
     await page.goto('/recipes/new')
     await page.getByLabel(/^título|^title/i).fill('Receta e2e datos')

@@ -1,21 +1,10 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { enableVirtualAuthenticator } from './helpers/webauthn'
-
-// Nombre único por ejecución: el servidor de e2e usa la base de datos de
-// desarrollo (no se trunca entre ejecuciones), así que evitamos nombres fijos.
-function uniqueName(base: string): string {
-  return `${base}-${randomUUID().slice(0, 8)}`
-}
+import { registerHousehold } from './helpers/session'
 
 // Recorrido completo del autorrelleno sin IA: receta → regla → propuesta →
 // la propuesta llega marcada como "de tus reglas" (source='rules').
 test('el hogar autorrellena la semana con sus reglas', async ({ page }) => {
-  await enableVirtualAuthenticator(page)
-  await page.goto('/register')
-  await page.getByLabel(/nombre|name/i).fill(uniqueName('Cris'))
-  await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-  await expect(page).toHaveURL(/\/today$/)
+  await registerHousehold(page, 'Cris')
 
   // La regla por defecto que añade el formulario es "sin carne" para todos
   // los días y huecos (day y slot a null en plan-rules-form.tsx): sin ninguna

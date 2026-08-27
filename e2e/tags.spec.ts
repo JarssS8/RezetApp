@@ -1,20 +1,9 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { enableVirtualAuthenticator } from './helpers/webauthn'
-
-// Nombre único por ejecución: el servidor de e2e usa la base de datos de
-// desarrollo (no se trunca entre ejecuciones), así que evitamos nombres fijos.
-function uniqueName(base: string): string {
-  return `${base}-${randomUUID().slice(0, 8)}`
-}
+import { registerHousehold, uniqueName } from './helpers/session'
 
 test.describe('filtro de etiquetas', () => {
   test('filtrar por la etiqueta raíz encuentra la receta de una rama', async ({ page }) => {
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(uniqueName('Cata'))
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Cata')
 
     // Receta con la etiqueta hija "Vegetariano" (seed: dieta > vegetariano).
     const title = uniqueName('Guiso e2e')

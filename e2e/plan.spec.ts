@@ -1,21 +1,9 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { enableVirtualAuthenticator } from './helpers/webauthn'
-
-// Nombre único por ejecución: el servidor de e2e usa la base de datos de
-// desarrollo (no se trunca entre ejecuciones), así que evitamos nombres fijos.
-function uniqueName(base: string): string {
-  return `${base}-${randomUUID().slice(0, 8)}`
-}
+import { registerHousehold } from './helpers/session'
 
 test.describe('plan', () => {
   test('comida libre en Cena de hoy: chip, saltar, propuestas vacías y punto en el mes', async ({ page }) => {
-    const name = uniqueName('Cata')
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(name)
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Cata')
 
     // No hay endpoint de recetas todavía (llega en W3): la alternativa del
     // plan de la tarea es crear la entrada como "comida libre" desde el "+"

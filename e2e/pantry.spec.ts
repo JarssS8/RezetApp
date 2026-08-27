@@ -1,12 +1,5 @@
-import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import { enableVirtualAuthenticator } from './helpers/webauthn'
-
-// Nombre único por ejecución: mismo motivo que en auth.spec.ts (base de
-// desarrollo compartida entre ejecuciones).
-function uniqueName(base: string): string {
-  return `${base}-${randomUUID().slice(0, 8)}`
-}
+import { registerHousehold } from './helpers/session'
 
 // Fecha en aritmética UTC, igual que daysUntil (lib/services/pantry.ts): un
 // input[type=date] no aplica zona horaria, así que hay que igualar el día
@@ -25,12 +18,7 @@ test.use({ locale: 'es-ES' })
 
 test.describe('despensa', () => {
   test('alta con caducidad, ajuste rápido, panel de caducidades y borrado', async ({ page }) => {
-    const name = uniqueName('Cami')
-    await enableVirtualAuthenticator(page)
-    await page.goto('/register')
-    await page.getByLabel(/nombre|name/i).fill(name)
-    await page.getByRole('button', { name: /crear passkey|create passkey/i }).click()
-    await expect(page).toHaveURL(/\/today$/)
+    await registerHousehold(page, 'Cami')
 
     await page.goto('/pantry/add')
     await page.getByRole('combobox', { name: /buscar alimento|search food/i }).fill('cebolla')
