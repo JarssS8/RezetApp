@@ -182,6 +182,7 @@
   "data": {
     "export": "Export recipes",
     "exportHint": "Export your recipes as JSON to keep a copy.",
-    "importSoon": "Import and migration from other apps arrives in W4."
+    "importSoon": "Import and migration from other apps arrives in W4.",
+    "exportError": "Export failed"
   }
 }

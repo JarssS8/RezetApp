@@ -49,8 +49,16 @@ const TBSP_PER_CUP = 16
 export function toBaseUnit(qty: number, unit: string, locale: Locale, food?: FoodConversion): { qty: number; unit: BaseUnit } | null {
   const u = findUnit(unit, locale)
   if (!u) return null
-  if (u.id === 'ud') {
-    return food?.gramsPerUnit ? { qty: qty * food.gramsPerUnit, unit: 'g' } : { qty, unit: 'ud' }
+  // 'ud' y el resto de unidades de cuenta (diente, hoja, rama, loncha, lata,
+  // bote, sobre...) comparten conversión: si el alimento tiene gramsPerUnit
+  // se pasa a gramos; si no, 'ud' se queda como pieza (no hay base más
+  // genérica) y el resto -sin factor propio- no se puede convertir.
+  if (u.kind === 'count') {
+    // Para envases (lata/bote/sobre) gramsPerUnit es el peso neto de UN
+    // envase, no de una unidad suelta del alimento (p. ej. una lata de
+    // garbanzos ≈ 240 g netos escurridos, no el peso de un garbanzo).
+    if (food?.gramsPerUnit) return { qty: qty * food.gramsPerUnit, unit: 'g' }
+    return u.id === 'ud' ? { qty, unit: 'ud' } : null
   }
   if (food) {
     if (u.id === 'cup' && food.gramsPerCup) return { qty: qty * food.gramsPerCup, unit: 'g' }

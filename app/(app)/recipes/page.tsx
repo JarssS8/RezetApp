@@ -1,19 +1,78 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { SettingsIcon } from '@/components/icons'
+import { PlusIcon, SettingsIcon, UploadIcon } from '@/components/icons'
+import { RecipeCard } from '@/components/recipes/recipe-card'
+import { RecipeFilters } from '@/components/recipes/recipe-filters'
+import { requireHousehold } from '@/lib/auth/guards'
+import { searchRecipes } from '@/lib/services/recipes'
+import { RecipeSearchSchema } from '@/lib/validation/recipes'
 
-export default async function RecipesPage() {
+const PAGE_SIZE = 20
+
+export default async function RecipesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const ctx = await requireHousehold()
   const t = await getTranslations('recipes')
   const c = await getTranslations('common')
+  const sp = await searchParams
+  const page = Math.max(1, Number(sp.page ?? 1) || 1)
+  const parsed = RecipeSearchSchema.safeParse({
+    ...(typeof sp.q === 'string' && sp.q ? { q: sp.q } : {}),
+    ...(typeof sp.tags === 'string' && sp.tags ? { tags: sp.tags.split(',') } : {}),
+    ...(typeof sp.hasIngredients === 'string' && sp.hasIngredients ? { hasIngredients: sp.hasIngredients.split(',') } : {}),
+    ...(typeof sp.maxMinutes === 'string' && sp.maxMinutes ? { maxMinutes: sp.maxMinutes } : {}),
+    ...(typeof sp.difficulty === 'string' && sp.difficulty ? { difficulty: sp.difficulty } : {}),
+    ...(sp.onlyWithPantry === '1' ? { onlyWithPantry: true } : {}),
+    ...(typeof sp.sort === 'string' && sp.sort ? { sort: sp.sort } : {}),
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
+  })
+  const query = parsed.success ? parsed.data : RecipeSearchSchema.parse({})
+  const { items, total } = await searchRecipes(ctx, query)
+
+  const baseParams = Object.fromEntries(Object.entries(sp).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+
   return (
     <main>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl">{t('title')}</h1>
-        <Link href="/settings" aria-label={c('settings')}>
-          <SettingsIcon />
-        </Link>
+        <div className="flex gap-1">
+          <Link href="/recipes/import" aria-label={t('import.title')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
+            <UploadIcon />
+          </Link>
+          <Link href="/recipes/new" aria-label={t('new')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
+            <PlusIcon />
+          </Link>
+          <Link href="/settings" aria-label={c('settings')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
+            <SettingsIcon />
+          </Link>
+        </div>
       </div>
-      <p className="mt-2 text-text-2">{c('state.comingSoon')}</p>
+      <RecipeFilters initial={query} />
+      {items.length === 0 ? (
+        <p className="mt-6 text-text-2">{total === 0 && !query.q ? t('empty') : t('noResults')}</p>
+      ) : (
+        <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {items.map((r) => (
+            <li key={r.id}>
+              <RecipeCard recipe={r} />
+            </li>
+          ))}
+        </ul>
+      )}
+      {total > PAGE_SIZE ? (
+        <nav className="mt-4 flex justify-between" aria-label={t('pagination')}>
+          {page > 1 ? (
+            <Link href={`/recipes?${new URLSearchParams({ ...baseParams, page: String(page - 1) })}`}>{c('actions.back')}</Link>
+          ) : (
+            <span />
+          )}
+          {page * PAGE_SIZE < total ? (
+            <Link href={`/recipes?${new URLSearchParams({ ...baseParams, page: String(page + 1) })}`}>{t('more')}</Link>
+          ) : (
+            <span />
+          )}
+        </nav>
+      ) : null}
     </main>
   )
 }

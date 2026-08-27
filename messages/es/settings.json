@@ -182,6 +182,7 @@
   "data": {
     "export": "Exportar recetas",
     "exportHint": "Exporta tus recetas en JSON para tener copia.",
-    "importSoon": "Importar y migrar desde otras apps llega en W4."
+    "importSoon": "Importar y migrar desde otras apps llega en W4.",
+    "exportError": "No se pudo exportar"
   }
 }

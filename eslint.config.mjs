@@ -30,6 +30,7 @@ const config = [
         { type: 'events', pattern: 'lib/events/**' },
         { type: 'actions', pattern: 'lib/actions/**' },
         { type: 'services', pattern: 'lib/services/**' },
+        { type: 'uploads', pattern: 'lib/uploads/**' },
         { type: 'lib', pattern: 'lib/*.ts', mode: 'file' },
         { type: 'lib', pattern: 'lib/*' },
         { type: 'components', pattern: 'components/**' },
@@ -69,7 +70,9 @@ const config = [
             {
               from: { element: { type: 'actions' } },
               allow: {
-                to: { element: { types: { anyOf: ['actions', 'services', 'validation', 'auth', 'domain', 'events', 'lib'] } } },
+                to: {
+                  element: { types: { anyOf: ['actions', 'services', 'validation', 'auth', 'domain', 'events', 'lib', 'uploads'] } },
+                },
               },
             },
             {
@@ -77,12 +80,18 @@ const config = [
               allow: {
                 to: {
                   element: {
-                    types: { anyOf: ['services', 'domain', 'validation', 'db', 'ai', 'integrations', 'auth', 'events', 'lib'] },
+                    types: {
+                      anyOf: ['services', 'domain', 'validation', 'db', 'ai', 'integrations', 'auth', 'events', 'lib', 'uploads'],
+                    },
                   },
                 },
               },
             },
             { from: { element: { type: 'lib' } }, allow: { to: { element: { types: { anyOf: ['lib', 'domain'] } } } } },
+            {
+              from: { element: { type: 'uploads' } },
+              allow: { to: { element: { types: { anyOf: ['uploads', 'lib'] } } } },
+            },
             {
               from: { element: { type: 'components' } },
               allow: { to: { element: { types: { anyOf: ['components', 'domain', 'validation', 'lib', 'events', 'actions'] } } } },
@@ -92,7 +101,9 @@ const config = [
               allow: {
                 to: {
                   element: {
-                    types: { anyOf: ['app', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions'] },
+                    types: {
+                      anyOf: ['app', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads'],
+                    },
                   },
                 },
               },

@@ -40,6 +40,7 @@ export const RecipeSearchSchema = PaginationSchema.extend({
   onlyWithPantry: z.coerce.boolean().optional(), // "tengo los ingredientes"
   sort: z.enum(['relevance', 'recent', 'most_cooked', 'title']).default('relevance'),
 })
+export type RecipeSearch = z.infer<typeof RecipeSearchSchema>
 export const RecipeImportSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('url'), url: z.url() }),
   z.strictObject({ kind: z.literal('text'), text: z.string().min(10).max(20_000) }),
