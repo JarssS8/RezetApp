@@ -43,6 +43,10 @@ export function monthRange(iso: string): { from: string; to: string } {
 
 // Fecha de hoy en formato ISO, en la zona horaria indicada (por defecto
 // Europe/Madrid; ver ronda de controlador — más adelante será por usuario).
-export function todayIso(tz = 'Europe/Madrid'): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+// `now` es inyectable (por defecto la hora real) para que el reloj que ya
+// reciben los servicios (p. ej. logCooked) sea el mismo que decide "hoy": sin
+// esto, un test o un cliente con reloj propio vería una fecha calculada con
+// la hora real del proceso en vez de con la hora que de verdad importa.
+export function todayIso(tz = 'Europe/Madrid', now = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
 }
