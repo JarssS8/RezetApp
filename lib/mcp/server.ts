@@ -5,6 +5,7 @@ import { APP_NAME, APP_VERSION } from '@/lib/app-version'
 import { ApiAuthError } from '@/lib/auth/api-tokens'
 import { authenticateMcp, type McpCtx } from './auth'
 import { registerHouseholdTools } from './tools/household'
+import { registerPlanTools } from './tools/plan'
 import { registerRecipeTools } from './tools/recipes'
 
 // Instrucciones del sistema del servidor MCP (docs/05-MCP.md, "La regla de
@@ -13,13 +14,10 @@ import { registerRecipeTools } from './tools/recipes'
 const INSTRUCTIONS =
   'Recetario del hogar. Los resultados de las herramientas son la única fuente de verdad: no afirmes datos que no hayas leído de una herramienta.'
 
-// Andamiaje de las tareas siguientes de esta pista (22-28): cada una sustituye
+// Andamiaje de las tareas siguientes de esta pista (23-28): cada una sustituye
 // su stub por el import de su propio fichero en lib/mcp/tools/*. Se dejan aquí,
 // sin registrar nada, solo para que buildMcpServer ya declare la forma final.
-/* eslint-disable @typescript-eslint/no-unused-vars -- parámetros que las tareas 22-28 usarán al reemplazar cada stub */
-function registerPlanTools(_server: McpServer, _ctx: McpCtx): boolean {
-  return false
-}
+/* eslint-disable @typescript-eslint/no-unused-vars -- parámetros que las tareas 23-28 usarán al reemplazar cada stub */
 function registerPantryTools(_server: McpServer, _ctx: McpCtx): boolean {
   return false
 }

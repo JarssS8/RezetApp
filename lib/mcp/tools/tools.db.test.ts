@@ -1,13 +1,10 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
-import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import * as schema from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import type { McpCtx } from '@/lib/mcp/auth'
-import { buildMcpServer } from '@/lib/mcp/server'
 import type { Ctx } from '@/lib/services/ctx'
 import { createRecipe } from '@/lib/services/recipes'
+import { callTool, connectedClient, textOf } from './test-helpers'
 
 let db: TestDb
 let householdId: string
@@ -16,34 +13,6 @@ let recipeCebollaId: string
 
 function mcpCtxOf(scopes: string[]): McpCtx {
   return { db, householdId, userId: null, apiTokenId: null, role: null, locale: 'es', scopes, mcpProfile: 'basic' }
-}
-
-// Cliente y servidor conectados por un par de transportes en memoria (sin red,
-// sin HTTP): igual que el SDK recomienda para probar herramientas MCP.
-async function connectedClient(ctx: McpCtx): Promise<Client> {
-  const server = buildMcpServer(ctx)
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
-  const client = new Client({ name: 'test-client', version: '0.0.0' })
-  await Promise.all([client.connect(clientTransport), server.connect(serverTransport)])
-  return client
-}
-
-interface ToolTextResult {
-  content: { type: string; text: string }[]
-  isError?: boolean
-}
-
-// client.callTool() tipa su valor de vuelta como la unión con CreateTaskResult
-// (soporte de tareas) sin tener en cuenta el resultSchema que se le pase; aquí
-// ninguna herramienta usa tareas, así que el resultado siempre trae "content".
-async function callTool(client: Client, params: { name: string; arguments: Record<string, unknown> }): Promise<ToolTextResult> {
-  return (await client.callTool(params, CallToolResultSchema)) as unknown as ToolTextResult
-}
-
-function textOf(result: ToolTextResult): string {
-  const first = result.content[0]
-  if (!first) throw new Error('Respuesta sin contenido')
-  return first.text
 }
 
 beforeAll(async () => {

@@ -4,6 +4,7 @@ import { getRecipe, searchRecipes } from '@/lib/services/recipes'
 import { DifficultySchema, IdSchema } from '@/lib/validation/common'
 import { RecipeSearchSchema } from '@/lib/validation/recipes'
 import type { McpCtx } from '../auth'
+import { guarded, hasScope, toolError, toolJson } from '../guards'
 
 // Mismos campos que RecipeSearchSchema (lib/validation/recipes.ts), pero como
 // z.strictObject: el SDK MCP usa este esquema tal cual para validar la
@@ -34,7 +35,7 @@ const GetRecipeInputSchema = z.strictObject({
 // Registra search_recipes y get_recipe solo si el token trae recipes:read. El
 // perfil "full" no añade nada aquí en W2 (ver comentario de registerHouseholdTools).
 export function registerRecipeTools(server: McpServer, ctx: McpCtx): boolean {
-  if (!ctx.scopes.includes('recipes:read')) return false
+  if (!hasScope(ctx, 'recipes:read')) return false
 
   server.registerTool(
     'search_recipes',
@@ -44,16 +45,10 @@ export function registerRecipeTools(server: McpServer, ctx: McpCtx): boolean {
         'Busca recetas del hogar por texto, etiquetas, tiempo máximo o alimentos. Devuelve resúmenes con id. No la uses para leer una receta completa: usa get_recipe.',
       inputSchema: SearchRecipesInputSchema,
     },
-    async (args) => {
-      try {
-        const input = RecipeSearchSchema.parse(args)
-        const result = await searchRecipes(ctx, input)
-        return { content: [{ type: 'text', text: JSON.stringify(result) }] }
-      } catch (e) {
-        console.error('[mcp]', e)
-        return { isError: true, content: [{ type: 'text', text: 'No se pudo buscar recetas.' }] }
-      }
-    },
+    guarded('No se pudo buscar recetas.', async (args: z.infer<typeof SearchRecipesInputSchema>) => {
+      const input = RecipeSearchSchema.parse(args)
+      return searchRecipes(ctx, input)
+    }),
   )
 
   server.registerTool(
@@ -64,14 +59,16 @@ export function registerRecipeTools(server: McpServer, ctx: McpCtx): boolean {
         'Receta completa por id, opcionalmente escalada a N raciones (el escalado lo hace el servidor). No inventes cantidades: usa las devueltas.',
       inputSchema: GetRecipeInputSchema,
     },
-    async ({ id, servings }) => {
+    // No usa guarded: "no encontrada" es un resultado esperado con su propio
+    // mensaje, no una excepción del servicio que haya que enmascarar.
+    async ({ id, servings }: z.infer<typeof GetRecipeInputSchema>) => {
       try {
         const detail = await getRecipe(ctx, id, servings !== undefined ? { servings } : {})
-        if (!detail) return { isError: true, content: [{ type: 'text', text: 'Receta no encontrada.' }] }
-        return { content: [{ type: 'text', text: JSON.stringify(detail) }] }
+        if (!detail) return toolError('Receta no encontrada.')
+        return toolJson(detail)
       } catch (e) {
         console.error('[mcp]', e)
-        return { isError: true, content: [{ type: 'text', text: 'No se pudo leer la receta.' }] }
+        return toolError('No se pudo leer la receta.')
       }
     },
   )

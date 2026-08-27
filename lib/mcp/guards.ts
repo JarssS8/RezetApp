@@ -26,7 +26,8 @@ export function guarded<A>(message: string, fn: (args: A) => Promise<unknown>) {
   return async (args: A) => {
     try {
       return toolJson(await fn(args))
-    } catch {
+    } catch (e) {
+      console.error('[mcp]', e)
       return toolError(message)
     }
   }
