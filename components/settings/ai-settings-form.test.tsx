@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
 import common from '@/messages/es/common.json'
 import errors from '@/messages/es/errors.json'
 import settings from '@/messages/es/settings.json'
@@ -14,15 +13,6 @@ const { testAiConnectionAction, updateAiSettingsAction } = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/actions/ai', () => ({ testAiConnectionAction, updateAiSettingsAction }))
-
-// Item 4 de la revisión W2: priceInCentsPerMtok/priceOutCentsPerMtok todavía
-// no están en el AiSettingsSchema real de este worktree (los añade la mitad
-// de backend de esta misma tanda); se valida contra una extensión local que
-// simula el esquema una vez fusionadas ambas mitades (W2-R11).
-const AiSettingsWithPricesSchema = AiSettingsSchema.extend({
-  priceInCentsPerMtok: z.number().nonnegative().nullable().optional(),
-  priceOutCentsPerMtok: z.number().nonnegative().nullable().optional(),
-})
 
 const KNOWN_MODELS: KnownAiModel[] = [
   { provider: 'openai', id: 'gpt-4o-mini' },
@@ -136,7 +126,7 @@ describe('AiSettingsForm', () => {
     expect(screen.queryByLabelText('Precio entrada (¢/Mtok)')).not.toBeInTheDocument()
   })
 
-  it('Guardar manda los precios propios y el payload pasa el esquema extendido (W2-R11)', async () => {
+  it('Guardar manda los precios propios y el payload pasa AiSettingsSchema (W2-R11)', async () => {
     updateAiSettingsAction.mockResolvedValueOnce({
       ok: true,
       data: { provider: 'anthropic', model: 'modelo-x', baseUrl: null, hasKey: true, monthlyCapCents: 500, structuredOutput: false, spentThisMonthCents: 0 },
@@ -147,11 +137,11 @@ describe('AiSettingsForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
     await waitFor(() => expect(updateAiSettingsAction).toHaveBeenCalledTimes(1))
     const payload = updateAiSettingsAction.mock.calls[0]?.[0]
-    expect(AiSettingsWithPricesSchema.safeParse(payload).success).toBe(true)
+    expect(AiSettingsSchema.safeParse(payload).success).toBe(true)
     expect(payload).toMatchObject({ priceInCentsPerMtok: 300, priceOutCentsPerMtok: 1500 })
   })
 
-  it('Guardar sin precio propio no manda las claves priceIn/OutCentsPerMtok (compatible con el esquema real sin esos campos)', async () => {
+  it('Guardar sin modelo de catálogo y con el precio vacío manda null (borra el precio propio guardado)', async () => {
     updateAiSettingsAction.mockResolvedValueOnce({
       ok: true,
       data: { provider: 'anthropic', model: 'modelo-x', baseUrl: null, hasKey: true, monthlyCapCents: 500, structuredOutput: false, spentThisMonthCents: 0 },
@@ -161,7 +151,30 @@ describe('AiSettingsForm', () => {
     await waitFor(() => expect(updateAiSettingsAction).toHaveBeenCalledTimes(1))
     const payload = updateAiSettingsAction.mock.calls[0]?.[0]
     expect(AiSettingsSchema.safeParse(payload).success).toBe(true)
+    expect(payload).toMatchObject({ priceInCentsPerMtok: null, priceOutCentsPerMtok: null })
+  })
+
+  it('Guardar con modelo de catálogo no manda las claves priceIn/OutCentsPerMtok', async () => {
+    updateAiSettingsAction.mockResolvedValueOnce({
+      ok: true,
+      data: { provider: 'openai', model: 'gpt-4o-mini', baseUrl: null, hasKey: true, monthlyCapCents: 500, structuredOutput: false, spentThisMonthCents: 0 },
+    })
+    renderForm({ provider: 'openai', model: 'gpt-4o-mini' })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(updateAiSettingsAction).toHaveBeenCalledTimes(1))
+    const payload = updateAiSettingsAction.mock.calls[0]?.[0]
+    expect(AiSettingsSchema.safeParse(payload).success).toBe(true)
     expect(payload).not.toHaveProperty('priceInCentsPerMtok')
     expect(payload).not.toHaveProperty('priceOutCentsPerMtok')
+  })
+
+  // Item 1 de la revisión W2: `handleTest` traduce el código igual que `handleSave`,
+  // nunca pinta `result.message` (texto crudo) cuando la propia acción falla.
+  it('Probar traduce el error por código cuando la acción falla (no es la prueba de conexión en sí)', async () => {
+    testAiConnectionAction.mockResolvedValueOnce({ ok: false, code: 'forbidden', message: 'Solo el propietario puede cambiar la IA (texto crudo del servicio)' })
+    renderForm()
+    fireEvent.click(screen.getByRole('button', { name: 'Probar conexión' }))
+    expect(await screen.findByText('No tienes permiso para hacer esto.')).toBeInTheDocument()
+    expect(screen.queryByText(/texto crudo del servicio/)).not.toBeInTheDocument()
   })
 })

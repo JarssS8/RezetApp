@@ -49,7 +49,8 @@ export function registerRecipeTools(server: McpServer, ctx: McpCtx): boolean {
         const input = RecipeSearchSchema.parse(args)
         const result = await searchRecipes(ctx, input)
         return { content: [{ type: 'text', text: JSON.stringify(result) }] }
-      } catch {
+      } catch (e) {
+        console.error('[mcp]', e)
         return { isError: true, content: [{ type: 'text', text: 'No se pudo buscar recetas.' }] }
       }
     },
@@ -68,7 +69,8 @@ export function registerRecipeTools(server: McpServer, ctx: McpCtx): boolean {
         const detail = await getRecipe(ctx, id, servings !== undefined ? { servings } : {})
         if (!detail) return { isError: true, content: [{ type: 'text', text: 'Receta no encontrada.' }] }
         return { content: [{ type: 'text', text: JSON.stringify(detail) }] }
-      } catch {
+      } catch (e) {
+        console.error('[mcp]', e)
         return { isError: true, content: [{ type: 'text', text: 'No se pudo leer la receta.' }] }
       }
     },

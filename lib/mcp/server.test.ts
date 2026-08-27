@@ -33,7 +33,7 @@ describe('buildMcpServer', () => {
     await server.close()
   })
 
-  it('todavía no expone ninguna herramienta (las añade la Tarea 39)', async () => {
+  it('sin scopes, tools/list devuelve una lista vacía', async () => {
     const server = buildMcpServer(fakeCtx())
     const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair()
     const client = new Client({ name: 'test-client', version: '0.0.0' })

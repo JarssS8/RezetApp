@@ -27,9 +27,10 @@ export function registerHouseholdTools(server: McpServer, ctx: McpCtx): boolean 
         const overview = await getHouseholdOverview(ctx)
         const recentlyCookedRecipes = await recentlyCooked(ctx, RECENTLY_COOKED_LIMIT)
         return { content: [{ type: 'text', text: JSON.stringify({ ...overview, recentlyCooked: recentlyCookedRecipes }) }] }
-      } catch {
-        // Nunca se filtra el mensaje real del servicio ni una traza: el modelo
-        // solo necesita saber que la herramienta falló.
+      } catch (e) {
+        // El modelo solo necesita saber que la herramienta falló; el mensaje
+        // real del servicio o su traza van al log del servidor, no a la respuesta.
+        console.error('[mcp]', e)
         return { isError: true, content: [{ type: 'text', text: 'No se pudo obtener el contexto del hogar.' }] }
       }
     },

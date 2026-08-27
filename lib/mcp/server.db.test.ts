@@ -75,7 +75,7 @@ describe('handleMcpRequest (POST /mcp)', () => {
     expect(res.status).toBe(401)
   })
 
-  it('tools/list devuelve una lista vacía (la Tarea 39 la completa)', async () => {
+  it('sin scopes, tools/list devuelve una lista vacía', async () => {
     const token = generateApiToken()
     await db.insert(schema.apiTokens).values({ householdId, userId, name: 'agente', tokenHash: hashToken(token), scopes: [] })
     await handleMcpRequest(mcpRequest(initializeBody, token))

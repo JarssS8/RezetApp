@@ -14,16 +14,6 @@ import { Switch } from '@/components/ui/switch'
 type AiSettings = z.infer<typeof AiSettingsSchema>
 type Provider = AiSettings['provider']
 
-// Item 4 (revisión W2): households.ai_price_in_cents_per_mtok / _out todavía
-// no están en AiSettingsSchema de este worktree (los añade la mitad de
-// backend de esta misma tanda de fixes); se declaran aparte y se mandan con
-// spread condicional para no chocar con el `z.strictObject` real hasta que
-// el esquema los incorpore.
-interface AiSettingsPayload extends AiSettings {
-  priceInCentsPerMtok?: number | null
-  priceOutCentsPerMtok?: number | null
-}
-
 const PROVIDERS: readonly Provider[] = ['none', 'anthropic', 'openai', 'openai_compatible']
 
 // Catálogo de modelos con precio conocido (lib/ai/models.ts): solo provider+id,
@@ -118,13 +108,9 @@ export function AiSettingsForm(props: AiSettingsFormProps) {
     try {
       const result = await testAiConnectionAction()
       if (!result.ok) {
-        // Excepción legítima (I3/32, revisión W2): esta rama comparte la misma
-        // variable de estado que el resultado de la prueba en sí (más abajo,
-        // `result.data.message`), que sí es texto real del proveedor y no
-        // tiene clave i18n posible -no llama a `setError` ni `toast.error`
-        // (la regla de eslint 32 no aplica aquí), pero se deja crudo por la
-        // misma razón y para no bifurcar `TestState` en dos formas de mensaje.
-        setTestResult({ ok: false, message: result.message })
+        // I3/14/24: `result.message` es texto crudo de ServiceError/zod, nunca
+        // se pinta tal cual; se traduce por `result.code` como en `handleSave`.
+        setTestResult({ ok: false, message: te(actionErrorKey(result.code)) })
         return
       }
       setTestResult(
@@ -142,17 +128,20 @@ export function AiSettingsForm(props: AiSettingsFormProps) {
     setSaving(true)
     setSaveError(null)
     try {
-      const priceInValue = !knownModel ? parsePriceCents(priceIn) : null
-      const priceOutValue = !knownModel ? parsePriceCents(priceOut) : null
-      const payload: AiSettingsPayload = {
+      const payload: AiSettings = {
         provider,
         model: model.trim() === '' ? null : model.trim(),
         baseUrl: provider === 'openai_compatible' ? (baseUrl.trim() === '' ? null : baseUrl.trim()) : null,
         apiKey,
         monthlyCapCents: Math.round(Number(capEuros || 0) * 100),
         structuredOutput,
-        ...(priceInValue !== null && { priceInCentsPerMtok: priceInValue }),
-        ...(priceOutValue !== null && { priceOutCentsPerMtok: priceOutValue }),
+        // Sin modelo de catálogo se mandan siempre las dos claves (null borra
+        // el precio propio guardado si el campo se deja vacío); con modelo de
+        // catálogo se omiten del todo (el precio lo da el catálogo, no el hogar).
+        ...(!knownModel && {
+          priceInCentsPerMtok: parsePriceCents(priceIn),
+          priceOutCentsPerMtok: parsePriceCents(priceOut),
+        }),
       }
       const result = await updateAiSettingsAction(payload)
       if (!result.ok) {

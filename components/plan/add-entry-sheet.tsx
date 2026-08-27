@@ -35,7 +35,7 @@ interface RecipeOption {
 const SEARCH_DEBOUNCE_MS = 250
 
 // Hoja para añadir una comida al plan: buscar receta o título libre, con
-// fecha/hueco/raciones editables. Ver lib/services/plan.ts::searchRecipesLite.
+// fecha/hueco/raciones editables. Ver lib/actions/plan.ts::searchRecipesForPlanAction.
 //
 // El formulario no se reinicia con un efecto: la instancia entera se
 // remonta con una `key` distinta cada vez que WeekView abre la hoja (ver
