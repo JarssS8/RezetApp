@@ -1,7 +1,7 @@
 'use server'
 import { revalidatePath } from 'next/cache'
 import { requireHousehold } from '@/lib/auth/guards'
-import { importRecipeFromText, importRecipeFromUrl, type RecipeDraft } from '@/lib/services/recipe-import'
+import { importRecipe, type RecipeDraft } from '@/lib/services/recipe-import'
 import {
   createRecipe,
   exportAll,
@@ -68,9 +68,8 @@ export async function importRecipeAction(input: unknown): Promise<ActionResult<R
     const ctx = await requireHousehold()
     const parsed = RecipeImportSchema.safeParse(input)
     if (!parsed.success) return fail('validation', 'Entrada inválida')
-    if (parsed.data.kind === 'url') return ok(await importRecipeFromUrl(parsed.data.url))
-    if (parsed.data.kind === 'text') return ok(importRecipeFromText(parsed.data.text, ctx.locale))
-    return fail('unsupported', 'Importar desde imagen llega con la IA (W4)')
+    if (parsed.data.kind === 'image') return fail('unsupported', 'Importar desde imagen llega con la IA (W4)')
+    return ok(await importRecipe(ctx, parsed.data))
   } catch (e) {
     return fromError(e)
   }
