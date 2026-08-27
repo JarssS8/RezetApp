@@ -300,6 +300,37 @@ describe('importRecipe: kind image (W4-c)', () => {
     expect(draft.warnings).toEqual([])
   })
 
+  // Task 14 (revisión de la Task 11): un modelo puede devolver un JSON
+  // "válido" según AiRecipeSchema pero sin ingredientes ni pasos (foto o
+  // documento ilegible); el aviso tiene que ser el mismo que en el resto de
+  // importadores (warningsFromDraft), no un borrador vacío sin explicación.
+  it('un borrador de IA sin ingredientes ni pasos avisa igual que el resto de importadores', async () => {
+    const ctxA = await makeHousehold('Ana')
+    await configureAiProvider(ctxA)
+    const png = await sharpOnePixelPng()
+    const saved = await saveImage(ctxA.householdId, png)
+
+    const draft = await importRecipe(
+      ctxA,
+      { kind: 'image', uploadId: saved.name },
+      {
+        model: modelReturning({
+          title: 'Foto ilegible',
+          description: null,
+          servingsBase: 2,
+          prepMinutes: null,
+          cookMinutes: null,
+          difficulty: null,
+          tags: [],
+          ingredients: [],
+          steps: [],
+        }) as unknown as LanguageModel,
+      },
+    )
+    expect(draft.title).toBe('Foto ilegible')
+    expect(draft.warnings).toEqual(['no_ingredients', 'no_steps'])
+  })
+
   it('sin proveedor de IA devuelve un borrador vacío con aviso, no una excepción', async () => {
     const ctxA = await makeHousehold('Ana') // ai_provider por defecto: 'none'
     const png = await sharpOnePixelPng()

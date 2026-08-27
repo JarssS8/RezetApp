@@ -80,9 +80,13 @@
     "title": "Import recipe",
     "fromUrl": "From a URL",
     "fromText": "From text",
+    "fromPhoto": "From a photo",
+    "fromPdf": "From a PDF",
     "url": "Recipe address",
     "text": "Paste the recipe",
+    "file": "File",
     "submit": "Import",
+    "uploading": "Uploading…",
     "warnings": {
       "no_recipe_found": "No recipe was found on that page; paste the text instead.",
       "no_ingredients": "No ingredients were detected.",
@@ -90,7 +94,12 @@
       "fetch_failed": "The page could not be downloaded.",
       "empty": "The text is empty.",
       "invalid_url": "That address is not valid or points to a disallowed host.",
-      "body_too_large": "The page is too large to import."
+      "body_too_large": "The page is too large to import.",
+      "upload_not_found": "The uploaded file was not found. Pick it again.",
+      "ai_no_provider": "Reading a photo or a PDF needs AI configured in Settings.",
+      "ai_unsupported": "The configured model cannot read this kind of file.",
+      "ai_budget": "This month's AI spending cap has been reached.",
+      "ai_output": "The model did not return a usable recipe. Try a sharper photo."
     }
   },
   "detail": {

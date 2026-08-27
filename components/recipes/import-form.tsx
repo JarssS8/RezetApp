@@ -7,30 +7,54 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { importRecipeAction } from '@/lib/actions/recipes'
+import { importRecipeAction, uploadImageAction, uploadPdfAction } from '@/lib/actions/recipes'
 import { actionErrorKey } from '@/lib/actions/result'
 
 // Misma clave que lee components/recipes/recipe-editor.tsx en /recipes/new?draft=1
 // (Tarea 12: importar por URL/texto deja aquí el borrador antes de navegar).
 const DRAFT_KEY = 'rz.recipeDraft'
 
-type ImportKind = 'url' | 'text'
+type ImportKind = 'url' | 'text' | 'image' | 'pdf'
+
+const KIND_LABEL: Record<ImportKind, 'fromUrl' | 'fromText' | 'fromPhoto' | 'fromPdf'> = {
+  url: 'fromUrl',
+  text: 'fromText',
+  image: 'fromPhoto',
+  pdf: 'fromPdf',
+}
+const KIND_ORDER: ImportKind[] = ['url', 'text', 'image', 'pdf']
 
 // Todos los códigos que puede devolver lib/services/recipe-import.ts, con su
 // traducción en recipes.import.warnings.*; un código fuera de esta lista no
 // debería llegar nunca (cubre exactamente los `warnings.push(...)` del
 // servicio), así que no hace falta un texto de reserva sin traducir.
-const WARNING_KEYS = ['no_recipe_found', 'no_ingredients', 'no_steps', 'fetch_failed', 'empty', 'invalid_url', 'body_too_large'] as const
+const WARNING_KEYS = [
+  'no_recipe_found',
+  'no_ingredients',
+  'no_steps',
+  'fetch_failed',
+  'empty',
+  'invalid_url',
+  'body_too_large',
+  'upload_not_found',
+  'ai_no_provider',
+  'ai_unsupported',
+  'ai_budget',
+  'ai_output',
+] as const
 type WarningKey = (typeof WARNING_KEYS)[number]
 
 function isWarningKey(w: string): w is WarningKey {
   return (WARNING_KEYS as readonly string[]).includes(w)
 }
 
-// Formulario de /recipes/import: dos pestañas (URL/texto) sobre la misma
-// importRecipeAction que usa el MCP (docs/05-MCP.md); al conseguir un
-// borrador lo deja en sessionStorage y navega al editor en blanco con
-// ?draft=1, que lo recoge (components/recipes/recipe-editor.tsx).
+// Formulario de /recipes/import: cuatro pestañas (URL/texto/foto/PDF) sobre la
+// misma importRecipeAction que usa el MCP (docs/05-MCP.md). Foto y PDF suben
+// primero el fichero (uploadImageAction/uploadPdfAction) y solo después piden
+// la importación con el uploadId devuelto: el servicio lee el fichero ya
+// guardado del hogar, así el mismo uploadId sirve para REST y para el MCP. Al
+// conseguir un borrador lo deja en sessionStorage y navega al editor en
+// blanco con ?draft=1, que lo recoge (components/recipes/recipe-editor.tsx).
 export function ImportForm() {
   const t = useTranslations('recipes')
   const te = useTranslations('errors')
@@ -39,6 +63,7 @@ export function ImportForm() {
   const [kind, setKind] = useState<ImportKind>('url')
   const [url, setUrl] = useState('')
   const [text, setText] = useState('')
+  const [file, setFile] = useState<File | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -49,7 +74,22 @@ export function ImportForm() {
     setWarnings([])
     setSubmitting(true)
     try {
-      const input = kind === 'url' ? { kind: 'url' as const, url: url.trim() } : { kind: 'text' as const, text: text.trim() }
+      let input: { kind: 'url'; url: string } | { kind: 'text'; text: string } | { kind: 'image' | 'pdf'; uploadId: string }
+      if (kind === 'url') {
+        input = { kind: 'url', url: url.trim() }
+      } else if (kind === 'text') {
+        input = { kind: 'text', text: text.trim() }
+      } else {
+        if (!file) return
+        const form = new FormData()
+        form.set('file', file)
+        const uploaded = kind === 'pdf' ? await uploadPdfAction(form) : await uploadImageAction(form)
+        if (!uploaded.ok) {
+          setError(te(actionErrorKey(uploaded.code)))
+          return
+        }
+        input = { kind, uploadId: uploaded.data.uploadId }
+      }
       const result = await importRecipeAction(input)
       if (!result.ok) {
         setError(te(actionErrorKey(result.code)))
@@ -68,13 +108,12 @@ export function ImportForm() {
 
   return (
     <form onSubmit={(e) => void handleSubmit(e)} aria-busy={submitting} className="flex flex-col gap-4">
-      <div role="group" aria-label={t('import.title')} className="flex gap-1">
-        <Button type="button" size="sm" variant={kind === 'url' ? 'secondary' : 'outline'} aria-pressed={kind === 'url'} onClick={() => setKind('url')}>
-          {t('import.fromUrl')}
-        </Button>
-        <Button type="button" size="sm" variant={kind === 'text' ? 'secondary' : 'outline'} aria-pressed={kind === 'text'} onClick={() => setKind('text')}>
-          {t('import.fromText')}
-        </Button>
+      <div role="group" aria-label={t('import.title')} className="flex flex-wrap gap-1">
+        {KIND_ORDER.map((k) => (
+          <Button key={k} type="button" size="sm" variant={kind === k ? 'secondary' : 'outline'} aria-pressed={kind === k} onClick={() => setKind(k)}>
+            {t(`import.${KIND_LABEL[k]}`)}
+          </Button>
+        ))}
       </div>
 
       {kind === 'url' ? (
@@ -82,10 +121,25 @@ export function ImportForm() {
           <Label htmlFor="import-url">{t('import.url')}</Label>
           <Input id="import-url" type="url" value={url} onChange={(e) => setUrl(e.target.value)} required />
         </div>
-      ) : (
+      ) : kind === 'text' ? (
         <div className="flex flex-col gap-2">
           <Label htmlFor="import-text">{t('import.text')}</Label>
           <Textarea id="import-text" value={text} onChange={(e) => setText(e.target.value)} required rows={10} />
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="import-file">{t('import.file')}</Label>
+          {/* Sin `required` nativo: la comprobación vive en handleSubmit
+              (`if (!file) return`) porque jsdom no calcula bien la validez de
+              un input[type=file] con ficheros asignados por script (siempre
+              reporta valueMissing), lo que bloquearía el evento submit del
+              formulario entero en los tests. */}
+          <Input
+            id="import-file"
+            type="file"
+            accept={kind === 'pdf' ? 'application/pdf' : 'image/jpeg,image/png,image/webp,image/avif'}
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
         </div>
       )}
 
@@ -104,7 +158,7 @@ export function ImportForm() {
       ) : null}
 
       <Button type="submit" aria-busy={submitting} disabled={submitting}>
-        {t('import.submit')}
+        {submitting && (kind === 'image' || kind === 'pdf') ? t('import.uploading') : t('import.submit')}
       </Button>
     </form>
   )

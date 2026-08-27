@@ -41,10 +41,12 @@ export function importRecipeSystemPrompt(locale: Locale): string {
   ].join('\n')
 }
 
-// Texto breve que acompaña a la imagen en `importRecipeFromImageAi` (algunos
-// adaptadores esperan al menos un `text` part junto al `file` part).
+// Texto breve que acompaña al fichero en `importRecipeFromImageAi` y
+// `importRecipeFromPdfAi` (algunos adaptadores esperan al menos un `text`
+// part junto al `file` part). Genérico porque lo reutilizan ambas: puede ser
+// una foto o un documento PDF.
 export function importRecipeImageUserText(locale: Locale): string {
-  return locale === 'es' ? 'Esta es la foto de una receta de cocina.' : 'This is a photo of a cooking recipe.'
+  return locale === 'es' ? 'Esta es una foto o un documento de una receta de cocina.' : 'This is a photo or document of a cooking recipe.'
 }
 
 export function estimateNutritionSystemPrompt(locale: Locale): string {
