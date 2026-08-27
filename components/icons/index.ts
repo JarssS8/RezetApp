@@ -2,6 +2,7 @@
 export { Icon, type IconProps } from './icon'
 export { BarcodeIcon } from './barcode'
 export { CalendarMonthIcon } from './calendar-month'
+export { ChartIcon } from './chart'
 export { CheckIcon } from './check'
 export { ChevronDownIcon } from './chevron-down'
 export { ChevronLeftIcon } from './chevron-left'

@@ -74,5 +74,20 @@
   "createLeftover": "Crear sobra",
   "leftoverDate": "Fecha",
   "leftoverSlot": "Hueco",
-  "plannedMeals": "{n} comidas planificadas"
+  "plannedMeals": "{n} comidas planificadas",
+  "stats": {
+    "title": "Plan y realidad",
+    "range": "Del {from} al {to}",
+    "planned": "Planificadas",
+    "cooked": "Cocinadas",
+    "skipped": "Saltadas",
+    "pending": "Pendientes",
+    "adherence": "Se cumplió",
+    "offPlan": "Cocinado sin plan: {count}",
+    "kcal": "{cooked} kcal cocinadas de {planned} planificadas",
+    "top": "Lo que más se cocina",
+    "topLine": "<name>{title}</name> · {times}",
+    "noData": "Todavía no hay nada cocinado ni saltado en este rango.",
+    "link": "Ver plan y realidad"
+  }
 }
