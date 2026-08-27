@@ -144,6 +144,67 @@ describe('prepareIngredients', () => {
   })
 })
 
+// Editor W2-R18: cuando el navegador manda displayQuantity/displayUnit
+// corregidos a mano pero SIN quantity/unit (el navegador nunca convierte
+// unidades, solo conoce el alimento por su id), el servicio convierte con
+// la conversión real del alimento y respeta el scalesLinearly recibido
+// -no aplica la heurística, que es solo para líneas de texto libre-.
+describe('prepareIngredients con displayQuantity corregido a mano (sin quantity)', () => {
+  it('convierte tazas con la conversión propia del alimento (gramsPerCup)', async () => {
+    const [flour] = await db
+      .insert(schema.foods)
+      .values({
+        nameEs: 'harina', nameEn: 'flour', searchNameEs: 'harina', searchNameEn: 'flour', source: 'usda',
+        kcal100g: 364, protein100g: 10, carbs100g: 76, fat100g: 1, fiber100g: 2.7, gramsPerCup: 120,
+      })
+      .returning()
+    if (!flour) throw new Error('setup')
+    const prepared = await prepareIngredients(
+      ctxA,
+      [{ rawText: '2 tazas de harina', foodId: flour.id, displayQuantity: 2, displayUnit: 'cup', scalesLinearly: true }],
+      'es',
+    )
+    expect(prepared[0]).toMatchObject({ quantity: 240, unit: 'g', scalesLinearly: true, needsReview: false })
+  })
+
+  it('convierte "diente" con los gramos por unidad del alimento', async () => {
+    const [garlic] = await db
+      .insert(schema.foods)
+      .values({
+        nameEs: 'ajo', nameEn: 'garlic', searchNameEs: 'ajo', searchNameEn: 'garlic', source: 'usda',
+        kcal100g: 149, protein100g: 6.4, carbs100g: 33, fat100g: 0.5, fiber100g: 2.1, gramsPerUnit: 5,
+      })
+      .returning()
+    if (!garlic) throw new Error('setup')
+    const prepared = await prepareIngredients(
+      ctxA,
+      [{ rawText: '3 dientes de ajo', foodId: garlic.id, displayQuantity: 3, displayUnit: 'diente', scalesLinearly: true }],
+      'es',
+    )
+    expect(prepared[0]).toMatchObject({ quantity: 15, unit: 'g', needsReview: false })
+  })
+
+  it('unidad desconocida sin conversión posible → quantity/unit a null y needsReview', async () => {
+    const prepared = await prepareIngredients(
+      ctxA,
+      [{ rawText: '2 de sal', foodId: saltId, displayQuantity: 2, displayUnit: 'zzz-unidad-inventada', scalesLinearly: false }],
+      'es',
+    )
+    expect(prepared[0]).toMatchObject({ quantity: null, unit: null, needsReview: true, scalesLinearly: false })
+  })
+
+  it('respeta scalesLinearly recibido en vez de la heurística', async () => {
+    // La heurística marcaría la cebolla como escalable (true); aquí se
+    // respeta el false que llega explícito desde el editor.
+    const prepared = await prepareIngredients(
+      ctxA,
+      [{ rawText: '1 cebolla', foodId: onionId, displayQuantity: 1, displayUnit: 'ud', scalesLinearly: false }],
+      'es',
+    )
+    expect(prepared[0]).toMatchObject({ scalesLinearly: false })
+  })
+})
+
 describe('searchRecipes', () => {
   it('full-text con websearch, filtros y orden; solo del hogar', async () => {
     await createRecipe(ctxA, input)

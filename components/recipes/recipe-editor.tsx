@@ -44,6 +44,7 @@ function blankRow(rawText: string, sortOrder: number): Row {
   return {
     rawText,
     foodId: null,
+    foodName: null,
     quantity: null,
     unit: null,
     displayQuantity: null,
@@ -62,10 +63,14 @@ function blankRow(rawText: string, sortOrder: number): Row {
 // Filas ya resueltas (al editar una receta existente, o al cargar un
 // borrador): se marcan `touched` para que el primer reanálisis no las pise
 // -ya tienen alimento y unidades asignados-, salvo que su rawText cambie.
-function rowsFromInput(ingredients: RecipeInput['ingredients']): Row[] {
+// `foodNames`, alineado por índice, solo lo trae la edición (initialFoodNames,
+// que saca la página de RecipeDetail): un borrador de sessionStorage no tiene
+// esa información y la línea muestra la conjetura de parseIngredientLine.
+function rowsFromInput(ingredients: RecipeInput['ingredients'], foodNames?: (string | null)[]): Row[] {
   return ingredients.map((i, index) => ({
     rawText: i.rawText,
     foodId: i.foodId ?? null,
+    foodName: foodNames?.[index] ?? null,
     quantity: i.quantity ?? null,
     unit: i.unit ?? null,
     displayQuantity: i.displayQuantity ?? null,
@@ -81,18 +86,27 @@ function rowsFromInput(ingredients: RecipeInput['ingredients']): Row[] {
   }))
 }
 
-function buildIngredientInput(row: Row): RecipeIngredientInput {
+// Regla W2-R18: el navegador nunca convierte unidades. Una línea `touched`
+// (el usuario la corrigió a mano: FoodPicker, cantidad, unidad o el switch)
+// nunca lleva quantity/unit -aunque los tuviera de un análisis anterior,
+// pueden haber quedado obsoletos-, así que se omiten a propósito para que el
+// servidor (prepareIngredientsWithFoods) los recalcule con la conversión real
+// del alimento. Una línea sin tocar (la dejó tal cual el último análisis del
+// servidor, o viene de una receta ya guardada sin re-corregir) sí los lleva,
+// para no perder una conversión ya buena. El resto de campos solo se manda
+// si tienen valor -nunca `undefined` explícito, exactOptionalPropertyTypes-.
+export function buildIngredientInput(line: EditableIngredientLine): RecipeIngredientInput {
   return {
-    rawText: row.rawText,
-    foodId: row.foodId,
-    quantity: row.quantity,
-    unit: row.unit,
-    displayQuantity: row.displayQuantity,
-    displayUnit: row.displayUnit,
-    preparation: row.preparation,
-    groupLabel: row.groupLabel,
+    rawText: line.rawText,
+    scalesLinearly: line.scalesLinearly,
     stepIndex: null,
-    scalesLinearly: row.scalesLinearly,
+    ...(line.foodId !== null && { foodId: line.foodId }),
+    ...(line.displayQuantity !== null && { displayQuantity: line.displayQuantity }),
+    ...(line.displayUnit !== null && { displayUnit: line.displayUnit }),
+    ...(line.preparation !== null && { preparation: line.preparation }),
+    ...(line.groupLabel !== null && { groupLabel: line.groupLabel }),
+    ...(!line.touched && line.quantity !== null && { quantity: line.quantity }),
+    ...(!line.touched && line.unit !== null && { unit: line.unit }),
   }
 }
 
@@ -103,6 +117,16 @@ function nonEmptyLines(text: string): string[] {
     .filter((l) => l.length > 0)
 }
 
+// Los pasos se separan por línea en blanco (no por línea suelta): así un
+// paso puede ocupar varias líneas y sobrevive a una reedición. Al precargar
+// el textarea desde `steps` (initial/borrador) se une con '\n\n', el inverso.
+function stepsFromText(text: string): string[] {
+  return text
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter((block) => block.length > 0)
+}
+
 export interface RecipeEditorProps {
   initial?: RecipeInput
   recipeId?: string
@@ -110,6 +134,13 @@ export interface RecipeEditorProps {
   // ?draft=1 en /recipes/new: lee el borrador que deja la Tarea 12 (importar
   // por foto/URL) en sessionStorage en vez de arrancar en blanco.
   useDraft?: boolean
+  // Nombres reales (ya resueltos) de los alimentos de `initial.ingredients`,
+  // alineados por índice. RecipeInput/detailToInput no los llevan -
+  // RecipeIngredientInputSchema es estricto y no admite el campo-, así que
+  // la página de edición los saca aparte de RecipeDetail (que sí trae el
+  // alimento completo) y los pasa por aquí para no mostrar la conjetura de
+  // parseIngredientLine en una línea que ya tiene alimento asignado.
+  initialFoodNames?: (string | null)[]
 }
 
 // Borrador de la Tarea 12 (importar por foto/URL) en sessionStorage. Se lee
@@ -129,13 +160,17 @@ function readDraft(): RecipeInput | null {
   }
 }
 
-export function RecipeEditor({ initial, recipeId, locale, useDraft }: RecipeEditorProps) {
+export function RecipeEditor({ initial, recipeId, locale, useDraft, initialFoodNames }: RecipeEditorProps) {
   const t = useTranslations('recipes')
   const router = useRouter()
 
   // `initial` (editar) manda; si no hay y se pidió ?draft=1, se usa el
   // borrador de sessionStorage; si tampoco hay, la pantalla arranca en blanco.
   const [resolved] = useState<RecipeInput | undefined>(() => initial ?? (useDraft ? (readDraft() ?? undefined) : undefined))
+  // initialFoodNames solo es válido si `resolved` es realmente `initial` (editar):
+  // un borrador de sessionStorage no tiene esos nombres, y sus índices no
+  // coinciden necesariamente con los de `initial`.
+  const foodNamesForRows = resolved === initial ? initialFoodNames : undefined
 
   const [title, setTitle] = useState(resolved?.title ?? '')
   const [description, setDescription] = useState(resolved?.description ?? '')
@@ -147,8 +182,8 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft }: RecipeEdit
   const [tags, setTags] = useState<string[]>(resolved?.tags ?? [])
   const [tagDraft, setTagDraft] = useState('')
   const [ingredientsText, setIngredientsText] = useState(resolved ? resolved.ingredients.map((i) => i.rawText).join('\n') : '')
-  const [rows, setRows] = useState<Row[]>(resolved ? rowsFromInput(resolved.ingredients) : [])
-  const [stepsText, setStepsText] = useState(resolved ? resolved.steps.map((s) => s.text).join('\n') : '')
+  const [rows, setRows] = useState<Row[]>(resolved ? rowsFromInput(resolved.ingredients, foodNamesForRows) : [])
+  const [stepsText, setStepsText] = useState(resolved ? resolved.steps.map((s) => s.text).join('\n\n') : '')
   const [notes, setNotes] = useState(resolved?.notes ?? '')
   // Campos que este editor no expone en un campo propio pero hay que
   // conservar al reeditar (por ejemplo la URL de origen de una receta
@@ -174,9 +209,13 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft }: RecipeEdit
   // a mano (touched) en la misma posición y con el mismo texto se conserva
   // tal cual -no se le pisa el alimento o la unidad que acaba de fijar-;
   // el resto pasa por prepareIngredientsAction (mismo parser que usa el
-  // servidor al guardar). Devuelve las filas resultantes además de guardarlas,
-  // para que el envío pueda usarlas sin esperar al siguiente render.
-  async function reparse(text: string): Promise<Row[]> {
+  // servidor al guardar). Si la llamada falla, NO se tocan las filas -nunca
+  // se deja en blanco un alimento ya resuelto por un fallo de red ajeno a esa
+  // línea- y se devuelve false; handleSubmit corta el guardado en ese caso.
+  // rowsRef se actualiza aquí mismo (no solo por el efecto de `rows`) para
+  // que handleSubmit pueda leer el resultado justo después de esperar esta
+  // función, sin esperar al siguiente render.
+  async function reparse(text: string): Promise<boolean> {
     const rawLines = nonEmptyLines(text)
     setParsing(true)
     try {
@@ -186,21 +225,32 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft }: RecipeEdit
         return existing && existing.touched && existing.rawText === raw ? existing : null
       })
       const pendingIndexes = kept.map((k, i) => (k ? -1 : i)).filter((i) => i >= 0)
+
       let parsedResults: PreparedIngredient[] = []
       if (pendingIndexes.length) {
         const result = await prepareIngredientsAction(pendingIndexes.map((i) => ({ rawText: rawLines[i] as string })))
-        if (!result.ok) setError(t('editor.saveError'))
-        else parsedResults = result.data
+        if (!result.ok) {
+          setError(t('editor.parseError'))
+          return false
+        }
+        parsedResults = result.data
       }
+
       const merged = rawLines.map((raw, index) => {
         const existing = kept[index]
         if (existing) return { ...existing, sortOrder: index }
         const pos = pendingIndexes.indexOf(index)
         const parsed = pos >= 0 ? parsedResults[pos] : undefined
-        return parsed ? { ...rowFromPrepared(parsed, false), sortOrder: index } : blankRow(raw, index)
+        if (parsed) return { ...rowFromPrepared(parsed, false), sortOrder: index }
+        // No debería faltar un resultado con la petición ya resuelta con
+        // éxito, pero por si acaso: se conserva la fila anterior en esa
+        // posición antes que dejarla en blanco.
+        const previous = current[index]
+        return previous ? { ...previous, sortOrder: index } : blankRow(raw, index)
       })
+      rowsRef.current = merged
       setRows(merged)
-      return merged
+      return true
     } finally {
       setParsing(false)
     }
@@ -242,8 +292,13 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft }: RecipeEdit
         setError(t('editor.titleRequired'))
         return
       }
-      const finalRows = await reparse(ingredientsText)
-      const stepLines = nonEmptyLines(stepsText)
+      // Fuerza un último reanálisis por si el usuario no llegó a perder el
+      // foco del textarea: si falla, se corta aquí (reparse ya puso el error
+      // y no tocó las filas existentes).
+      const reparsedOk = await reparse(ingredientsText)
+      if (!reparsedOk) return
+      const finalRows = rowsRef.current
+      const stepLines = stepsFromText(stepsText)
       if (finalRows.length === 0 && stepLines.length === 0) {
         setError(t('editor.needsContent'))
         return
@@ -276,6 +331,10 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft }: RecipeEdit
         setError(result.message || t('editor.saveError'))
         return
       }
+      // Borrador ya consumido: si queda en sessionStorage, la próxima vez que
+      // se abra /recipes/new?draft=1 (por ejemplo tras volver atrás) no debe
+      // repetir una receta ya guardada.
+      if (typeof window !== 'undefined') sessionStorage.removeItem(DRAFT_KEY)
       toast.success(t('editor.saved'))
       router.push(`/recipes/${result.data.id}`)
     } finally {
@@ -410,7 +469,13 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft }: RecipeEdit
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="recipe-steps">{t('editor.steps')}</Label>
-        <Textarea id="recipe-steps" value={stepsText} onChange={(e) => setStepsText(e.target.value)} rows={5} />
+        <Textarea
+          id="recipe-steps"
+          value={stepsText}
+          onChange={(e) => setStepsText(e.target.value)}
+          placeholder={t('editor.stepsHint')}
+          rows={5}
+        />
       </div>
 
       <div className="flex flex-col gap-2">

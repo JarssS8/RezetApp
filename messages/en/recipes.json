@@ -69,6 +69,7 @@
     "ingredients": "Ingredients (one per line)",
     "ingredientsHint": "E.g.: 200 g lentils, 1 onion, salt to taste",
     "reparse": "Re-analyze",
+    "parseError": "The ingredients could not be analyzed",
     "removeIngredient": "Remove ingredient",
     "confidence": {
       "high": "Recognized",
@@ -79,7 +80,8 @@
     "unit": "Unit",
     "scalesLinearly": "Scales linearly",
     "group": "Group",
-    "steps": "Steps (one per line)",
+    "steps": "Steps",
+    "stepsHint": "Separate each step with a blank line",
     "notes": "Notes",
     "save": "Save recipe",
     "saved": "Recipe saved",

@@ -69,6 +69,7 @@
     "ingredients": "Ingredientes (uno por línea)",
     "ingredientsHint": "Ej.: 200 g de lentejas, 1 cebolla, sal al gusto",
     "reparse": "Volver a analizar",
+    "parseError": "No se pudieron analizar los ingredientes",
     "removeIngredient": "Quitar ingrediente",
     "confidence": {
       "high": "Reconocido",
@@ -79,7 +80,8 @@
     "unit": "Unidad",
     "scalesLinearly": "Escala linealmente",
     "group": "Grupo",
-    "steps": "Pasos (uno por línea)",
+    "steps": "Pasos",
+    "stepsHint": "Separa cada paso con una línea en blanco",
     "notes": "Notas",
     "save": "Guardar receta",
     "saved": "Receta guardada",

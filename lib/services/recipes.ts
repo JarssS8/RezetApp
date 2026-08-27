@@ -22,6 +22,11 @@ type IngredientInput = RecipeInput['ingredients'][number]
 export interface PreparedIngredient {
   rawText: string
   foodId: string | null
+  // Nombre real del alimento ya resuelto (food.name, en el locale de ctx), no
+  // una conjetura del texto: el editor lo usa para mostrar qué reconoció sin
+  // tener que volver a parsear rawText en el cliente. null si no se resolvió
+  // ningún alimento para esta línea.
+  foodName: string | null
   quantity: number | null
   unit: BaseUnit | null
   displayQuantity: number | null
@@ -91,33 +96,48 @@ async function prepareIngredientsWithFoods(ctx: Ctx, inputs: IngredientInput[], 
     // Sin unidad (número de piezas suelto, "2 cebollas"): se asume unidad ('ud').
     if (displayUnit === null && displayQuantity !== null) displayUnit = 'ud'
 
-    let quantity = i.quantity ?? null
-    let unit: BaseUnit | null = i.unit ?? null
-    // Solo se recalcula quantity/unit cuando el llamador no los dio ya explícitos.
-    if (i.quantity === undefined && displayQuantity !== null && displayUnit !== null) {
-      const base = toBaseUnit(displayQuantity, displayUnit, locale, food ?? undefined)
+    let quantity: number | null
+    let unit: BaseUnit | null
+    let scalesLinearly: boolean
+    let needsReview: boolean
+
+    // Tres casos, distinguidos por lo que trae el llamador (nunca por lo que
+    // el navegador pudo calcular: el editor nunca convierte unidades, solo
+    // este servicio conoce gramsPerCup/gramsPerUnit/densidad del alimento):
+    if (i.quantity === undefined && i.displayQuantity === undefined) {
+      // 1) No llega nada numérico: es una línea nueva de texto libre. Se
+      // parsea rawText y se aplica la heurística de scalesLinearly (el
+      // llamador no pudo haber corregido nada que no existía todavía).
+      const base = displayQuantity !== null && displayUnit !== null ? toBaseUnit(displayQuantity, displayUnit, locale, food ?? undefined) : null
       quantity = base?.qty ?? null
       unit = base?.unit ?? null
+      scalesLinearly = !isNonLinearByDefault(food?.name ?? p.foodName, locale)
+      needsReview = foodId === null || p.needsReview
+    } else if (i.quantity === undefined && i.displayQuantity !== undefined) {
+      // 2) El editor mandó displayQuantity/displayUnit corregidos a mano pero
+      // sin quantity/unit -no tiene datos de conversión del alimento en el
+      // cliente-: se convierte aquí, con la conversión real del alimento
+      // (food, si se resolvió), y se respeta scalesLinearly tal cual lo
+      // mandó el llamador (es una corrección explícita, no un "no sé").
+      const base = displayQuantity !== null && displayUnit !== null ? toBaseUnit(displayQuantity, displayUnit, locale, food ?? undefined) : null
+      quantity = base?.qty ?? null
+      unit = base?.unit ?? null
+      scalesLinearly = i.scalesLinearly
+      needsReview = foodId === null || quantity === null
+    } else {
+      // 3) Línea ya resuelta del todo (quantity explícito, típicamente una
+      // fila que el editor no tocó y reenvía tal cual): se conserva todo,
+      // incluido scalesLinearly, que el usuario pudo corregir a mano.
+      quantity = i.quantity ?? null
+      unit = i.unit ?? null
+      scalesLinearly = i.scalesLinearly
+      needsReview = foodId === null
     }
-
-    // Una línea que llega ya resuelta (quantity y unit explícitos) conserva el
-    // scalesLinearly que traiga -el usuario pudo corregirlo a mano-; una línea
-    // recién parseada desde texto libre lo recalcula siempre con la heurística.
-    // Deuda aparcada: RecipeIngredientInputSchema define scalesLinearly con
-    // z.boolean().default(true), así que en RecipeInput el campo llega SIEMPRE
-    // presente (nunca undefined) y no hay forma de distinguir "no lo mandaron"
-    // de "mandaron true a propósito". needsParsing es la única señal disponible
-    // aquí; para que la heurística se aplique de verdad, REST/MCP deben pasar
-    // las líneas nuevas por prepareIngredients con quantity/unit sin resolver
-    // (tal como hace este servicio), no colar un scalesLinearly ya calculado a
-    // mano. Revisar si lib/validation deja de estar congelado (podría separarse
-    // "no venía" de "vino true").
-    const needsParsing = i.quantity === undefined || i.unit === undefined
-    const scalesLinearly = needsParsing ? !isNonLinearByDefault(food?.name ?? p.foodName, locale) : i.scalesLinearly
 
     return {
       rawText: i.rawText,
       foodId,
+      foodName: food?.name ?? null,
       quantity,
       unit,
       displayQuantity,
@@ -127,7 +147,7 @@ async function prepareIngredientsWithFoods(ctx: Ctx, inputs: IngredientInput[], 
       stepIndex: i.stepIndex ?? null,
       scalesLinearly,
       sortOrder: k,
-      needsReview: foodId === null || p.needsReview,
+      needsReview,
     }
   })
 
@@ -183,7 +203,7 @@ async function upsertTags(ctx: Ctx, names: string[]): Promise<string[]> {
 }
 
 // Fila de inserción para recipe_ingredients: todo lo de PreparedIngredient salvo
-// needsReview, que solo sirve para que el llamador avise en la interfaz.
+// needsReview y foodName, que solo sirven para que el llamador informe a la interfaz.
 function toIngredientRow(p: PreparedIngredient, recipeId: string) {
   return {
     recipeId,

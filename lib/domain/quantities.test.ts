@@ -67,6 +67,11 @@ describe('toBaseUnit', () => {
     expect(toBaseUnit(2, 'ud', 'es', onion)).toEqual({ qty: 300, unit: 'g' })
     expect(toBaseUnit(2, 'ud', 'es', none)).toEqual({ qty: 2, unit: 'ud' })
   })
+  it('otras unidades de cuenta (diente, hoja...) también usan gramos por unidad del alimento', () => {
+    const garlic: FoodConversion = { defaultUnit: 'g', gramsPerCup: null, gramsPerTbsp: null, gramsPerUnit: 5, densityGPerMl: null }
+    expect(toBaseUnit(3, 'diente', 'es', garlic)).toEqual({ qty: 15, unit: 'g' })
+    expect(toBaseUnit(3, 'clove', 'en', garlic)).toEqual({ qty: 15, unit: 'g' })
+  })
   it('volumen con densidad y alimento por masa → g', () => {
     expect(toBaseUnit(1, 'tbsp', 'es', honey)?.qty).toBeCloseTo(21.3)
     expect(toBaseUnit(1, 'tbsp', 'es', honey)?.unit).toBe('g')

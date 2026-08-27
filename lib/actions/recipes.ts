@@ -87,6 +87,11 @@ export async function prepareIngredientsAction(inputs: unknown): Promise<ActionR
   }
 }
 
+// Mismos formatos que admite saveImage (sharp los decodifica sin problema);
+// un allowlist explícito en vez de solo comprobar el prefijo "image/" evita
+// colar tipos MIME válidos pero no soportados (image/svg+xml, image/gif...).
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif'])
+
 // El editor sube imágenes con fetch + FormData desde el navegador (una
 // sesión de cookie, no un token de API): POST /api/v1/uploads exige
 // requireApiToken y no lo acepta, así que aquí hay una acción propia sobre
@@ -97,7 +102,7 @@ export async function uploadImageAction(formData: FormData): Promise<ActionResul
     const file = formData.get('file')
     if (!(file instanceof File)) return fail('validation', 'Falta el fichero')
     if (file.size > MAX_UPLOAD_BYTES) return fail('too_large', 'Máximo 8 MB')
-    if (!file.type.startsWith('image/')) return fail('validation', 'No es una imagen válida')
+    if (!ALLOWED_IMAGE_MIME_TYPES.has(file.type)) return fail('validation', 'No es una imagen válida')
     try {
       const saved = await saveImage(ctx.householdId, new Uint8Array(await file.arrayBuffer()))
       return ok({ url: saved.url })

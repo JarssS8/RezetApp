@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import type { FoodSummary } from '@/lib/actions/foods'
 import type { PreparedIngredient } from '@/lib/actions/recipes'
-import { parseIngredientLine, toBaseUnit } from '@/lib/domain'
+import { parseIngredientLine } from '@/lib/domain'
 import type { Locale } from '@/lib/domain/types'
 import { cn } from '@/lib/utils'
 
@@ -62,8 +62,11 @@ export function IngredientLineEditor({ line, onChange, onRemove, locale }: Ingre
   // prepareIngredientsAction ya resolvió como foodId.
   const [pickedFood, setPickedFood] = useState<FoodSummary | null>(null)
 
+  // El texto adivinado de rawText es solo un último recurso -por ejemplo una
+  // fila en blanco sin foodName-: en cuanto hay un alimento resuelto (por el
+  // servicio o elegido a mano) se muestra su nombre real, nunca la conjetura.
   const guessedName = useMemo(() => parseIngredientLine(line.rawText, locale).foodName, [line.rawText, locale])
-  const foodLabel = pickedFood ? displayFoodName(pickedFood, locale) : guessedName
+  const foodLabel = pickedFood ? displayFoodName(pickedFood, locale) : (line.foodName ?? guessedName)
 
   const level = confidenceLevel(line)
 
@@ -71,23 +74,22 @@ export function IngredientLineEditor({ line, onChange, onRemove, locale }: Ingre
     onChange({ ...line, ...next, touched: true })
   }
 
+  // Regla W2-R18: el navegador nunca convierte unidades (esa cuenta es del
+  // servidor, que sí conoce gramsPerCup/gramsPerUnit/densidad del alimento).
+  // Al corregir cantidad o unidad a mano se guarda solo displayQuantity/
+  // displayUnit; quantity/unit quedan a null (nunca un valor previo, que
+  // quedaría desactualizado) hasta que el servidor los recalcule -al guardar,
+  // buildIngredientInput (recipe-editor.tsx) los omite para una línea touched,
+  // así que prepareIngredientsWithFoods los repone con datos reales-.
   function handleQuantityChange(raw: string) {
     const value = raw.trim() === '' ? null : Number(raw)
     const displayQuantity = value !== null && Number.isFinite(value) ? value : null
-    // Sin datos de conversión del alimento en el cliente (FoodPicker solo trae
-    // FoodSummary, sin gramos por taza/unidad): se recalcula con la tabla
-    // genérica de unidades, igual que el servidor cuando el alimento no tiene
-    // conversión propia. El guardado final vuelve a pasar por
-    // prepareIngredientsWithFoods en el servidor, que sí tiene esa conversión.
-    const unit = line.displayUnit ?? 'ud'
-    const base = displayQuantity !== null ? toBaseUnit(displayQuantity, unit, locale) : null
-    patch({ displayQuantity, quantity: base?.qty ?? null, unit: base?.unit ?? null })
+    patch({ displayQuantity, quantity: null, unit: null })
   }
 
   function handleUnitChange(raw: string) {
     const displayUnit = raw.trim() ? raw : null
-    const base = line.displayQuantity !== null && displayUnit !== null ? toBaseUnit(line.displayQuantity, displayUnit, locale) : null
-    patch({ displayUnit, quantity: base?.qty ?? line.quantity, unit: base?.unit ?? line.unit })
+    patch({ displayUnit, quantity: null, unit: null })
   }
 
   return (
