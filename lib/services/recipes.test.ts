@@ -1,8 +1,9 @@
+import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
 import type { Ctx } from '@/lib/services/ctx'
-import { createRecipe, exportAll, getRecipe, prepareIngredients, searchRecipes, softDeleteRecipe, updateRecipe } from './recipes'
+import { createRecipe, exportAll, getRecipe, prepareIngredients, recentlyCooked, searchRecipes, softDeleteRecipe, updateRecipe } from './recipes'
 
 let db: TestDb
 let ctxA: Ctx
@@ -254,5 +255,29 @@ describe('exportAll', () => {
     expect(e.version).toBe(1)
     expect(e.recipes[0]).toMatchObject({ title: 'Cebolla caramelizada', servingsBase: 4, tags: expect.arrayContaining(['guarnición']) })
     expect(JSON.stringify(e)).not.toContain(ctxA.householdId)
+  })
+})
+
+describe('recentlyCooked', () => {
+  it('solo recetas con last_cooked_at, del hogar, más recientes primero', async () => {
+    const sopa = await createRecipe(ctxA, { ...input, title: 'Sopa' })
+    const tostada = await createRecipe(ctxA, { ...input, title: 'Tostada' })
+    await createRecipe(ctxA, { ...input, title: 'Sin cocinar' })
+    await createRecipe(ctxB, { ...input, title: 'De otro hogar' })
+    await db.update(schema.recipes).set({ lastCookedAt: new Date('2026-01-01T00:00:00Z') }).where(eq(schema.recipes.id, sopa.recipe.id))
+    await db.update(schema.recipes).set({ lastCookedAt: new Date('2026-02-01T00:00:00Z') }).where(eq(schema.recipes.id, tostada.recipe.id))
+
+    const result = await recentlyCooked(ctxA, 5)
+
+    expect(result.map((r) => r.title)).toEqual(['Tostada', 'Sopa'])
+    expect(result[0]).toMatchObject({ id: tostada.recipe.id, title: 'Tostada' })
+  })
+
+  it('respeta el límite', async () => {
+    for (const title of ['A', 'B', 'C']) {
+      const r = await createRecipe(ctxA, { ...input, title })
+      await db.update(schema.recipes).set({ lastCookedAt: new Date() }).where(eq(schema.recipes.id, r.recipe.id))
+    }
+    expect(await recentlyCooked(ctxA, 2)).toHaveLength(2)
   })
 })

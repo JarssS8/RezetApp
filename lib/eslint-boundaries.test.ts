@@ -60,4 +60,20 @@ describe('eslint.config.mjs: boundaries', () => {
     )
     expect(result.messages.filter((m) => m.ruleId?.startsWith('boundaries/'))).toHaveLength(0)
   })
+
+  it('lib/mcp no puede importar components/', async () => {
+    const result = await lint(
+      'lib/mcp/probe.ts',
+      "import { Button } from '@/components/ui/button'\nexport const y = Button\n",
+    )
+    expect(result.messages.some((m) => m.ruleId?.startsWith('boundaries/'))).toBe(true)
+  })
+
+  it('app/mcp/route.ts sí puede importar lib/mcp/server', async () => {
+    const result = await lint(
+      'app/mcp/route.ts',
+      "import { handleMcpRequest } from '@/lib/mcp/server'\nexport { handleMcpRequest as POST }\n",
+    )
+    expect(result.messages.filter((m) => m.ruleId?.startsWith('boundaries/'))).toHaveLength(0)
+  })
 })

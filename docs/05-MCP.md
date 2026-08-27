@@ -53,6 +53,97 @@ planificación de comidas con MCP e IA local.
 | `log_cooked` | Marca cocinado, descuenta despensa, registra nutrición | Las tres cosas de forma atómica. Cierra el bucle |
 | `get_household_context` | Miembros, alérgenos, objetivos, reglas, qué se cocinó hace poco | Una llamada al principio y el agente ya sabe con quién habla |
 
+## Conexión
+
+El endpoint vive en `<host>/mcp` (por ejemplo `http://localhost:3000/mcp` en
+desarrollo). Hace falta un token: créalo en **Ajustes → Tokens de API**
+(`/settings/tokens`, solo el propietario del hogar). Al crearlo se eligen:
+
+- **Alcance (scopes)** — qué puede leer o escribir el token. Para lo que hay en
+  W2 basta con `household:read` (contexto del hogar) y `recipes:read`
+  (buscar y leer recetas). Un token nunca tiene más alcance del que se le
+  marque, y se puede revocar en cualquier momento sin tocar los demás.
+- **Perfil** — `básico` o `completo`. En W2 ambos exponen las mismas
+  herramientas (las 12 del perfil básico llegan por oleadas); `completo`
+  queda reservado para cuando existan las que faltan.
+
+El token en claro (`rz_…`) solo se muestra una vez, al crearlo: guárdalo, la
+base de datos solo conserva su hash.
+
+### Cliente MCP de escritorio
+
+La mayoría de clientes MCP de escritorio hablan stdio, no HTTP directo. Para
+conectarlos a `/mcp` hace falta el puente
+[`mcp-remote`](https://www.npmjs.com/package/mcp-remote), que el propio
+cliente lanza con `npx` y que reenvía la cabecera `Authorization`:
+
+```json
+{
+  "mcpServers": {
+    "rezetapp": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://<host>/mcp",
+        "--header",
+        "Authorization: Bearer rz_…"
+      ]
+    }
+  }
+}
+```
+
+Sustituye `<host>` por el dominio (o `localhost:3000` en desarrollo) y
+`rz_…` por el token creado en `/settings/tokens`.
+
+**Límite conocido:** los conectores que exigen OAuth para añadir un servidor
+MCP (sin opción de cabeceras personalizadas) no pueden conectarse
+directamente a RezetApp — el endpoint solo acepta Bearer `rz_…`, no un flujo
+OAuth. La vía soportada es un cliente MCP de escritorio (o cualquier cliente
+que permita `mcp-remote --header`) o esta misma prueba manual con `curl`.
+OIDC/OAuth queda como trabajo futuro (ver "Barandillas de seguridad" arriba).
+
+### Prueba manual con `curl`
+
+Con `pnpm dev` levantado y un token creado, `tools/list` confirma qué puede
+ver ese token:
+
+```bash
+curl -s -X POST localhost:3000/mcp \
+  -H 'authorization: Bearer rz_…' \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+Las tres herramientas de esta oleada se llaman con `tools/call`, pasando el
+nombre y sus argumentos en `params`:
+
+```bash
+curl -s -X POST localhost:3000/mcp \
+  -H 'authorization: Bearer rz_…' \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_household_context","arguments":{}}}'
+
+curl -s -X POST localhost:3000/mcp \
+  -H 'authorization: Bearer rz_…' \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search_recipes","arguments":{"q":"cebolla"}}}'
+
+curl -s -X POST localhost:3000/mcp \
+  -H 'authorization: Bearer rz_…' \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_recipe","arguments":{"id":"<id de una receta del hogar>"}}}'
+```
+
+La cabecera `accept: application/json, text/event-stream` es obligatoria: el
+transporte estándar de MCP exige que el cliente acepte ambos formatos aunque
+el servidor (stateless en RezetApp: un `McpServer` por petición) siempre
+responda en JSON puro.
+
 ## Modelos locales
 
 El MCP se diseña pensando también en modelos locales pequeños (4B–8B
