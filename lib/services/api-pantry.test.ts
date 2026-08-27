@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as schema from '@/db/schema'
+import type { ApiScope } from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import { GET as getFoods } from '@/app/api/v1/foods/search/route'
 import { GET as getBarcode } from '@/app/api/v1/pantry/barcode/[code]/route'
@@ -133,7 +134,8 @@ describe('/api/v1/pantry', () => {
 
 describe('/api/v1/foods/search', () => {
   it('acepta cualquiera de los dos scopes y rechaza el resto', async () => {
-    for (const scopes of [['pantry:read'], ['recipes:read']]) {
+    const scopeSets: ApiScope[][] = [['pantry:read'], ['recipes:read']]
+    for (const scopes of scopeSets) {
       const t = await makeToken(scopes)
       expect((await getFoods(req('/api/v1/foods/search?q=cebolla', t))).status).toBe(200)
     }

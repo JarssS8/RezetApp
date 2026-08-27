@@ -6,7 +6,7 @@ import * as schema from '@/db/schema'
 import { aggregateNeeds, allocateDeductions, convertBase, scaleRecipe, slotForHour } from '@/lib/domain'
 import type { Allocation, BaseUnit, FoodConversion, MealSlot, Need, NeedInput, PantryItem as DomainPantryItem } from '@/lib/domain'
 import { emitHouseholdEvent } from '@/lib/events/bus'
-import { todayIso } from '@/lib/plan-dates'
+import { DEFAULT_TZ, todayIso } from '@/lib/plan-dates'
 import type { LogCookedInput } from '@/lib/validation/cooking'
 import { type Ctx, type Db, ServiceError } from './ctx'
 import { toIngredient } from './recipe-mapper'
@@ -75,12 +75,10 @@ async function lockEntry(tx: Db, householdId: string, entryId: string): Promise<
   return { id: row.id, date: row.date, slot: row.slot, recipeId: row.recipeId }
 }
 
-// Hora local del hogar para deducir el hueco (§9.5 paso 1). Los hogares aún no
-// tienen zona horaria propia (ver comentario en lib/plan-dates.ts::todayIso):
-// se usa la misma Europe/Madrid por defecto que ya usa todayIso(), para que
-// "hoy" y "el hueco de ahora" caigan en el mismo día pase lo que pase con el
-// huso horario del proceso del servidor (Date#getHours no es determinista).
-export function hourInHouseholdTz(now: Date, tz = 'Europe/Madrid'): number {
+// Hora local del hogar para deducir el hueco (§9.5 paso 1). DEFAULT_TZ es la
+// misma constante que usa todayIso(): Date#getHours no es determinista con el
+// huso horario del proceso del servidor.
+export function hourInHouseholdTz(now: Date, tz = DEFAULT_TZ): number {
   return Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(now))
 }
 
@@ -279,7 +277,13 @@ const STORAGE_EPSILON = 1e-3
 // varios artículos salga como un único aviso, y se convierten siempre a la
 // unidad de la NECESIDAD (la que el usuario reconoce, "faltaron 200 g de cebolla"),
 // nunca a la del artículo de despensa que causó el recorte.
-function buildWarnings(needs: Need[], unmatched: Need[], outcomes: DeductionOutcome[], conversionByFoodId: Map<string, FoodConversion>, nameByFoodId: Map<string, string>): CookingWarning[] {
+// Exportada solo para test: un `exhausted` con hueco real entre `requested` y
+// `deducted` exige antes una operación imposible en columnas numeric(12,3) (el
+// margen de coma flotante que deja una conversión de unidad ronda 1e-7, muy
+// por debajo de STORAGE_EPSILON) o una carrera real entre dos logCooked, así
+// que probar la atribución correcta con dos needs incompatibles pasa por
+// llamar a esta función pura directamente en vez de reproducirla con Postgres.
+export function buildWarnings(needs: Need[], unmatched: Need[], outcomes: DeductionOutcome[], conversionByFoodId: Map<string, FoodConversion>, nameByFoodId: Map<string, string>): CookingWarning[] {
   const deficitByKey = new Map<string, number>()
   for (const u of unmatched) {
     const key = `${u.foodId}|${u.unit}`
@@ -289,9 +293,16 @@ function buildWarnings(needs: Need[], unmatched: Need[], outcomes: DeductionOutc
     if (!exhausted) continue
     const shortfall = d.requested - d.deducted
     if (shortfall <= STORAGE_EPSILON) continue
-    const need = needs.find((n) => n.foodId === d.foodId)
+    const conversion = conversionByFoodId.get(d.foodId) ?? null
+    // Del alimento puede haber varios needs en unidades distintas (p. ej. uno
+    // en gramos y otro en unidades, sin gramsPerUnit que los relacione): solo
+    // vale el que convertBase pueda alcanzar de verdad desde la unidad del
+    // artículo de despensa. Sin fallback: mezclar unidades a ciegas es lo que
+    // producía un `deducted` negativo.
+    const need = needs.find((n) => n.foodId === d.foodId && convertBase(shortfall, d.unit, n.unit, conversion) !== null)
     if (!need) continue
-    const shortfallInNeedUnit = convertBase(shortfall, d.unit, need.unit, conversionByFoodId.get(d.foodId) ?? null) ?? shortfall
+    const shortfallInNeedUnit = convertBase(shortfall, d.unit, need.unit, conversion)
+    if (shortfallInNeedUnit === null) continue
     const key = `${need.foodId}|${need.unit}`
     deficitByKey.set(key, (deficitByKey.get(key) ?? 0) + shortfallInNeedUnit)
   }

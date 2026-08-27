@@ -5,6 +5,7 @@
 import { createDocument } from 'zod-openapi'
 import { z } from 'zod'
 import { APP_VERSION } from '@/lib/app-version'
+import { BASE_UNITS } from '@/lib/domain'
 import { LogCookedSchema } from '@/lib/validation/cooking'
 import { DateRangeSchema, ErrorBodySchema, IdSchema } from '@/lib/validation/common'
 import { FoodSearchSchema } from '@/lib/validation/foods'
@@ -33,7 +34,10 @@ const secAny = (...scopes: string[]) => scopes.map((scope) => ({ bearerAuth: [sc
 // la misma forma, documentarlos dos veces solo invitaba a que divergieran.
 const IdObjectSchema = z.object({ id: IdSchema })
 const BarcodePathSchema = z.object({ code: z.string() })
-const ProposalsQuerySchema = z.object({ status: z.literal('pending').optional() })
+// Exportado para que app/api/v1/plan/proposals/route.ts valide ?status= con
+// el mismo esquema que se documenta aquí: una sola fuente de verdad, en vez de
+// que la ruta acepte cualquier valor no reconocido como "sin filtro".
+export const ProposalsQuerySchema = z.object({ status: z.literal('pending').optional() })
 // Alta si el cuerpo no trae id, reemplazo completo si lo trae (mismo contrato
 // que app/api/v1/pantry/route.ts::PantryUpsertSchema): documentado aquí en vez
 // de en lib/validation/pantry.ts porque ese fichero está congelado.
@@ -44,6 +48,22 @@ const PlanEntryPatchOrMoveSchema = z.union([PlanEntryPatchSchema, PlanEntryMoveS
 // multipart/form-data no tiene esquema zod propio (no es JSON): se documenta
 // con un objeto mínimo, marcando el campo como binario para Swagger UI.
 const UploadBodySchema = z.object({ file: z.string().meta({ description: 'Imagen de la receta (máx. 8 MB)', override: { type: 'string', format: 'binary' } }) })
+// Forma de CookedResult (lib/services/cooking.ts), documentada aquí por la
+// misma razón que IdObjectSchema: la fija un servicio, no un esquema de
+// validación de entrada.
+const BaseUnitSchema = z.enum(BASE_UNITS)
+const PantryDeductionSchema = z.object({ pantryItemId: IdSchema, foodId: IdSchema, requested: z.number(), deducted: z.number(), unit: BaseUnitSchema })
+const CookingWarningSchema = z.object({ foodId: IdSchema, name: z.string(), requested: z.number(), deducted: z.number(), unit: BaseUnitSchema })
+const CookedResultSchema = z.object({
+  logId: IdSchema,
+  entryId: IdSchema,
+  recipeId: IdSchema,
+  servingsCooked: z.number(),
+  kcalPerServing: z.number().nullable(),
+  deductions: z.array(PantryDeductionSchema),
+  warnings: z.array(CookingWarningSchema),
+  leftoverEntryId: IdSchema.nullable(),
+})
 
 export const API_PATHS = [
   '/api/v1/recipes',
@@ -265,17 +285,16 @@ export function buildOpenApiDocument() {
           },
         },
       },
-      // Documentada por adelantado (ruling W3-R9): la ruta llega con la pista de
-      // cocina (Tarea 17b). El contrato es el mismo LogCookedSchema congelado en
-      // W1, así que el documento no cambiará cuando el fichero exista.
+      // El contrato es el mismo LogCookedSchema congelado en W1 (ruling W3-R9).
       '/api/v1/cooking/log': {
         post: {
           summary: 'Registrar una comida cocinada',
-          description: 'Descuenta la despensa, registra la nutrición y marca la entrada del plan, todo en una transacción. Idempotente por entrada: repetirlo devuelve 409.',
+          description:
+            'Descuenta la despensa, registra la nutrición y marca la entrada del plan, todo en una transacción. Idempotente por entrada: repetirlo devuelve 409. Cocinar sin entrada (solo recipeId) con las mismas raciones antes de 5 minutos es una repetición (W3-R7): responde 201 con el mismo logId de la primera vez, sin volver a descontar despensa.',
           security: sec('cooking:write'),
           requestBody: json(LogCookedSchema),
           responses: {
-            '201': { description: 'Cocinado registrado', ...json(z.object({ logId: IdSchema, entryId: IdSchema })) },
+            '201': { description: 'Cocinado registrado (o repetido dentro de la ventana W3-R7)', ...json(CookedResultSchema) },
             '409': { description: 'Esa comida ya estaba cocinada', ...json(ErrorBodySchema) },
             ...errors,
           },

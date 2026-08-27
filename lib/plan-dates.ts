@@ -2,6 +2,13 @@
 // cadenas ISO 'YYYY-MM-DD' y aritmética en UTC (evita el salto de día que
 // daría un cálculo en huso horario local cerca de medianoche).
 
+// Los hogares aún no tienen zona horaria propia (fase futura): todo lo que
+// necesita "la hora del hogar" (todayIso() aquí, hourInHouseholdTz() en
+// lib/services/cooking.ts) usa esta misma constante, para que "hoy" y "el
+// hueco de ahora" caigan siempre en el mismo día pase lo que pase con el huso
+// horario del proceso del servidor.
+export const DEFAULT_TZ = 'Europe/Madrid'
+
 function parseIso(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number)
   return new Date(Date.UTC(y as number, (m as number) - 1, d as number))
@@ -47,6 +54,6 @@ export function monthRange(iso: string): { from: string; to: string } {
 // reciben los servicios (p. ej. logCooked) sea el mismo que decide "hoy": sin
 // esto, un test o un cliente con reloj propio vería una fecha calculada con
 // la hora real del proceso en vez de con la hora que de verdad importa.
-export function todayIso(tz = 'Europe/Madrid', now = new Date()): string {
+export function todayIso(tz = DEFAULT_TZ, now = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
 }

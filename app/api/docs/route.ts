@@ -15,7 +15,7 @@ const HTML = `<!doctype html>
     <script src="/api/docs/assets/swagger-ui-bundle.js"></script>
     <script src="/api/docs/assets/swagger-ui-standalone-preset.js"></script>
     <script>
-      window.ui = SwaggerUIBundle({ url: '/api/openapi.json', dom_id: '#swagger', presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset], layout: 'BaseLayout' })
+      window.ui = SwaggerUIBundle({ url: '/api/openapi.json', dom_id: '#swagger', presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset], layout: 'BaseLayout', validatorUrl: null })
     </script>
   </body>
 </html>`

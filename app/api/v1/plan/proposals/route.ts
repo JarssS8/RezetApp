@@ -1,13 +1,15 @@
 import { requireApiToken } from '@/lib/auth/guards'
+import { ProposalsQuerySchema } from '@/lib/openapi/document'
 import { createProposal, listProposals } from '@/lib/services/plan'
 import { ProposalPayloadSchema } from '@/lib/validation/plan'
-import { apiFailure, parseBody } from '../../_lib/respond'
+import { apiError, apiFailure, parseBody } from '../../_lib/respond'
 
 export async function GET(request: Request): Promise<Response> {
   try {
     const ctx = await requireApiToken(request, ['plan:read'])
-    const status = new URL(request.url).searchParams.get('status')
-    return Response.json(await listProposals(ctx, status === 'pending' ? 'pending' : undefined))
+    const parsed = ProposalsQuerySchema.safeParse({ status: new URL(request.url).searchParams.get('status') ?? undefined })
+    if (!parsed.success) return apiError('validation', parsed.error.issues[0]?.message ?? 'Consulta inválida', 400)
+    return Response.json(await listProposals(ctx, parsed.data.status))
   } catch (e) {
     return apiFailure(e)
   }

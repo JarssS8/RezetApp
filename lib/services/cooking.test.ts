@@ -5,7 +5,7 @@ import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setu
 import type { Ctx } from '@/lib/services/ctx'
 import { createRecipe } from '@/lib/services/recipes'
 import { upsertPantryItem } from '@/lib/services/pantry'
-import { listCookingLog, logCooked } from './cooking'
+import { buildWarnings, listCookingLog, logCooked } from './cooking'
 
 let db: TestDb, ctxA: Ctx, ctxB: Ctx, onionId: string, recipeId: string
 
@@ -193,6 +193,27 @@ describe('logCooked', () => {
 
     expect(result.deductions).toHaveLength(2) // se vacían los dos artículos
     expect(result.warnings).toEqual([{ foodId: onionId, name: 'cebolla', requested: 300, deducted: 80, unit: 'g' }])
+  })
+
+  it('buildWarnings atribuye el hueco de un artículo agotado al need convertible, nunca al incompatible (sin deducted negativo)', () => {
+    // Ajo sin gramsPerUnit: un need en 'ud' y otro en 'g' del mismo alimento no
+    // son convertibles entre sí. El need en 'ud' va primero a propósito: es el
+    // orden que hacía que `needs.find(n => n.foodId === ...)` (sin filtrar por
+    // unidad) picara el need equivocado.
+    const garlicId = 'garlic-1'
+    const needUd = { foodId: garlicId, quantity: 2, unit: 'ud' as const }
+    const needG = { foodId: garlicId, quantity: 100, unit: 'g' as const }
+    const conversionByFoodId = new Map([[garlicId, { defaultUnit: null, gramsPerCup: null, gramsPerTbsp: null, gramsPerUnit: null, densityGPerMl: null }]])
+    const nameByFoodId = new Map([[garlicId, 'ajo']])
+    // Agotado con un hueco real (60.5) entre lo pedido y lo descontado: en la
+    // práctica solo lo produce una carrera entre dos logCooked (comentario de
+    // buildWarnings), así que aquí se construye el outcome a mano.
+    const outcomes = [{ deduction: { pantryItemId: 'p1', foodId: garlicId, requested: 100.5, deducted: 40, unit: 'g' as const }, exhausted: true }]
+
+    const warnings = buildWarnings([needUd, needG], [], outcomes, conversionByFoodId, nameByFoodId)
+
+    expect(warnings).toEqual([{ foodId: garlicId, name: 'ajo', requested: 100, deducted: 39.5, unit: 'g' }])
+    for (const w of warnings) expect(w.deducted).toBeGreaterThanOrEqual(0)
   })
 
   it('dos líneas del mismo alimento en unidades distintas se funden en una sola necesidad', async () => {
