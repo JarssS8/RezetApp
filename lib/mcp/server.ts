@@ -4,6 +4,8 @@ import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { APP_NAME, APP_VERSION } from '@/lib/app-version'
 import { ApiAuthError } from '@/lib/auth/api-tokens'
 import { authenticateMcp, type McpCtx } from './auth'
+import { registerHouseholdTools } from './tools/household'
+import { registerRecipeTools } from './tools/recipes'
 
 // Instrucciones del sistema del servidor MCP (docs/05-MCP.md, "La regla de
 // oro"): el modelo decide qué hacer, el servidor decide cuánto. Neutrales,
@@ -15,20 +17,23 @@ const INSTRUCTIONS =
 // no hay estado que compartir entre llamadas, así que registrar las
 // herramientas aquí es barato.
 //
-// Task 39 añade el registro real de herramientas según ctx.scopes/ctx.mcpProfile
-// (perfiles "basic"/"full" de docs/05-MCP.md); de momento el servidor no expone
-// ninguna.
+// Cada registerXTools comprueba sus propios scopes y decide si registra
+// alguna herramienta (devuelve si lo hizo); con un token sin scopes (o sin
+// ninguno relevante) no se registra ninguna. ctx.mcpProfile ("basic"/"full")
+// no distingue nada todavía en W2: las 12 herramientas de docs/05-MCP.md
+// llegarán en oleadas futuras.
 export function buildMcpServer(ctx: McpCtx): McpServer {
   const server = new McpServer({ name: APP_NAME, version: APP_VERSION }, { instructions: INSTRUCTIONS })
-  void ctx
-  // McpServer solo declara la capacidad "tools" (y por tanto responde a
-  // tools/list) en cuanto se registra alguna herramienta con .tool()/
-  // .registerTool(); sin ninguna, un cliente que llame a tools/list recibe
-  // "Method not found". Se declara aquí explícitamente, vacía, para que el
-  // contrato del endpoint sea estable desde ya: Task 39 sustituye este
-  // handler por el registro real de herramientas según ctx.scopes/mcpProfile.
-  server.server.registerCapabilities({ tools: {} })
-  server.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [] }))
+  const registered = [registerHouseholdTools(server, ctx), registerRecipeTools(server, ctx)]
+  // McpServer solo instala su propio handler de tools/list (y declara la
+  // capacidad) al registrar la primera herramienta con .registerTool(): si
+  // ningún registerXTools llegó a registrar nada (token sin scopes
+  // relevantes), un cliente que llame a tools/list recibiría "Method not
+  // found" en vez de una lista vacía. Se declara aquí, a mano, solo en ese caso.
+  if (!registered.some(Boolean)) {
+    server.server.registerCapabilities({ tools: {} })
+    server.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [] }))
+  }
   return server
 }
 
