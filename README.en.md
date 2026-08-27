@@ -74,7 +74,7 @@ app (the app deliberately doesn't ship one): `pnpm notify:expiring` in
 development, or in production
 
 ```
-0 9 * * *  docker compose exec -T app node dist/scripts/notify-expiring.mjs
+0 9 * * *  docker compose exec -T app node scripts/notify-expiring.mjs
 ```
 
 VAPID keys are generated once, on first use, and stored encrypted in

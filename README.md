@@ -75,7 +75,7 @@ app no trae uno a propósito): `pnpm notify:expiring` en desarrollo, o en
 producción
 
 ```
-0 9 * * *  docker compose exec -T app node dist/scripts/notify-expiring.mjs
+0 9 * * *  docker compose exec -T app node scripts/notify-expiring.mjs
 ```
 
 Las claves VAPID se generan solas la primera vez y se guardan cifradas en

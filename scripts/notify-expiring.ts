@@ -1,5 +1,5 @@
 // Avisa por notificación push de lo que caduca. Pensado para un cron diario:
-//   0 9 * * *  docker compose exec -T app node dist/scripts/notify-expiring.mjs
+//   0 9 * * *  docker compose exec -T app node scripts/notify-expiring.mjs
 // La app no trae planificador propio a propósito (spec §15: una imagen y
 // Postgres, nada más).
 import { db } from '@/db'
