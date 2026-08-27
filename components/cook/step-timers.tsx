@@ -41,8 +41,8 @@ export function StepTimers({ text, locale, stepIndex, timerSeconds }: StepTimers
   // primero, ambiguo para el lector de pantalla y para quien pulsa. Arrancar
   // de nuevo pasa por quitar el temporizador primero (dismiss).
   const offers = [
-    ...(timerSeconds !== null ? [{ id: `s${stepIndex}-explicit`, seconds: timerSeconds }] : []),
-    ...spans.map((span) => ({ id: `s${stepIndex}-${span.start}-${span.end}`, seconds: span.seconds })),
+    ...(timerSeconds !== null ? [{ id: `s${stepIndex}-explicit`, seconds: timerSeconds, explicit: true }] : []),
+    ...spans.map((span) => ({ id: `s${stepIndex}-${span.start}-${span.end}`, seconds: span.seconds, explicit: false })),
   ].filter((offer) => !runningIds.has(offer.id))
 
   if (offers.length === 0 && timers.length === 0) return null
@@ -58,6 +58,11 @@ export function StepTimers({ text, locale, stepIndex, timerSeconds }: StepTimers
               variant="outline"
               size="lg"
               className="gap-1.5"
+              // El temporizador explícito (recipe_steps.timer_seconds, puesto a
+              // mano por el autor) es visualmente idéntico a uno detectado en el
+              // texto; timerExplicit lo distingue solo para quien usa lector de
+              // pantalla, sin añadir nada a la vista.
+              aria-label={offer.explicit ? `${t('timerExplicit')} ${t('timerMinutes', { minutes: timerMinutes(offer.seconds) })}` : undefined}
               onClick={() => start(offer.id, offer.seconds, t('timerMinutes', { minutes: timerMinutes(offer.seconds) }))}
             >
               <TimerIcon size={18} />

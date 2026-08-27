@@ -27,6 +27,12 @@ describe('StepTimers', () => {
     expect(screen.getByRole('button', { name: /10 min/ })).toBeVisible()
   })
 
+  it('distingue el temporizador explícito del detectado en el texto para lectores de pantalla', () => {
+    renderTimers({ text: 'Hornea 25 minutos', timerSeconds: 600 })
+    expect(screen.getByRole('button', { name: new RegExp(`${cook.timerExplicit}.*10 min`) })).toBeVisible()
+    expect(screen.getByRole('button', { name: '25 min' })).toBeVisible()
+  })
+
   it('arranca dos a la vez y los pinta con su cuenta atrás', async () => {
     const user = userEvent.setup()
     renderTimers()

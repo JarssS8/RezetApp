@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons'
+import { ChevronLeftIcon, ChevronRightIcon, VolumeIcon, VolumeOffIcon } from '@/components/icons'
 import { buildIngredientRows, type DetailIngredient } from '@/components/recipes/ingredient-list'
 import { ServingsStepper } from '@/components/recipes/servings-stepper'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import type { MealSlot } from '@/lib/validation/plan'
 import { FinishCookingDialog } from './finish-dialog'
 import { IngredientChecklist } from './ingredient-checklist'
 import { StepTimers } from './step-timers'
+import { useSpeech } from './use-speech'
 import { useWakeLock } from './use-wake-lock'
 
 export interface CookStep {
@@ -53,6 +54,18 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
 
   // Mantiene la pantalla encendida mientras dura la sesión de cocina (spec §8).
   useWakeLock(true)
+
+  const speech = useSpeech(locale)
+
+  // Cambiar de paso mientras habla debe callar la voz: si no, se solapan el
+  // audio del paso anterior y el texto del siguiente en pantalla.
+  const goTo = useCallback(
+    (next: (i: number) => number) => {
+      speech.stop()
+      setIndex((i) => Math.min(steps.length - 1, Math.max(0, next(i))))
+    },
+    [speech, steps.length],
+  )
 
   const scaled = useMemo(() => scaleRecipe({ servingsBase, ingredients }, servings), [servingsBase, ingredients, servings])
   const rows = useMemo(() => buildIngredientRows(scaled, ingredients, locale, units), [scaled, ingredients, locale, units])
@@ -103,8 +116,8 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
       // manos pringadas (spec §8, "swipe/teclas").
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === 'ArrowRight') setIndex((i) => Math.min(steps.length - 1, i + 1))
-        if (e.key === 'ArrowLeft') setIndex((i) => Math.max(0, i - 1))
+        if (e.key === 'ArrowRight') goTo((i) => i + 1)
+        if (e.key === 'ArrowLeft') goTo((i) => i - 1)
       }}
       onTouchStart={(e) => setTouchStartX(e.touches[0]?.clientX ?? null)}
       onTouchEnd={(e) => {
@@ -114,13 +127,27 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
         if (start === null || end === undefined) return
         const dx = end - start
         // 60 px de umbral: por debajo es un toque o un desplazamiento vertical.
-        if (dx < -60) setIndex((i) => Math.min(steps.length - 1, i + 1))
-        if (dx > 60) setIndex((i) => Math.max(0, i - 1))
+        if (dx < -60) goTo((i) => i + 1)
+        if (dx > 60) goTo((i) => i - 1)
       }}
     >
       <header className="flex items-center justify-between gap-2">
         <h1 className="truncate font-display text-xl">{title}</h1>
-        <ServingsStepper value={servings} onChange={setServings} />
+        <div className="flex items-center gap-2">
+          {speech.supported ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              aria-label={speech.speaking ? t('speakStop') : t('speak')}
+              aria-pressed={speech.speaking}
+              onClick={() => (speech.speaking ? speech.stop() : speech.speak(step?.text ?? ''))}
+            >
+              {speech.speaking ? <VolumeOffIcon size={20} /> : <VolumeIcon size={20} />}
+            </Button>
+          ) : null}
+          <ServingsStepper value={servings} onChange={setServings} />
+        </div>
       </header>
 
       <p className="tabular text-sm text-text-2">{t('stepOf', { current: index + 1, total: steps.length })}</p>
@@ -140,10 +167,10 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
 
       <div className="mt-auto flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <Button type="button" variant="outline" size="lg" disabled={index === 0} aria-label={t('previous')} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
+          <Button type="button" variant="outline" size="lg" disabled={index === 0} aria-label={t('previous')} onClick={() => goTo((i) => i - 1)}>
             <ChevronLeftIcon size={22} />
           </Button>
-          <Button type="button" size="lg" disabled={index >= steps.length - 1} aria-label={t('next')} onClick={() => setIndex((i) => Math.min(steps.length - 1, i + 1))}>
+          <Button type="button" size="lg" disabled={index >= steps.length - 1} aria-label={t('next')} onClick={() => goTo((i) => i + 1)}>
             <ChevronRightIcon size={22} />
           </Button>
         </div>

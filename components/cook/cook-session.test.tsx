@@ -77,6 +77,11 @@ describe('CookSession', () => {
     expect(screen.getByText(/pizca de sal/i)).toBeInTheDocument()
   })
 
+  it('sin SpeechSynthesis no pinta el botón de voz', () => {
+    renderSession() // el ayudante que ya tiene el fichero
+    expect(screen.queryByRole('button', { name: /leer el paso/i })).toBeNull()
+  })
+
   it('muestra el estado vacío cuando la receta no tiene pasos', () => {
     render(
       <NextIntlClientProvider locale="es" messages={{ cook: messages, common, recipes }}>
