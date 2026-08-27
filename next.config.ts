@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   // Sin telemetría de Next en la imagen: se fija también NEXT_TELEMETRY_DISABLED=1 en el Dockerfile.
+  // Evita que Turbopack empaquete el binario nativo de sharp.
+  serverExternalPackages: ['sharp'],
 }
 
 export default withNextIntl(nextConfig)

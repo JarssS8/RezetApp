@@ -27,6 +27,11 @@ describe('eslint.config.mjs: boundaries', () => {
     expect(result.messages.some((m) => m.ruleId?.startsWith('boundaries/'))).toBe(true)
   })
 
+  it('lib/uploads no puede importar @/db', async () => {
+    const result = await lint('lib/uploads/probe.ts', "import { db } from '@/db'\nexport const y = db\n")
+    expect(result.messages.some((m) => m.ruleId?.startsWith('boundaries/'))).toBe(true)
+  })
+
   it('un fichero suelto en lib/ no puede importar @/db', async () => {
     const result = await lint('lib/probe.ts', "import { db } from '@/db'\nexport const y = db\n")
     expect(result.messages.some((m) => m.ruleId?.startsWith('boundaries/'))).toBe(true)
