@@ -27,6 +27,8 @@ export default async function Page() {
           structuredOutput={settings.structuredOutput}
           spentThisMonthCents={settings.spentThisMonthCents}
           knownModels={KNOWN_MODELS}
+          priceInCentsPerMtok={settings.priceInCentsPerMtok}
+          priceOutCentsPerMtok={settings.priceOutCentsPerMtok}
           readOnly={ctx.role !== 'owner'}
         />
       </div>
