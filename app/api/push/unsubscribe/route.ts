@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { getCurrentSession } from '@/lib/auth/guards'
 import { readJson } from '@/lib/auth/http'
-import { db, unsubscribePush } from '@/lib/services/push'
+import { unsubscribePush } from '@/lib/services/push'
 
 const UnsubscribeSchema = z.strictObject({ endpoint: z.url().max(1024) })
 
@@ -13,6 +13,6 @@ export async function POST(request: Request): Promise<Response> {
   if (!session) return Response.json({ error: { code: 'unauthorized', message: 'No autenticado' } }, { status: 401 })
   const parsed = UnsubscribeSchema.safeParse(await readJson(request))
   if (!parsed.success) return Response.json({ error: { code: 'validation', message: 'Endpoint inválido' } }, { status: 400 })
-  await unsubscribePush(db, session.user.id, parsed.data.endpoint)
+  await unsubscribePush(session.user.id, parsed.data.endpoint)
   return new Response(null, { status: 204 })
 }
