@@ -144,6 +144,7 @@ describe('herramientas MCP', () => {
     expect(body.items).toHaveLength(1)
     expect(body.items[0]).toMatchObject({ id: recipeCebollaId, title: 'Sopa de cebolla', totalMinutes: 25 })
     expect(body.items[0]?.tags).toEqual(['sopa'])
+    expect(typeof body.items[0]?.kcalPerServing).toBe('number')
     await client.close()
   })
 

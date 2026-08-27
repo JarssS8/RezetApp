@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { detectTimers, isNonLinearByDefault, normalizeSearchName, parseIngredientLine, recipeNutrition, scaleRecipe, toBaseUnit } from '@/lib/domain'
 import type { BaseUnit, IngredientWithFood, Locale, Nutrition, ScaledRecipe } from '@/lib/domain/types'
@@ -496,6 +496,25 @@ export async function exportAll(ctx: Ctx): Promise<RecipeExport> {
     })
   }
   return { version: 1, exportedAt: new Date().toISOString(), recipes: out }
+}
+
+export interface RecentlyCookedRecipe {
+  id: string
+  title: string
+  lastCookedAt: string
+}
+
+// Recetas con al menos un cocinado (recipes.last_cooked_at), más recientes
+// primero: usada por la herramienta MCP get_household_context. Sin servicio
+// de cocina todavía en W2 (docs/07-ROADMAP.md), así que solo lee la columna.
+export async function recentlyCooked(ctx: Ctx, limit: number): Promise<RecentlyCookedRecipe[]> {
+  const rows = await ctx.db
+    .select({ id: schema.recipes.id, title: schema.recipes.title, lastCookedAt: schema.recipes.lastCookedAt })
+    .from(schema.recipes)
+    .where(and(eq(schema.recipes.householdId, ctx.householdId), isNull(schema.recipes.deletedAt), isNotNull(schema.recipes.lastCookedAt)))
+    .orderBy(desc(schema.recipes.lastCookedAt))
+    .limit(limit)
+  return rows.map((r) => ({ id: r.id, title: r.title, lastCookedAt: (r.lastCookedAt as Date).toISOString() }))
 }
 
 export type { FoodWithNutrition }
