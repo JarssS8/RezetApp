@@ -13,6 +13,7 @@ import {
   type RecipeExport,
   type RecipeSummary,
 } from '@/lib/services/recipes'
+import { MAX_UPLOAD_BYTES, saveImage } from '@/lib/uploads/store'
 import { IdSchema } from '@/lib/validation/common'
 import { RecipeImportSchema, RecipeInputSchema, RecipeIngredientInputSchema } from '@/lib/validation/recipes'
 import { z } from 'zod'
@@ -81,6 +82,28 @@ export async function prepareIngredientsAction(inputs: unknown): Promise<ActionR
     const parsed = z.array(RecipeIngredientInputSchema).max(100).safeParse(inputs)
     if (!parsed.success) return fail('validation', 'Ingredientes inválidos')
     return ok(await prepareIngredients(ctx, parsed.data, ctx.locale))
+  } catch (e) {
+    return fromError(e)
+  }
+}
+
+// El editor sube imágenes con fetch + FormData desde el navegador (una
+// sesión de cookie, no un token de API): POST /api/v1/uploads exige
+// requireApiToken y no lo acepta, así que aquí hay una acción propia sobre
+// las mismas piezas (saveImage) para el mismo flujo con requireHousehold.
+export async function uploadImageAction(formData: FormData): Promise<ActionResult<{ url: string }>> {
+  try {
+    const ctx = await requireHousehold()
+    const file = formData.get('file')
+    if (!(file instanceof File)) return fail('validation', 'Falta el fichero')
+    if (file.size > MAX_UPLOAD_BYTES) return fail('too_large', 'Máximo 8 MB')
+    if (!file.type.startsWith('image/')) return fail('validation', 'No es una imagen válida')
+    try {
+      const saved = await saveImage(ctx.householdId, new Uint8Array(await file.arrayBuffer()))
+      return ok({ url: saved.url })
+    } catch {
+      return fail('validation', 'No es una imagen válida')
+    }
   } catch (e) {
     return fromError(e)
   }
