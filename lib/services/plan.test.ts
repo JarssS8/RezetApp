@@ -3,6 +3,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
+import { createFood } from '@/lib/services/foods'
+import { createRecipe } from '@/lib/services/recipes'
+import type { FoodInput } from '@/lib/validation/foods'
 import { ServiceError, type Ctx } from './ctx'
 import {
   applyBatch,
@@ -78,6 +81,10 @@ async function makeRecipe(householdId: string, title: string, overrides: Partial
     .returning()
   if (!r) throw new Error('seed')
   return r.id
+}
+
+function foodInput(overrides: Partial<FoodInput> & Pick<FoodInput, 'nameEs' | 'nameEn'>): FoodInput {
+  return { aliases: [], defaultUnit: 'g', allergens: [], seasonalMonths: [], ...overrides }
 }
 
 async function makeFood(nameEs: string, nameEn: string, overrides: Partial<typeof schema.foods.$inferInsert> = {}): Promise<string> {
@@ -361,6 +368,40 @@ describe('createProposal', () => {
       .where(eq(schema.planProposals.id, proposal.id))
     const [reloaded] = await listProposals(ctxOf(a, { userId: ownerA }))
     expect(reloaded?.diff.add[0]?.title).toBe('')
+  })
+
+  // W4(e) tarea 28: el MCP puede colar un recipeId sin pasar por el filtro de
+  // proposeWeekFromRules/aiProposeWeek, así que el diff avisa en el propio servidor.
+  it('el diff de la propuesta señala qué entradas chocan con un alérgeno', async () => {
+    const a = await makeHousehold('Casa A')
+    const ownerA = await makeUser('Ana')
+    await db.insert(schema.householdMembers).values({ householdId: a, userId: ownerA, role: 'owner', allergens: ['gluten'] })
+    const harina = await createFood(ctxOf(a, { userId: ownerA }), foodInput({ nameEs: 'harina', nameEn: 'flour', allergens: ['gluten'] }))
+    const bizcocho = await createRecipe(ctxOf(a, { userId: ownerA }), {
+      title: 'Bizcocho',
+      servingsBase: 8,
+      tags: [],
+      imageUrls: [],
+      ingredients: [{ rawText: '200 g de harina', foodId: harina.id, quantity: 200, unit: 'g' }],
+      steps: [{ text: 'Hornea' }],
+    })
+
+    const view = await createProposal(ctxOf(a, { userId: ownerA }), {
+      source: 'mcp',
+      payload: { add: [{ date: '2026-08-31', slot: 'lunch', recipeId: bizcocho.recipe.id, servings: 2 }], remove: [] },
+    })
+    expect(view.diff.add[0]?.allergenConflicts).toEqual(['gluten'])
+  })
+
+  it('sin alérgenos en el hogar, el campo va vacío y no cuesta una consulta de más', async () => {
+    const a = await makeHousehold('Casa A')
+    const ownerA = await makeUser('Ana')
+
+    const view = await createProposal(ctxOf(a, { userId: ownerA }), {
+      source: 'rules',
+      payload: { add: [{ date: '2026-08-31', slot: 'lunch', customTitle: 'Libre', servings: 2 }], remove: [] },
+    })
+    expect(view.diff.add[0]?.allergenConflicts).toEqual([])
   })
 })
 

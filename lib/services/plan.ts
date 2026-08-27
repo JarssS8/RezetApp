@@ -5,6 +5,7 @@ import { aggregateNutrition, EMPTY_MACROS, entryStatus, planAdherence } from '@/
 import type { FoodConversion, Nutrition, PlanAdherence, PlannedEntry, ShoppingIngredient } from '@/lib/domain'
 import { ProposalPayloadSchema } from '@/lib/validation/plan'
 import type { MealSlot, PlanBatch, PlanEntryInput, PlanEntryMove, PlanEntryPatch, ProposalPayload } from '@/lib/validation/plan'
+import { conflictingRecipeIds } from './allergens'
 import { type Ctx, type Db, ServiceError } from './ctx'
 
 export interface PlanEntryView {
@@ -174,7 +175,7 @@ export interface ProposalView {
   status: 'pending' | 'approved' | 'rejected'
   createdAt: string
   payload: ProposalPayload
-  diff: { add: (PlanEntryInput & { title: string })[]; remove: PlanEntryView[] }
+  diff: { add: (PlanEntryInput & { title: string; allergenConflicts: string[] })[]; remove: PlanEntryView[] }
 }
 
 type ProposalRow = typeof schema.planProposals.$inferSelect
@@ -196,9 +197,15 @@ async function lookupRecipeTitles(ctx: Ctx, recipeIds: string[]): Promise<Map<st
 async function buildProposalDiff(ctx: Ctx, payload: ProposalPayload): Promise<ProposalView['diff']> {
   const recipeIds = Array.from(new Set(payload.add.map((item) => item.recipeId).filter((id): id is string => id !== null && id !== undefined)))
   const titleById = recipeIds.length > 0 ? await lookupRecipeTitles(ctx, recipeIds) : new Map<string, string>()
-  const add = payload.add.map(
-    (item): PlanEntryInput & { title: string } => ({ ...item, title: (item.recipeId ? titleById.get(item.recipeId) : undefined) ?? item.customTitle ?? '' }),
-  )
+  // Aviso de alérgenos (W4(e)): una propuesta del MCP no pasa por el filtro de
+  // proposeWeekFromRules/aiProposeWeek, así que el usuario tiene que ver por
+  // qué algo es problemático ANTES de aprobarlo.
+  const conflicts = recipeIds.length > 0 ? await conflictingRecipeIds(ctx, recipeIds) : new Map<string, string[]>()
+  const add = payload.add.map((item): PlanEntryInput & { title: string; allergenConflicts: string[] } => ({
+    ...item,
+    title: (item.recipeId ? titleById.get(item.recipeId) : undefined) ?? item.customTitle ?? '',
+    allergenConflicts: (item.recipeId ? conflicts.get(item.recipeId) : undefined) ?? [],
+  }))
   const remove =
     payload.remove.length > 0
       ? await queryEntryViews(ctx.db, and(eq(schema.mealPlanEntries.householdId, ctx.householdId), inArray(schema.mealPlanEntries.id, payload.remove)))

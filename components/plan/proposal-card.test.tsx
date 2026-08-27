@@ -31,8 +31,8 @@ function baseProposal(overrides: Partial<ProposalClient> = {}): ProposalClient {
     createdAt: '2026-08-20T10:00:00.000Z',
     diff: {
       add: [
-        { date: '2026-08-24', slot: 'lunch', recipeId: 'r1', servings: 2, title: 'Lentejas' },
-        { date: '2026-08-25', slot: 'dinner', recipeId: 'r2', servings: 1, title: 'Tortilla' },
+        { date: '2026-08-24', slot: 'lunch', recipeId: 'r1', servings: 2, title: 'Lentejas', allergenConflicts: [] },
+        { date: '2026-08-25', slot: 'dinner', recipeId: 'r2', servings: 1, title: 'Tortilla', allergenConflicts: [] },
       ],
       remove: [
         {
@@ -151,5 +151,25 @@ describe('ProposalCard', () => {
   it('muestra el origen de la propuesta', () => {
     renderCard(baseProposal({ source: 'mcp' }))
     expect(screen.getByText(/del asistente/)).toBeInTheDocument()
+  })
+
+  it('pinta el aviso de alérgeno junto a la entrada afectada', () => {
+    render(
+      <NextIntlClientProvider locale="es" messages={{ plan }}>
+        <ProposalCard
+          proposal={{
+            id: 'p1',
+            source: 'mcp',
+            status: 'pending',
+            createdAt: '2026-08-31T10:00:00.000Z',
+            diff: {
+              add: [{ date: '2026-08-31', slot: 'lunch', recipeId: 'r1', servings: 2, title: 'Bizcocho', allergenConflicts: ['gluten'] }],
+              remove: [],
+            },
+          }}
+        />
+      </NextIntlClientProvider>,
+    )
+    expect(screen.getByRole('note')).toHaveTextContent(/gluten/i)
   })
 })

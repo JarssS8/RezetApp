@@ -48,7 +48,24 @@
     "removes": "Removes",
     "addLine": "+ {title} · {slot} · ×{servings}",
     "removeLine": "− {title} · {slot}",
-    "error": "Couldn't decide on the proposal"
+    "error": "Couldn't decide on the proposal",
+    "allergenWarning": "Contains {allergens}",
+    "allergens": {
+      "gluten": "gluten",
+      "lactose": "lactose",
+      "egg": "egg",
+      "fish": "fish",
+      "shellfish": "shellfish",
+      "nuts": "tree nuts",
+      "peanut": "peanut",
+      "soy": "soy",
+      "sesame": "sesame",
+      "celery": "celery",
+      "mustard": "mustard",
+      "sulphites": "sulphites",
+      "lupin": "lupin",
+      "mollusc": "molluscs"
+    }
   },
   "shopping": {
     "title": "Generate shopping list",
