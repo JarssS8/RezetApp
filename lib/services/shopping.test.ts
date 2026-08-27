@@ -15,7 +15,7 @@ vi.mock('@/lib/integrations/shoplist', async (importOriginal) => {
 
 import { pushToShopList } from '@/lib/integrations/shoplist'
 import { generateShopping, pushShopping } from './shopping'
-import { getShoplistSettings, updateShoplistSettings } from './shoplist-settings'
+import { getShopListDeepLink, getShoplistSettings, updateShoplistSettings } from './shoplist-settings'
 
 process.env.APP_SECRET = 'secreto-de-prueba-con-suficiente-longitud-1234'
 
@@ -167,5 +167,19 @@ describe('ajustes de ShopList', () => {
     const a = await makeHousehold('Casa A')
     const settings = await getShoplistSettings(ctxOf(a))
     expect(settings).toEqual({ fnUrl: null, listToken: null, hasSecret: false, source: 'none', lastPushedAt: null })
+  })
+})
+
+describe('getShopListDeepLink', () => {
+  it('sin configuración devuelve null', async () => {
+    const a = await makeHousehold('Casa A')
+    expect(await getShopListDeepLink(ctxOf(a))).toBeNull()
+  })
+
+  it('con config de hogar arma el enlace a partir del listToken', async () => {
+    const a = await makeHousehold('Casa A')
+    const ctx = ctxOf(a)
+    await updateShoplistSettings(ctx, { fnUrl: 'https://edge.example/functions/v1', secret: 'topsecret', listToken: 'lst_abc' })
+    expect(await getShopListDeepLink(ctx)).toBe('https://shop.jarsss8.es/#/s/lst_abc')
   })
 })

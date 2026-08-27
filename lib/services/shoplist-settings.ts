@@ -5,7 +5,7 @@
 import { eq } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { decryptSecret, encryptSecret, getKeys } from '@/lib/crypto'
-import type { ShopListConfig } from '@/lib/integrations/shoplist'
+import { shopListDeepLink, type ShopListConfig } from '@/lib/integrations/shoplist'
 import type { z } from 'zod'
 import type { ShoplistSettingsSchema } from '@/lib/validation/household'
 import { type Ctx, ServiceError } from './ctx'
@@ -79,4 +79,12 @@ export async function resolveShopListConfig(ctx: Ctx): Promise<ShopListConfig | 
   const resolved = resolve(h)
   if (resolved.source === 'none') return null
   return { fnUrl: resolved.fnUrl, secret: resolved.secret, listToken: resolved.listToken }
+}
+
+// Enlace "Abrir en ShopList" para las páginas de interfaz (resumen de compra
+// y ajustes de ShopList): único punto donde se construye la URL a partir de
+// resolveShopListConfig, de donde sale el listToken.
+export async function getShopListDeepLink(ctx: Ctx): Promise<string | null> {
+  const cfg = await resolveShopListConfig(ctx)
+  return cfg ? shopListDeepLink(cfg.listToken) : null
 }

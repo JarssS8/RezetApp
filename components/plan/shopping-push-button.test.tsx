@@ -53,13 +53,15 @@ describe('ShoppingPushButton', () => {
     expect(parsed.success).toBe(true)
   })
 
-  it('muestra el número insertado y el enlace a ShopList tras un envío correcto', async () => {
-    pushShoppingAction.mockResolvedValueOnce({ ok: true, data: { inserted: 3, deepLink: 'https://shop.jarsss8.es/#/s/tok' } })
-    renderButton({ deepLink: 'https://shop.jarsss8.es/#/s/tok' })
+  it('muestra el número insertado y el enlace que devuelve la propia acción de envío (no la prop inicial)', async () => {
+    // deepLink distinto al de la prop: si el href viniera de la prop en vez
+    // de la respuesta, esta aserción lo delataría.
+    pushShoppingAction.mockResolvedValueOnce({ ok: true, data: { inserted: 3, deepLink: 'https://shop.jarsss8.es/#/s/tras-envio' } })
+    renderButton({ deepLink: 'https://shop.jarsss8.es/#/s/inicial' })
     fireEvent.click(screen.getByRole('button', { name: /enviar a shoplist/i }))
     expect(await screen.findByText('Enviado a ShopList: 3 líneas')).toBeInTheDocument()
     const link = screen.getByRole('link', { name: /abrir en shoplist/i })
-    expect(link).toHaveAttribute('href', 'https://shop.jarsss8.es/#/s/tok')
+    expect(link).toHaveAttribute('href', 'https://shop.jarsss8.es/#/s/tras-envio')
   })
 
   it('en caso de fallo del envío muestra un toast de error y no un resultado', async () => {

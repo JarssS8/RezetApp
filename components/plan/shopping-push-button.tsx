@@ -23,6 +23,11 @@ export function ShoppingPushButton({ lines, canPush, deepLink }: ShoppingPushBut
   const t = useTranslations('plan.shopping')
   const [pending, setPending] = useState(false)
   const [inserted, setInserted] = useState<number | null>(null)
+  // El envío puede rotar el listToken si el propietario lo cambia entre medias:
+  // el enlace mostrado tras un envío correcto es el que devuelve la propia
+  // acción, no el calculado al cargar la página (aunque en la práctica
+  // coincidan casi siempre).
+  const [sentDeepLink, setSentDeepLink] = useState<string | null>(null)
 
   if (lines.length === 0) return null
 
@@ -39,10 +44,13 @@ export function ShoppingPushButton({ lines, canPush, deepLink }: ShoppingPushBut
         return
       }
       setInserted(result.data.inserted)
+      setSentDeepLink(result.data.deepLink)
     } finally {
       setPending(false)
     }
   }
+
+  const linkHref = sentDeepLink ?? deepLink
 
   return (
     <div className="flex flex-col gap-2">
@@ -53,8 +61,8 @@ export function ShoppingPushButton({ lines, canPush, deepLink }: ShoppingPushBut
       {inserted !== null && (
         <p role="status" className="flex items-center gap-2 text-sm text-text-2">
           {t('sent', { count: inserted })}
-          {deepLink && (
-            <a href={deepLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-primary">
+          {linkHref && (
+            <a href={linkHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-primary">
               <LinkIcon size={16} />
               {t('openList')}
             </a>
