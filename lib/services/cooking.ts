@@ -6,7 +6,7 @@ import * as schema from '@/db/schema'
 import { aggregateNeeds, allocateDeductions, convertBase, scaleRecipe, slotForHour } from '@/lib/domain'
 import type { Allocation, BaseUnit, FoodConversion, MealSlot, Need, NeedInput, PantryItem as DomainPantryItem } from '@/lib/domain'
 import { emitHouseholdEvent } from '@/lib/events/bus'
-import { todayIso } from '@/lib/plan-dates'
+import { DEFAULT_TZ, todayIso } from '@/lib/plan-dates'
 import type { LogCookedInput } from '@/lib/validation/cooking'
 import { type Ctx, type Db, ServiceError } from './ctx'
 import { toIngredient } from './recipe-mapper'
@@ -75,12 +75,10 @@ async function lockEntry(tx: Db, householdId: string, entryId: string): Promise<
   return { id: row.id, date: row.date, slot: row.slot, recipeId: row.recipeId }
 }
 
-// Hora local del hogar para deducir el hueco (§9.5 paso 1). Los hogares aún no
-// tienen zona horaria propia (ver comentario en lib/plan-dates.ts::todayIso):
-// se usa la misma Europe/Madrid por defecto que ya usa todayIso(), para que
-// "hoy" y "el hueco de ahora" caigan en el mismo día pase lo que pase con el
-// huso horario del proceso del servidor (Date#getHours no es determinista).
-export function hourInHouseholdTz(now: Date, tz = 'Europe/Madrid'): number {
+// Hora local del hogar para deducir el hueco (§9.5 paso 1). DEFAULT_TZ es la
+// misma constante que usa todayIso(): Date#getHours no es determinista con el
+// huso horario del proceso del servidor.
+export function hourInHouseholdTz(now: Date, tz = DEFAULT_TZ): number {
   return Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(now))
 }
 

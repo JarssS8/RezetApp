@@ -208,6 +208,16 @@ describe('createLeftover', () => {
 
     await expect(createLeftover(ctxOf(b), { ofEntryId: entry.id, date: '2026-09-02', slot: 'lunch', servings: 1 })).rejects.toThrow()
   })
+
+  it('una sobra no puede tener su propia sobra', async () => {
+    const a = await makeHousehold('Casa A')
+    const recipeA = await makeRecipe(a, 'Lentejas')
+    const [entry] = await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-09-01', slot: 'lunch', recipeId: recipeA, servings: 4 }).returning()
+    if (!entry) throw new Error('seed')
+    const leftover = await createLeftover(ctxOf(a), { ofEntryId: entry.id, date: '2026-09-02', slot: 'lunch', servings: 1 })
+
+    await expect(createLeftover(ctxOf(a), { ofEntryId: leftover.id, date: '2026-09-03', slot: 'lunch', servings: 1 })).rejects.toMatchObject({ code: 'validation' })
+  })
 })
 
 describe('rangeNutrition', () => {
@@ -240,10 +250,20 @@ describe('dayProgress', () => {
     await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-08-27', slot: 'dinner', recipeId: recipeA, servings: 2, leftoverOfEntryId: cooked.id })
 
     const progress = await dayProgress(ctxOf(a), '2026-08-27')
-    expect(progress).toMatchObject({ date: '2026-08-27', plannedKcal: 1500, cookedKcal: 600 })
+    expect(progress).toMatchObject({ date: '2026-08-27', plannedKcal: 1500, cookedKcal: 600, hasUnknownKcal: false })
 
     // Aislamiento entre hogares
-    expect(await dayProgress(ctxOf(b), '2026-08-27')).toMatchObject({ plannedKcal: 0, cookedKcal: 0 })
+    expect(await dayProgress(ctxOf(b), '2026-08-27')).toMatchObject({ plannedKcal: 0, cookedKcal: 0, hasUnknownKcal: false })
+  })
+
+  it('hasUnknownKcal se activa si alguna entrada contada no tiene kcalPerServing, distinto de hasEstimates', async () => {
+    const a = await makeHousehold('Casa A')
+    const recipeSinKcal = await makeRecipe(a, 'Receta sin kcal', { kcalPerServing: null })
+    await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-08-27', slot: 'lunch', recipeId: recipeSinKcal, servings: 2 })
+
+    const progress = await dayProgress(ctxOf(a), '2026-08-27')
+    expect(progress.hasUnknownKcal).toBe(true)
+    expect(progress.hasEstimates).toBe(false) // sin dato no es lo mismo que una estimación
   })
 
   // Debt de la revisión de la Tarea 9: el innerJoin con recipes ya filtra por

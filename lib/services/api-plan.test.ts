@@ -149,6 +149,12 @@ describe('/api/v1/plan', () => {
     expect(proposals[0]!.status).toBe('pending')
   })
 
+  it('GET /plan/proposals con un status que no sea "pending" es 400', async () => {
+    const ro = await makeToken(['plan:read'])
+    const res = await getProposals(req('/api/v1/plan/proposals?status=approved', ro))
+    expect(res.status).toBe(400)
+  })
+
   it('un token de otro hogar recibe 404 al tocar una entrada ajena', async () => {
     const [otherHousehold] = await state.db.insert(schema.households).values({ name: 'Otra casa' }).returning()
     const [otherUser] = await state.db.insert(schema.users).values({ displayName: 'Bea' }).returning()

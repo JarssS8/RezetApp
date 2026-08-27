@@ -92,8 +92,14 @@ async function queryEntryViews(db: Db, where: SQL | undefined): Promise<PlanEntr
   return rows.map(toView)
 }
 
-async function requireEntryView(db: Db, householdId: string, id: string): Promise<PlanEntryView> {
+// Una entrada por id, o null si no es del hogar. La necesita el modo cocina.
+async function findEntryView(db: Db, householdId: string, id: string): Promise<PlanEntryView | null> {
   const [view] = await queryEntryViews(db, and(eq(schema.mealPlanEntries.householdId, householdId), eq(schema.mealPlanEntries.id, id)))
+  return view ?? null
+}
+
+async function requireEntryView(db: Db, householdId: string, id: string): Promise<PlanEntryView> {
+  const view = await findEntryView(db, householdId, id)
   if (!view) throw new ServiceError('not_found', 'Entrada del plan no encontrada')
   return view
 }
@@ -106,10 +112,8 @@ export async function listEntries(ctx: Ctx, range: { from: string; to: string })
   )
 }
 
-// Una entrada por id, o null si no es del hogar. La necesita el modo cocina.
 export async function getEntry(ctx: Ctx, id: string): Promise<PlanEntryView | null> {
-  const [view] = await queryEntryViews(ctx.db, and(eq(schema.mealPlanEntries.householdId, ctx.householdId), eq(schema.mealPlanEntries.id, id)))
-  return view ?? null
+  return findEntryView(ctx.db, ctx.householdId, id)
 }
 
 // Núcleo transaccional de un lote: lo comparten applyBatch y decideProposal (aprobación de propuesta)
@@ -318,11 +322,14 @@ export async function patchEntry(ctx: Ctx, id: string, patch: PlanEntryPatch): P
 // Copia receta/título de la entrada de origen y crea una entrada de sobra ligada a ella
 export async function createLeftover(ctx: Ctx, input: { ofEntryId: string; date: string; slot: MealSlot; servings: number }): Promise<PlanEntryView> {
   const [source] = await ctx.db
-    .select({ recipeId: schema.mealPlanEntries.recipeId, customTitle: schema.mealPlanEntries.customTitle })
+    .select({ recipeId: schema.mealPlanEntries.recipeId, customTitle: schema.mealPlanEntries.customTitle, leftoverOfEntryId: schema.mealPlanEntries.leftoverOfEntryId })
     .from(schema.mealPlanEntries)
     .where(and(eq(schema.mealPlanEntries.id, input.ofEntryId), eq(schema.mealPlanEntries.householdId, ctx.householdId)))
     .limit(1)
   if (!source) throw new ServiceError('not_found', 'Entrada de origen no encontrada')
+  // Una sobra no puede tener sobra: la despensa ya se descontó el día que se
+  // cocinó el original (misma regla que impide cocinar una sobra, cooking.ts).
+  if (source.leftoverOfEntryId !== null) throw new ServiceError('validation', 'Una sobra no puede tener su propia sobra')
   const [row] = await ctx.db
     .insert(schema.mealPlanEntries)
     .values({
@@ -394,6 +401,11 @@ export interface DayProgress {
   plannedKcal: number
   cookedKcal: number
   hasEstimates: boolean
+  // Distinto de hasEstimates: una receta puede tener kcal estimadas (buena fe,
+  // valor aproximado) o directamente NINGÚN dato nutricional. Este flag es
+  // para lo segundo: el anillo de Hoy debe avisar de que el total se queda
+  // corto, no solo de que es una estimación.
+  hasUnknownKcal: boolean
 }
 
 // Los dos números del anillo de Hoy (spec §8): kcal del día y cuántas de ellas
@@ -430,6 +442,7 @@ export async function dayProgress(ctx: Ctx, date: string): Promise<DayProgress> 
     plannedKcal: Math.round(planned.total.kcal),
     cookedKcal: Math.round(cooked.total.kcal),
     hasEstimates: rows.some((r) => r.nutritionIsEstimated),
+    hasUnknownKcal: rows.some((r) => r.kcalPerServing === null),
   }
 }
 

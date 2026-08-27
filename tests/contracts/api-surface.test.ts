@@ -87,11 +87,10 @@ async function routeFiles(dir: string, prefix = '/api/v1'): Promise<string[]> {
   return out
 }
 
-// Mecanismo para rutas documentadas por adelantado cuyo fichero aún no ha
-// llegado (ver /api/v1/cooking/log en tareas anteriores, ya resuelta en
-// T17b): se cuentan como documentadas sin exigirse en disco todavía, y el
-// segundo test de abajo impide que la excepción quede olvidada una vez el
-// fichero existe. Vacío mientras no haya ninguna ruta pendiente.
+// Mecanismo para documentar por adelantado una ruta cuyo fichero aún no
+// existe en disco: se cuenta como documentada sin exigirse en el primer test
+// de abajo, y el segundo impide que la excepción quede olvidada una vez el
+// fichero llega. Vacío mientras no haya ninguna ruta pendiente.
 const PENDING_ROUTES = new Set<string>([])
 
 describe('superficie de la API', () => {
@@ -102,7 +101,7 @@ describe('superficie de la API', () => {
     expect(onDisk).toEqual(expectedOnDisk)
   })
 
-  it('las rutas pendientes siguen sin existir en disco (si aparecen, T17b debe quitarlas de PENDING_ROUTES)', async () => {
+  it('las rutas pendientes siguen sin existir en disco (si aparecen, quita la entrada de PENDING_ROUTES)', async () => {
     const onDisk = new Set(await routeFiles(path.join(process.cwd(), 'app/api/v1')))
     for (const route of PENDING_ROUTES) {
       expect(onDisk.has(route), `${route} ya existe: borra la entrada de PENDING_ROUTES en tests/contracts/api-surface.test.ts`).toBe(false)
