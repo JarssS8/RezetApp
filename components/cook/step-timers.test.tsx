@@ -32,8 +32,16 @@ describe('StepTimers', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     renderTimers('Hierve 2 minutos')
     await user.click(screen.getByRole('button', { name: /2 min/ }))
-    expect(screen.getByRole('timer')).toHaveTextContent('02:00')
+    expect(screen.getByRole('status')).toHaveTextContent('02:00')
     await vi.advanceTimersByTimeAsync(61_000)
-    expect(screen.getByRole('timer')).toHaveTextContent('00:59')
+    expect(screen.getByRole('status')).toHaveTextContent('00:59')
+  })
+
+  it('al llegar a cero enseña el aviso de "listo" en la misma región en vivo', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    renderTimers('Hierve 2 minutos')
+    await user.click(screen.getByRole('button', { name: /2 min/ }))
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(screen.getByRole('status')).toHaveTextContent('¡Listo!')
   })
 })

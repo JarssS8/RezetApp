@@ -7,5 +7,16 @@
   "unassigned": "Sin asignar a un paso",
   "empty": "No hay nada planificado para hoy",
   "timerMinutes": "{minutes} min",
-  "timerDone": "¡Listo!"
+  "timerDone": "¡Listo!",
+  "finish": "He terminado",
+  "finishTitle": "¿Cómo ha ido?",
+  "servingsCooked": "Raciones que has hecho",
+  "servingsShort": "×{n}",
+  "leftovers": "Guardar sobras",
+  "leftoverDate": "Día",
+  "leftoverSlot": "Hueco",
+  "leftoverServings": "Raciones de sobra",
+  "warnings": "Faltó en la despensa",
+  "warningLine": "Faltaron {missing} {unit} de {name}",
+  "slots": { "breakfast": "Desayuno", "lunch": "Comida", "dinner": "Cena", "snack": "Picoteo" }
 }

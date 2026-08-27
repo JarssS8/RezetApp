@@ -6,6 +6,7 @@ import { TimerIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { detectTimers, timerMinutes } from '@/lib/domain'
 import type { Locale } from '@/lib/domain/types'
+import { cn } from '@/lib/utils'
 
 export interface StepTimersProps {
   text: string
@@ -58,11 +59,10 @@ export function StepTimers({ text, locale }: StepTimersProps) {
         </Button>
       ))}
       {remaining !== null ? (
-        <output role="timer" aria-live="polite" className="tabular text-2xl font-medium">
-          {mmss(remaining)}
+        <output role="status" aria-live="polite" className={cn('tabular text-2xl font-medium', remaining === 0 && 'text-warn')}>
+          {remaining === 0 ? t('timerDone') : mmss(remaining)}
         </output>
       ) : null}
-      {remaining === 0 ? <span className="text-warn">{t('timerDone')}</span> : null}
     </div>
   )
 }

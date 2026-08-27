@@ -2,9 +2,18 @@ import { notFound } from 'next/navigation'
 import { CookSession } from '@/components/cook/cook-session'
 import type { DetailIngredient } from '@/components/recipes/ingredient-list'
 import { requireHousehold } from '@/lib/auth/guards'
+import { slotForHour } from '@/lib/domain'
 import { getRecipe } from '@/lib/services/recipes'
 import { IdSchema } from '@/lib/validation/common'
 import { RecipeGetQuerySchema } from '@/lib/validation/recipes'
+
+// Hora local del hogar para deducir el hueco por defecto de las sobras
+// (§9.5, paso 1): mismo criterio que lib/services/cooking.ts::hourInHouseholdTz
+// (los hogares aún no tienen zona horaria propia).
+function currentSlot(now = new Date(), tz = 'Europe/Madrid') {
+  const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(now))
+  return slotForHour(hour)
+}
 
 // Cocinar sin hueco en el plan: las raciones vienen de ?servings= (enlace del
 // detalle de receta) o, si no, de las raciones por defecto del hogar.
@@ -35,6 +44,7 @@ export default async function CookRecipePage({
       steps={serializable.steps}
       locale={ctx.locale}
       units={ctx.session.user.units}
+      sourceSlot={currentSlot()}
     />
   )
 }

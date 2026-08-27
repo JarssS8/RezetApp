@@ -1,11 +1,17 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import messages from '@/messages/es/cook.json'
 import common from '@/messages/es/common.json'
 import recipes from '@/messages/es/recipes.json'
 import { CookSession } from './cook-session'
+
+// El último paso monta FinishCookingDialog, que llama a logCookedAction
+// (server action) y a next/navigation: se sustituyen aquí, igual que en
+// finish-dialog.test.tsx, porque este test no ejercita ese envío.
+vi.mock('@/lib/actions/cooking', () => ({ logCookedAction: vi.fn() }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }))
 
 const ingredients = [
   { id: 'i1', foodId: 'f1', rawText: '300 g de cebolla', quantity: 300, unit: 'g' as const, displayQuantity: 300, displayUnit: 'g', preparation: null, groupLabel: null, stepIndex: 0, scalesLinearly: true, sortOrder: 0, food: null },
@@ -18,7 +24,7 @@ const steps = [
 function renderSession(initialServings = 2) {
   return render(
     <NextIntlClientProvider locale="es" messages={{ cook: messages, common, recipes }}>
-      <CookSession recipeId="r1" entryId="e1" title="Sopa de cebolla" servingsBase={2} initialServings={initialServings} ingredients={ingredients} steps={steps} locale="es" units="metric" />
+      <CookSession recipeId="r1" entryId="e1" title="Sopa de cebolla" servingsBase={2} initialServings={initialServings} ingredients={ingredients} steps={steps} locale="es" units="metric" sourceSlot="dinner" />
     </NextIntlClientProvider>,
   )
 }
@@ -61,7 +67,7 @@ describe('CookSession', () => {
     const user = userEvent.setup()
     render(
       <NextIntlClientProvider locale="es" messages={{ cook: messages, common, recipes }}>
-        <CookSession recipeId="r1" entryId="e1" title="Sopa de cebolla" servingsBase={2} initialServings={2} ingredients={mixedIngredients} steps={steps} locale="es" units="metric" />
+        <CookSession recipeId="r1" entryId="e1" title="Sopa de cebolla" servingsBase={2} initialServings={2} ingredients={mixedIngredients} steps={steps} locale="es" units="metric" sourceSlot="dinner" />
       </NextIntlClientProvider>,
     )
     expect(screen.getByText(/sin asignar/i)).toBeInTheDocument()
@@ -74,7 +80,7 @@ describe('CookSession', () => {
   it('muestra el estado vacío cuando la receta no tiene pasos', () => {
     render(
       <NextIntlClientProvider locale="es" messages={{ cook: messages, common, recipes }}>
-        <CookSession recipeId="r1" entryId="e1" title="Sopa de cebolla" servingsBase={2} initialServings={2} ingredients={ingredients} steps={[]} locale="es" units="metric" />
+        <CookSession recipeId="r1" entryId="e1" title="Sopa de cebolla" servingsBase={2} initialServings={2} ingredients={ingredients} steps={[]} locale="es" units="metric" sourceSlot="dinner" />
       </NextIntlClientProvider>,
     )
     expect(screen.getByText(/no hay nada planificado/i)).toBeInTheDocument()

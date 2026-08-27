@@ -7,5 +7,16 @@
   "unassigned": "Not assigned to a step",
   "empty": "Nothing planned for today",
   "timerMinutes": "{minutes} min",
-  "timerDone": "Done!"
+  "timerDone": "Done!",
+  "finish": "I'm done",
+  "finishTitle": "How did it go?",
+  "servingsCooked": "Servings you made",
+  "servingsShort": "×{n}",
+  "leftovers": "Save leftovers",
+  "leftoverDate": "Day",
+  "leftoverSlot": "Slot",
+  "leftoverServings": "Leftover servings",
+  "warnings": "Missing from the pantry",
+  "warningLine": "{missing} {unit} of {name} were missing",
+  "slots": { "breakfast": "Breakfast", "lunch": "Lunch", "dinner": "Dinner", "snack": "Snack" }
 }

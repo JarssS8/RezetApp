@@ -29,6 +29,7 @@ export default async function CookEntryPage({ params }: { params: Promise<{ entr
       steps={serializable.steps}
       locale={ctx.locale}
       units={ctx.session.user.units}
+      sourceSlot={entry.slot}
     />
   )
 }

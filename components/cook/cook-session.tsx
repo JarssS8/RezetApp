@@ -8,6 +8,8 @@ import { ServingsStepper } from '@/components/recipes/servings-stepper'
 import { Button } from '@/components/ui/button'
 import { scaleRecipe } from '@/lib/domain'
 import type { Locale, UnitSystem } from '@/lib/domain/types'
+import type { MealSlot } from '@/lib/validation/plan'
+import { FinishCookingDialog } from './finish-dialog'
 import { IngredientChecklist } from './ingredient-checklist'
 import { StepTimers } from './step-timers'
 import { useWakeLock } from './use-wake-lock'
@@ -32,13 +34,17 @@ export interface CookSessionProps {
   steps: CookStep[]
   locale: Locale
   units: UnitSystem
+  // Hueco por defecto de las sobras al terminar (§9.5): el de la entrada si
+  // ya hay una en el plan, o el que le tocaría a la hora actual si se cocina
+  // "a pelo" desde la receta (slotForHour, calculado por la página).
+  sourceSlot: MealSlot
 }
 
 // Un paso por pantalla. El escalado se recalcula EN EL CLIENTE con la misma
 // función de dominio que usa el servidor (scaleRecipe): mover el contador de
 // raciones con las manos pringadas tiene que ser instantáneo, y regla 1 de
 // AGENTS.md garantiza que el número es idéntico al del servidor.
-export function CookSession({ recipeId, entryId, title, servingsBase, initialServings, ingredients, steps, locale, units }: CookSessionProps) {
+export function CookSession({ recipeId, entryId, title, servingsBase, initialServings, ingredients, steps, locale, units, sourceSlot }: CookSessionProps) {
   const t = useTranslations('cook')
   const [servings, setServings] = useState(initialServings)
   const [index, setIndex] = useState(0)
@@ -132,16 +138,17 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
         </div>
       ) : null}
 
-      <div className="mt-auto flex items-center justify-between gap-3">
-        <Button type="button" variant="outline" size="lg" disabled={index === 0} aria-label={t('previous')} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
-          <ChevronLeftIcon size={22} />
-        </Button>
-        <span className="sr-only">{recipeId}</span>
-        <Button type="button" size="lg" disabled={index >= steps.length - 1} aria-label={t('next')} onClick={() => setIndex((i) => Math.min(steps.length - 1, i + 1))}>
-          <ChevronRightIcon size={22} />
-        </Button>
+      <div className="mt-auto flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <Button type="button" variant="outline" size="lg" disabled={index === 0} aria-label={t('previous')} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
+            <ChevronLeftIcon size={22} />
+          </Button>
+          <Button type="button" size="lg" disabled={index >= steps.length - 1} aria-label={t('next')} onClick={() => setIndex((i) => Math.min(steps.length - 1, i + 1))}>
+            <ChevronRightIcon size={22} />
+          </Button>
+        </div>
+        {index === steps.length - 1 ? <FinishCookingDialog recipeId={recipeId} entryId={entryId} servings={servings} sourceSlot={sourceSlot} /> : null}
       </div>
-      <span data-testid="cook-entry" className="hidden">{entryId ?? ''}</span>
     </section>
   )
 }
