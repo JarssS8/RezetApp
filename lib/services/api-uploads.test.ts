@@ -76,4 +76,14 @@ describe('POST /api/v1/uploads', () => {
     expect(res.status).toBe(403)
     expect(await res.json()).toMatchObject({ error: { code: 'forbidden' } })
   })
+
+  it('acepta un PDF y devuelve su uploadId', async () => {
+    const rw = await makeToken(['recipes:write'])
+    const form = new FormData()
+    form.set('file', new File([new TextEncoder().encode('%PDF-1.4\n%%EOF\n')], 'receta.pdf', { type: 'application/pdf' }))
+    const res = await postUploads(req('/api/v1/uploads', rw, { method: 'POST', body: form }))
+    expect(res.status).toBe(201)
+    const body = (await res.json()) as { url: string; uploadId: string }
+    expect(body.uploadId).toMatch(/\.pdf$/)
+  })
 })

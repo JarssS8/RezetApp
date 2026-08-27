@@ -1,5 +1,5 @@
 import { requireApiToken } from '@/lib/auth/guards'
-import { MAX_UPLOAD_BYTES, saveImage } from '@/lib/uploads/store'
+import { MAX_UPLOAD_BYTES, saveImage, savePdf } from '@/lib/uploads/store'
 import { apiError, apiFailure } from '../_lib/respond'
 
 export async function POST(request: Request): Promise<Response> {
@@ -17,10 +17,11 @@ export async function POST(request: Request): Promise<Response> {
     if (!(file instanceof File)) return apiError('validation', 'Falta el fichero', 400)
     if (file.size > MAX_UPLOAD_BYTES) return apiError('too_large', 'Máximo 8 MB', 413)
     try {
-      const saved = await saveImage(ctx.householdId, new Uint8Array(await file.arrayBuffer()))
-      return Response.json({ url: saved.url }, { status: 201 })
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const saved = file.type === 'application/pdf' ? await savePdf(ctx.householdId, bytes) : await saveImage(ctx.householdId, bytes)
+      return Response.json({ url: saved.url, uploadId: saved.name }, { status: 201 })
     } catch {
-      return apiError('validation', 'No es una imagen válida', 400)
+      return apiError('validation', 'No es una imagen ni un PDF válido', 400)
     }
   } catch (e) {
     return apiFailure(e)

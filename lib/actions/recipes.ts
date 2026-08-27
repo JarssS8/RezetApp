@@ -13,7 +13,7 @@ import {
   type RecipeExport,
   type RecipeSummary,
 } from '@/lib/services/recipes'
-import { MAX_UPLOAD_BYTES, saveImage } from '@/lib/uploads/store'
+import { MAX_UPLOAD_BYTES, saveImage, savePdf } from '@/lib/uploads/store'
 import { IdSchema } from '@/lib/validation/common'
 import { RecipeImportSchema, RecipeInputSchema, RecipeIngredientInputSchema } from '@/lib/validation/recipes'
 import { z } from 'zod'
@@ -106,6 +106,26 @@ export async function uploadImageAction(formData: FormData): Promise<ActionResul
       return ok({ url: saved.url, uploadId: saved.name })
     } catch {
       return fail('validation', 'No es una imagen válida')
+    }
+  } catch (e) {
+    return fromError(e)
+  }
+}
+
+// Un PDF no pasa por sharp, así que va por su propia acción en vez de colar
+// otro tipo en el allowlist de uploadImageAction.
+export async function uploadPdfAction(formData: FormData): Promise<ActionResult<{ url: string; uploadId: string }>> {
+  try {
+    const ctx = await requireHousehold()
+    const file = formData.get('file')
+    if (!(file instanceof File)) return fail('validation', 'Falta el fichero')
+    if (file.size > MAX_UPLOAD_BYTES) return fail('too_large', 'Máximo 8 MB')
+    if (file.type !== 'application/pdf') return fail('validation', 'No es un PDF')
+    try {
+      const saved = await savePdf(ctx.householdId, new Uint8Array(await file.arrayBuffer()))
+      return ok({ url: saved.url, uploadId: saved.name })
+    } catch {
+      return fail('validation', 'No es un PDF')
     }
   } catch (e) {
     return fromError(e)

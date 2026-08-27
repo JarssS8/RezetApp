@@ -47,7 +47,7 @@ const PantryUpsertSchema = PantryItemInputSchema.extend({ id: IdSchema.optional(
 const PlanEntryPatchOrMoveSchema = z.union([PlanEntryPatchSchema, PlanEntryMoveSchema.omit({ entryId: true })])
 // multipart/form-data no tiene esquema zod propio (no es JSON): se documenta
 // con un objeto mínimo, marcando el campo como binario para Swagger UI.
-const UploadBodySchema = z.object({ file: z.string().meta({ description: 'Imagen de la receta (máx. 8 MB)', override: { type: 'string', format: 'binary' } }) })
+const UploadBodySchema = z.object({ file: z.string().meta({ description: 'Imagen de la receta (jpeg, png, webp, avif) o PDF, máx. 8 MB', override: { type: 'string', format: 'binary' } }) })
 // Forma de CookedResult (lib/services/cooking.ts), documentada aquí por la
 // misma razón que IdObjectSchema: la fija un servicio, no un esquema de
 // validación de entrada.
@@ -148,11 +148,12 @@ export function buildOpenApiDocument() {
       },
       '/api/v1/uploads': {
         post: {
-          summary: 'Subir una imagen de receta',
+          summary: 'Subir una imagen o un PDF de receta',
+          description: 'El cuerpo multipart/form-data admite una imagen (jpeg, png, webp, avif) o un application/pdf, máximo 8 MB.',
           security: sec('recipes:write'),
           requestBody: { content: { 'multipart/form-data': { schema: UploadBodySchema } } },
           responses: {
-            '201': { description: 'Imagen guardada', ...json(z.object({ url: z.string() })) },
+            '201': { description: 'Fichero guardado', ...json(z.object({ url: z.string(), uploadId: z.string() })) },
             '413': { description: 'Supera los 8 MB', ...json(ErrorBodySchema) },
             ...errors,
           },
