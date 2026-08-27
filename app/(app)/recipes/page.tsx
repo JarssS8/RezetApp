@@ -18,6 +18,7 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
   const parsed = RecipeSearchSchema.safeParse({
     ...(typeof sp.q === 'string' && sp.q ? { q: sp.q } : {}),
     ...(typeof sp.tags === 'string' && sp.tags ? { tags: sp.tags.split(',') } : {}),
+    ...(typeof sp.hasIngredients === 'string' && sp.hasIngredients ? { hasIngredients: sp.hasIngredients.split(',') } : {}),
     ...(typeof sp.maxMinutes === 'string' && sp.maxMinutes ? { maxMinutes: sp.maxMinutes } : {}),
     ...(typeof sp.difficulty === 'string' && sp.difficulty ? { difficulty: sp.difficulty } : {}),
     ...(sp.onlyWithPantry === '1' ? { onlyWithPantry: true } : {}),

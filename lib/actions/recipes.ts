@@ -13,6 +13,7 @@ import {
   type RecipeExport,
   type RecipeSummary,
 } from '@/lib/services/recipes'
+import { IdSchema } from '@/lib/validation/common'
 import { RecipeImportSchema, RecipeInputSchema, RecipeIngredientInputSchema } from '@/lib/validation/recipes'
 import { z } from 'zod'
 import { type ActionResult, fail, fromError, ok } from './result'
@@ -36,6 +37,7 @@ export async function createRecipeAction(input: unknown): Promise<ActionResult<{
 
 export async function updateRecipeAction(id: string, input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
+    if (!IdSchema.safeParse(id).success) return fail('validation', 'Id inválido')
     const ctx = await requireHousehold()
     const parsed = RecipeInputSchema.safeParse(input)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
@@ -50,6 +52,7 @@ export async function updateRecipeAction(id: string, input: unknown): Promise<Ac
 
 export async function deleteRecipeAction(id: string): Promise<ActionResult<null>> {
   try {
+    if (!IdSchema.safeParse(id).success) return fail('validation', 'Id inválido')
     const ctx = await requireHousehold()
     await softDeleteRecipe(ctx, id)
     revalidatePath('/recipes')
