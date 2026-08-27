@@ -1,7 +1,10 @@
 import * as cheerio from 'cheerio'
+import type { z } from 'zod'
 import type { Locale } from '@/lib/domain/types'
 import { isPrivateOrReservedHost } from '@/lib/net-hosts'
-import type { RecipeInput } from '@/lib/validation/recipes'
+import type { RecipeImportSchema, RecipeInput } from '@/lib/validation/recipes'
+import type { Ctx } from './ctx'
+import { ServiceError } from './ctx'
 
 export type RecipeDraft = RecipeInput & { warnings: string[] }
 
@@ -252,4 +255,13 @@ export function importRecipeFromText(raw: string, locale: Locale): RecipeDraft {
   if (!d.ingredients.length) d.warnings.push('no_ingredients')
   if (!d.steps.length) d.warnings.push('no_steps')
   return d
+}
+
+// Punto único de importación para las tres entradas (server action, REST y
+// MCP): antes la rama url/text/image vivía duplicada en lib/actions/recipes.ts.
+// La rama 'image' necesita visión y llega en W4(c).
+export async function importRecipe(ctx: Ctx, input: z.infer<typeof RecipeImportSchema>): Promise<RecipeDraft> {
+  if (input.kind === 'url') return importRecipeFromUrl(input.url)
+  if (input.kind === 'text') return importRecipeFromText(input.text, ctx.locale)
+  throw new ServiceError('validation', 'Importar desde imagen llega con la IA')
 }
