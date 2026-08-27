@@ -6,5 +6,6 @@
   "nav": { "today": "Today", "cook": "Cook", "plan": "Plan", "pantry": "Pantry", "recipes": "Recipes" },
   "actions": { "save": "Save", "cancel": "Cancel", "close": "Close", "back": "Back", "delete": "Delete", "confirm": "Confirm" },
   "state": { "loading": "Loading…", "empty": "Nothing here yet", "comingSoon": "Coming soon", "working": "One moment…" },
-  "ai": { "unavailable": "Set up an AI provider in Settings to use this", "working": "Thinking…" }
+  "ai": { "unavailable": "Set up an AI provider in Settings to use this", "working": "Thinking…" },
+  "offline": { "title": "You're offline", "hint": "Try again when you have a connection. Everything you saved is still on the server." }
 }

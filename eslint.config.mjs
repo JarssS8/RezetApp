@@ -254,6 +254,15 @@ const config = [
       ],
     },
   },
+  {
+    // El service worker es JavaScript de navegador con sus propios globales
+    // (self, caches, clients). No pertenece a ningún elemento de boundaries.
+    files: ['public/sw.js'],
+    languageOptions: {
+      globals: { self: 'readonly', caches: 'readonly', clients: 'readonly', fetch: 'readonly' },
+      sourceType: 'script',
+    },
+  },
 ]
 
 export default config

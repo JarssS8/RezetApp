@@ -3,6 +3,7 @@ import { DM_Sans, JetBrains_Mono, Outfit } from 'next/font/google'
 import { cookies } from 'next/headers'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
+import { RegisterServiceWorker } from '@/components/pwa/register-sw'
 import { PREFS_COOKIE, readPrefs } from '@/lib/prefs'
 import './globals.css'
 
@@ -36,6 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <body className="min-h-dvh antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
+          <RegisterServiceWorker />
           {children}
         </NextIntlClientProvider>
       </body>
