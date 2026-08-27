@@ -16,6 +16,8 @@
   "timerExplicit": "Temporizador del paso",
   "speak": "Leer el paso",
   "speakStop": "Callar",
+  "wallOn": "Modo pared",
+  "wallOff": "Salir del modo pared",
   "finish": "He terminado",
   "finishTitle": "¿Cómo ha ido?",
   "servingsCooked": "Raciones que has hecho",

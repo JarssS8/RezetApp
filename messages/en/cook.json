@@ -16,6 +16,8 @@
   "timerExplicit": "Step timer",
   "speak": "Read step aloud",
   "speakStop": "Stop reading",
+  "wallOn": "Wall mode",
+  "wallOff": "Exit wall mode",
   "finish": "I'm done",
   "finishTitle": "How did it go?",
   "servingsCooked": "Servings you made",

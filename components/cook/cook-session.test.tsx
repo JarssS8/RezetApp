@@ -82,6 +82,16 @@ describe('CookSession', () => {
     expect(screen.queryByRole('button', { name: /leer el paso/i })).toBeNull()
   })
 
+  it('el modo pared agranda el paso y se recuerda entre sesiones', async () => {
+    const user = userEvent.setup()
+    renderSession()
+    await user.click(screen.getByRole('button', { name: /modo pared/i }))
+    expect(screen.getByTestId('cook-step')).toHaveClass('text-4xl')
+    expect(window.localStorage.getItem('rz.cookWall')).toBe('1')
+    await user.click(screen.getByRole('button', { name: /salir del modo pared/i }))
+    expect(window.localStorage.getItem('rz.cookWall')).toBe('0')
+  })
+
   it('muestra el estado vacío cuando la receta no tiene pasos', () => {
     render(
       <NextIntlClientProvider locale="es" messages={{ cook: messages, common, recipes }}>

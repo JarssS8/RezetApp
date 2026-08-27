@@ -1,19 +1,59 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
-import { ChevronLeftIcon, ChevronRightIcon, VolumeIcon, VolumeOffIcon } from '@/components/icons'
+import { ChevronLeftIcon, ChevronRightIcon, CookIcon, VolumeIcon, VolumeOffIcon } from '@/components/icons'
 import { buildIngredientRows, type DetailIngredient } from '@/components/recipes/ingredient-list'
 import { ServingsStepper } from '@/components/recipes/servings-stepper'
 import { Button } from '@/components/ui/button'
 import { scaleRecipe } from '@/lib/domain'
 import type { Locale, UnitSystem } from '@/lib/domain/types'
+import { cn } from '@/lib/utils'
 import type { MealSlot } from '@/lib/validation/plan'
 import { FinishCookingDialog } from './finish-dialog'
 import { IngredientChecklist } from './ingredient-checklist'
 import { StepTimers } from './step-timers'
 import { useSpeech } from './use-speech'
 import { useWakeLock } from './use-wake-lock'
+
+// Clave de localStorage para el modo pared: preferencia por dispositivo (el
+// móvil de la mano y la tablet de la pared quieren cosas distintas), no del
+// hogar — por eso no vive en la base de datos.
+const WALL_KEY = 'rz.cookWall'
+
+// Almacén externo minúsculo sobre localStorage: useSyncExternalStore, igual
+// que useSpeech con "supported", evita el desajuste de hidratación (SSR no
+// tiene localStorage) sin llamar a setState desde un efecto.
+const wallListeners = new Set<() => void>()
+let wallCache = false
+
+function getWallSnapshot(): boolean {
+  try {
+    wallCache = window.localStorage.getItem(WALL_KEY) === '1'
+  } catch {
+    // modo privado o almacenamiento bloqueado: se cocina en modo normal
+  }
+  return wallCache
+}
+
+function getWallServerSnapshot(): boolean {
+  return false
+}
+
+function subscribeWall(listener: () => void): () => void {
+  wallListeners.add(listener)
+  return () => wallListeners.delete(listener)
+}
+
+function setWallPreference(next: boolean): void {
+  try {
+    window.localStorage.setItem(WALL_KEY, next ? '1' : '0')
+  } catch {
+    // no poder recordarlo no impide usarlo en esta sesión
+  }
+  wallCache = next
+  wallListeners.forEach((listener) => listener())
+}
 
 export interface CookStep {
   id: string
@@ -51,9 +91,14 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
   const [index, setIndex] = useState(0)
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set())
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
+  const wall = useSyncExternalStore(subscribeWall, getWallSnapshot, getWallServerSnapshot)
 
   // Mantiene la pantalla encendida mientras dura la sesión de cocina (spec §8).
   useWakeLock(true)
+
+  function toggleWall() {
+    setWallPreference(!wall)
+  }
 
   const speech = useSpeech(locale)
 
@@ -132,7 +177,7 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
       }}
     >
       <header className="flex items-center justify-between gap-2">
-        <h1 className="truncate font-display text-xl">{title}</h1>
+        <h1 className={cn('truncate font-display', wall ? 'text-3xl' : 'text-xl')}>{title}</h1>
         <div className="flex items-center gap-2">
           {speech.supported ? (
             <Button
@@ -146,17 +191,24 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
               {speech.speaking ? <VolumeOffIcon size={20} /> : <VolumeIcon size={20} />}
             </Button>
           ) : null}
+          <Button type="button" variant="outline" size="lg" aria-pressed={wall} aria-label={wall ? t('wallOff') : t('wallOn')} onClick={toggleWall}>
+            <CookIcon size={20} />
+          </Button>
           <ServingsStepper value={servings} onChange={setServings} />
         </div>
       </header>
 
       <p className="tabular text-sm text-text-2">{t('stepOf', { current: index + 1, total: steps.length })}</p>
 
-      {step ? <p className="text-2xl leading-snug">{step.text}</p> : null}
+      {step ? (
+        <p data-testid="cook-step" className={cn('leading-snug', wall ? 'text-4xl' : 'text-2xl')}>
+          {step.text}
+        </p>
+      ) : null}
 
       {step ? <StepTimers text={step.text} locale={locale} stepIndex={index} timerSeconds={step.timerSeconds} /> : null}
 
-      {stepRows.length > 0 ? <IngredientChecklist rows={stepRows} checked={checked} onToggle={toggle} /> : null}
+      {wall || stepRows.length > 0 ? <IngredientChecklist rows={stepRows} checked={checked} onToggle={toggle} /> : null}
 
       {unassignedRows.length > 0 ? (
         <div className="flex flex-col gap-1">
