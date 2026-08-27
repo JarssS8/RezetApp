@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { createRecipeAction, prepareIngredientsAction, updateRecipeAction, type PreparedIngredient } from '@/lib/actions/recipes'
+import { actionErrorKey } from '@/lib/actions/result'
 import type { Locale } from '@/lib/domain/types'
 import type { RecipeInput } from '@/lib/validation/recipes'
 import { RecipeInputSchema } from '@/lib/validation/recipes'
@@ -21,6 +22,7 @@ import { ServingsStepper } from './servings-stepper'
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const
 type Difficulty = (typeof DIFFICULTIES)[number]
 type RecipeIngredientInput = RecipeInput['ingredients'][number]
+type StepInput = RecipeInput['steps'][number]
 
 // Clave de sessionStorage donde la pista (b) deja el borrador de una receta
 // reconocida por foto/URL (Tarea 12): esta pantalla solo lo lee con ?draft=1.
@@ -99,7 +101,7 @@ export function buildIngredientInput(line: EditableIngredientLine): RecipeIngred
   return {
     rawText: line.rawText,
     scalesLinearly: line.scalesLinearly,
-    stepIndex: null,
+    ...(line.stepIndex !== null && { stepIndex: line.stepIndex }),
     ...(line.foodId !== null && { foodId: line.foodId }),
     ...(line.displayQuantity !== null && { displayQuantity: line.displayQuantity }),
     ...(line.displayUnit !== null && { displayUnit: line.displayUnit }),
@@ -120,11 +122,30 @@ function nonEmptyLines(text: string): string[] {
 // Los pasos se separan por línea en blanco (no por línea suelta): así un
 // paso puede ocupar varias líneas y sobrevive a una reedición. Al precargar
 // el textarea desde `steps` (initial/borrador) se une con '\n\n', el inverso.
-function stepsFromText(text: string): string[] {
+function stepTextsFromTextarea(text: string): string[] {
   return text
     .split(/\n{2,}/)
     .map((block) => block.trim())
     .filter((block) => block.length > 0)
+}
+
+function blankStep(text: string): StepInput {
+  return { text, timerSeconds: null, imageUrl: null }
+}
+
+// Los pasos se guardan como objetos ({text, timerSeconds, imageUrl}), no solo
+// texto: una receta importada o creada por MCP puede traer temporizador o
+// foto por paso (regla I4 de la revisión W2), y este editor no debe perderlos
+// solo porque su textarea es un único campo de texto. Al reanalizar el
+// textarea (cada pulsación) se actualiza `text` por posición y se conserva el
+// resto de cada paso ya existente; una línea nueva (más bloques que pasos
+// previos) se crea con temporizador/foto a null, igual que una fila de
+// ingrediente en blanco.
+function mergeStepTexts(previous: StepInput[], text: string): StepInput[] {
+  return stepTextsFromTextarea(text).map((stepText, index) => {
+    const existing = previous[index]
+    return existing ? { ...existing, text: stepText } : blankStep(stepText)
+  })
 }
 
 export interface RecipeEditorProps {
@@ -162,6 +183,7 @@ function readDraft(): RecipeInput | null {
 
 export function RecipeEditor({ initial, recipeId, locale, useDraft, initialFoodNames }: RecipeEditorProps) {
   const t = useTranslations('recipes')
+  const te = useTranslations('errors')
   const router = useRouter()
 
   // `initial` (editar) manda; si no hay y se pidió ?draft=1, se usa el
@@ -184,6 +206,9 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft, initialFoodN
   const [ingredientsText, setIngredientsText] = useState(resolved ? resolved.ingredients.map((i) => i.rawText).join('\n') : '')
   const [rows, setRows] = useState<Row[]>(resolved ? rowsFromInput(resolved.ingredients, foodNamesForRows) : [])
   const [stepsText, setStepsText] = useState(resolved ? resolved.steps.map((s) => s.text).join('\n\n') : '')
+  const [steps, setSteps] = useState<StepInput[]>(
+    resolved ? resolved.steps.map((s) => ({ text: s.text, timerSeconds: s.timerSeconds ?? null, imageUrl: s.imageUrl ?? null })) : [],
+  )
   const [notes, setNotes] = useState(resolved?.notes ?? '')
   // Campos que este editor no expone en un campo propio pero hay que
   // conservar al reeditar (por ejemplo la URL de origen de una receta
@@ -298,8 +323,7 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft, initialFoodN
       const reparsedOk = await reparse(ingredientsText)
       if (!reparsedOk) return
       const finalRows = rowsRef.current
-      const stepLines = stepsFromText(stepsText)
-      if (finalRows.length === 0 && stepLines.length === 0) {
+      if (finalRows.length === 0 && steps.length === 0) {
         setError(t('editor.needsContent'))
         return
       }
@@ -323,12 +347,12 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft, initialFoodN
         yieldGrams,
         tags,
         ingredients: finalRows.map(buildIngredientInput),
-        steps: stepLines.map((text) => ({ text, timerSeconds: null, imageUrl: null })),
+        steps,
       }
 
       const result = recipeId ? await updateRecipeAction(recipeId, input) : await createRecipeAction(input)
       if (!result.ok) {
-        setError(result.message || t('editor.saveError'))
+        setError(te(actionErrorKey(result.code)))
         return
       }
       // Borrador ya consumido: si queda en sessionStorage, la próxima vez que
@@ -472,7 +496,11 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft, initialFoodN
         <Textarea
           id="recipe-steps"
           value={stepsText}
-          onChange={(e) => setStepsText(e.target.value)}
+          onChange={(e) => {
+            const nextText = e.target.value
+            setStepsText(nextText)
+            setSteps((prev) => mergeStepTexts(prev, nextText))
+          }}
           placeholder={t('editor.stepsHint')}
           rows={5}
         />

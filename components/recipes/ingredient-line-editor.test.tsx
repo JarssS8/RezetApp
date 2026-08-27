@@ -111,6 +111,20 @@ describe('IngredientLineEditor', () => {
     expect(RecipeIngredientInputSchema.safeParse(projected).success).toBe(true)
     expect(projected).toMatchObject({ quantity: 200, unit: 'g' })
   })
+
+  // Regresión I4: buildIngredientInput mandaba `stepIndex: null` fijo, así que
+  // guardar una receta con ingredientes ya asignados a un paso (por ejemplo,
+  // importada o creada por MCP) los desasignaba en silencio.
+  it('buildIngredientInput conserva el stepIndex de la línea', () => {
+    const projected = buildIngredientInput({ ...base, stepIndex: 2, touched: false })
+    expect(RecipeIngredientInputSchema.safeParse(projected).success).toBe(true)
+    expect(projected).toMatchObject({ stepIndex: 2 })
+  })
+
+  it('buildIngredientInput omite stepIndex cuando la línea no tiene uno', () => {
+    const projected = buildIngredientInput({ ...base, stepIndex: null, touched: false })
+    expect(projected).not.toHaveProperty('stepIndex')
+  })
 })
 
 describe('confidenceLevel', () => {
