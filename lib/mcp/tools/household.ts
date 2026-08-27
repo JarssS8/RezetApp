@@ -5,9 +5,10 @@ import { recentlyCooked } from '@/lib/services/recipes'
 import type { McpCtx } from '../auth'
 import { guarded, hasScope } from '../guards'
 
-// Compartida con resources.ts (household://context enseña el mismo "lo
-// cocinado recientemente" que esta herramienta): un solo número, para que no
-// puedan volver a divergir.
+// Compartida con resources.ts, pero solo el número: household://context lista
+// eventos del registro de cocinado (listCookingLog), mientras que esta
+// herramienta lista recetas distintas cocinadas recientemente
+// (recentlyCooked). Un único límite para que ambos no puedan divergir.
 export const RECENT_LIMIT = 5
 
 const GetHouseholdContextInputSchema = z.strictObject({})

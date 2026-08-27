@@ -8,8 +8,9 @@ export type McpCtx = Ctx & { mcpProfile: 'basic' | 'full' }
 
 // El MCP solo acepta Bearer rz_…, nunca la cookie de sesión (a diferencia de
 // REST vía lib/auth/guards.ts::requireApiToken): un cliente MCP siempre trae
-// su propio token. Los scopes se comprueban por herramienta al registrarla
-// (Task 39), así que aquí no se exige ninguno.
+// su propio token. Los scopes se comprueban por herramienta, no aquí: cada
+// registerXTools de lib/mcp/tools/*.ts decide si se registra según
+// hasScope(ctx, …), así que authenticateMcp no exige ninguno en concreto.
 export async function authenticateMcp(request: Request): Promise<McpCtx> {
   const authorization = request.headers.get('authorization') ?? undefined
   return authenticateApiToken(db, authorization, [])

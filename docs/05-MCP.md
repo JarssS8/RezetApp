@@ -45,7 +45,7 @@ Las doce ya existen.
 | `search_recipes` | ✓ | Busca por texto, etiquetas, tiempo máximo, ingredientes que hay o faltan | Una herramienta con filtros ricos, no cinco búsquedas |
 | `get_recipe` | ✓ | Receta completa, opcionalmente escalada a N raciones | El escalado es un parámetro, no otra herramienta |
 | `create_recipe` | ✓ | Crea una receta estructurada | Permitido; editar y borrar quedan fuera del básico |
-| `import_recipe` | ✓ | Desde URL, texto o imagen | Un punto de entrada; la app decide el método |
+| `import_recipe` | ✓ | Desde URL o texto (imagen llega con la IA) | Un punto de entrada; la app decide el método |
 | `get_meal_plan` | ✓ | Plan de un rango de fechas, con nutrición agregada | Rango, no hoy/semana/mes por separado |
 | `set_meal_plan` | ✓ | Crea una propuesta de entradas a añadir o quitar, en lote | Planificar una semana debe ser una llamada, no catorce; la propuesta la aprueba el usuario |
 | `get_pantry` | ✓ | Inventario, con filtro por lo que caduca antes de una fecha | Ese filtro habilita la mejor sugerencia del producto |

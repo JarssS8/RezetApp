@@ -28,8 +28,10 @@ const INSTRUCTIONS =
 // Cada registerXTools comprueba sus propios scopes y decide si registra
 // alguna herramienta (devuelve si lo hizo); con un token sin scopes (o sin
 // ninguno relevante) no se registra ninguna. ctx.mcpProfile ("basic"/"full")
-// distingue perfil básico y completo por herramienta (docs/05-MCP.md,
-// "Barandillas de seguridad"): las 12 herramientas llegan en las tareas 22-28.
+// es lo que separa, herramienta a herramienta, las doce del perfil básico de
+// las cinco del perfil completo (docs/05-MCP.md, "Barandillas de
+// seguridad"): cada registerXTools consulta isFull(ctx) donde corresponda
+// antes de registrar las suyas.
 export function buildMcpServer(ctx: McpCtx): McpServer {
   const server = new McpServer({ name: APP_NAME, version: APP_VERSION }, { instructions: INSTRUCTIONS })
   const registered = [

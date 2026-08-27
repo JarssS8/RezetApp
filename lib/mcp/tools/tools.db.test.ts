@@ -197,6 +197,24 @@ describe('herramientas MCP', () => {
     await client.close()
   })
 
+  it('import_recipe con kind url pero sin url falla la validación estricta', async () => {
+    const client = await connectedClient(mcpCtxOf(['recipes:write']))
+    const res = await callTool(client, { name: 'import_recipe', arguments: { kind: 'url' } })
+    expect(res.isError).toBe(true)
+    expect(textOf(res)).toMatch(/necesita url/)
+    await client.close()
+  })
+
+  it('import_recipe con url y text a la vez falla la validación estricta', async () => {
+    const client = await connectedClient(mcpCtxOf(['recipes:write']))
+    const res = await callTool(client, {
+      name: 'import_recipe',
+      arguments: { kind: 'url', url: 'https://example.com/receta', text: 'Gazpacho\n\n1 kg de tomate\n\nTritura todo' },
+    })
+    expect(res.isError).toBe(true)
+    await client.close()
+  })
+
   it('editar y borrar recetas solo existe en el perfil completo', async () => {
     const basic = await connectedClient(mcpCtxOf(['recipes:read', 'recipes:write']))
     const names = (await basic.listTools()).tools.map((t) => t.name)

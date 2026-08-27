@@ -54,11 +54,15 @@ const RecipeBodyInput = z.strictObject({
   steps: z.array(z.strictObject({ text: z.string().min(1).max(2000) })).max(100),
 })
 
-const ImportRecipeInput = z.strictObject({
-  kind: z.enum(['url', 'text']),
-  url: z.url().optional(),
-  text: z.string().min(10).max(20_000).optional(),
-})
+const ImportRecipeInput = z
+  .strictObject({
+    kind: z.enum(['url', 'text']),
+    url: z.url().optional(),
+    text: z.string().min(10).max(20_000).optional(),
+  })
+  .refine((a) => (a.kind === 'url') === (a.url !== undefined) && (a.kind === 'text') === (a.text !== undefined), {
+    message: "kind 'url' necesita url; kind 'text' necesita text",
+  })
 
 // Registra search_recipes y get_recipe con recipes:read; create_recipe e
 // import_recipe con recipes:write (crear sí, editar y borrar no en el perfil
