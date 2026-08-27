@@ -2,15 +2,10 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getHouseholdOverview } from '@/lib/services/households'
 import { createProposal, listEntries, moveEntry, patchEntry, rangeNutrition } from '@/lib/services/plan'
-import { DateSchema, IdSchema, MealSlotSchema } from '@/lib/validation/common'
+import { DateRangeSchema, DateSchema, IdSchema, MealSlotSchema } from '@/lib/validation/common'
 import type { PlanEntryInput } from '@/lib/validation/plan'
 import type { McpCtx } from '../auth'
 import { guarded, hasScope, isFull } from '../guards'
-
-const GetMealPlanInput = z.strictObject({
-  from: DateSchema.describe('Primer día del rango, YYYY-MM-DD'),
-  to: DateSchema.describe('Último día del rango, inclusive'),
-})
 
 // Mismo contrato que PlanBatchSchema (lib/validation/plan.ts), reescrito como
 // z.strictObject porque el SDK usa este esquema TAL CUAL para validar la
@@ -62,9 +57,9 @@ export function registerPlanTools(server: McpServer, ctx: McpCtx): boolean {
         title: 'Plan de comidas',
         description:
           'Comidas planificadas de un rango de fechas, con la nutrición agregada que calcula el servidor. Úsala para saber qué hay planificado antes de proponer cambios. No la uses para buscar recetas (search_recipes) ni para ver la despensa (get_pantry).',
-        inputSchema: GetMealPlanInput,
+        inputSchema: DateRangeSchema,
       },
-      guarded('No se pudo leer el plan.', async ({ from, to }: z.infer<typeof GetMealPlanInput>) => {
+      guarded('No se pudo leer el plan.', async ({ from, to }: z.infer<typeof DateRangeSchema>) => {
         const [entries, nutrition] = await Promise.all([listEntries(ctx, { from, to }), rangeNutrition(ctx, { from, to })])
         // rangeNutrition devuelve { byDate, total } donde "total" es a su vez
         // un Nutrition completo (perServing/total/per100g/isEstimated): se

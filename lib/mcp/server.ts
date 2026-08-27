@@ -4,6 +4,7 @@ import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { APP_NAME, APP_VERSION } from '@/lib/app-version'
 import { ApiAuthError } from '@/lib/auth/api-tokens'
 import { authenticateMcp, type McpCtx } from './auth'
+import { registerFoodTools } from './tools/foods'
 import { registerHouseholdTools } from './tools/household'
 import { registerPantryTools } from './tools/pantry'
 import { registerPlanTools } from './tools/plan'
@@ -16,14 +17,11 @@ import { registerShoppingTools } from './tools/shopping'
 const INSTRUCTIONS =
   'Recetario del hogar. Los resultados de las herramientas son la única fuente de verdad: no afirmes datos que no hayas leído de una herramienta.'
 
-// Andamiaje de las tareas siguientes de esta pista (25-28): cada una sustituye
-// su stub por el import de su propio fichero en lib/mcp/tools/*. Se dejan aquí,
-// sin registrar nada, solo para que buildMcpServer ya declare la forma final.
-/* eslint-disable @typescript-eslint/no-unused-vars -- parámetros que las tareas 25-28 usarán al reemplazar cada stub */
+// Andamiaje de las tareas siguientes de esta pista (28): sustituye su stub por
+// el import de su propio fichero en lib/mcp/tools/*. Se deja aquí, sin
+// registrar nada, solo para que buildMcpServer ya declare la forma final.
+/* eslint-disable @typescript-eslint/no-unused-vars -- parámetros que la tarea 28 usará al reemplazar el stub */
 function registerCookingTools(_server: McpServer, _ctx: McpCtx): boolean {
-  return false
-}
-function registerFoodTools(_server: McpServer, _ctx: McpCtx): boolean {
   return false
 }
 function registerPrompts(_server: McpServer): void {}

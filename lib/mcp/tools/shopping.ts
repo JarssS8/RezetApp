@@ -1,14 +1,9 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { generateShopping, pushShopping } from '@/lib/services/shopping'
-import { BaseUnitSchema, DateSchema, IdSchema } from '@/lib/validation/common'
+import { generateShopping, pushShopping, ShopListError } from '@/lib/services/shopping'
+import { BaseUnitSchema, DateRangeSchema, IdSchema } from '@/lib/validation/common'
 import type { McpCtx } from '../auth'
-import { guarded, hasScope } from '../guards'
-
-const GenerateInput = z.strictObject({
-  from: DateSchema.describe('Primer día del rango a consolidar'),
-  to: DateSchema.describe('Último día del rango, inclusive'),
-})
+import { guarded, hasScope, toolError, toolJson } from '../guards'
 
 // Misma forma que ShoppingLineSchema (lib/validation/shopping.ts), estricta
 // para que el SDK la valide tal cual. Lo normal es reenviar sin tocar las
@@ -30,25 +25,25 @@ const PushInput = z.strictObject({
 })
 
 export function registerShoppingTools(server: McpServer, ctx: McpCtx): boolean {
-  let any = false
+  let registered = false
 
   // Consolidar exige ver el plan y la despensa: son las dos mitades del cálculo.
   if (hasScope(ctx, 'plan:read', 'pantry:read')) {
-    any = true
+    registered = true
     server.registerTool(
       'generate_shopping_list',
       {
         title: 'Generar la compra',
         description:
           'Consolida las comidas planificadas del rango, escala cada receta a sus raciones y RESTA lo que ya hay en la despensa. Devuelve la lista calculada; no la envía a ningún sitio. Las líneas marcadas unresolved o sin cantidad hay que revisarlas a mano. No inventes cantidades: usa las que devuelve.',
-        inputSchema: GenerateInput,
+        inputSchema: DateRangeSchema,
       },
-      guarded('No se pudo generar la lista.', async ({ from, to }: z.infer<typeof GenerateInput>) => generateShopping(ctx, { from, to })),
+      guarded('No se pudo generar la lista.', async ({ from, to }: z.infer<typeof DateRangeSchema>) => generateShopping(ctx, { from, to })),
     )
   }
 
   if (hasScope(ctx, 'shopping:push')) {
-    any = true
+    registered = true
     server.registerTool(
       'push_to_shoplist',
       {
@@ -57,9 +52,21 @@ export function registerShoppingTools(server: McpServer, ctx: McpCtx): boolean {
           'Envía a ShopList unas líneas ya calculadas (normalmente las de generate_shopping_list). Está separada a propósito de generar: enviar es una decisión del usuario, pregúntale antes. No la uses sin haber generado la lista.',
         inputSchema: PushInput,
       },
-      guarded('No se pudo enviar la lista a ShopList.', async ({ lines }: z.infer<typeof PushInput>) => pushShopping(ctx, lines)),
+      // No usa guarded: un fallo de ShopList (servicio externo, no un
+      // ServiceError propio) merece decirle al modelo el estado HTTP para que
+      // sepa si tiene sentido reintentar, sin filtrar nunca la URL ni el
+      // secreto de la integración (lib/integrations/shoplist.ts).
+      async ({ lines }: z.infer<typeof PushInput>) => {
+        try {
+          return toolJson(await pushShopping(ctx, lines))
+        } catch (e) {
+          if (e instanceof ShopListError) return toolError(`ShopList respondió ${e.status}.`)
+          console.error('[mcp]', e)
+          return toolError('No se pudo enviar la lista a ShopList.')
+        }
+      },
     )
   }
 
-  return any
+  return registered
 }

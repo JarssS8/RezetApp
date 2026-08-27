@@ -1,15 +1,48 @@
 import { eq } from 'drizzle-orm'
+import { createServer, type Server } from 'node:http'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import * as schema from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import type { McpCtx } from '@/lib/mcp/auth'
+import type { Ctx } from '@/lib/services/ctx'
+import { updateShoplistSettings } from '@/lib/services/shoplist-settings'
 import { callTool, connectedClient, textOf } from './test-helpers'
+
+// encryptSecret/getKeys (usados por updateShoplistSettings) exigen APP_SECRET;
+// mismo valor de prueba que lib/services/shopping.test.ts y ai-settings.test.ts.
+process.env.APP_SECRET = 'secreto-de-prueba-con-suficiente-longitud-1234'
 
 let db: TestDb
 let householdId: string
 
 function mcpCtxOf(scopes: string[]): McpCtx {
   return { db, householdId, userId: null, apiTokenId: null, role: null, locale: 'es', scopes, mcpProfile: 'basic' }
+}
+
+// Servidor HTTP real y efímero que hace de ShopList caído: el cliente MCP
+// nunca inyecta fetch (a diferencia de lib/integrations/shoplist.test.ts), así
+// que la única forma de provocar un ShopListError con status real desde aquí
+// es una petición de verdad contra un puerto local.
+function listenWithStatus(status: number): Promise<{ server: Server; fnUrl: string }> {
+  return new Promise((resolve, reject) => {
+    const server = createServer((_req, res) => {
+      res.writeHead(status)
+      res.end('no disponible')
+    })
+    server.on('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      if (address === null || typeof address === 'string') {
+        reject(new Error('sin dirección de servidor'))
+        return
+      }
+      resolve({ server, fnUrl: `http://127.0.0.1:${address.port}` })
+    })
+  })
+}
+
+function closeServer(server: Server): Promise<void> {
+  return new Promise((resolve) => server.close(() => resolve()))
 }
 
 beforeAll(async () => {
@@ -67,5 +100,33 @@ describe('herramientas MCP de compra', () => {
     const client = await connectedClient(mcpCtxOf(['plan:read']))
     expect((await client.listTools()).tools.map((t) => t.name)).not.toContain('generate_shopping_list')
     await client.close()
+  })
+
+  it('generate_shopping_list con from > to falla en el esquema (DateRangeSchema)', async () => {
+    const client = await connectedClient(mcpCtxOf(['plan:read', 'pantry:read']))
+    const result = await callTool(client, { name: 'generate_shopping_list', arguments: { from: '2026-08-30', to: '2026-08-24' } })
+    expect(result.isError).toBe(true)
+    await client.close()
+  })
+
+  it('push_to_shoplist con un error HTTP de ShopList responde con el estado, nunca con la URL ni el secreto', async () => {
+    const { server, fnUrl } = await listenWithStatus(503)
+    try {
+      const setupCtx: Ctx = { db, householdId, userId: null, apiTokenId: null, role: 'owner', locale: 'es', scopes: [] }
+      await updateShoplistSettings(setupCtx, { fnUrl, secret: 'topsecret', listToken: 'lst_test' })
+
+      const client = await connectedClient(mcpCtxOf(['shopping:push']))
+      const result = await callTool(client, {
+        name: 'push_to_shoplist',
+        arguments: { lines: [{ foodId: null, name: 'sal', quantity: 1, unit: 'ud', unresolved: false, pantryUnmatched: false }] },
+      })
+      expect(result.isError).toBe(true)
+      expect(textOf(result)).toContain('503')
+      expect(textOf(result)).not.toContain(fnUrl)
+      expect(textOf(result)).not.toContain('topsecret')
+      await client.close()
+    } finally {
+      await closeServer(server)
+    }
   })
 })

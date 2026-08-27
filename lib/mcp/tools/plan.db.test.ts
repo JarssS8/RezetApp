@@ -137,6 +137,13 @@ describe('herramientas MCP del plan', () => {
     await client.close()
   })
 
+  it('get_meal_plan con from > to falla en el esquema (DateRangeSchema)', async () => {
+    const client = await connectedClient(mcpCtxOf(['plan:read']))
+    const result = await callTool(client, { name: 'get_meal_plan', arguments: { from: '2026-08-30', to: '2026-08-24' } })
+    expect(result.isError).toBe(true)
+    await client.close()
+  })
+
   it('un argumento que la herramienta no declara falla ruidosamente (esquema estricto)', async () => {
     const client = await connectedClient(mcpCtxOf(['plan:read']))
     const result = await callTool(client, { name: 'get_meal_plan', arguments: { from: '2026-08-24', to: '2026-08-30', ordena: 'por hambre' } })

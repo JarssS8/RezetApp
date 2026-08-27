@@ -37,10 +37,10 @@ const UpdatePantryInput = z
   .refine((v) => v.delta === undefined || v.delta !== 0, { message: 'delta no puede ser 0: no habría nada que ajustar' })
 
 export function registerPantryTools(server: McpServer, ctx: McpCtx): boolean {
-  let any = false
+  let registered = false
 
   if (hasScope(ctx, 'pantry:read')) {
-    any = true
+    registered = true
     server.registerTool(
       'get_pantry',
       {
@@ -70,7 +70,7 @@ export function registerPantryTools(server: McpServer, ctx: McpCtx): boolean {
   }
 
   if (hasScope(ctx, 'pantry:write')) {
-    any = true
+    registered = true
     server.registerTool(
       'update_pantry',
       {
@@ -99,7 +99,7 @@ export function registerPantryTools(server: McpServer, ctx: McpCtx): boolean {
   }
 
   if (isFull(ctx) && hasScope(ctx, 'pantry:write')) {
-    any = true
+    registered = true
     server.registerTool(
       'delete_pantry_item',
       {
@@ -115,5 +115,5 @@ export function registerPantryTools(server: McpServer, ctx: McpCtx): boolean {
     )
   }
 
-  return any
+  return registered
 }
