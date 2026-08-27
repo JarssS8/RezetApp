@@ -245,6 +245,23 @@ describe('dayProgress', () => {
     // Aislamiento entre hogares
     expect(await dayProgress(ctxOf(b), '2026-08-27')).toMatchObject({ plannedKcal: 0, cookedKcal: 0 })
   })
+
+  // Debt de la revisión de la Tarea 9: el innerJoin con recipes ya filtra por
+  // isNull(deletedAt), así que las entradas de una receta borrada dejan de
+  // contar en el anillo de Hoy (mismo criterio que lookupRecipeTitles).
+  it('una receta borrada deja de contar en el anillo del día', async () => {
+    const a = await makeHousehold('Casa A')
+    const recipeA = await makeRecipe(a, 'Sopa', { kcalPerServing: 300, servingsBase: 2 })
+    const [cooked] = await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-08-27', slot: 'lunch', recipeId: recipeA, servings: 2 }).returning()
+    if (!cooked) throw new Error('seed')
+    await db.update(schema.mealPlanEntries).set({ cookedAt: new Date() }).where(eq(schema.mealPlanEntries.id, cooked.id))
+
+    expect(await dayProgress(ctxOf(a), '2026-08-27')).toMatchObject({ plannedKcal: 600, cookedKcal: 600 })
+
+    await db.update(schema.recipes).set({ deletedAt: new Date() }).where(eq(schema.recipes.id, recipeA))
+
+    expect(await dayProgress(ctxOf(a), '2026-08-27')).toMatchObject({ plannedKcal: 0, cookedKcal: 0 })
+  })
 })
 
 describe('createProposal', () => {

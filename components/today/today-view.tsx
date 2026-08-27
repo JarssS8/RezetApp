@@ -35,7 +35,7 @@ export function TodayView({ date, entries, progress, expiring, aiEnabled }: Toda
 
   useHouseholdEvents(
     useCallback(() => router.refresh(), [router]),
-    ['plan.changed', 'pantry.changed', 'proposal.created'],
+    ['plan.changed', 'pantry.changed', 'proposal.created', 'recipe.changed'],
   )
 
   return (

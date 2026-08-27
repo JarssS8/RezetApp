@@ -349,7 +349,7 @@ export async function rangeNutrition(ctx: Ctx, range: { from: string; to: string
       nutritionIsEstimated: schema.recipes.nutritionIsEstimated,
     })
     .from(schema.mealPlanEntries)
-    .innerJoin(schema.recipes, eq(schema.recipes.id, schema.mealPlanEntries.recipeId))
+    .innerJoin(schema.recipes, and(eq(schema.recipes.id, schema.mealPlanEntries.recipeId), isNull(schema.recipes.deletedAt)))
     .where(
       and(
         eq(schema.mealPlanEntries.householdId, ctx.householdId),
@@ -404,7 +404,7 @@ export async function dayProgress(ctx: Ctx, date: string): Promise<DayProgress> 
       nutritionIsEstimated: schema.recipes.nutritionIsEstimated,
     })
     .from(schema.mealPlanEntries)
-    .innerJoin(schema.recipes, eq(schema.recipes.id, schema.mealPlanEntries.recipeId))
+    .innerJoin(schema.recipes, and(eq(schema.recipes.id, schema.mealPlanEntries.recipeId), isNull(schema.recipes.deletedAt)))
     .where(
       and(
         eq(schema.mealPlanEntries.householdId, ctx.householdId),
@@ -450,7 +450,7 @@ export async function plannedEntriesForShopping(ctx: Ctx, range: { from: string;
       servingsBase: schema.recipes.servingsBase,
     })
     .from(schema.mealPlanEntries)
-    .innerJoin(schema.recipes, eq(schema.recipes.id, schema.mealPlanEntries.recipeId))
+    .innerJoin(schema.recipes, and(eq(schema.recipes.id, schema.mealPlanEntries.recipeId), isNull(schema.recipes.deletedAt)))
     .where(
       and(
         eq(schema.mealPlanEntries.householdId, ctx.householdId),
