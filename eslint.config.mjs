@@ -29,12 +29,21 @@ const config = [
         { type: 'auth', pattern: 'lib/auth/**' },
         { type: 'events', pattern: 'lib/events/**' },
         { type: 'actions', pattern: 'lib/actions/**' },
+        // Patrón fijado en la Tarea 13 (W3): las rutas de app/api/v1 no están
+        // en DB_TEST_GLOBS, así que sus tests viven en lib/services/api-*.test.ts
+        // para poder usar getTestDb() y ahí necesitan importar la propia ruta.
+        // Más específico que 'services': va antes en la lista.
+        { type: 'api-route-test', pattern: 'lib/services/api-*.test.ts', mode: 'file' },
         { type: 'services', pattern: 'lib/services/**' },
         { type: 'uploads', pattern: 'lib/uploads/**' },
         { type: 'mcp', pattern: 'lib/mcp/**' },
         { type: 'lib', pattern: 'lib/*.ts', mode: 'file' },
         { type: 'lib', pattern: 'lib/*' },
         { type: 'components', pattern: 'components/**' },
+        // app/api/v1/_lib vive dentro de `app` (las fronteras solo dejan
+        // importar de `services` a ese elemento) pero también necesita el tipo
+        // ApiScope de db/schema (Tarea 13, W3). Más específico que 'app': va antes.
+        { type: 'api-lib', pattern: 'app/api/v1/_lib/**' },
         { type: 'app', pattern: 'app/**' },
         { type: 'scripts', pattern: 'scripts/**' },
       ],
@@ -90,6 +99,20 @@ const config = [
                 },
               },
             },
+            {
+              // Igual que 'services' pero además de 'app': estos ficheros son
+              // tests que importan el route handler que prueban (Tarea 13, W3).
+              from: { element: { type: 'api-route-test' } },
+              allow: {
+                to: {
+                  element: {
+                    types: {
+                      anyOf: ['api-route-test', 'services', 'domain', 'validation', 'db', 'ai', 'integrations', 'auth', 'events', 'lib', 'uploads', 'app'],
+                    },
+                  },
+                },
+              },
+            },
             { from: { element: { type: 'lib' } }, allow: { to: { element: { types: { anyOf: ['lib', 'domain'] } } } } },
             {
               from: { element: { type: 'uploads' } },
@@ -114,8 +137,25 @@ const config = [
                     // 'ai' incluido: app/(app)/settings/ai/page.tsx lee el catálogo
                     // de modelos (lib/ai/models.ts, puro, sin proveedor ni DB) para
                     // decidir qué pasarle al formulario de ajustes de IA.
+                    // 'api-lib' incluido: app/api/v1/**/route.ts llama a
+                    // apiFailure/apiError/parseBody de app/api/v1/_lib/respond.ts.
                     types: {
-                      anyOf: ['app', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads', 'ai', 'mcp'],
+                      anyOf: ['app', 'api-lib', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads', 'ai', 'mcp'],
+                    },
+                  },
+                },
+              },
+            },
+            {
+              // Igual que 'app' pero además de 'db': respond.ts necesita el
+              // tipo ApiScope de db/schema (Tarea 13, W3) — única excepción
+              // documentada a "app nunca ve db directamente".
+              from: { element: { type: 'api-lib' } },
+              allow: {
+                to: {
+                  element: {
+                    types: {
+                      anyOf: ['api-lib', 'app', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads', 'ai', 'mcp', 'db'],
                     },
                   },
                 },
