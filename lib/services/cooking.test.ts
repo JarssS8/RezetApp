@@ -281,6 +281,65 @@ describe('logCooked', () => {
     const log = await listCookingLog(ctxA, 10)
     expect(log.map((l) => l.servingsCooked)).toEqual([3, 2])
     expect(log[0]?.title).toBe('Sopa de cebolla')
+    expect(log[0]?.warnings).toHaveLength(log[0]?.warningCount ?? -1) // warnings y warningCount consistentes
     expect(await listCookingLog(ctxB, 10)).toEqual([])
+  })
+
+  it('listCookingLog rechaza un limit fuera de 1..100', async () => {
+    await expect(listCookingLog(ctxA, 0)).rejects.toMatchObject({ code: 'validation' })
+    await expect(listCookingLog(ctxA, 101)).rejects.toMatchObject({ code: 'validation' })
+    await expect(listCookingLog(ctxA, 1.5)).rejects.toMatchObject({ code: 'validation' })
+  })
+
+  it('una sobra no se puede cocinar: la despensa ya se descontó el día que se cocinó el original', async () => {
+    const item = await upsertPantryItem(ctxA, { foodId: onionId, quantity: 1000, unit: 'g', location: 'pantry' })
+    const entryId = await makeEntry(ctxA, '2026-08-27', 4)
+    const result = await logCooked(ctxA, { entryId, servingsCooked: 4, leftovers: { servings: 2, date: '2026-08-28', slot: 'lunch' } })
+    const leftoverEntryId = result.leftoverEntryId as string
+
+    await expect(logCooked(ctxA, { entryId: leftoverEntryId, servingsCooked: 2 })).rejects.toMatchObject({ code: 'validation' })
+
+    // Ni descuento (más allá del cocinado original), ni log nuevo, ni times_cooked de más.
+    const [pantry] = await db.select().from(schema.pantryItems).where(eq(schema.pantryItems.id, item.id))
+    expect(pantry?.quantity).toBe(400) // 1000 − 600 (4 raciones) del cocinado original, nada más
+    const logs = await db.select().from(schema.cookingLog).where(eq(schema.cookingLog.householdId, ctxA.householdId))
+    expect(logs).toHaveLength(1)
+    const [recipe] = await db.select().from(schema.recipes).where(eq(schema.recipes.id, recipeId))
+    expect(recipe?.timesCooked).toBe(1)
+  })
+
+  it('cocinar desde receta dos veces seguidas (mismas raciones, <5 min) es idempotente: mismo resultado, sin segunda entrada ni descuento', async () => {
+    await upsertPantryItem(ctxA, { foodId: onionId, quantity: 1000, unit: 'g', location: 'pantry' })
+    const first = await logCooked(ctxA, { recipeId, servingsCooked: 2 }, new Date('2026-08-27T20:00:00Z'))
+    const second = await logCooked(ctxA, { recipeId, servingsCooked: 2 }, new Date('2026-08-27T20:04:00Z'))
+
+    expect(second).toEqual(first)
+    const entries = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.householdId, ctxA.householdId))
+    expect(entries).toHaveLength(1) // no se creó una segunda entrada
+    const [pantry] = await db.select().from(schema.pantryItems)
+    expect(pantry?.quantity).toBe(700) // 1000 − 300: solo se descontó una vez
+    const logs = await db.select().from(schema.cookingLog).where(eq(schema.cookingLog.householdId, ctxA.householdId))
+    expect(logs).toHaveLength(1)
+  })
+
+  it('cocinar desde receta pasados los 5 minutos es un cocinado nuevo de verdad', async () => {
+    await upsertPantryItem(ctxA, { foodId: onionId, quantity: 1000, unit: 'g', location: 'pantry' })
+    const first = await logCooked(ctxA, { recipeId, servingsCooked: 2 }, new Date('2026-08-27T20:00:00Z'))
+    const second = await logCooked(ctxA, { recipeId, servingsCooked: 2 }, new Date('2026-08-27T20:05:01Z'))
+
+    expect(second.entryId).not.toBe(first.entryId)
+    const entries = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.householdId, ctxA.householdId))
+    expect(entries).toHaveLength(2)
+    const [pantry] = await db.select().from(schema.pantryItems)
+    expect(pantry?.quantity).toBe(400) // 1000 − 300 − 300: se descontó dos veces
+  })
+
+  it('el hueco por hora usa la zona horaria del hogar, no UTC: 23:30 UTC ya es otro día y madrugada en Madrid', async () => {
+    await upsertPantryItem(ctxA, { foodId: onionId, quantity: 1000, unit: 'g', location: 'pantry' })
+    // 23:30 UTC del 27 de agosto son las 01:30 CEST del 28: otro día y hueco de picoteo.
+    const result = await logCooked(ctxA, { recipeId, servingsCooked: 2 }, new Date('2026-08-27T23:30:00Z'))
+    const [entry] = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.id, result.entryId))
+    expect(entry?.date).toBe('2026-08-28')
+    expect(entry?.slot).toBe('snack')
   })
 })

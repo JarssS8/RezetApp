@@ -57,12 +57,17 @@ async function lockEntry(tx: Db, householdId: string, entryId: string): Promise<
       slot: schema.mealPlanEntries.slot,
       recipeId: schema.mealPlanEntries.recipeId,
       cookedAt: schema.mealPlanEntries.cookedAt,
+      leftoverOfEntryId: schema.mealPlanEntries.leftoverOfEntryId,
     })
     .from(schema.mealPlanEntries)
     .where(and(eq(schema.mealPlanEntries.id, entryId), eq(schema.mealPlanEntries.householdId, householdId)))
     .limit(1)
     .for('update')
   if (!row) throw new ServiceError('not_found', 'Entrada del plan no encontrada')
+  // Una sobra ya descontó la despensa el día que se cocinó el plato original
+  // (§9.5 paso 7): registrarla de nuevo la duplicaría. Una sobra se come, no
+  // se cocina; da igual si cooked_at sigue a null.
+  if (row.leftoverOfEntryId !== null) throw new ServiceError('validation', 'Esto son sobras: la despensa ya se descontó el día que se cocinó')
   if (row.cookedAt !== null) throw new ServiceError('conflict', 'Esa comida ya está marcada como cocinada')
   // cooking_log.recipe_id es NOT NULL: una comida libre (solo custom_title) no
   // tiene ingredientes que descontar ni nutrición que registrar.
@@ -83,20 +88,56 @@ function hourInHouseholdTz(now: Date, tz = 'Europe/Madrid'): number {
 // de hoy. El hueco lo elige el usuario si viene en `slot`; si no, se deduce de
 // la hora (lib/domain/slots.ts). A partir de aquí siempre hay entrada, así que
 // el resto del flujo (bloqueo, descuento, registro) es exactamente el mismo.
-async function createEntryForRecipe(tx: Db, ctx: Ctx, recipeId: string, servings: number, slot: LockedEntry['slot'] | undefined, now: Date): Promise<LockedEntry> {
-  const [recipe] = await tx
-    .select({ id: schema.recipes.id })
-    .from(schema.recipes)
-    .where(and(eq(schema.recipes.id, recipeId), eq(schema.recipes.householdId, ctx.householdId), isNull(schema.recipes.deletedAt)))
-    .limit(1)
-  if (!recipe) throw new ServiceError('not_found', 'Receta no encontrada')
-  const date = todayIso()
+//
+// Recibe la receta ya cargada (loadRecipe) en vez de repetir su propio SELECT:
+// logCooked necesita el detalle completo (ingredientes) de todos modos, así
+// que resolver la receta dos veces sería trabajo repetido sin ganar nada.
+async function createEntryForRecipe(tx: Db, ctx: Ctx, recipe: RecipeForCooking, servings: number, slot: LockedEntry['slot'] | undefined, now: Date): Promise<LockedEntry> {
+  const date = todayIso(undefined, now)
   const [row] = await tx
     .insert(schema.mealPlanEntries)
-    .values({ householdId: ctx.householdId, date, slot: slot ?? slotForHour(hourInHouseholdTz(now)), recipeId, servings })
+    .values({ householdId: ctx.householdId, date, slot: slot ?? slotForHour(hourInHouseholdTz(now)), recipeId: recipe.id, servings })
     .returning({ id: schema.mealPlanEntries.id, date: schema.mealPlanEntries.date, slot: schema.mealPlanEntries.slot })
   if (!row) throw new ServiceError('conflict', 'No se pudo crear la entrada del plan')
-  return { id: row.id, date: row.date, slot: row.slot, recipeId }
+  return { id: row.id, date: row.date, slot: row.slot, recipeId: recipe.id }
+}
+
+// Ruling W3-R7: idempotencia SOLO en la vía "cocinar desde receta sin entrada"
+// (§9.5 paso 1). Un cliente MCP/REST que repite la misma llamada (misma
+// receta, mismas raciones) en menos de 5 minutos tras perder la respuesta no
+// debe crear una segunda entrada de hoy ni descontar la despensa otra vez: se
+// le devuelve el cocinado anterior tal cual, reconstruido desde cooking_log.
+// Pasados los 5 minutos, o con otras raciones, es un cocinado nuevo de verdad.
+// (La vía con entryId ya tiene su propia barandilla: lockEntry lanza 'conflict'
+// si la entrada ya está cocinada — ahí SÍ se pidió mantener el conflicto tal
+// cual, ver informe de la tarea 4.)
+const RECIPE_REPLAY_WINDOW_MS = 5 * 60 * 1000
+
+async function findRecipeReplay(tx: Db, householdId: string, recipeId: string, servingsCooked: number, now: Date): Promise<CookedResult | null> {
+  const [lastLog] = await tx
+    .select()
+    .from(schema.cookingLog)
+    .where(and(eq(schema.cookingLog.householdId, householdId), eq(schema.cookingLog.recipeId, recipeId), eq(schema.cookingLog.servingsCooked, servingsCooked)))
+    .orderBy(desc(schema.cookingLog.cookedAt))
+    .limit(1)
+  if (!lastLog) return null
+  if (now.getTime() - lastLog.cookedAt.getTime() > RECIPE_REPLAY_WINDOW_MS) return null
+  if (lastLog.entryId === null) return null // defensivo: sin entrada no hay nada que devolver como "la entrada creada"
+  const [leftover] = await tx
+    .select({ id: schema.mealPlanEntries.id })
+    .from(schema.mealPlanEntries)
+    .where(and(eq(schema.mealPlanEntries.leftoverOfEntryId, lastLog.entryId), eq(schema.mealPlanEntries.householdId, householdId)))
+    .limit(1)
+  return {
+    logId: lastLog.id,
+    entryId: lastLog.entryId,
+    recipeId: lastLog.recipeId,
+    servingsCooked: lastLog.servingsCooked,
+    kcalPerServing: lastLog.kcalPerServingSnapshot,
+    deductions: lastLog.pantryDeductions as PantryDeduction[],
+    warnings: lastLog.warnings as CookingWarning[],
+    leftoverEntryId: leftover?.id ?? null,
+  }
 }
 
 interface RecipeForCooking {
@@ -268,18 +309,23 @@ function buildWarnings(needs: Need[], unmatched: Need[], outcomes: DeductionOutc
 export async function logCooked(ctx: Ctx, input: LogCookedInput, now: Date = new Date()): Promise<CookedResult> {
   const outcome = await ctx.db.transaction(async (tx) => {
     // Paso 1 de §9.5: con entryId se bloquea la entrada existente; sin él, se
-    // cocina "a pelo" desde una receta y se crea la entrada de hoy. El esquema
-    // de validación (lib/validation/cooking.ts) ya garantiza que al menos uno
-    // de los dos viene informado; la comprobación de recipeId aquí es solo la
-    // guarda de tipos que TypeScript no puede deducir del refine de zod.
+    // cocina "a pelo" desde una receta y se crea la entrada de hoy (comprobando
+    // antes la barandilla de idempotencia W3-R7). El esquema de validación
+    // (lib/validation/cooking.ts) ya garantiza que al menos uno de los dos
+    // viene informado; la comprobación de recipeId aquí es solo la guarda de
+    // tipos que TypeScript no puede deducir del refine de zod.
     let entry: LockedEntry
+    let recipe: RecipeForCooking
     if (input.entryId) {
       entry = await lockEntry(tx, ctx.householdId, input.entryId)
+      recipe = await loadRecipe(tx, ctx.householdId, entry.recipeId)
     } else {
       if (!input.recipeId) throw new ServiceError('validation', 'Falta la receta o la entrada del plan')
-      entry = await createEntryForRecipe(tx, ctx, input.recipeId, input.servingsCooked, input.slot, now)
+      const replay = await findRecipeReplay(tx, ctx.householdId, input.recipeId, input.servingsCooked, now)
+      if (replay) return { result: replay, dates: [], foodIds: [], replay: true }
+      recipe = await loadRecipe(tx, ctx.householdId, input.recipeId)
+      entry = await createEntryForRecipe(tx, ctx, recipe, input.servingsCooked, input.slot, now)
     }
-    const recipe = await loadRecipe(tx, ctx.householdId, entry.recipeId)
     const foodIds = [...new Set(recipe.ingredients.map((i) => i.foodId).filter((id): id is string => id !== null))]
     const { conversionByFoodId, nameByFoodId } = await loadFoodInfo(tx, foodIds, ctx.locale)
     const needs = scaledNeeds(recipe, input.servingsCooked, conversionByFoodId)
@@ -351,15 +397,20 @@ export async function logCooked(ctx: Ctx, input: LogCookedInput, now: Date = new
       } satisfies CookedResult,
       dates,
       foodIds: [...new Set(deductions.map((d) => d.foodId))],
+      replay: false,
     }
   })
 
-  // Los eventos se emiten FUERA de la transacción: si esta se revierte, nadie
-  // ha recibido un "la despensa cambió" que no ocurrió.
-  emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: outcome.dates } })
-  if (outcome.foodIds.length > 0) emitHouseholdEvent(ctx.householdId, { type: 'pantry.changed', payload: { foodIds: outcome.foodIds } })
-  // Ruling W3-R2: times_cooked/last_cooked_at cambiaron, así que la receta también avisa.
-  emitHouseholdEvent(ctx.householdId, { type: 'recipe.changed', payload: { recipeId: outcome.result.recipeId } })
+  // Una respuesta "replay" (W3-R7) no cambió nada: ni plan, ni despensa, ni
+  // receta. Emitir esos eventos sería mentir sobre un cambio que no ocurrió.
+  if (!outcome.replay) {
+    // Los eventos se emiten FUERA de la transacción: si esta se revierte, nadie
+    // ha recibido un "la despensa cambió" que no ocurrió.
+    emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: outcome.dates } })
+    if (outcome.foodIds.length > 0) emitHouseholdEvent(ctx.householdId, { type: 'pantry.changed', payload: { foodIds: outcome.foodIds } })
+    // Ruling W3-R2: times_cooked/last_cooked_at cambiaron, así que la receta también avisa.
+    emitHouseholdEvent(ctx.householdId, { type: 'recipe.changed', payload: { recipeId: outcome.result.recipeId } })
+  }
   return outcome.result
 }
 
@@ -371,13 +422,14 @@ export interface CookingLogEntry {
   servingsCooked: number
   cookedAt: string
   kcalPerServing: number | null
+  warnings: CookingWarning[]
   warningCount: number
 }
 
 // Historial de cocinados del hogar, del más reciente al más antiguo. Lo usan la
-// pantalla Hoy (pista b) y el recurso household://context (pista d). Los avisos
-// se cuentan, no se devuelven: quien los quiera enteros lee cooking_log.
+// pantalla Hoy (pista b) y el recurso household://context (pista d).
 export async function listCookingLog(ctx: Ctx, limit: number): Promise<CookingLogEntry[]> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new ServiceError('validation', 'limit debe ser un entero entre 1 y 100')
   const rows = await ctx.db
     .select({
       id: schema.cookingLog.id,
@@ -390,18 +442,24 @@ export async function listCookingLog(ctx: Ctx, limit: number): Promise<CookingLo
       warnings: schema.cookingLog.warnings,
     })
     .from(schema.cookingLog)
-    .innerJoin(schema.recipes, eq(schema.recipes.id, schema.cookingLog.recipeId))
+    .innerJoin(schema.recipes, and(eq(schema.recipes.id, schema.cookingLog.recipeId), eq(schema.recipes.householdId, ctx.householdId)))
     .where(eq(schema.cookingLog.householdId, ctx.householdId))
-    .orderBy(desc(schema.cookingLog.cookedAt))
+    // Desempate por id: dos cocinados con el mismo cooked_at (mismo `now`
+    // inyectado, por ejemplo en tests) no deben salir en orden indefinido.
+    .orderBy(desc(schema.cookingLog.cookedAt), desc(schema.cookingLog.id))
     .limit(limit)
-  return rows.map((r) => ({
-    id: r.id,
-    recipeId: r.recipeId,
-    title: r.title,
-    entryId: r.entryId,
-    servingsCooked: r.servingsCooked,
-    cookedAt: r.cookedAt.toISOString(),
-    kcalPerServing: r.kcalPerServing,
-    warningCount: Array.isArray(r.warnings) ? r.warnings.length : 0,
-  }))
+  return rows.map((r) => {
+    const warnings = (Array.isArray(r.warnings) ? r.warnings : []) as CookingWarning[]
+    return {
+      id: r.id,
+      recipeId: r.recipeId,
+      title: r.title,
+      entryId: r.entryId,
+      servingsCooked: r.servingsCooked,
+      cookedAt: r.cookedAt.toISOString(),
+      kcalPerServing: r.kcalPerServing,
+      warnings,
+      warningCount: warnings.length,
+    }
+  })
 }

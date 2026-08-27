@@ -44,6 +44,10 @@ describe('validation', () => {
     expect(LogCookedSchema.safeParse({ entryId: uuid, servingsCooked: 3, leftovers: { servings: 1, date: '2026-08-28', slot: 'lunch' } }).success).toBe(true)
     expect(LogCookedSchema.safeParse({ servingsCooked: 3 }).success).toBe(false)
   })
+  it('LogCookedSchema: slot solo se admite al cocinar desde receta sin entryId', () => {
+    expect(LogCookedSchema.safeParse({ recipeId: uuid, servingsCooked: 2, slot: 'breakfast' }).success).toBe(true)
+    expect(LogCookedSchema.safeParse({ entryId: uuid, servingsCooked: 2, slot: 'breakfast' }).success).toBe(false)
+  })
   it('ApiTokenCreateSchema: scopes conocidos y perfil', () => {
     expect(ApiTokenCreateSchema.safeParse({ name: 'Escritorio', scopes: ['recipes:read', 'plan:read'], mcpProfile: 'basic' }).success).toBe(true)
     expect(ApiTokenCreateSchema.safeParse({ name: 'x', scopes: ['admin'] }).success).toBe(false)
