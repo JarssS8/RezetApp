@@ -24,7 +24,7 @@ export interface PlanEntryClient {
 // (lib/validation/plan.ts::PlanEntryInput): las fronteras de eslint-boundaries
 // permiten a `components` importar de `validation` (no así de `services`), y
 // es exactamente la forma de lib/services/plan.ts::ProposalView['diff']['add'].
-export type ProposalAddClient = PlanEntryInput & { title: string }
+export type ProposalAddClient = PlanEntryInput & { title: string; allergenConflicts: string[] }
 
 // Duplicado deliberado de lib/services/plan.ts::ProposalView (sin el `payload`
 // crudo, que la tarjeta no necesita).

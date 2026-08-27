@@ -48,7 +48,24 @@
     "removes": "Quita",
     "addLine": "+ {title} · {slot} · ×{servings}",
     "removeLine": "− {title} · {slot}",
-    "error": "No se pudo decidir la propuesta"
+    "error": "No se pudo decidir la propuesta",
+    "allergenWarning": "Contiene {allergens}",
+    "allergens": {
+      "celery": "Apio",
+      "egg": "Huevo",
+      "fish": "Pescado",
+      "gluten": "Gluten",
+      "lactose": "Lactosa",
+      "lupin": "Altramuces",
+      "mollusc": "Moluscos",
+      "mustard": "Mostaza",
+      "nuts": "Frutos de cáscara",
+      "peanut": "Cacahuete",
+      "sesame": "Sésamo",
+      "shellfish": "Crustáceos",
+      "soy": "Soja",
+      "sulphites": "Sulfitos"
+    }
   },
   "shopping": {
     "title": "Generar compra",
@@ -74,5 +91,20 @@
   "createLeftover": "Crear sobra",
   "leftoverDate": "Fecha",
   "leftoverSlot": "Hueco",
-  "plannedMeals": "{n} comidas planificadas"
+  "plannedMeals": "{n} comidas planificadas",
+  "stats": {
+    "title": "Plan y realidad",
+    "range": "Del {from} al {to}",
+    "planned": "Planificadas",
+    "cooked": "Cocinadas",
+    "skipped": "Saltadas",
+    "pending": "Pendientes",
+    "adherence": "Se cumplió",
+    "offPlan": "Cocinado sin plan: {count}",
+    "kcal": "{cooked} kcal cocinadas de {planned} planificadas",
+    "top": "Lo que más se cocina",
+    "topLine": "<name>{title}</name> · {times}",
+    "noData": "Todavía no hay nada cocinado ni saltado en este rango.",
+    "link": "Ver plan y realidad"
+  }
 }

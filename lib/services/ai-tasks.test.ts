@@ -5,11 +5,27 @@ import { MockLanguageModelV3 } from 'ai/test'
 import * as schema from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import type { VerifiedCredential } from '@/lib/auth/webauthn'
+import type { FoodInput } from '@/lib/validation/foods'
 import { updateAiSettings } from './ai-settings'
 import { aiEstimateFood, aiImportRecipe, aiParseIngredients, aiProposeWeek } from './ai-tasks'
 import type { Ctx } from './ctx'
+import { createFood } from './foods'
 import { createUserWithHousehold } from './households'
-import { listProposals } from './plan'
+import { listProposals, type ProposalView } from './plan'
+import { createRecipe } from './recipes'
+
+function foodInput(overrides: Partial<FoodInput> & Pick<FoodInput, 'nameEs' | 'nameEn'>): FoodInput {
+  return { aliases: [], defaultUnit: 'g', allergens: [], seasonalMonths: [], ...overrides }
+}
+
+// Helper de test: la propuesta recién creada siempre está 'pending', así que
+// basta con filtrar listProposals (no hay un getProposal(id) expuesto por el servicio).
+async function getProposal(ctx: Ctx, id: string): Promise<ProposalView> {
+  const pending = await listProposals(ctx, 'pending')
+  const proposal = pending.find((p) => p.id === id)
+  if (!proposal) throw new Error('propuesta no encontrada')
+  return proposal
+}
 
 process.env.APP_URL = 'http://localhost:3000'
 process.env.APP_SECRET = 'secreto-de-prueba-con-suficiente-longitud-1234'
@@ -212,6 +228,26 @@ describe('aiProposeWeek', () => {
     expect(result).toMatchObject({ ok: false, code: 'ai_output' })
     const proposals = await db.select().from(schema.planProposals).where(eq(schema.planProposals.householdId, b.householdId))
     expect(proposals).toHaveLength(0)
+  })
+
+  it('descarta del resultado del modelo las recetas con un alérgeno del hogar', async () => {
+    const { ctx: ctxA, householdId } = await makeHousehold('Ana')
+    await configureOpenAi(ctxA)
+    await db.update(schema.householdMembers).set({ allergens: ['gluten'] }).where(eq(schema.householdMembers.householdId, householdId))
+    const harina = await createFood(ctxA, foodInput({ nameEs: 'harina', nameEn: 'flour', allergens: ['gluten'] }))
+    const bizcocho = await createRecipe(ctxA, { title: 'Bizcocho', servingsBase: 8, tags: [], imageUrls: [], ingredients: [{ rawText: '200 g de harina', foodId: harina.id, quantity: 200, unit: 'g' }], steps: [{ text: 'Hornea' }] })
+    const ensalada = await createRecipe(ctxA, { title: 'Ensalada', servingsBase: 2, tags: [], imageUrls: [], ingredients: [{ rawText: '1 lechuga' }], steps: [{ text: 'Corta' }] })
+    const bizcochoId = bizcocho.recipe.id
+    const ensaladaId = ensalada.recipe.id
+
+    // El modelo devuelve a propósito la receta prohibida: el filtro es del
+    // servidor, no del prompt (regla 2 de AGENTS.md).
+    const model = modelReturning(JSON.stringify({ picks: [{ date: '2026-08-31', slot: 'lunch', recipeId: bizcochoId }, { date: '2026-08-31', slot: 'dinner', recipeId: ensaladaId }] }))
+    const result = await aiProposeWeek(ctxA, { from: '2026-08-31', to: '2026-09-06' }, { model: model as unknown as LanguageModel })
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error('esperaba ok')
+    const proposal = await getProposal(ctxA, result.data.proposalId)
+    expect(proposal.payload.add.map((a) => a.recipeId)).toEqual([ensaladaId])
   })
 })
 

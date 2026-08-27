@@ -22,6 +22,7 @@ import { createFood, type FoodWithNutrition } from '@/lib/services/foods'
 import { ProposalPayloadSchema } from '@/lib/validation/plan'
 import type { FoodInput } from '@/lib/validation/foods'
 import type { RecipeInput } from '@/lib/validation/recipes'
+import { conflictingRecipeIds } from './allergens'
 import { type Ctx, type Db, ServiceError } from './ctx'
 import { createProposal } from './plan'
 
@@ -258,10 +259,16 @@ export async function aiProposeWeek(ctx: Ctx, input: { from: string; to: string;
     const filtered = picks.filter((p) => recipeIds.has(p.recipeId) && validSlots.has(p.slot) && validDates.has(p.date))
     if (filtered.length === 0) throw new AiOutputError('El modelo no propuso ninguna receta válida')
 
+    // El prompt ya llevaba los alérgenos, pero un modelo pequeño puede
+    // ignorarlos: la garantía es este filtro del servidor (regla 2 de AGENTS.md).
+    const conflicting = await conflictingRecipeIds(ctx, Array.from(new Set(filtered.map((p) => p.recipeId))))
+    const allowed = filtered.filter((p) => !conflicting.has(p.recipeId))
+    if (allowed.length === 0) throw new AiOutputError('Todas las recetas propuestas chocan con algún alérgeno del hogar')
+
     // El código decide CUÁNTO (raciones = default_servings del hogar); el
     // modelo solo eligió QUÉ receta va en cada (fecha, hueco).
     const payload = ProposalPayloadSchema.parse({
-      add: filtered.map((p) => ({ date: p.date, slot: p.slot, recipeId: p.recipeId, servings: household.defaultServings })),
+      add: allowed.map((p) => ({ date: p.date, slot: p.slot, recipeId: p.recipeId, servings: household.defaultServings })),
       remove: [],
     })
 

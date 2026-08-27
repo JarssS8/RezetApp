@@ -3,6 +3,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import * as schema from '@/db/schema'
+import { createFood } from '@/lib/services/foods'
+import { createRecipe } from '@/lib/services/recipes'
+import type { FoodInput } from '@/lib/validation/foods'
 import { ServiceError, type Ctx } from './ctx'
 import {
   applyBatch,
@@ -15,6 +18,7 @@ import {
   moveEntry,
   patchEntry,
   plannedEntriesForShopping,
+  planStats,
   rangeNutrition,
 } from './plan'
 
@@ -77,6 +81,10 @@ async function makeRecipe(householdId: string, title: string, overrides: Partial
     .returning()
   if (!r) throw new Error('seed')
   return r.id
+}
+
+function foodInput(overrides: Partial<FoodInput> & Pick<FoodInput, 'nameEs' | 'nameEn'>): FoodInput {
+  return { aliases: [], defaultUnit: 'g', allergens: [], seasonalMonths: [], ...overrides }
 }
 
 async function makeFood(nameEs: string, nameEn: string, overrides: Partial<typeof schema.foods.$inferInsert> = {}): Promise<string> {
@@ -361,6 +369,40 @@ describe('createProposal', () => {
     const [reloaded] = await listProposals(ctxOf(a, { userId: ownerA }))
     expect(reloaded?.diff.add[0]?.title).toBe('')
   })
+
+  // W4(e) tarea 28: el MCP puede colar un recipeId sin pasar por el filtro de
+  // proposeWeekFromRules/aiProposeWeek, así que el diff avisa en el propio servidor.
+  it('el diff de la propuesta señala qué entradas chocan con un alérgeno', async () => {
+    const a = await makeHousehold('Casa A')
+    const ownerA = await makeUser('Ana')
+    await db.insert(schema.householdMembers).values({ householdId: a, userId: ownerA, role: 'owner', allergens: ['gluten'] })
+    const harina = await createFood(ctxOf(a, { userId: ownerA }), foodInput({ nameEs: 'harina', nameEn: 'flour', allergens: ['gluten'] }))
+    const bizcocho = await createRecipe(ctxOf(a, { userId: ownerA }), {
+      title: 'Bizcocho',
+      servingsBase: 8,
+      tags: [],
+      imageUrls: [],
+      ingredients: [{ rawText: '200 g de harina', foodId: harina.id, quantity: 200, unit: 'g' }],
+      steps: [{ text: 'Hornea' }],
+    })
+
+    const view = await createProposal(ctxOf(a, { userId: ownerA }), {
+      source: 'mcp',
+      payload: { add: [{ date: '2026-08-31', slot: 'lunch', recipeId: bizcocho.recipe.id, servings: 2 }], remove: [] },
+    })
+    expect(view.diff.add[0]?.allergenConflicts).toEqual(['gluten'])
+  })
+
+  it('sin alérgenos en el hogar, el campo va vacío y no cuesta una consulta de más', async () => {
+    const a = await makeHousehold('Casa A')
+    const ownerA = await makeUser('Ana')
+
+    const view = await createProposal(ctxOf(a, { userId: ownerA }), {
+      source: 'rules',
+      payload: { add: [{ date: '2026-08-31', slot: 'lunch', customTitle: 'Libre', servings: 2 }], remove: [] },
+    })
+    expect(view.diff.add[0]?.allergenConflicts).toEqual([])
+  })
 })
 
 describe('listProposals', () => {
@@ -536,5 +578,28 @@ describe('plannedEntriesForShopping', () => {
 
     const entries = await plannedEntriesForShopping(ctxOf(a), { from: '2026-09-01', to: '2026-09-01' })
     expect(entries).toEqual([])
+  })
+})
+
+describe('planStats', () => {
+  it('resume el rango y cuenta lo cocinado fuera del plan', async () => {
+    const a = await makeHousehold('Casa A')
+    const b = await makeHousehold('Casa B')
+    const recipeA = await makeRecipe(a, 'Sopa', { kcalPerServing: 300, servingsBase: 2 })
+    const [cooked] = await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-08-31', slot: 'lunch', recipeId: recipeA, servings: 2 }).returning()
+    const [skipped] = await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-09-01', slot: 'lunch', recipeId: recipeA, servings: 2 }).returning()
+    if (!cooked || !skipped) throw new Error('seed')
+    await db.insert(schema.mealPlanEntries).values({ householdId: a, date: '2026-09-02', slot: 'lunch', recipeId: recipeA, servings: 2 })
+    await db.update(schema.mealPlanEntries).set({ cookedAt: new Date('2026-08-31T13:00:00Z') }).where(eq(schema.mealPlanEntries.id, cooked.id))
+    await db.update(schema.mealPlanEntries).set({ skippedAt: new Date('2026-09-01T13:00:00Z') }).where(eq(schema.mealPlanEntries.id, skipped.id))
+    await db.insert(schema.cookingLog).values([
+      { householdId: a, recipeId: recipeA, entryId: cooked.id, servingsCooked: 2, cookedAt: new Date('2026-08-31T13:00:00Z') },
+      { householdId: a, recipeId: recipeA, entryId: null, servingsCooked: 2, cookedAt: new Date('2026-09-03T13:00:00Z') },
+    ])
+
+    const stats = await planStats(ctxOf(a), { from: '2026-08-31', to: '2026-09-06' })
+    expect(stats).toMatchObject({ planned: 3, cooked: 1, skipped: 1, pending: 1, cookedOffPlan: 1 })
+    expect(stats.topRecipes).toEqual([{ title: 'Sopa', times: 2 }])
+    expect(await planStats(ctxOf(b), { from: '2026-08-31', to: '2026-09-06' })).toMatchObject({ planned: 0, cookedOffPlan: 0 })
   })
 })

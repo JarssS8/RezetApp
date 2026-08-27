@@ -8,11 +8,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { decideProposalAction } from '@/lib/actions/plan'
 import { useHouseholdEvents } from '@/lib/events/use-household-events'
+import { ALLERGENS } from '@/lib/validation/household'
 import type { PlanEntryClient, ProposalAddClient, ProposalClient } from './types'
 
 export interface ProposalCardProps {
   proposal: ProposalClient
 }
+
+type AllergenId = (typeof ALLERGENS)[number]
 
 interface DiffGroup {
   date: string
@@ -62,6 +65,13 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
   function removeLine(item: PlanEntryClient): string {
     return t('proposals.removeLine', { title: item.title, slot: t(`slots.${item.slot}`) })
   }
+  // allergenConflicts viene de conflictingRecipeIds (lib/services/allergens.ts), que solo
+  // devuelve ids ya filtrados contra ALLERGENS: el cast es seguro, no una entrada de usuario
+  // sin validar (mismo criterio que members-panel.tsx con AllergenId).
+  function allergenWarning(item: ProposalAddClient): string {
+    const names = item.allergenConflicts.map((a) => t(`proposals.allergens.${a as AllergenId}`))
+    return t('proposals.allergenWarning', { allergens: names.join(', ') })
+  }
   // Mismo formato que day-column.tsx (semana), pero con el locale activo en vez
   // del locale del navegador: aquí el grupo va dentro de un texto ya localizado
   // por next-intl, así que conviene que coincida con el resto de la tarjeta.
@@ -105,6 +115,11 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
               {group.add.map((item, i) => (
                 <li key={`${group.date}-add-${i}`} className="text-sm text-acc-ink">
                   {addLine(item)}
+                  {item.allergenConflicts.length > 0 ? (
+                    <p role="note" className="text-xs text-warn">
+                      {allergenWarning(item)}
+                    </p>
+                  ) : null}
                 </li>
               ))}
             </ul>

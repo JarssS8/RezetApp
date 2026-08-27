@@ -48,7 +48,24 @@
     "removes": "Removes",
     "addLine": "+ {title} · {slot} · ×{servings}",
     "removeLine": "− {title} · {slot}",
-    "error": "Couldn't decide on the proposal"
+    "error": "Couldn't decide on the proposal",
+    "allergenWarning": "Contains {allergens}",
+    "allergens": {
+      "celery": "Celery",
+      "egg": "Egg",
+      "fish": "Fish",
+      "gluten": "Gluten",
+      "lactose": "Lactose",
+      "lupin": "Lupin",
+      "mollusc": "Molluscs",
+      "mustard": "Mustard",
+      "nuts": "Tree nuts",
+      "peanut": "Peanut",
+      "sesame": "Sesame",
+      "shellfish": "Crustaceans",
+      "soy": "Soy",
+      "sulphites": "Sulphites"
+    }
   },
   "shopping": {
     "title": "Generate shopping list",
@@ -74,5 +91,20 @@
   "createLeftover": "Add leftover",
   "leftoverDate": "Date",
   "leftoverSlot": "Slot",
-  "plannedMeals": "{n} planned meals"
+  "plannedMeals": "{n} planned meals",
+  "stats": {
+    "title": "Plan vs reality",
+    "range": "From {from} to {to}",
+    "planned": "Planned",
+    "cooked": "Cooked",
+    "skipped": "Skipped",
+    "pending": "Pending",
+    "adherence": "Followed",
+    "offPlan": "Cooked off plan: {count}",
+    "kcal": "{cooked} kcal cooked out of {planned} planned",
+    "top": "What you cook most",
+    "topLine": "<name>{title}</name> · {times}",
+    "noData": "Nothing cooked or skipped in this range yet.",
+    "link": "See plan vs reality"
+  }
 }

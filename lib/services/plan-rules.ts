@@ -10,6 +10,7 @@ import {
   type RecipeSummary,
 } from '@/lib/domain/plan-rules'
 import { PlanRulesSchema } from '@/lib/validation/plan-rules'
+import { conflictingRecipeIds } from './allergens'
 import { type Ctx, ServiceError } from './ctx'
 import { createProposal, type ProposalView } from './plan'
 
@@ -111,8 +112,15 @@ export async function proposeWeekFromRules(ctx: Ctx, input: { from: string; to: 
   const { candidates, history } = await planCandidates(ctx, CANDIDATE_LIMIT, now)
   if (candidates.length === 0) throw new ServiceError('validation', 'El hogar no tiene recetas para rellenar el plan')
 
+  // Filtro determinista de alérgenos (spec §17 W4(e)): una receta que choca con
+  // un alérgeno de cualquier miembro no se ofrece. No se descarta por `unknown`
+  // (ingredientes sin alimento resuelto): eso dejaría fuera medio recetario.
+  const conflicting = await conflictingRecipeIds(ctx, candidates.map((c) => c.id))
+  const safe = candidates.filter((c) => !conflicting.has(c.id))
+  if (safe.length === 0) throw new ServiceError('validation', 'Todas las recetas del hogar chocan con algún alérgeno de sus miembros')
+
   const days = Math.floor((Date.parse(input.to) - Date.parse(input.from)) / MS_PER_DAY) + 1
-  const payload = applyPlanRules(rules, candidates, history, new Date(`${input.from}T00:00:00Z`), {
+  const payload = applyPlanRules(rules, safe, history, new Date(`${input.from}T00:00:00Z`), {
     defaultServings: household.defaultServings,
     days: Math.max(1, days),
   })

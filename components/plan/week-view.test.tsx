@@ -87,6 +87,10 @@ describe('WeekView - revierte solo la entrada afectada', () => {
     const skipButtons = screen.getAllByRole('button', { name: 'Saltar' })
     expect(skipButtons).toHaveLength(2)
 
+    // El enlace a "Plan y realidad" vive dentro de la semana, sin pestaña propia (AGENTS.md).
+    const statsLink = screen.getByRole('link', { name: 'Ver plan y realidad' })
+    expect(statsLink).toHaveAttribute('href', expect.stringContaining('/plan/stats'))
+
     // Dos acciones optimistas "en vuelo": e1 (se rechazará después) y e2
     // (se resuelve con éxito mientras e1 sigue pendiente).
     fireEvent.click(skipButtons[0] as HTMLElement)

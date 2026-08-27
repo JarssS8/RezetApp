@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { CalendarMonthIcon, ChevronLeftIcon, ChevronRightIcon, SendIcon, SparklesIcon } from '@/components/icons'
+import { CalendarMonthIcon, ChartIcon, ChevronLeftIcon, ChevronRightIcon, SendIcon, SparklesIcon } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { applyPlanBatchAction, movePlanEntryAction, patchPlanEntryAction } from '@/lib/actions/plan'
@@ -193,6 +193,13 @@ export function WeekView({
                 {pendingProposals}
               </Badge>
             ) : null}
+          </Link>
+          <Link
+            href={`/plan/stats?week=${monday}`}
+            aria-label={t('stats.link')}
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium"
+          >
+            <ChartIcon size={16} />
           </Link>
           <Link href="/plan/shopping" className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium">
             <SendIcon size={16} />
