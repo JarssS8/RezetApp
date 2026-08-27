@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  AiSettingsSchema, ApiTokenCreateSchema, DateRangeSchema, LogCookedSchema, normalizeAiBaseUrl, PantryAdjustSchema, PlanBatchSchema, ProposalPayloadSchema, RecipeInputSchema, RecipeSearchSchema,
-  ShoplistSettingsSchema,
+  AiSettingsSchema, ApiTokenCreateSchema, DateRangeSchema, LogCookedSchema, normalizeAiBaseUrl, PantryAdjustSchema, PlanBatchSchema, ProposalPayloadSchema, RecipeImportSchema, RecipeInputSchema,
+  RecipeSearchSchema, ShoplistSettingsSchema,
 } from './index'
 
 const uuid = '11111111-1111-4111-8111-111111111111'
@@ -20,6 +20,10 @@ describe('validation', () => {
     expect(RecipeInputSchema.safeParse({ title: '', servingsBase: 4, ingredients: [], steps: [] }).success).toBe(false)
     expect(RecipeInputSchema.safeParse({ title: 'x', servingsBase: 0, ingredients: [], steps: [] }).success).toBe(false)
     expect(RecipeInputSchema.safeParse({ title: 'x', servingsBase: 1, ingredients: [], steps: [], extra: 1 }).success).toBe(false)
+  })
+  it('RecipeImportSchema admite pdf y sigue rechazando kinds desconocidos', () => {
+    expect(RecipeImportSchema.safeParse({ kind: 'pdf', uploadId: 'a.pdf' }).success).toBe(true)
+    expect(RecipeImportSchema.safeParse({ kind: 'video', uploadId: 'a.mp4' }).success).toBe(false)
   })
   it('RecipeSearchSchema: filtros opcionales con defaults', () => {
     const r = RecipeSearchSchema.parse({})

@@ -80,9 +80,13 @@
     "title": "Importar receta",
     "fromUrl": "Desde una URL",
     "fromText": "Desde texto",
+    "fromPhoto": "Desde una foto",
+    "fromPdf": "Desde un PDF",
     "url": "Dirección de la receta",
     "text": "Pega la receta",
+    "file": "Fichero",
     "submit": "Importar",
+    "uploading": "Subiendo…",
     "warnings": {
       "no_recipe_found": "No se encontró una receta en esa página; pega el texto.",
       "no_ingredients": "No se detectaron ingredientes.",
@@ -90,7 +94,12 @@
       "fetch_failed": "No se pudo descargar la página.",
       "empty": "El texto está vacío.",
       "invalid_url": "Esa dirección no es válida o apunta a un host no permitido.",
-      "body_too_large": "La página es demasiado grande para importarla."
+      "body_too_large": "La página es demasiado grande para importarla.",
+      "upload_not_found": "No se encontró el fichero subido. Vuelve a elegirlo.",
+      "ai_no_provider": "Para leer una foto o un PDF hace falta configurar la IA en Ajustes.",
+      "ai_unsupported": "El modelo configurado no puede leer este tipo de fichero.",
+      "ai_budget": "Se ha alcanzado el tope de gasto de IA de este mes.",
+      "ai_output": "El modelo no devolvió una receta utilizable. Prueba con una foto más nítida."
     }
   },
   "detail": {

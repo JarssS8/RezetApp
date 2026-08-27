@@ -205,7 +205,13 @@
     "export": "Export recipes",
     "exportHint": "Export your recipes as JSON to keep a copy.",
     "exportFilename": "recipes-{date}.json",
-    "importSoon": "Import and migration from other apps arrives in W4.",
-    "exportError": "Export failed"
+    "exportError": "Export failed",
+    "import": "Import recipes",
+    "importHint": "Upload a file exported from another RezetApp instance.",
+    "importDone": "{created} recipes imported",
+    "importFailed": "{failed} could not be imported",
+    "importError": "The file is not a valid export",
+    "migrate": "Migrate from Mealie or Tandoor",
+    "migrateHint": "It runs from the server command line: pnpm import:mealie '<file>' --household '<id>'. The README explains it."
   }
 }

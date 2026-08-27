@@ -47,11 +47,11 @@ describe('uploadImageAction — allowlist de mime types', () => {
 
   it('acepta un tipo permitido (image/webp) y llama a saveImage', async () => {
     vi.mocked(requireHousehold).mockResolvedValueOnce(fakeCtx)
-    vi.mocked(saveImage).mockResolvedValueOnce({ path: '/x', url: '/api/uploads/h1/a.webp' })
+    vi.mocked(saveImage).mockResolvedValueOnce({ path: '/x', url: '/api/uploads/h1/a.webp', name: 'a.webp' })
     const form = new FormData()
     form.set('file', new File([new Uint8Array([1, 2, 3])], 'a.webp', { type: 'image/webp' }))
     const result = await uploadImageAction(form)
-    expect(result).toEqual({ ok: true, data: { url: '/api/uploads/h1/a.webp' } })
+    expect(result).toEqual({ ok: true, data: { url: '/api/uploads/h1/a.webp', uploadId: 'a.webp' } })
     expect(saveImage).toHaveBeenCalledWith('h1', expect.any(Uint8Array))
   })
 })

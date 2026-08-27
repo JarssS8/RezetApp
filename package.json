@@ -23,6 +23,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
     "db:seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
+    "import:mealie": "tsx --env-file-if-exists=.env scripts/import-mealie.ts",
+    "import:tandoor": "tsx --env-file-if-exists=.env scripts/import-tandoor.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

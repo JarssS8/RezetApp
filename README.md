@@ -96,6 +96,33 @@ nombre del modelo que hayas descargado con `ollama pull`.
 RezetApp no lleva lista de la compra: calcula qué falta y lo empuja a ShopList.
 Ver [`docs/06-SHOPLIST.md`](docs/06-SHOPLIST.md) para el contrato entre ambas.
 
+## Migrar desde Mealie o Tandoor
+
+Si ya tienes recetas en [Mealie](https://mealie.io) o en
+[Tandoor](https://docs.tandoor.dev), puedes importarlas sin escribirlas a mano:
+
+1. Exporta las recetas desde la otra app (en Mealie, un directorio con un JSON
+   por receta; en Tandoor, el JSON de exportación).
+2. Averigua el id del hogar de destino:
+   ```bash
+   docker compose exec db psql -U rezetapp -d rezetapp -c 'select id, name from households'
+   ```
+3. Prueba primero con `--dry-run` (no escribe nada, solo muestra qué se
+   importaría) y luego lanza el comando de verdad:
+   ```bash
+   pnpm import:mealie ./export --household <uuid> --dry-run
+   pnpm import:mealie ./export --household <uuid>
+
+   pnpm import:tandoor ./export.json --household <uuid> --dry-run
+   pnpm import:tandoor ./export.json --household <uuid>
+   ```
+
+Las recetas se crean con el mismo servicio que usa la interfaz, así que
+resuelven los alimentos y calculan la nutrición igual que si se hubieran
+escrito a mano. **Las fotos no se migran**: las URLs de la otra instancia no
+son accesibles desde esta, así que las recetas llegan sin imagen y se añade a
+mano desde el editor.
+
 ## MCP
 
 RezetApp expone un endpoint MCP en `/mcp` para manejar el recetario desde un

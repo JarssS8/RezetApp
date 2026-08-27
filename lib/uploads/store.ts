@@ -11,6 +11,10 @@ const MAX_INPUT_PIXELS = 100_000_000
 const FILE_RE = /^[0-9a-f-]{36}\.webp$/
 // Los ids reales de hogar son uuid; el propio test de la despensa temporal usa 'h1'/'h2'.
 const HOUSEHOLD_ID_RE = /^[A-Za-z0-9-]{1,64}$/
+const PDF_FILE_RE = /^[0-9a-f-]{36}\.pdf$/
+// Firma de PDF. Se comprueba la firma real, no el content-type declarado por
+// el navegador: un cliente puede mentir en la cabecera, no en los bytes.
+const PDF_MAGIC = '%PDF-'
 
 export function uploadsDir(): string {
   // turbopackIgnore: la ruta depende de una variable de entorno, no de un
@@ -20,7 +24,7 @@ export function uploadsDir(): string {
 }
 
 // Guarda la imagen como webp (máx. 1600 px de lado) bajo el hogar. Lanza si los bytes no son una imagen.
-export async function saveImage(householdId: string, bytes: Uint8Array): Promise<{ path: string; url: string }> {
+export async function saveImage(householdId: string, bytes: Uint8Array): Promise<{ path: string; url: string; name: string }> {
   if (bytes.byteLength > MAX_UPLOAD_BYTES) throw new Error('Imagen demasiado grande')
   const webp = await sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS })
     .rotate()
@@ -32,7 +36,7 @@ export async function saveImage(householdId: string, bytes: Uint8Array): Promise
   await mkdir(dir, { recursive: true, mode: 0o750 })
   const path = join(dir, name)
   await writeFile(path, webp)
-  return { path, url: `/api/uploads/${householdId}/${name}` }
+  return { path, url: `/api/uploads/${householdId}/${name}`, name }
 }
 
 export async function readImage(householdId: string, file: string): Promise<Buffer | null> {
@@ -42,6 +46,34 @@ export async function readImage(householdId: string, file: string): Promise<Buff
   // Doble comprobación aparte de las regex anteriores: el path resuelto debe
   // seguir dentro del directorio de subidas (defensa en profundidad contra
   // path traversal si alguna vez cambian las expresiones de arriba).
+  if (path !== join(base, householdId, file)) return null
+  try {
+    return await readFile(path)
+  } catch {
+    return null
+  }
+}
+
+// Los PDF no pasan por sharp: se guardan tal cual, con el mismo tope de tamaño
+// que una imagen. No se reescriben ni se "limpian": nunca se abren en el
+// servidor, solo se leen para mandárselos al modelo.
+export async function savePdf(householdId: string, bytes: Uint8Array): Promise<{ path: string; url: string; name: string }> {
+  if (bytes.byteLength > MAX_UPLOAD_BYTES) throw new Error('Documento demasiado grande')
+  if (Buffer.from(bytes.subarray(0, PDF_MAGIC.length)).toString('latin1') !== PDF_MAGIC) throw new Error('No es un PDF')
+  const name = `${randomUUID()}.pdf`
+  const dir = join(uploadsDir(), householdId)
+  await mkdir(dir, { recursive: true, mode: 0o750 })
+  const path = join(dir, name)
+  await writeFile(path, bytes)
+  return { path, url: `/api/uploads/${householdId}/${name}`, name }
+}
+
+export async function readPdf(householdId: string, file: string): Promise<Buffer | null> {
+  if (!PDF_FILE_RE.test(file) || !HOUSEHOLD_ID_RE.test(householdId)) return null
+  const base = uploadsDir()
+  const path = resolve(base, householdId, file)
+  // Misma defensa en profundidad que readImage: el path resuelto debe seguir
+  // dentro del directorio de subidas.
   if (path !== join(base, householdId, file)) return null
   try {
     return await readFile(path)

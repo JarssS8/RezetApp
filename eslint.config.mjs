@@ -176,8 +176,13 @@ const config = [
               },
             },
             {
+              // 'services' incluido: los scripts de migración (W4(c)) crean las
+              // recetas con createRecipe, el mismo servicio que usa la interfaz,
+              // para que resuelvan alimentos y nutrición igual que una receta
+              // escrita a mano. La alternativa -reimplementar el alta contra db-
+              // duplicaría §9.1 entera.
               from: { element: { type: 'scripts' } },
-              allow: { to: { element: { types: { anyOf: ['scripts', 'db', 'domain', 'lib'] } } } },
+              allow: { to: { element: { types: { anyOf: ['scripts', 'db', 'domain', 'lib', 'services'] } } } },
             },
           ],
         },

@@ -155,7 +155,7 @@ describe('importRecipeFromImageAi', () => {
 
     const userMessage = model.doGenerateCalls[0]?.prompt.find((m) => m.role === 'user')
     expect(userMessage?.content).toEqual([
-      expect.objectContaining({ type: 'text', text: 'Esta es la foto de una receta de cocina.' }),
+      expect.objectContaining({ type: 'text', text: 'Esta es una foto o un documento de una receta de cocina.' }),
       expect.objectContaining({ type: 'file', data: { type: 'data', data: image.bytes }, mediaType: 'image/jpeg' }),
     ])
   })

@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import errors from '@/messages/es/errors.json'
@@ -13,9 +14,9 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
 // Igual que recipe-detail.test.tsx / food-correction-dialog.test.tsx: la
 // acción real tira de lib/auth/guards ('server-only'), así que se sustituye
 // por un mock; nunca se invoca la implementación de verdad en este test.
-vi.mock('@/lib/actions/recipes', () => ({ importRecipeAction: vi.fn() }))
+vi.mock('@/lib/actions/recipes', () => ({ importRecipeAction: vi.fn(), uploadImageAction: vi.fn(), uploadPdfAction: vi.fn() }))
 
-import { importRecipeAction } from '@/lib/actions/recipes'
+import { importRecipeAction as importRecipe, uploadImageAction as uploadImage, uploadPdfAction as uploadPdf } from '@/lib/actions/recipes'
 
 const DRAFT_KEY = 'rz.recipeDraft'
 
@@ -33,7 +34,7 @@ function renderForm() {
   )
 }
 
-const baseDraft: RecipeDraft = {
+const draftBase: RecipeDraft = {
   title: 'Lentejas importadas',
   description: null,
   servingsBase: 4,
@@ -52,7 +53,7 @@ const baseDraft: RecipeDraft = {
 
 describe('ImportForm', () => {
   it('importa desde una URL: el payload valida contra RecipeImportSchema y guarda el borrador sin warnings', async () => {
-    vi.mocked(importRecipeAction).mockResolvedValue({ ok: true, data: baseDraft })
+    vi.mocked(importRecipe).mockResolvedValue({ ok: true, data: draftBase })
     renderForm()
 
     fireEvent.change(screen.getByLabelText('Dirección de la receta'), { target: { value: 'https://example.com/receta' } })
@@ -60,7 +61,7 @@ describe('ImportForm', () => {
 
     await waitFor(() => expect(push).toHaveBeenCalledWith('/recipes/new?draft=1'))
 
-    const call = vi.mocked(importRecipeAction).mock.calls[0]?.[0]
+    const call = vi.mocked(importRecipe).mock.calls[0]?.[0]
     expect(RecipeImportSchema.safeParse(call).success).toBe(true)
     expect(call).toEqual({ kind: 'url', url: 'https://example.com/receta' })
 
@@ -72,7 +73,7 @@ describe('ImportForm', () => {
   })
 
   it('importa desde texto: la pestaña cambia el formulario y el payload valida contra RecipeImportSchema', async () => {
-    vi.mocked(importRecipeAction).mockResolvedValue({ ok: true, data: baseDraft })
+    vi.mocked(importRecipe).mockResolvedValue({ ok: true, data: draftBase })
     renderForm()
 
     fireEvent.click(screen.getByRole('button', { name: 'Desde texto' }))
@@ -82,13 +83,13 @@ describe('ImportForm', () => {
 
     await waitFor(() => expect(push).toHaveBeenCalledWith('/recipes/new?draft=1'))
 
-    const call = vi.mocked(importRecipeAction).mock.calls[0]?.[0]
+    const call = vi.mocked(importRecipe).mock.calls[0]?.[0]
     expect(RecipeImportSchema.safeParse(call).success).toBe(true)
     expect(call).toEqual({ kind: 'text', text: 'Lentejas\n400 g de lentejas\nCuece 45 minutos' })
   })
 
   it('muestra los avisos traducidos cuando el borrador viene incompleto', async () => {
-    vi.mocked(importRecipeAction).mockResolvedValue({ ok: true, data: { ...baseDraft, ingredients: [], warnings: ['no_ingredients', 'no_steps'] } })
+    vi.mocked(importRecipe).mockResolvedValue({ ok: true, data: { ...draftBase, ingredients: [], warnings: ['no_ingredients', 'no_steps'] } })
     renderForm()
 
     fireEvent.change(screen.getByLabelText('Dirección de la receta'), { target: { value: 'https://example.com/receta' } })
@@ -102,7 +103,7 @@ describe('ImportForm', () => {
   // Regla I3/15: `result.message` (texto crudo de zod) no se pinta tal cual;
   // se traduce por `result.code` (namespace 'errors').
   it('en un fallo muestra el error traducido por código, no el mensaje crudo, y no navega ni guarda nada', async () => {
-    vi.mocked(importRecipeAction).mockResolvedValue({ ok: false, code: 'validation', message: 'Entrada inválida (texto crudo)' })
+    vi.mocked(importRecipe).mockResolvedValue({ ok: false, code: 'validation', message: 'Entrada inválida (texto crudo)' })
     renderForm()
 
     fireEvent.change(screen.getByLabelText('Dirección de la receta'), { target: { value: 'https://example.com/receta' } })
@@ -111,5 +112,41 @@ describe('ImportForm', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Revisa los datos introducidos.'))
     expect(push).not.toHaveBeenCalled()
     expect(sessionStorage.getItem(DRAFT_KEY)).toBeNull()
+  })
+
+  it('sube la foto y pide la importación con su uploadId', async () => {
+    const user = userEvent.setup()
+    vi.mocked(uploadImage).mockResolvedValue({ ok: true, data: { url: '/api/uploads/h/abc.webp', uploadId: 'abc.webp' } })
+    vi.mocked(importRecipe).mockResolvedValue({ ok: true, data: { ...draftBase, warnings: [] } })
+    renderForm()
+    await user.click(screen.getByRole('button', { name: recipes.import.fromPhoto }))
+    await user.upload(screen.getByLabelText(recipes.import.file), new File(['x'], 'foto.png', { type: 'image/png' }))
+    await user.click(screen.getByRole('button', { name: recipes.import.submit }))
+    await waitFor(() => expect(importRecipe).toHaveBeenCalledWith({ kind: 'image', uploadId: 'abc.webp' }))
+    // Regla W2-R11: la carga útil también tiene que valer para el esquema real
+    expect(RecipeImportSchema.safeParse(vi.mocked(importRecipe).mock.calls[0]?.[0]).success).toBe(true)
+  })
+
+  it('en la pestaña de foto, enviar sin fichero no llama a ninguna acción y no deja el formulario colgado', async () => {
+    const user = userEvent.setup()
+    renderForm()
+    await user.click(screen.getByRole('button', { name: recipes.import.fromPhoto }))
+    const submitButton = screen.getByRole('button', { name: recipes.import.submit })
+    await user.click(submitButton)
+    expect(uploadImage).not.toHaveBeenCalled()
+    expect(importRecipe).not.toHaveBeenCalled()
+    expect(submitButton).toHaveAttribute('aria-busy', 'false')
+    expect(submitButton).not.toBeDisabled()
+  })
+
+  it('un aviso de IA se enseña traducido en vez de dejar la pantalla en blanco', async () => {
+    const user = userEvent.setup()
+    vi.mocked(uploadPdf).mockResolvedValue({ ok: true, data: { url: '/api/uploads/h/abc.pdf', uploadId: 'abc.pdf' } })
+    vi.mocked(importRecipe).mockResolvedValue({ ok: true, data: { ...draftBase, title: '', warnings: ['ai_no_provider'] } })
+    renderForm()
+    await user.click(screen.getByRole('button', { name: recipes.import.fromPdf }))
+    await user.upload(screen.getByLabelText(recipes.import.file), new File(['%PDF-'], 'r.pdf', { type: 'application/pdf' }))
+    await user.click(screen.getByRole('button', { name: recipes.import.submit }))
+    await waitFor(() => expect(screen.getByText(recipes.import.warnings.ai_no_provider)).toBeVisible())
   })
 })

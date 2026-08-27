@@ -5,6 +5,7 @@ import { importRecipe, type RecipeDraft } from '@/lib/services/recipe-import'
 import {
   createRecipe,
   exportAll,
+  importAll,
   prepareIngredients,
   softDeleteRecipe,
   updateRecipe,
@@ -13,7 +14,8 @@ import {
   type RecipeExport,
   type RecipeSummary,
 } from '@/lib/services/recipes'
-import { MAX_UPLOAD_BYTES, saveImage } from '@/lib/uploads/store'
+import { MAX_UPLOAD_BYTES, saveImage, savePdf } from '@/lib/uploads/store'
+import { MAX_IMPORT_BYTES, RecipeExportSchema } from '@/lib/validation/data'
 import { IdSchema } from '@/lib/validation/common'
 import { RecipeImportSchema, RecipeInputSchema, RecipeIngredientInputSchema } from '@/lib/validation/recipes'
 import { z } from 'zod'
@@ -68,7 +70,6 @@ export async function importRecipeAction(input: unknown): Promise<ActionResult<R
     const ctx = await requireHousehold()
     const parsed = RecipeImportSchema.safeParse(input)
     if (!parsed.success) return fail('validation', 'Entrada inválida')
-    if (parsed.data.kind === 'image') return fail('unsupported', 'Importar desde imagen llega con la IA (W4)')
     return ok(await importRecipe(ctx, parsed.data))
   } catch (e) {
     return fromError(e)
@@ -95,7 +96,7 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp
 // (sesión de cookie + requireHousehold). La ruta REST POST /api/v1/uploads
 // también admite la sesión, pero existe para clientes con token de API
 // (REST/MCP); ambos caminos comparten saveImage (decisión W2-R17).
-export async function uploadImageAction(formData: FormData): Promise<ActionResult<{ url: string }>> {
+export async function uploadImageAction(formData: FormData): Promise<ActionResult<{ url: string; uploadId: string }>> {
   try {
     const ctx = await requireHousehold()
     const file = formData.get('file')
@@ -104,9 +105,29 @@ export async function uploadImageAction(formData: FormData): Promise<ActionResul
     if (!ALLOWED_IMAGE_MIME_TYPES.has(file.type)) return fail('validation', 'No es una imagen válida')
     try {
       const saved = await saveImage(ctx.householdId, new Uint8Array(await file.arrayBuffer()))
-      return ok({ url: saved.url })
+      return ok({ url: saved.url, uploadId: saved.name })
     } catch {
       return fail('validation', 'No es una imagen válida')
+    }
+  } catch (e) {
+    return fromError(e)
+  }
+}
+
+// Un PDF no pasa por sharp, así que va por su propia acción en vez de colar
+// otro tipo en el allowlist de uploadImageAction.
+export async function uploadPdfAction(formData: FormData): Promise<ActionResult<{ url: string; uploadId: string }>> {
+  try {
+    const ctx = await requireHousehold()
+    const file = formData.get('file')
+    if (!(file instanceof File)) return fail('validation', 'Falta el fichero')
+    if (file.size > MAX_UPLOAD_BYTES) return fail('too_large', 'Máximo 8 MB')
+    if (file.type !== 'application/pdf') return fail('validation', 'No es un PDF')
+    try {
+      const saved = await savePdf(ctx.householdId, new Uint8Array(await file.arrayBuffer()))
+      return ok({ url: saved.url, uploadId: saved.name })
+    } catch {
+      return fail('validation', 'No es un PDF')
     }
   } catch (e) {
     return fromError(e)
@@ -117,6 +138,24 @@ export async function exportRecipesAction(): Promise<ActionResult<RecipeExport>>
   try {
     const ctx = await requireHousehold()
     return ok(await exportAll(ctx))
+  } catch (e) {
+    return fromError(e)
+  }
+}
+
+export async function importRecipesAction(json: unknown): Promise<ActionResult<{ created: number; failed: string[] }>> {
+  try {
+    const ctx = await requireHousehold()
+    // El navegador ya comprueba el tamaño del fichero (ImportButton) antes de
+    // parsearlo y llamar aquí, pero esta acción también es alcanzable sin ese
+    // guardián (llamada directa), así que se repite server-side sobre el JSON
+    // ya parseado.
+    if (Buffer.byteLength(JSON.stringify(json), 'utf8') > MAX_IMPORT_BYTES) return fail('too_large', 'El fichero es demasiado grande')
+    const parsed = RecipeExportSchema.safeParse(json)
+    if (!parsed.success) return fail('validation', 'El fichero no es una exportación de RezetApp')
+    const result = await importAll(ctx, parsed.data)
+    revalidatePath('/recipes')
+    return ok(result)
   } catch (e) {
     return fromError(e)
   }

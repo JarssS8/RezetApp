@@ -76,6 +76,34 @@ RezetApp does not have a shopping list: it works out what's missing and pushes
 it to ShopList. See [`docs/06-SHOPLIST.md`](docs/06-SHOPLIST.md) for the
 contract between the two apps.
 
+## Migrating from Mealie or Tandoor
+
+If you already have recipes in [Mealie](https://mealie.io) or
+[Tandoor](https://docs.tandoor.dev), you can import them instead of typing
+them in by hand:
+
+1. Export the recipes from the other app (in Mealie, a directory with one JSON
+   file per recipe; in Tandoor, the export JSON).
+2. Find the id of the target household:
+   ```bash
+   docker compose exec db psql -U rezetapp -d rezetapp -c 'select id, name from households'
+   ```
+3. Try `--dry-run` first (it writes nothing, it just shows what would be
+   imported), then run the real command:
+   ```bash
+   pnpm import:mealie ./export --household <uuid> --dry-run
+   pnpm import:mealie ./export --household <uuid>
+
+   pnpm import:tandoor ./export.json --household <uuid> --dry-run
+   pnpm import:tandoor ./export.json --household <uuid>
+   ```
+
+Recipes are created through the same service the UI uses, so they resolve
+foods and compute nutrition exactly as if they had been typed in by hand.
+**Photos are not migrated**: the other instance's image URLs aren't reachable
+from this one, so recipes arrive without an image and you add one by hand from
+the editor.
+
 ## MCP
 
 RezetApp exposes an MCP endpoint at `/mcp` so it can be driven from a desktop
