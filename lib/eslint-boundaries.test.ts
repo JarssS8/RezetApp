@@ -102,4 +102,25 @@ describe('eslint.config.mjs: boundaries', () => {
     )
     expect(result.messages.some((m) => m.ruleId?.startsWith('boundaries/'))).toBe(true)
   })
+
+  it('lib/openapi sí puede importar lib/validation (Tarea 18: el documento reusa los esquemas zod)', async () => {
+    const result = await lint(
+      'lib/openapi/probe.ts',
+      "import { API_SCOPES } from '@/lib/validation/tokens'\nexport const y = API_SCOPES\n",
+    )
+    expect(result.messages.filter((m) => m.ruleId?.startsWith('boundaries/'))).toHaveLength(0)
+  })
+
+  it('lib/openapi no puede importar @/db', async () => {
+    const result = await lint('lib/openapi/probe.ts', "import { db } from '@/db'\nexport const y = db\n")
+    expect(result.messages.some((m) => m.ruleId?.startsWith('boundaries/'))).toBe(true)
+  })
+
+  it('app/api/openapi.json/route.ts sí puede importar lib/openapi/document', async () => {
+    const result = await lint(
+      'app/api/openapi.json/route.ts',
+      "import { buildOpenApiDocument } from '@/lib/openapi/document'\nexport function GET() { return Response.json(buildOpenApiDocument()) }\n",
+    )
+    expect(result.messages.filter((m) => m.ruleId?.startsWith('boundaries/'))).toHaveLength(0)
+  })
 })

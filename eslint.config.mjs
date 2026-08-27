@@ -37,6 +37,10 @@ const config = [
         { type: 'services', pattern: 'lib/services/**' },
         { type: 'uploads', pattern: 'lib/uploads/**' },
         { type: 'mcp', pattern: 'lib/mcp/**' },
+        // Tarea 18 (W3): construye el documento OpenAPI a partir de los
+        // esquemas de lib/validation, algo que el elemento genérico 'lib' (solo
+        // puede ver 'lib' y 'domain') no permite. Más específico que 'lib': va antes.
+        { type: 'openapi', pattern: 'lib/openapi/**' },
         { type: 'lib', pattern: 'lib/*.ts', mode: 'file' },
         { type: 'lib', pattern: 'lib/*' },
         { type: 'components', pattern: 'components/**' },
@@ -115,6 +119,13 @@ const config = [
             },
             { from: { element: { type: 'lib' } }, allow: { to: { element: { types: { anyOf: ['lib', 'domain'] } } } } },
             {
+              // El documento OpenAPI reusa los esquemas zod de lib/validation
+              // (Tarea 18, W3): un elemento propio, más estrecho que el genérico
+              // 'lib', en vez de ampliar este último para todo lib/*.
+              from: { element: { type: 'openapi' } },
+              allow: { to: { element: { types: { anyOf: ['openapi', 'validation', 'domain', 'lib'] } } } },
+            },
+            {
               from: { element: { type: 'uploads' } },
               allow: { to: { element: { types: { anyOf: ['uploads', 'lib'] } } } },
             },
@@ -139,8 +150,10 @@ const config = [
                     // decidir qué pasarle al formulario de ajustes de IA.
                     // 'api-lib' incluido: app/api/v1/**/route.ts llama a
                     // apiFailure/apiError/parseBody de app/api/v1/_lib/respond.ts.
+                    // 'openapi' incluido: app/api/openapi.json/route.ts sirve el
+                    // documento de lib/openapi/document.ts (Tarea 18, W3).
                     types: {
-                      anyOf: ['app', 'api-lib', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads', 'ai', 'mcp'],
+                      anyOf: ['app', 'api-lib', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads', 'ai', 'mcp', 'openapi'],
                     },
                   },
                 },
