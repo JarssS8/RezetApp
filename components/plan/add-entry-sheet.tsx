@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { MinusIcon, PlusIcon, SearchIcon } from '@/components/icons'
+import { toast } from 'sonner'
+import { SearchIcon } from '@/components/icons'
+import { ServingsStepper } from '@/components/recipes/servings-stepper'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -81,7 +83,11 @@ export function AddEntrySheet({ open, onOpenChange, days, defaultDate, defaultSl
         : { date, slot, customTitle: customTitle.trim(), servings }
     const result = await applyPlanBatchAction({ add: [item], remove: [] })
     setPending(false)
-    if (result.ok) onAdded()
+    if (!result.ok) {
+      toast.error(t('errors.addEntry'))
+      return
+    }
+    onAdded()
   }
 
   return (
@@ -173,13 +179,7 @@ export function AddEntrySheet({ open, onOpenChange, days, defaultDate, defaultSl
 
           <div className="flex items-center gap-2">
             <span className="text-sm">{t('servings')}</span>
-            <Button type="button" variant="ghost" size="icon-sm" aria-label={t('servings')} onClick={() => setServings((s) => Math.max(1, s - 1))}>
-              <MinusIcon size={14} />
-            </Button>
-            <span className="w-6 text-center text-sm tabular-nums">{servings}</span>
-            <Button type="button" variant="ghost" size="icon-sm" aria-label={t('servings')} onClick={() => setServings((s) => s + 1)}>
-              <PlusIcon size={14} />
-            </Button>
+            <ServingsStepper value={servings} onChange={setServings} />
           </div>
         </div>
         <SheetFooter>

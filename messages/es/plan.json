@@ -65,14 +65,13 @@
   "empty": "Semana vacía: añade comidas o pide una propuesta.",
   "errors": {
     "move": "No se pudo mover la comida",
-    "leftover": "No se pudo crear la sobra"
+    "leftover": "No se pudo crear la sobra",
+    "addEntry": "No se pudo añadir al plan"
   },
   "prevMonth": "Mes anterior",
   "nextMonth": "Mes siguiente",
   "createLeftover": "Crear sobra",
   "leftoverDate": "Fecha",
   "leftoverSlot": "Hueco",
-  "plannedMeals": "{n} comidas planificadas",
-  "servingsInc": "Aumentar raciones",
-  "servingsDec": "Disminuir raciones"
+  "plannedMeals": "{n} comidas planificadas"
 }
