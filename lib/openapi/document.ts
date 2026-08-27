@@ -22,12 +22,16 @@ const errors = {
   '404': { description: 'No encontrado', ...json(ErrorBodySchema) },
 }
 const sec = (...scopes: string[]) => [{ bearerAuth: scopes }]
+// OR entre scopes alternativos (cada uno vale por sí solo), a diferencia de
+// `sec`, que exige todos los scopes que le pasas a la vez.
+const secAny = (...scopes: string[]) => scopes.map((scope) => ({ bearerAuth: [scope] }))
 
 // Respuestas cuya forma la fija un servicio, no un esquema de validación: se
 // describen con un zod mínimo declarado aquí (nunca se usa para validar nada;
-// solo para documentar) en vez de con JSON escrito a mano.
-const IdResponseSchema = z.object({ id: IdSchema })
-const IdPathSchema = z.object({ id: IdSchema })
+// solo para documentar) en vez de con JSON escrito a mano. Un único esquema
+// para el parámetro de ruta `id` y para el cuerpo de respuesta `{ id }`: son
+// la misma forma, documentarlos dos veces solo invitaba a que divergieran.
+const IdObjectSchema = z.object({ id: IdSchema })
 const BarcodePathSchema = z.object({ code: z.string() })
 const ProposalsQuerySchema = z.object({ status: z.literal('pending').optional() })
 // Alta si el cuerpo no trae id, reemplazo completo si lo trae (mismo contrato
@@ -89,27 +93,27 @@ export function buildOpenApiDocument() {
           summary: 'Crear una receta',
           security: sec('recipes:write'),
           requestBody: json(RecipeInputSchema),
-          responses: { '201': { description: 'Receta creada', ...json(IdResponseSchema) }, ...errors },
+          responses: { '201': { description: 'Receta creada', ...json(IdObjectSchema) }, ...errors },
         },
       },
       '/api/v1/recipes/{id}': {
         get: {
           summary: 'Detalle de una receta, opcionalmente escalada a otras raciones',
           security: sec('recipes:read'),
-          requestParams: { path: IdPathSchema, query: RecipeGetQuerySchema },
+          requestParams: { path: IdObjectSchema, query: RecipeGetQuerySchema },
           responses: { '200': { description: 'Receta con ingredientes y pasos' }, ...errors },
         },
         put: {
           summary: 'Reemplazar una receta',
           security: sec('recipes:write'),
-          requestParams: { path: IdPathSchema },
+          requestParams: { path: IdObjectSchema },
           requestBody: json(RecipeInputSchema),
-          responses: { '200': { description: 'Receta actualizada', ...json(IdResponseSchema) }, ...errors },
+          responses: { '200': { description: 'Receta actualizada', ...json(IdObjectSchema) }, ...errors },
         },
         delete: {
           summary: 'Borrar una receta (soft delete)',
           security: sec('recipes:write'),
-          requestParams: { path: IdPathSchema },
+          requestParams: { path: IdObjectSchema },
           responses: { '204': { description: 'Borrada' }, ...errors },
         },
       },
@@ -155,14 +159,14 @@ export function buildOpenApiDocument() {
           summary: 'Editar o mover una entrada del plan',
           description: 'Con `date` y `slot` mueve la entrada; con el resto de campos, los actualiza.',
           security: sec('plan:write'),
-          requestParams: { path: IdPathSchema },
+          requestParams: { path: IdObjectSchema },
           requestBody: json(PlanEntryPatchOrMoveSchema),
           responses: { '200': { description: 'Entrada actualizada' }, ...errors },
         },
         delete: {
           summary: 'Quitar una entrada del plan',
           security: sec('plan:write'),
-          requestParams: { path: IdPathSchema },
+          requestParams: { path: IdObjectSchema },
           responses: { '204': { description: 'Eliminada' }, ...errors },
         },
       },
@@ -178,7 +182,7 @@ export function buildOpenApiDocument() {
           description: 'Mismo lote que POST /api/v1/plan/entries, pero pendiente de aprobación: no toca el plan hasta que una persona decide.',
           security: sec('plan:write'),
           requestBody: json(ProposalPayloadSchema),
-          responses: { '201': { description: 'Propuesta creada', ...json(IdResponseSchema) }, ...errors },
+          responses: { '201': { description: 'Propuesta creada', ...json(IdObjectSchema) }, ...errors },
         },
       },
       '/api/v1/plan/proposals/{id}': {
@@ -186,7 +190,7 @@ export function buildOpenApiDocument() {
           summary: 'Aprobar o rechazar una propuesta',
           description: 'Aplica el lote entero en una transacción si se aprueba. Exige una persona autenticada: la IA propone, la persona decide, así que un Bearer sin sesión de persona recibe 403 aunque tenga el scope.',
           security: sec('plan:write'),
-          requestParams: { path: IdPathSchema },
+          requestParams: { path: IdObjectSchema },
           requestBody: json(ProposalDecisionSchema),
           responses: { '200': { description: 'Decisión aplicada' }, ...errors },
         },
@@ -210,7 +214,7 @@ export function buildOpenApiDocument() {
         delete: {
           summary: 'Quitar un artículo de la despensa',
           security: sec('pantry:write'),
-          requestParams: { path: IdPathSchema },
+          requestParams: { path: IdObjectSchema },
           responses: { '204': { description: 'Eliminado' }, ...errors },
         },
       },
@@ -234,8 +238,8 @@ export function buildOpenApiDocument() {
       '/api/v1/foods/search': {
         get: {
           summary: 'Buscar en el catálogo de alimentos',
-          description: 'Recurso transversal: acepta un token con `recipes:read` o con `pantry:read` (aquí se documenta el primero).',
-          security: sec('recipes:read'),
+          description: 'Recurso transversal: acepta un token con `recipes:read` o con `pantry:read`, cualquiera de los dos basta.',
+          security: secAny('recipes:read', 'pantry:read'),
           requestParams: { query: FoodSearchSchema },
           responses: { '200': { description: 'Alimentos que coinciden' }, ...errors },
         },

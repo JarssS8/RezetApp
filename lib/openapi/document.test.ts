@@ -23,6 +23,11 @@ describe('documento OpenAPI', () => {
     expect(log?.security).toEqual([{ bearerAuth: ['cooking:write'] }])
   })
 
+  it('foods/search acepta cualquiera de dos scopes alternativos (OR, no AND)', () => {
+    const search = doc.paths?.['/api/v1/foods/search']?.get
+    expect(search?.security).toEqual([{ bearerAuth: ['recipes:read'] }, { bearerAuth: ['pantry:read'] }])
+  })
+
   it('convierte los esquemas zod, no cadenas escritas a mano', () => {
     const body = doc.paths?.['/api/v1/cooking/log']?.post?.requestBody
     const schema = (body as { content: Record<string, { schema: { properties?: Record<string, unknown> } }> }).content['application/json']?.schema
