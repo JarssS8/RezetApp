@@ -11,8 +11,8 @@ reales. Escribir W2+ antes de W1 produciría planes inventados.
 | W1 | `2026-08-26-w1-contratos.md` | hecho (mergeado 2026-08-26) | 4 ramas ∥: schema+seed · domain · auth+hogar · validation+eventos |
 | W2 | `2026-08-26-w2-modulos.md` | hecho (mergeado 2026-08-27) | 8 ramas ∥ (40 tareas + fix wave) |
 | W3 | `2026-08-27-w3-bucle.md` | hecho (mergeado 2026-08-27) | (a) primero, luego 3 ramas ∥ (30 tareas + fix wave) |
-| W4 | `2026-08-27-w4-extras.md` | escrito (2026-08-27) | (a) primero, luego 5 ramas ∥ (36 tareas) |
-| W5 | `w5-integracion.md` | pendiente (al cerrar W4) | 1–2 agentes |
+| W4 | `2026-08-27-w4-extras.md` | hecho (mergeado 2026-08-28) | (a) primero, luego 5 ramas ∥ (36 tareas) |
+| W5 | `2026-08-28-w5-remate.md` | escrito (2026-08-28) | 3 ramas ∥ (15 tareas) |
 
 ## Reglas de ejecución (todas las oleadas)
 

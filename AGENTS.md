@@ -17,12 +17,16 @@ pregunta — casi seguro es un malentendido.
 
 W0 (esqueleto) y W1 (contratos: esquema, dominio, auth, validación, eventos)
 hechas el 2026-08-26. W2 (módulos) hecha el 2026-08-27: alimentos, recetas,
-plan, despensa, IA opcional, ShopList, ajustes y MCP mínimo. **W3 (el bucle)
-hecha el 2026-08-27**: `logCooked` transaccional con descuento de despensa, modo
-cocina móvil, pantalla Hoy con SSE, REST completa (§11) con `openapi.json` y
-Swagger autoalojado, MCP completo (12 herramientas + perfil completo, prompts y
-recurso). Todo en `main` con `pnpm check`, `pnpm build` y `pnpm e2e` verdes.
-Siguiente: W4 (extras). El spec
+plan, despensa, IA opcional, ShopList, ajustes y MCP mínimo. W3 (el bucle) hecha el
+2026-08-27: `logCooked` transaccional con descuento de despensa, modo cocina
+móvil, pantalla Hoy con SSE, REST completa (§11) con `openapi.json` y Swagger
+autoalojado, MCP completo. **W4 (extras) hecha el 2026-08-28**: reglas de
+autorrelleno, temporizadores y voz en cocina, modo pared, importación por
+foto/PDF y migración Mealie/Tandoor, etiquetas jerárquicas, colecciones,
+fusión de alimentos (UI + MCP `merge_foods`), alérgenos por miembro con filtro
+en propuestas, estadísticas plan/realidad, PWA con push de caducidad. Todo en
+`main` con `pnpm check`, `pnpm build` y `pnpm e2e` verdes.
+Siguiente: W5 (remate). El spec
 (`docs/superpowers/specs/2026-08-26-rezetapp-design.md`) manda sobre estos docs
 cuando difieren; los planes están en `docs/superpowers/plans/`.
 

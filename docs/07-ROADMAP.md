@@ -110,6 +110,12 @@ cocina y Hoy) llegó en W3. Queda la siembra de USDA (solo Open Food Facts).
 Nada de esto es imprescindible, y todo esto es lo que haría que alguien eligiera
 RezetApp frente a Mealie.
 
+**Hecha en W4** salvo lo que el spec deja fuera: importar desde vídeo (sin
+especificar), el APK con Capacitor (se queda en PWA por ahora) y el tiempo de
+paso a paso ya venía de W3. Los temporizadores, la voz, el modo pared, la
+importación por foto/PDF, Mealie/Tandoor, etiquetas y colecciones, fusión de
+alimentos, alérgenos, estadísticas, push y PWA están en `main`.
+
 ## Lo que va a doler
 
 Cuatro cosas, dichas de antemano:
