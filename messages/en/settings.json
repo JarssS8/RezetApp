@@ -188,5 +188,17 @@
     "exportFilename": "recipes-{date}.json",
     "importSoon": "Import and migration from other apps arrives in W4.",
     "exportError": "Export failed"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "hint": "Alerts about pantry items that are about to expire. Enabled per device.",
+    "enable": "Enable on this device",
+    "disable": "Disable on this device",
+    "enabled": "Enabled on this device",
+    "unsupported": "This browser does not support push notifications. On iPhone you need to add the app to the home screen first.",
+    "denied": "You have blocked notifications for this site. Change it in your browser settings.",
+    "error": "Could not change the subscription",
+    "devices": "Subscribed devices: {count}",
+    "cron": "The server sends the alerts once a day; whoever runs it configures that as described in the README."
   }
 }
