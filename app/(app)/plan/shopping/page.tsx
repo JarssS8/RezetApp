@@ -1,4 +1,5 @@
 import { getLocale, getTranslations } from 'next-intl/server'
+import { PlanLiveRefresh } from '@/components/plan/plan-live-refresh'
 import { ShoppingPushButton } from '@/components/plan/shopping-push-button'
 import { ShoppingSummary } from '@/components/plan/shopping-summary'
 import { requireHousehold } from '@/lib/auth/guards'
@@ -46,6 +47,7 @@ export default async function PlanShoppingPage({ searchParams }: PlanShoppingPag
 
   return (
     <main className="flex flex-col gap-3 pb-4">
+      <PlanLiveRefresh types={['plan.changed', 'pantry.changed']} />
       <div>
         <h1 className="text-2xl">{t('shopping.title')}</h1>
         <p className="text-sm text-text-2">{rangeText}</p>

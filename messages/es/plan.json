@@ -25,6 +25,7 @@
   "unskip": "Reactivar",
   "skipped": "Saltada",
   "cooked": "Cocinada",
+  "cook": "Cocinar",
   "timeBudget": "Tiempo disponible (min)",
   "kcalDay": "{kcal} kcal",
   "remove": "Quitar del plan",

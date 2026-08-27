@@ -106,6 +106,12 @@ export async function listEntries(ctx: Ctx, range: { from: string; to: string })
   )
 }
 
+// Una entrada por id, o null si no es del hogar. La necesita el modo cocina.
+export async function getEntry(ctx: Ctx, id: string): Promise<PlanEntryView | null> {
+  const [view] = await queryEntryViews(ctx.db, and(eq(schema.mealPlanEntries.householdId, ctx.householdId), eq(schema.mealPlanEntries.id, id)))
+  return view ?? null
+}
+
 // Núcleo transaccional de un lote: lo comparten applyBatch y decideProposal (aprobación de propuesta)
 async function applyBatchTx(tx: Db, householdId: string, batch: PlanBatch): Promise<{ addedIds: string[]; removed: string[]; dates: Set<string> }> {
   const dates = new Set<string>()
@@ -349,7 +355,7 @@ export async function rangeNutrition(ctx: Ctx, range: { from: string; to: string
       nutritionIsEstimated: schema.recipes.nutritionIsEstimated,
     })
     .from(schema.mealPlanEntries)
-    .innerJoin(schema.recipes, eq(schema.recipes.id, schema.mealPlanEntries.recipeId))
+    .innerJoin(schema.recipes, and(eq(schema.recipes.id, schema.mealPlanEntries.recipeId), isNull(schema.recipes.deletedAt)))
     .where(
       and(
         eq(schema.mealPlanEntries.householdId, ctx.householdId),
@@ -383,6 +389,50 @@ export async function rangeNutrition(ctx: Ctx, range: { from: string; to: string
   return { byDate, total }
 }
 
+export interface DayProgress {
+  date: string
+  plannedKcal: number
+  cookedKcal: number
+  hasEstimates: boolean
+}
+
+// Los dos números del anillo de Hoy (spec §8): kcal del día y cuántas de ellas
+// ya están cocinadas. Mismas exclusiones que rangeNutrition -saltadas y sobras
+// fuera-: la sobra ya sumó el día que se cocinó su receta, contarla otra vez
+// duplicaría las calorías del hogar. La multiplicación por raciones la hace
+// aggregateNutrition (dominio), nunca este servicio.
+export async function dayProgress(ctx: Ctx, date: string): Promise<DayProgress> {
+  const rows = await ctx.db
+    .select({
+      servings: schema.mealPlanEntries.servings,
+      cookedAt: schema.mealPlanEntries.cookedAt,
+      kcalPerServing: schema.recipes.kcalPerServing,
+      nutritionIsEstimated: schema.recipes.nutritionIsEstimated,
+    })
+    .from(schema.mealPlanEntries)
+    .innerJoin(schema.recipes, and(eq(schema.recipes.id, schema.mealPlanEntries.recipeId), isNull(schema.recipes.deletedAt)))
+    .where(
+      and(
+        eq(schema.mealPlanEntries.householdId, ctx.householdId),
+        eq(schema.mealPlanEntries.date, date),
+        isNull(schema.mealPlanEntries.skippedAt),
+        isNull(schema.mealPlanEntries.leftoverOfEntryId),
+      ),
+    )
+  const toEntry = (r: (typeof rows)[number]) => ({
+    nutrition: { perServing: { kcal: r.kcalPerServing ?? 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }, total: EMPTY_MACROS, per100g: null, isEstimated: r.nutritionIsEstimated },
+    servings: r.servings,
+  })
+  const planned = aggregateNutrition(rows.map(toEntry))
+  const cooked = aggregateNutrition(rows.filter((r) => r.cookedAt !== null).map(toEntry))
+  return {
+    date,
+    plannedKcal: Math.round(planned.total.kcal),
+    cookedKcal: Math.round(cooked.total.kcal),
+    hasEstimates: rows.some((r) => r.nutritionIsEstimated),
+  }
+}
+
 function foodConversionOf(f: { defaultUnit: string | null; gramsPerCup: number | null; gramsPerTbsp: number | null; gramsPerUnit: number | null; densityGPerMl: number | null }): FoodConversion {
   return {
     defaultUnit: (f.defaultUnit as FoodConversion['defaultUnit'] | null) ?? null,
@@ -406,7 +456,7 @@ export async function plannedEntriesForShopping(ctx: Ctx, range: { from: string;
       servingsBase: schema.recipes.servingsBase,
     })
     .from(schema.mealPlanEntries)
-    .innerJoin(schema.recipes, eq(schema.recipes.id, schema.mealPlanEntries.recipeId))
+    .innerJoin(schema.recipes, and(eq(schema.recipes.id, schema.mealPlanEntries.recipeId), isNull(schema.recipes.deletedAt)))
     .where(
       and(
         eq(schema.mealPlanEntries.householdId, ctx.householdId),

@@ -70,7 +70,7 @@ export function WeekView({
   // Cambia en cada apertura del sheet para forzar su remonte (estado interno limpio)
   const [sheetSeq, setSheetSeq] = useState(0)
 
-  useHouseholdEvents(() => router.refresh(), ['plan.changed', 'proposal.created'])
+  useHouseholdEvents(() => router.refresh(), ['plan.changed', 'proposal.created', 'recipe.changed'])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }),
