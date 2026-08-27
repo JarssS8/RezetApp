@@ -8,5 +8,6 @@
   "expiring": "Caduca pronto",
   "expiringLine": "{name} · en {days, plural, one {# día} other {# días}}",
   "addToPantry": "Añadir a despensa",
-  "proposeWeek": "Proponer semana"
+  "proposeWeek": "Proponer semana",
+  "autofillWeek": "Autorrellenar semana"
 }

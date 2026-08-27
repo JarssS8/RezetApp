@@ -8,5 +8,6 @@
   "expiring": "Expiring soon",
   "expiringLine": "{name} · in {days, plural, one {# day} other {# days}}",
   "addToPantry": "Add to pantry",
-  "proposeWeek": "Propose a week"
+  "proposeWeek": "Propose a week",
+  "autofillWeek": "Autofill week"
 }

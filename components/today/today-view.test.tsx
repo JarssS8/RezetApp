@@ -9,10 +9,11 @@ import { TodayView } from './today-view'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }))
 vi.mock('@/lib/events/use-household-events', () => ({ useHouseholdEvents: vi.fn() }))
-// lib/actions/ai.ts importa requireHousehold (lib/auth/guards.ts, 'server-only'):
-// sin mock, cargar QuickActions en jsdom rompería con el mismo error que en
-// week-view.test.tsx y compañía.
+// lib/actions/ai.ts y lib/actions/plan-rules.ts importan requireHousehold
+// (lib/auth/guards.ts, 'server-only'): sin mock, cargar QuickActions en jsdom
+// rompería con el mismo error que en week-view.test.tsx y compañía.
 vi.mock('@/lib/actions/ai', () => ({ aiProposeWeekAction: vi.fn() }))
+vi.mock('@/lib/actions/plan-rules', () => ({ proposeWeekFromRulesAction: vi.fn() }))
 
 const entry = { id: 'e1', date: '2026-08-27', slot: 'dinner' as const, recipeId: 'r1', title: 'Sopa', servings: 2, leftoverOfEntryId: null, timeBudgetMinutes: null, status: 'planned' as const, sortOrder: 0, kcalPerServing: 300, totalMinutes: 25, imageUrl: null }
 
