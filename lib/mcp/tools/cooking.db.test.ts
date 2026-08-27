@@ -139,6 +139,37 @@ describe('log_cooked', () => {
     await client.close()
   })
 
+  it('entryId y recipeId a la vez se rechaza sin tocar la despensa', async () => {
+    const client = await connectedClient(mcpCtxOf(['cooking:write']))
+    const out = await callTool(client, { name: 'log_cooked', arguments: { entryId, recipeId, servingsCooked: 2 } })
+    expect(out.isError).toBe(true)
+    expect(textOf(out)).toContain('entryId o recipeId, no los dos')
+    const [pantry] = await db.select().from(schema.pantryItems).where(eq(schema.pantryItems.id, pantryItemId))
+    expect(pantry?.quantity).toBe(1000) // nada se tocó: se rechazó antes de llamar a logCooked
+    await client.close()
+  })
+
+  it('un entryId de otro hogar devuelve isError y no muta nada', async () => {
+    const [otherHousehold] = await db.insert(schema.households).values({ name: 'Otra casa' }).returning()
+    const [otherUser] = await db.insert(schema.users).values({ displayName: 'Foráneo' }).returning()
+    if (!otherHousehold || !otherUser) throw new Error('seed')
+    await db.insert(schema.householdMembers).values({ householdId: otherHousehold.id, userId: otherUser.id, role: 'owner' })
+    const [foreignEntry] = await db
+      .insert(schema.mealPlanEntries)
+      .values({ householdId: otherHousehold.id, date: '2026-08-27', slot: 'dinner', customTitle: 'Cena ajena', servings: 2 })
+      .returning({ id: schema.mealPlanEntries.id })
+    if (!foreignEntry) throw new Error('seed')
+
+    const client = await connectedClient(mcpCtxOf(['cooking:write']))
+    const out = await callTool(client, { name: 'log_cooked', arguments: { entryId: foreignEntry.id, servingsCooked: 2 } })
+    expect(out.isError).toBe(true)
+    const [pantry] = await db.select().from(schema.pantryItems).where(eq(schema.pantryItems.id, pantryItemId))
+    expect(pantry?.quantity).toBe(1000) // el hogar propio no se ha tocado
+    const [entry] = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.id, foreignEntry.id))
+    expect(entry?.cookedAt).toBeNull() // tampoco la entrada ajena
+    await client.close()
+  })
+
   it('cooking:write basta: no hace falta plan:write ni pantry:write', async () => {
     const client = await connectedClient(mcpCtxOf(['cooking:write']))
     expect((await client.listTools()).tools.map((t) => t.name)).toContain('log_cooked')

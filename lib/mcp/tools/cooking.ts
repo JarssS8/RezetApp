@@ -43,6 +43,11 @@ export function registerCookingTools(server: McpServer, ctx: McpCtx): boolean {
       // de tocar el servicio.
       const parsed = LogCookedSchema.safeParse(input)
       if (!parsed.success) return toolError(parsed.error.issues[0]?.message ?? 'Argumentos inválidos.')
+      // LogCookedSchema (lib/validation/cooking.ts, congelado) solo exige "al
+      // menos uno de los dos"; mandar ambos a la vez es ambiguo (¿se cocina la
+      // entrada del plan o la receta suelta?) y aquí se rechaza explícitamente
+      // antes de tocar el servicio.
+      if (parsed.data.entryId && parsed.data.recipeId) return toolError('envía entryId o recipeId, no los dos')
       try {
         const result = await logCooked(ctx, parsed.data)
         return toolJson({

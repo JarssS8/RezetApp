@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import * as schema from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
@@ -157,5 +158,48 @@ describe('herramientas MCP', () => {
     expect(res.isError).toBe(true)
     expect(textOf(res)).toMatch(/bogus/i)
     await client.close()
+  })
+
+  it('create_recipe crea una receta con los ingredientes ya resueltos por el servidor', async () => {
+    const client = await connectedClient(mcpCtxOf(['recipes:read', 'recipes:write']))
+    const out = JSON.parse(
+      textOf(
+        await callTool(client, {
+          name: 'create_recipe',
+          arguments: { title: 'Tortilla', servingsBase: 2, ingredients: [{ rawText: '3 huevos' }], steps: [{ text: 'Bate y cuaja' }] },
+        }),
+      ),
+    ) as { id: string }
+    expect(out.id).toBeDefined()
+    const [row] = await db.select().from(schema.recipes).where(eq(schema.recipes.id, out.id))
+    expect(row?.title).toBe('Tortilla')
+    await client.close()
+  })
+
+  it('import_recipe desde texto devuelve un borrador, sin guardarlo', async () => {
+    const client = await connectedClient(mcpCtxOf(['recipes:write']))
+    const before = await db.select().from(schema.recipes).where(eq(schema.recipes.householdId, householdId))
+    const out = JSON.parse(
+      textOf(await callTool(client, { name: 'import_recipe', arguments: { kind: 'text', text: 'Gazpacho\n\n1 kg de tomate\n\nTritura todo' } })),
+    ) as { title: string }
+    expect(out.title).toContain('Gazpacho')
+    const after = await db.select().from(schema.recipes).where(eq(schema.recipes.householdId, householdId))
+    expect(after).toHaveLength(before.length)
+    await client.close()
+  })
+
+  it('editar y borrar recetas solo existe en el perfil completo', async () => {
+    const basic = await connectedClient(mcpCtxOf(['recipes:read', 'recipes:write']))
+    const names = (await basic.listTools()).tools.map((t) => t.name)
+    expect(names).toContain('create_recipe')
+    expect(names).not.toContain('update_recipe')
+    expect(names).not.toContain('delete_recipe')
+    await basic.close()
+
+    const full = await connectedClient({ ...mcpCtxOf(['recipes:read', 'recipes:write']), mcpProfile: 'full' })
+    const fullNames = (await full.listTools()).tools.map((t) => t.name)
+    expect(fullNames).toContain('update_recipe')
+    expect(fullNames).toContain('delete_recipe')
+    await full.close()
   })
 })
