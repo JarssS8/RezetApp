@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { allocateDeductions, entryStatus, expiringSoon } from './pantry'
+import { aggregateNeeds, allocateDeductions, entryStatus, expiringSoon } from './pantry'
 import type { FoodConversion, PantryItem } from './types'
 
 const item = (id: string, qty: number, over: Partial<PantryItem> = {}): PantryItem => ({
@@ -114,5 +114,51 @@ describe('allocateDeductions con unidades distintas', () => {
       { pantryItemId: 'nuevo', foodId: 'onion', quantity: 1 },
     ])
     expect(unmatched).toEqual([])
+  })
+})
+
+describe('aggregateNeeds', () => {
+  it('suma dos líneas del mismo alimento en la misma unidad', () => {
+    const r = aggregateNeeds([
+      { foodId: 'onion', quantity: 200, unit: 'g', conversion: null },
+      { foodId: 'onion', quantity: 100, unit: 'g', conversion: null },
+    ])
+    expect(r).toEqual([{ foodId: 'onion', quantity: 300, unit: 'g' }])
+  })
+
+  it('funde unidades distintas del mismo alimento cuando son convertibles (W1-R17)', () => {
+    // 200 g + 1 ud (150 g) = 350 g, en la unidad de la primera línea
+    const r = aggregateNeeds([
+      { foodId: 'onion', quantity: 200, unit: 'g', conversion: ONION },
+      { foodId: 'onion', quantity: 1, unit: 'ud', conversion: ONION },
+    ])
+    expect(r).toEqual([{ foodId: 'onion', quantity: 350, unit: 'g' }])
+  })
+
+  it('sin datos de conversión no inventa equivalencias: quedan necesidades separadas por unidad', () => {
+    const r = aggregateNeeds([
+      { foodId: 'x', quantity: 200, unit: 'g', conversion: NO_CONV },
+      { foodId: 'x', quantity: 1, unit: 'ud', conversion: NO_CONV },
+    ])
+    expect(r).toHaveLength(2)
+    expect(r).toEqual(expect.arrayContaining([
+      { foodId: 'x', quantity: 200, unit: 'g' },
+      { foodId: 'x', quantity: 1, unit: 'ud' },
+    ]))
+  })
+
+  it('alimentos distintos no se mezclan', () => {
+    const r = aggregateNeeds([
+      { foodId: 'a', quantity: 1, unit: 'ud', conversion: null },
+      { foodId: 'b', quantity: 2, unit: 'ud', conversion: null },
+    ])
+    expect(r).toEqual([
+      { foodId: 'a', quantity: 1, unit: 'ud' },
+      { foodId: 'b', quantity: 2, unit: 'ud' },
+    ])
+  })
+
+  it('sin líneas, ninguna necesidad', () => {
+    expect(aggregateNeeds([])).toEqual([])
   })
 })

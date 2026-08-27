@@ -1,5 +1,5 @@
 import { convertBase } from './shopping'
-import type { Allocation, EntryStatus, Need, PantryItem } from './types'
+import type { Allocation, BaseUnit, EntryStatus, FoodConversion, Need, PantryItem } from './types'
 
 const DAY_MS = 86_400_000
 // Tolerancia de coma flotante: 250 g repartidos entre dos artículos pueden dejar
@@ -47,6 +47,39 @@ export function allocateDeductions(items: PantryItem[], needs: Need[]): { alloca
     if (left > EPSILON) unmatched.push({ foodId: need.foodId, quantity: left, unit: need.unit })
   }
   return { allocations, unmatched }
+}
+
+// Una línea de ingrediente ya escalado, aún sin agregar por alimento (para logCooked, §9.5).
+export interface NeedInput {
+  foodId: string
+  quantity: number
+  unit: BaseUnit
+  conversion: FoodConversion | null
+}
+
+// Agrega líneas de ingrediente ya escaladas en necesidades por alimento: dos
+// líneas del mismo alimento en la misma unidad -o convertible entre sí, regla
+// W1-R17- se funden en una sola Need, igual que hace consolidateNeeds con el
+// plan semanal. A diferencia de consolidateNeeds, aquí no se resta despensa:
+// solo se agrupa lo que la receta ya escalada pide.
+export function aggregateNeeds(lines: NeedInput[]): Need[] {
+  const buckets = new Map<string, { foodId: string; quantity: number; unit: BaseUnit; conversion: FoodConversion | null }>()
+  // Primer bucket de cada alimento: fija la unidad en la que se acumula esa necesidad.
+  const primary = new Map<string, string>()
+  for (const line of lines) {
+    const first = buckets.get(primary.get(line.foodId) ?? '')
+    const converted = first ? convertBase(line.quantity, line.unit, first.unit, first.conversion ?? line.conversion) : null
+    if (first && converted !== null) {
+      first.quantity += converted
+      continue
+    }
+    const key = `${line.foodId}|${line.unit}`
+    const bucket = buckets.get(key) ?? { foodId: line.foodId, quantity: 0, unit: line.unit, conversion: line.conversion }
+    bucket.quantity += line.quantity
+    buckets.set(key, bucket)
+    if (!primary.has(line.foodId)) primary.set(line.foodId, key)
+  }
+  return Array.from(buckets.values()).map(({ foodId, quantity, unit }) => ({ foodId, quantity, unit }))
 }
 
 export function expiringSoon(items: PantryItem[], today: Date, days: number): PantryItem[] {

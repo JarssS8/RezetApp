@@ -1,10 +1,10 @@
 // El bucle de docs/01-PRODUCTO.md: cocinar descuenta de la despensa. Todo pasa
 // en UNA transacción (spec §9.5) porque un descuento a medias deja la despensa
 // mintiendo, y de ahí abajo miente el sistema entero.
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import * as schema from '@/db/schema'
-import { allocateDeductions, scaleRecipe } from '@/lib/domain'
-import type { Allocation, BaseUnit, FoodConversion, Need, PantryItem as DomainPantryItem } from '@/lib/domain/types'
+import { aggregateNeeds, allocateDeductions, convertBase, scaleRecipe } from '@/lib/domain'
+import type { Allocation, BaseUnit, FoodConversion, MealSlot, Need, NeedInput, PantryItem as DomainPantryItem } from '@/lib/domain'
 import { emitHouseholdEvent } from '@/lib/events/bus'
 import type { LogCookedInput } from '@/lib/validation/cooking'
 import { type Ctx, type Db, ServiceError } from './ctx'
@@ -40,7 +40,7 @@ export interface CookedResult {
 interface LockedEntry {
   id: string
   date: string
-  slot: 'breakfast' | 'lunch' | 'dinner' | 'snack'
+  slot: MealSlot
   recipeId: string
 }
 
@@ -76,57 +76,33 @@ interface RecipeForCooking {
   ingredients: ReturnType<typeof toIngredient>[]
 }
 
+// Filtra recetas borradas (papelera): igual que el resto de lecturas de recipes
+// (lib/services/recipes.ts), una receta en papelera no es cocinable.
 async function loadRecipe(tx: Db, householdId: string, recipeId: string): Promise<RecipeForCooking> {
   const [recipe] = await tx
     .select({ id: schema.recipes.id, servingsBase: schema.recipes.servingsBase, kcalPerServing: schema.recipes.kcalPerServing })
     .from(schema.recipes)
-    .where(and(eq(schema.recipes.id, recipeId), eq(schema.recipes.householdId, householdId)))
+    .where(and(eq(schema.recipes.id, recipeId), eq(schema.recipes.householdId, householdId), isNull(schema.recipes.deletedAt)))
     .limit(1)
   if (!recipe) throw new ServiceError('not_found', 'Receta no encontrada')
   const rows = await tx.select().from(schema.recipeIngredients).where(eq(schema.recipeIngredients.recipeId, recipeId))
   return { ...recipe, ingredients: rows.map(toIngredient) }
 }
 
-// Necesidades del plato ya escalado, agregadas por alimento+unidad: dos líneas
-// del mismo alimento ("200 g de cebolla" + "1 cebolla picada") se suman antes de
-// tocar la despensa. Nada de aritmética a mano: el escalado es scaleRecipe.
-function needsFor(recipe: RecipeForCooking, servingsCooked: number): Need[] {
-  const scaled = scaleRecipe({ servingsBase: recipe.servingsBase, ingredients: recipe.ingredients }, servingsCooked)
-  const byKey = new Map<string, Need>()
-  for (const i of scaled.ingredients) {
-    if (i.foodId === null || i.quantity === null || i.unit === null) continue
-    const key = `${i.foodId}|${i.unit}`
-    const acc = byKey.get(key)
-    if (acc) acc.quantity += i.quantity
-    else byKey.set(key, { foodId: i.foodId, quantity: i.quantity, unit: i.unit })
-  }
-  return Array.from(byKey.values())
-}
-
 function conversionOf(f: { defaultUnit: BaseUnit | null; gramsPerCup: number | null; gramsPerTbsp: number | null; gramsPerUnit: number | null; densityGPerMl: number | null }): FoodConversion {
   return { defaultUnit: f.defaultUnit, gramsPerCup: f.gramsPerCup, gramsPerTbsp: f.gramsPerTbsp, gramsPerUnit: f.gramsPerUnit, densityGPerMl: f.densityGPerMl }
 }
 
-interface LockedPantry {
-  domain: DomainPantryItem[]
-  quantityById: Map<string, number>
+interface FoodInfo {
+  conversionByFoodId: Map<string, FoodConversion>
   nameByFoodId: Map<string, string>
 }
 
-// Paso 2 de §9.5: SELECT ... FOR UPDATE de los pantry_items del hogar cuyos
-// food_id están en la receta. El ORDER BY id fija un orden de bloqueo estable:
-// dos logCooked simultáneos sobre los mismos alimentos piden las filas en el
-// mismo orden y se serializan en vez de interbloquearse.
-// Los `foods` se leen aparte (sin FOR UPDATE): bloquear el catálogo global no
-// aporta nada y lo compartirían todos los hogares.
-async function lockPantry(tx: Db, householdId: string, foodIds: string[], locale: 'es' | 'en'): Promise<LockedPantry> {
-  if (foodIds.length === 0) return { domain: [], quantityById: new Map(), nameByFoodId: new Map() }
-  const items = await tx
-    .select()
-    .from(schema.pantryItems)
-    .where(and(eq(schema.pantryItems.householdId, householdId), inArray(schema.pantryItems.foodId, foodIds)))
-    .orderBy(schema.pantryItems.id)
-    .for('update')
+// Conversión y nombre (en ctx.locale) de los alimentos implicados. Sin lock: el
+// catálogo de alimentos es global y compartido por todos los hogares; bloquearlo
+// no aporta nada y solo entorpecería a otro hogar cocinando a la vez.
+async function loadFoodInfo(tx: Db, foodIds: string[], locale: 'es' | 'en'): Promise<FoodInfo> {
+  if (foodIds.length === 0) return { conversionByFoodId: new Map(), nameByFoodId: new Map() }
   const foods = await tx
     .select({
       id: schema.foods.id,
@@ -140,47 +116,123 @@ async function lockPantry(tx: Db, householdId: string, foodIds: string[], locale
     })
     .from(schema.foods)
     .where(inArray(schema.foods.id, foodIds))
-  const conversionByFood = new Map(foods.map((f) => [f.id, conversionOf(f)]))
-  const nameByFoodId = new Map(foods.map((f) => [f.id, locale === 'en' ? f.nameEn : f.nameEs]))
   return {
-    domain: items.map((i) => ({
-      id: i.id,
-      foodId: i.foodId,
-      quantity: i.quantity,
-      unit: i.unit,
-      expiresAt: i.expiresAt ? new Date(`${i.expiresAt}T00:00:00Z`) : null,
-      addedAt: i.addedAt,
-      conversion: conversionByFood.get(i.foodId) ?? null,
-    })),
-    quantityById: new Map(items.map((i) => [i.id, i.quantity])),
-    nameByFoodId,
+    conversionByFoodId: new Map(foods.map((f) => [f.id, conversionOf(f)])),
+    nameByFoodId: new Map(foods.map((f) => [f.id, locale === 'en' ? f.nameEn : f.nameEs])),
   }
+}
+
+// Necesidades del plato ya escalado (dominio: scaleRecipe + aggregateNeeds). Dos
+// líneas del mismo alimento ("200 g de cebolla" + "1 cebolla picada") se funden
+// en una sola Need, convirtiendo entre unidades cuando la conversión lo permite
+// (regla W1-R17). Nada de aritmética a mano en el servicio: el escalado y la
+// agregación son funciones puras de lib/domain.
+function scaledNeeds(recipe: RecipeForCooking, servingsCooked: number, conversionByFoodId: Map<string, FoodConversion>): Need[] {
+  const scaled = scaleRecipe({ servingsBase: recipe.servingsBase, ingredients: recipe.ingredients }, servingsCooked)
+  const lines: NeedInput[] = []
+  for (const i of scaled.ingredients) {
+    if (i.foodId === null || i.quantity === null || i.unit === null) continue
+    lines.push({ foodId: i.foodId, quantity: i.quantity, unit: i.unit, conversion: conversionByFoodId.get(i.foodId) ?? null })
+  }
+  return aggregateNeeds(lines)
+}
+
+// Paso 2 de §9.5: SELECT ... FOR UPDATE de los pantry_items del hogar cuyos
+// food_id están en la receta. El ORDER BY id fija un orden de bloqueo estable:
+// dos logCooked simultáneos sobre los mismos alimentos piden las filas en el
+// mismo orden y se serializan en vez de interbloquearse.
+async function lockPantryItems(tx: Db, householdId: string, foodIds: string[], conversionByFoodId: Map<string, FoodConversion>): Promise<DomainPantryItem[]> {
+  if (foodIds.length === 0) return []
+  const items = await tx
+    .select()
+    .from(schema.pantryItems)
+    .where(and(eq(schema.pantryItems.householdId, householdId), inArray(schema.pantryItems.foodId, foodIds)))
+    .orderBy(schema.pantryItems.id)
+    .for('update')
+  return items.map((i) => ({
+    id: i.id,
+    foodId: i.foodId,
+    quantity: i.quantity,
+    unit: i.unit,
+    expiresAt: i.expiresAt ? new Date(`${i.expiresAt}T00:00:00Z`) : null,
+    addedAt: i.addedAt,
+    conversion: conversionByFoodId.get(i.foodId) ?? null,
+  }))
+}
+
+interface DeductionOutcome {
+  deduction: PantryDeduction
+  // La fila terminó exactamente a 0: solo entonces GREATEST(0, …) pudo haber
+  // recortado de verdad lo pedido. Si no, cualquier diferencia entre `requested`
+  // (el número JS sin redondear) y `deducted` (el RETURNING, numeric(12,3)) es
+  // ruido de precisión de columna, no un faltante real.
+  exhausted: boolean
 }
 
 // Paso 4 de §9.5: una sentencia por allocation, con GREATEST(0, …) para que la
 // resta sea atómica y no deje negativos, y RETURNING para saber cuánto se restó
-// DE VERDAD (si otra transacción bajó la fila entre el snapshot y el UPDATE,
-// deducted < requested y sale aviso). Los artículos que quedan a 0 se conservan.
-async function applyAllocations(tx: Db, householdId: string, allocations: Allocation[], locked: LockedPantry, unitById: Map<string, BaseUnit>): Promise<PantryDeduction[]> {
-  const deductions: PantryDeduction[] = []
+// DE VERDAD. Los artículos que quedan a 0 se conservan.
+async function applyAllocations(tx: Db, householdId: string, allocations: Allocation[], quantityById: Map<string, number>, unitById: Map<string, BaseUnit>): Promise<DeductionOutcome[]> {
+  const outcomes: DeductionOutcome[] = []
   for (const a of allocations) {
     const [row] = await tx
       .update(schema.pantryItems)
       .set({ quantity: sql`GREATEST(0, ${schema.pantryItems.quantity} - ${a.quantity})` })
       .where(and(eq(schema.pantryItems.id, a.pantryItemId), eq(schema.pantryItems.householdId, householdId)))
       .returning({ quantity: schema.pantryItems.quantity })
-    if (!row) continue
-    const before = locked.quantityById.get(a.pantryItemId) ?? 0
-    locked.quantityById.set(a.pantryItemId, row.quantity)
-    deductions.push({
-      pantryItemId: a.pantryItemId,
-      foodId: a.foodId,
-      requested: a.quantity,
-      deducted: before - row.quantity,
-      unit: unitById.get(a.pantryItemId) ?? 'g',
+    // El artículo estaba bloqueado con FOR UPDATE en la misma transacción: si no
+    // aparece aquí es una inconsistencia interna, no un caso de uso esperado.
+    if (!row) throw new ServiceError('conflict', 'No se pudo descontar el artículo de despensa')
+    const unit = unitById.get(a.pantryItemId)
+    if (unit === undefined) throw new ServiceError('conflict', 'Inconsistencia interna de despensa')
+    const before = quantityById.get(a.pantryItemId) ?? 0
+    quantityById.set(a.pantryItemId, row.quantity)
+    outcomes.push({
+      deduction: { pantryItemId: a.pantryItemId, foodId: a.foodId, requested: a.quantity, deducted: before - row.quantity, unit },
+      exhausted: row.quantity === 0,
     })
   }
-  return deductions
+  return outcomes
+}
+
+// Tolerancia de escritura: pantry_items.quantity es numeric(12,3), así que el
+// UPDATE redondea a 3 decimales. Una cantidad escalada de forma no lineal
+// (ratio^0.65) puede tener más decimales que eso: la diferencia entre lo pedido
+// (número JS sin redondear) y lo realmente restado (RETURNING redondeado) es
+// ruido de columna, no un faltante que avisar.
+const STORAGE_EPSILON = 1e-3
+
+// Avisos: lo que el dominio no pudo asignar en absoluto (unmatched) más lo que
+// el UPDATE recortó de verdad porque el artículo se vació (exhausted). Se
+// agregan por `foodId|unit de la necesidad` para que un déficit repartido entre
+// varios artículos salga como un único aviso, y se convierten siempre a la
+// unidad de la NECESIDAD (la que el usuario reconoce, "faltaron 200 g de cebolla"),
+// nunca a la del artículo de despensa que causó el recorte.
+function buildWarnings(needs: Need[], unmatched: Need[], outcomes: DeductionOutcome[], conversionByFoodId: Map<string, FoodConversion>, nameByFoodId: Map<string, string>): CookingWarning[] {
+  const deficitByKey = new Map<string, number>()
+  for (const u of unmatched) {
+    const key = `${u.foodId}|${u.unit}`
+    deficitByKey.set(key, (deficitByKey.get(key) ?? 0) + u.quantity)
+  }
+  for (const { deduction: d, exhausted } of outcomes) {
+    if (!exhausted) continue
+    const shortfall = d.requested - d.deducted
+    if (shortfall <= STORAGE_EPSILON) continue
+    const need = needs.find((n) => n.foodId === d.foodId)
+    if (!need) continue
+    const shortfallInNeedUnit = convertBase(shortfall, d.unit, need.unit, conversionByFoodId.get(d.foodId) ?? null) ?? shortfall
+    const key = `${need.foodId}|${need.unit}`
+    deficitByKey.set(key, (deficitByKey.get(key) ?? 0) + shortfallInNeedUnit)
+  }
+  const needByKey = new Map(needs.map((n) => [`${n.foodId}|${n.unit}`, n]))
+  const warnings: CookingWarning[] = []
+  for (const [key, deficit] of deficitByKey) {
+    if (deficit <= STORAGE_EPSILON) continue
+    const need = needByKey.get(key)
+    if (!need) continue
+    warnings.push({ foodId: need.foodId, name: nameByFoodId.get(need.foodId) ?? '', requested: need.quantity, deducted: need.quantity - deficit, unit: need.unit })
+  }
+  return warnings
 }
 
 export async function logCooked(ctx: Ctx, input: LogCookedInput, now: Date = new Date()): Promise<CookedResult> {
@@ -190,28 +242,16 @@ export async function logCooked(ctx: Ctx, input: LogCookedInput, now: Date = new
   const outcome = await ctx.db.transaction(async (tx) => {
     const entry = await lockEntry(tx, ctx.householdId, entryId)
     const recipe = await loadRecipe(tx, ctx.householdId, entry.recipeId)
-    const needs = needsFor(recipe, input.servingsCooked)
-    const locked = await lockPantry(tx, ctx.householdId, [...new Set(needs.map((n) => n.foodId))], ctx.locale)
-    const unitById = new Map(locked.domain.map((i) => [i.id, i.unit]))
-    const { allocations, unmatched } = allocateDeductions(locked.domain, needs)
-    const deductions = await applyAllocations(tx, ctx.householdId, allocations, locked, unitById)
-
-    // Avisos: lo que el dominio no pudo asignar (unmatched) más lo que el UPDATE
-    // restó de menos. Se expresan en la unidad de la necesidad, que es la que el
-    // usuario reconoce ("faltaron 200 g de cebolla").
-    const warnings: CookingWarning[] = unmatched.map((u) => ({
-      foodId: u.foodId,
-      name: locked.nameByFoodId.get(u.foodId) ?? '',
-      requested: needs.find((n) => n.foodId === u.foodId && n.unit === u.unit)?.quantity ?? u.quantity,
-      deducted: (needs.find((n) => n.foodId === u.foodId && n.unit === u.unit)?.quantity ?? u.quantity) - u.quantity,
-      unit: u.unit,
-    }))
-    for (const d of deductions) {
-      if (d.deducted >= d.requested) continue
-      const need = needs.find((n) => n.foodId === d.foodId)
-      if (warnings.some((w) => w.foodId === d.foodId)) continue
-      warnings.push({ foodId: d.foodId, name: locked.nameByFoodId.get(d.foodId) ?? '', requested: need?.quantity ?? d.requested, deducted: d.deducted, unit: need?.unit ?? d.unit })
-    }
+    const foodIds = [...new Set(recipe.ingredients.map((i) => i.foodId).filter((id): id is string => id !== null))]
+    const { conversionByFoodId, nameByFoodId } = await loadFoodInfo(tx, foodIds, ctx.locale)
+    const needs = scaledNeeds(recipe, input.servingsCooked, conversionByFoodId)
+    const pantryItems = await lockPantryItems(tx, ctx.householdId, foodIds, conversionByFoodId)
+    const quantityById = new Map(pantryItems.map((i) => [i.id, i.quantity]))
+    const unitById = new Map(pantryItems.map((i) => [i.id, i.unit]))
+    const { allocations, unmatched } = allocateDeductions(pantryItems, needs)
+    const outcomes = await applyAllocations(tx, ctx.householdId, allocations, quantityById, unitById)
+    const deductions = outcomes.map((o) => o.deduction)
+    const warnings = buildWarnings(needs, unmatched, outcomes, conversionByFoodId, nameByFoodId)
 
     const [log] = await tx
       .insert(schema.cookingLog)
@@ -258,5 +298,7 @@ export async function logCooked(ctx: Ctx, input: LogCookedInput, now: Date = new
   // ha recibido un "la despensa cambió" que no ocurrió.
   emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: outcome.dates } })
   if (outcome.foodIds.length > 0) emitHouseholdEvent(ctx.householdId, { type: 'pantry.changed', payload: { foodIds: outcome.foodIds } })
+  // Ruling W3-R2: times_cooked/last_cooked_at cambiaron, así que la receta también avisa.
+  emitHouseholdEvent(ctx.householdId, { type: 'recipe.changed', payload: { recipeId: outcome.result.recipeId } })
   return outcome.result
 }

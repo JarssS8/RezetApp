@@ -114,4 +114,72 @@ describe('logCooked', () => {
       .returning({ id: schema.mealPlanEntries.id })
     await expect(logCooked(ctxA, { entryId: free!.id, servingsCooked: 2 })).rejects.toMatchObject({ code: 'validation' })
   })
+
+  it('una receta borrada no se puede cocinar y la despensa no se toca', async () => {
+    const item = await upsertPantryItem(ctxA, { foodId: onionId, quantity: 1000, unit: 'g', location: 'pantry' })
+    const entryId = await makeEntry(ctxA, '2026-08-27', 2)
+    await db.update(schema.recipes).set({ deletedAt: new Date() }).where(eq(schema.recipes.id, recipeId))
+
+    await expect(logCooked(ctxA, { entryId, servingsCooked: 2 })).rejects.toMatchObject({ code: 'not_found' })
+
+    const [pantry] = await db.select().from(schema.pantryItems).where(eq(schema.pantryItems.id, item.id))
+    expect(pantry?.quantity).toBe(1000)
+  })
+
+  it('convierte entre la unidad del artículo y la de la necesidad al descontar', async () => {
+    // 5 ud de cebolla (150 g/ud) cubren de sobra los 300 g que pide la receta base (2 raciones)
+    const item = await upsertPantryItem(ctxA, { foodId: onionId, quantity: 5, unit: 'ud', location: 'pantry' })
+    const entryId = await makeEntry(ctxA, '2026-08-27', 2)
+
+    const result = await logCooked(ctxA, { entryId, servingsCooked: 2 })
+
+    expect(result.deductions).toEqual([{ pantryItemId: item.id, foodId: onionId, requested: 2, deducted: 2, unit: 'ud' }])
+    expect(result.warnings).toEqual([])
+    const [pantry] = await db.select().from(schema.pantryItems).where(eq(schema.pantryItems.id, item.id))
+    expect(pantry?.quantity).toBe(3)
+  })
+
+  it('un déficit entre unidades avisa una sola vez en la unidad de la necesidad', async () => {
+    // 1 ud (150 g) no llega a los 300 g que pide la receta
+    const item = await upsertPantryItem(ctxA, { foodId: onionId, quantity: 1, unit: 'ud', location: 'pantry' })
+    const entryId = await makeEntry(ctxA, '2026-08-27', 2)
+
+    const result = await logCooked(ctxA, { entryId, servingsCooked: 2 })
+
+    expect(result.deductions).toEqual([{ pantryItemId: item.id, foodId: onionId, requested: 1, deducted: 1, unit: 'ud' }])
+    expect(result.warnings).toEqual([{ foodId: onionId, name: 'cebolla', requested: 300, deducted: 150, unit: 'g' }])
+    const [pantry] = await db.select().from(schema.pantryItems).where(eq(schema.pantryItems.id, item.id))
+    expect(pantry?.quantity).toBe(0)
+  })
+
+  it('el redondeo de numeric(12,3) en un escalado no lineal no genera avisos falsos', async () => {
+    // Ingrediente que NO escala linealmente: al escalar con ratio^0.65 la cantidad
+    // resultante tiene más de 3 decimales, pero pantry_items.quantity es numeric(12,3).
+    // Con despensa de sobra, el UPDATE nunca deja el artículo a 0: no hay recorte real.
+    const [salt] = await db
+      .insert(schema.foods)
+      .values({ nameEs: 'sal', nameEn: 'salt', searchNameEs: 'sal', searchNameEn: 'salt', source: 'usda', kcal100g: 0 })
+      .returning()
+    if (!salt) throw new Error('setup')
+    const detail = await createRecipe(ctxA, {
+      title: 'Guiso con sal',
+      servingsBase: 3,
+      ingredients: [{ rawText: '10 g de sal', foodId: salt.id, quantity: 10, unit: 'g', scalesLinearly: false }],
+      steps: [{ text: 'Cuece a fuego lento' }],
+      tags: [],
+      imageUrls: [],
+    })
+    const item = await upsertPantryItem(ctxA, { foodId: salt.id, quantity: 10_000, unit: 'g', location: 'pantry' })
+    const [entry] = await db
+      .insert(schema.mealPlanEntries)
+      .values({ householdId: ctxA.householdId, date: '2026-08-27', slot: 'dinner', recipeId: detail.recipe.id, servings: 7 })
+      .returning({ id: schema.mealPlanEntries.id })
+    if (!entry) throw new Error('setup')
+
+    const result = await logCooked(ctxA, { entryId: entry.id, servingsCooked: 7 })
+
+    expect(result.warnings).toEqual([])
+    const [pantry] = await db.select().from(schema.pantryItems).where(eq(schema.pantryItems.id, item.id))
+    expect(pantry?.quantity).toBeGreaterThan(9_900) // se descontó algo, muy lejos de agotarse
+  })
 })
