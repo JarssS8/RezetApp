@@ -1,18 +1,59 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
-import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons'
+import { ChevronLeftIcon, ChevronRightIcon, CookIcon, VolumeIcon, VolumeOffIcon } from '@/components/icons'
 import { buildIngredientRows, type DetailIngredient } from '@/components/recipes/ingredient-list'
 import { ServingsStepper } from '@/components/recipes/servings-stepper'
 import { Button } from '@/components/ui/button'
 import { scaleRecipe } from '@/lib/domain'
 import type { Locale, UnitSystem } from '@/lib/domain/types'
+import { cn } from '@/lib/utils'
 import type { MealSlot } from '@/lib/validation/plan'
 import { FinishCookingDialog } from './finish-dialog'
 import { IngredientChecklist } from './ingredient-checklist'
 import { StepTimers } from './step-timers'
+import { useSpeech } from './use-speech'
 import { useWakeLock } from './use-wake-lock'
+
+// Clave de localStorage para el modo pared: preferencia por dispositivo (el
+// móvil de la mano y la tablet de la pared quieren cosas distintas), no del
+// hogar — por eso no vive en la base de datos.
+const WALL_KEY = 'rz.cookWall'
+
+// Almacén externo minúsculo sobre localStorage: useSyncExternalStore, igual
+// que useSpeech con "supported", evita el desajuste de hidratación (SSR no
+// tiene localStorage) sin llamar a setState desde un efecto.
+const wallListeners = new Set<() => void>()
+let wallCache = false
+
+function getWallSnapshot(): boolean {
+  try {
+    wallCache = window.localStorage.getItem(WALL_KEY) === '1'
+  } catch {
+    // modo privado o almacenamiento bloqueado: se cocina en modo normal
+  }
+  return wallCache
+}
+
+function getWallServerSnapshot(): boolean {
+  return false
+}
+
+function subscribeWall(listener: () => void): () => void {
+  wallListeners.add(listener)
+  return () => wallListeners.delete(listener)
+}
+
+function setWallPreference(next: boolean): void {
+  try {
+    window.localStorage.setItem(WALL_KEY, next ? '1' : '0')
+  } catch {
+    // no poder recordarlo no impide usarlo en esta sesión
+  }
+  wallCache = next
+  wallListeners.forEach((listener) => listener())
+}
 
 export interface CookStep {
   id: string
@@ -50,9 +91,26 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
   const [index, setIndex] = useState(0)
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set())
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
+  const wall = useSyncExternalStore(subscribeWall, getWallSnapshot, getWallServerSnapshot)
 
   // Mantiene la pantalla encendida mientras dura la sesión de cocina (spec §8).
   useWakeLock(true)
+
+  function toggleWall() {
+    setWallPreference(!wall)
+  }
+
+  const speech = useSpeech(locale)
+
+  // Cambiar de paso mientras habla debe callar la voz: si no, se solapan el
+  // audio del paso anterior y el texto del siguiente en pantalla.
+  const goTo = useCallback(
+    (next: (i: number) => number) => {
+      speech.stop()
+      setIndex((i) => Math.min(steps.length - 1, Math.max(0, next(i))))
+    },
+    [speech, steps.length],
+  )
 
   const scaled = useMemo(() => scaleRecipe({ servingsBase, ingredients }, servings), [servingsBase, ingredients, servings])
   const rows = useMemo(() => buildIngredientRows(scaled, ingredients, locale, units), [scaled, ingredients, locale, units])
@@ -103,8 +161,8 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
       // manos pringadas (spec §8, "swipe/teclas").
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === 'ArrowRight') setIndex((i) => Math.min(steps.length - 1, i + 1))
-        if (e.key === 'ArrowLeft') setIndex((i) => Math.max(0, i - 1))
+        if (e.key === 'ArrowRight') goTo((i) => i + 1)
+        if (e.key === 'ArrowLeft') goTo((i) => i - 1)
       }}
       onTouchStart={(e) => setTouchStartX(e.touches[0]?.clientX ?? null)}
       onTouchEnd={(e) => {
@@ -114,22 +172,43 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
         if (start === null || end === undefined) return
         const dx = end - start
         // 60 px de umbral: por debajo es un toque o un desplazamiento vertical.
-        if (dx < -60) setIndex((i) => Math.min(steps.length - 1, i + 1))
-        if (dx > 60) setIndex((i) => Math.max(0, i - 1))
+        if (dx < -60) goTo((i) => i + 1)
+        if (dx > 60) goTo((i) => i - 1)
       }}
     >
       <header className="flex items-center justify-between gap-2">
-        <h1 className="truncate font-display text-xl">{title}</h1>
-        <ServingsStepper value={servings} onChange={setServings} />
+        <h1 className={cn('truncate font-display', wall ? 'text-3xl' : 'text-xl')}>{title}</h1>
+        <div className="flex items-center gap-2">
+          {speech.supported ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              aria-label={speech.speaking ? t('speakStop') : t('speak')}
+              aria-pressed={speech.speaking}
+              onClick={() => (speech.speaking ? speech.stop() : speech.speak(step?.text ?? ''))}
+            >
+              {speech.speaking ? <VolumeOffIcon size={20} /> : <VolumeIcon size={20} />}
+            </Button>
+          ) : null}
+          <Button type="button" variant="outline" size="lg" aria-pressed={wall} aria-label={wall ? t('wallOff') : t('wallOn')} onClick={toggleWall}>
+            <CookIcon size={20} />
+          </Button>
+          <ServingsStepper value={servings} onChange={setServings} />
+        </div>
       </header>
 
       <p className="tabular text-sm text-text-2">{t('stepOf', { current: index + 1, total: steps.length })}</p>
 
-      {step ? <p className="text-2xl leading-snug">{step.text}</p> : null}
+      {step ? (
+        <p data-testid="cook-step" className={cn('leading-snug', wall ? 'text-4xl' : 'text-2xl')}>
+          {step.text}
+        </p>
+      ) : null}
 
-      {step ? <StepTimers text={step.text} locale={locale} /> : null}
+      {step ? <StepTimers text={step.text} locale={locale} stepIndex={index} timerSeconds={step.timerSeconds} /> : null}
 
-      {stepRows.length > 0 ? <IngredientChecklist rows={stepRows} checked={checked} onToggle={toggle} /> : null}
+      {wall || stepRows.length > 0 ? <IngredientChecklist rows={stepRows} checked={checked} onToggle={toggle} /> : null}
 
       {unassignedRows.length > 0 ? (
         <div className="flex flex-col gap-1">
@@ -140,10 +219,10 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
 
       <div className="mt-auto flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <Button type="button" variant="outline" size="lg" disabled={index === 0} aria-label={t('previous')} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
+          <Button type="button" variant="outline" size="lg" disabled={index === 0} aria-label={t('previous')} onClick={() => goTo((i) => i - 1)}>
             <ChevronLeftIcon size={22} />
           </Button>
-          <Button type="button" size="lg" disabled={index >= steps.length - 1} aria-label={t('next')} onClick={() => setIndex((i) => Math.min(steps.length - 1, i + 1))}>
+          <Button type="button" size="lg" disabled={index >= steps.length - 1} aria-label={t('next')} onClick={() => goTo((i) => i + 1)}>
             <ChevronRightIcon size={22} />
           </Button>
         </div>

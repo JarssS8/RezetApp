@@ -133,6 +133,25 @@
     "households": "Your households",
     "current": "Current"
   },
+  "planRules": {
+    "title": "Plan rules",
+    "hint": "Autofill proposes recipes that satisfy these rules. It never writes the plan: you always approve it.",
+    "add": "Add rule",
+    "remove": "Remove rule",
+    "save": "Save rules",
+    "saved": "Rules saved",
+    "error": "Could not save the rules",
+    "empty": "No rules: autofill only avoids repeating what you cooked recently.",
+    "day": "Day",
+    "anyDay": "Any day",
+    "slot": "Slot",
+    "anySlot": "Any slot",
+    "constraint": "Condition",
+    "value": "Value",
+    "days": { "0": "Sunday", "1": "Monday", "2": "Tuesday", "3": "Wednesday", "4": "Thursday", "5": "Friday", "6": "Saturday" },
+    "slots": { "breakfast": "Breakfast", "lunch": "Lunch", "dinner": "Dinner", "snack": "Snack" },
+    "constraints": { "no-meat": "No meat", "max-minutes": "At most X minutes", "tag": "With the tag", "not-tag": "Without the tag" }
+  },
   "members": {
     "invite": "Invite",
     "inviteUrl": "Invitation link (expires in 24 h)",
