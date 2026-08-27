@@ -73,7 +73,7 @@
     "profile": "Perfil MCP",
     "profiles": {
       "basic": "Básico (12 herramientas, sin editar ni borrar)",
-      "full": "Completo"
+      "full": "Completo (añade editar y borrar: recetas, entradas del plan, artículos de despensa y alimentos)"
     },
     "created": "Token creado. Cópialo ahora: no se volverá a mostrar.",
     "copy": "Copiar",

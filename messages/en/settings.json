@@ -73,7 +73,7 @@
     "profile": "MCP profile",
     "profiles": {
       "basic": "Basic (12 tools, no editing or deleting)",
-      "full": "Full"
+      "full": "Full (adds editing and deleting: recipes, plan entries, pantry items and foods)"
     },
     "created": "Token created. Copy it now: it won't be shown again.",
     "copy": "Copy",

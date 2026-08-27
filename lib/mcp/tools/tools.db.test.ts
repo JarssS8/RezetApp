@@ -166,13 +166,22 @@ describe('herramientas MCP', () => {
       textOf(
         await callTool(client, {
           name: 'create_recipe',
-          arguments: { title: 'Tortilla', servingsBase: 2, ingredients: [{ rawText: '3 huevos' }], steps: [{ text: 'Bate y cuaja' }] },
+          arguments: { title: 'Cebolla al horno', servingsBase: 2, ingredients: [{ rawText: '2 cebollas grandes' }], steps: [{ text: 'Hornea 40 minutos' }] },
         }),
       ),
-    ) as { id: string }
+    ) as { id: string; nutrition: { perServing: { kcal: number } } | null }
     expect(out.id).toBeDefined()
     const [row] = await db.select().from(schema.recipes).where(eq(schema.recipes.id, out.id))
-    expect(row?.title).toBe('Tortilla')
+    expect(row?.title).toBe('Cebolla al horno')
+    // El modelo solo mandó texto libre ("2 cebollas grandes"): la resolución
+    // contra el catálogo (foodId, 2 unidades → 300 g vía gramsPerUnit) y el
+    // cálculo de nutrición los hace el servidor, nunca el modelo (docs/05-MCP.md,
+    // "la regla de oro").
+    const [ingredientRow] = await db.select().from(schema.recipeIngredients).where(eq(schema.recipeIngredients.recipeId, out.id))
+    expect(ingredientRow?.foodId).not.toBeNull()
+    expect(ingredientRow?.quantity).toBe(300)
+    expect(ingredientRow?.unit).toBe('g')
+    expect(out.nutrition?.perServing.kcal).toBeGreaterThan(0)
     await client.close()
   })
 
@@ -201,5 +210,63 @@ describe('herramientas MCP', () => {
     expect(fullNames).toContain('update_recipe')
     expect(fullNames).toContain('delete_recipe')
     await full.close()
+  })
+
+  it('update_recipe reemplaza la receta entera en la base de datos', async () => {
+    const client = await connectedClient({ ...mcpCtxOf(['recipes:read', 'recipes:write']), mcpProfile: 'full' })
+    const res = await callTool(client, {
+      name: 'update_recipe',
+      arguments: {
+        id: recipeCebollaId,
+        recipe: { title: 'Sopa de cebolla al jerez', servingsBase: 6, ingredients: [{ rawText: '3 cebollas grandes' }], steps: [{ text: 'Pocha con un chorro de jerez' }] },
+      },
+    })
+    expect(res.isError).toBeUndefined()
+    const [row] = await db.select().from(schema.recipes).where(eq(schema.recipes.id, recipeCebollaId))
+    expect(row?.title).toBe('Sopa de cebolla al jerez')
+    expect(row?.servingsBase).toBe(6)
+    await client.close()
+  })
+
+  it('update_recipe con un id de otro hogar devuelve isError', async () => {
+    const [otherHousehold] = await db.insert(schema.households).values({ name: 'Otra casa' }).returning()
+    const [otherUser] = await db.insert(schema.users).values({ displayName: 'Foráneo' }).returning()
+    if (!otherHousehold || !otherUser) throw new Error('seed')
+    await db.insert(schema.householdMembers).values({ householdId: otherHousehold.id, userId: otherUser.id, role: 'owner' })
+    const foreignCtx: Ctx = { db, householdId: otherHousehold.id, userId: otherUser.id, apiTokenId: null, role: 'owner', locale: 'es', scopes: [] }
+    const foreign = await createRecipe(foreignCtx, { title: 'Receta ajena', servingsBase: 2, ingredients: [], steps: [], tags: [], imageUrls: [] })
+
+    const client = await connectedClient({ ...mcpCtxOf(['recipes:read', 'recipes:write']), mcpProfile: 'full' })
+    const res = await callTool(client, {
+      name: 'update_recipe',
+      arguments: { id: foreign.recipe.id, recipe: { title: 'Secuestrada', servingsBase: 2, ingredients: [], steps: [] } },
+    })
+    expect(res.isError).toBe(true)
+    await client.close()
+  })
+
+  it('delete_recipe marca deletedAt sin borrar la fila', async () => {
+    const client = await connectedClient({ ...mcpCtxOf(['recipes:read', 'recipes:write']), mcpProfile: 'full' })
+    const res = await callTool(client, { name: 'delete_recipe', arguments: { id: recipeCebollaId } })
+    expect(res.isError).toBeUndefined()
+    const [row] = await db.select().from(schema.recipes).where(eq(schema.recipes.id, recipeCebollaId))
+    expect(row?.deletedAt).not.toBeNull()
+    await client.close()
+  })
+
+  it('delete_recipe con un id de otro hogar devuelve isError', async () => {
+    const [otherHousehold] = await db.insert(schema.households).values({ name: 'Otra casa' }).returning()
+    const [otherUser] = await db.insert(schema.users).values({ displayName: 'Foráneo' }).returning()
+    if (!otherHousehold || !otherUser) throw new Error('seed')
+    await db.insert(schema.householdMembers).values({ householdId: otherHousehold.id, userId: otherUser.id, role: 'owner' })
+    const foreignCtx: Ctx = { db, householdId: otherHousehold.id, userId: otherUser.id, apiTokenId: null, role: 'owner', locale: 'es', scopes: [] }
+    const foreign = await createRecipe(foreignCtx, { title: 'Receta ajena', servingsBase: 2, ingredients: [], steps: [], tags: [], imageUrls: [] })
+
+    const client = await connectedClient({ ...mcpCtxOf(['recipes:read', 'recipes:write']), mcpProfile: 'full' })
+    const res = await callTool(client, { name: 'delete_recipe', arguments: { id: foreign.recipe.id } })
+    expect(res.isError).toBe(true)
+    const [row] = await db.select().from(schema.recipes).where(eq(schema.recipes.id, foreign.recipe.id))
+    expect(row?.deletedAt).toBeNull()
+    await client.close()
   })
 })

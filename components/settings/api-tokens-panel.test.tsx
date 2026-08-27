@@ -36,7 +36,7 @@ describe('ApiTokensPanel', () => {
     expect(screen.getByText('MCP escritorio')).toBeInTheDocument()
     expect(screen.getByText('Leer recetas')).toBeInTheDocument()
     expect(screen.getByText('Editar el plan')).toBeInTheDocument()
-    expect(screen.getByText('Completo')).toBeInTheDocument()
+    expect(screen.getByText('Completo (añade editar y borrar: recetas, entradas del plan, artículos de despensa y alimentos)')).toBeInTheDocument()
     expect(screen.getAllByText('Nunca')).toHaveLength(2)
     expect(screen.getByText('Revocado')).toBeInTheDocument()
   })
