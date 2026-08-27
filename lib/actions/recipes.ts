@@ -92,10 +92,10 @@ export async function prepareIngredientsAction(inputs: unknown): Promise<ActionR
 // colar tipos MIME válidos pero no soportados (image/svg+xml, image/gif...).
 const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif'])
 
-// El editor sube imágenes con fetch + FormData desde el navegador (una
-// sesión de cookie, no un token de API): POST /api/v1/uploads exige
-// requireApiToken y no lo acepta, así que aquí hay una acción propia sobre
-// las mismas piezas (saveImage) para el mismo flujo con requireHousehold.
+// El editor sube imágenes desde el navegador con una acción de servidor
+// (sesión de cookie + requireHousehold). La ruta REST POST /api/v1/uploads
+// también admite la sesión, pero existe para clientes con token de API
+// (REST/MCP); ambos caminos comparten saveImage (decisión W2-R17).
 export async function uploadImageAction(formData: FormData): Promise<ActionResult<{ url: string }>> {
   try {
     const ctx = await requireHousehold()
