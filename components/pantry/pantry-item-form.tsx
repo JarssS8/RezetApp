@@ -35,6 +35,9 @@ interface PantryItemPayload {
 
 export interface PantryItemFormProps {
   initialFood?: FoodWithNutrition | null
+  // Nombre sugerido con el que precargar el buscador de alimentos cuando el
+  // escáner de códigos de barras (Task 16) no resolvió `initialFood`.
+  initialQuery?: string
   // Inyectable para tests; por defecto la server action real.
   upsert?: (input: unknown) => Promise<ActionResult<PantryRow>>
 }
@@ -43,7 +46,7 @@ export interface PantryItemFormProps {
 // "crear alimento nuevo" cuando no existe todavía), cantidad ya en unidad
 // base, ubicación y caducidad opcional. Sin alimento no hay a qué asociar la
 // fila, así que el guardado queda deshabilitado hasta elegir uno.
-export function PantryItemForm({ initialFood = null, upsert = upsertPantryItemAction }: PantryItemFormProps) {
+export function PantryItemForm({ initialFood = null, initialQuery, upsert = upsertPantryItemAction }: PantryItemFormProps) {
   const t = useTranslations('pantry')
   const te = useTranslations('errors')
   const locale = useLocale()
@@ -94,7 +97,7 @@ export function PantryItemForm({ initialFood = null, upsert = upsertPantryItemAc
     <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label>{t('form.food')}</Label>
-        <FoodPicker value={food} onChange={handleFoodChange} locale={locale} />
+        <FoodPicker value={food} onChange={handleFoodChange} locale={locale} {...(initialQuery ? { initialQuery } : {})} />
         {!food ? (
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-text-2">{t('form.pickFood')}</p>

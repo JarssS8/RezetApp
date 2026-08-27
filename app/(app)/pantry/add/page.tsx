@@ -17,12 +17,15 @@ export default async function AddPantryItemPage({ searchParams }: AddPantryItemP
   const sp = await searchParams
   const parsedFoodId = IdSchema.safeParse(sp.foodId)
   const initialFood = parsedFoodId.success ? await getFood(ctx, parsedFoodId.data) : null
+  // Sin alimento resuelto, el nombre sugerido por el escáner precarga el
+  // buscador en vez de perderse.
+  const initialQuery = !initialFood && sp.name ? sp.name : undefined
 
   return (
     <main>
       <h1 className="text-2xl">{t('add')}</h1>
       <div className="mt-4">
-        <PantryItemForm initialFood={initialFood} />
+        <PantryItemForm initialFood={initialFood} {...(initialQuery ? { initialQuery } : {})} />
       </div>
     </main>
   )

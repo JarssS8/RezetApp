@@ -2,7 +2,15 @@
   "title": "Pantry",
   "locations": { "fridge": "Fridge", "freezer": "Freezer", "pantry": "Cupboard" },
   "add": "Add",
-  "scan": "Scan",
+  "scan": {
+    "title": "Scan code",
+    "hint": "Point at the barcode",
+    "manual": "Enter manually",
+    "lookup": "Search",
+    "notFound": "We don't know this product yet. You can create it.",
+    "noCamera": "No camera available or permission was denied.",
+    "found": "Found: {name}"
+  },
   "search": "Search the pantry…",
   "empty": "The pantry is empty. Add what you have at home.",
   "expiresIn": "Expires in {days} days",

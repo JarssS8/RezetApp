@@ -25,7 +25,7 @@ export default async function PantryPage({ searchParams }: PantryPageProps) {
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl">{t('title')}</h1>
         <div className="flex items-center gap-2">
-          <Button render={<Link href="/pantry/scan" />} variant="outline" size="icon" aria-label={t('scan')}>
+          <Button render={<Link href="/pantry/scan" />} variant="outline" size="icon" aria-label={t('scan.title')}>
             <BarcodeIcon size={20} />
           </Button>
           <Button render={<Link href="/pantry/add" />} size="icon" aria-label={t('add')}>
