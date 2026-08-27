@@ -27,6 +27,29 @@
   "import": {
     "title": "Importar receta"
   },
+  "detail": {
+    "servings": "Raciones",
+    "fewer": "Menos raciones",
+    "more": "Más raciones",
+    "nonLinear": "No escala linealmente",
+    "nonLinearNote": "Los ingredientes en ámbar (sal, especias, levadura…) se ajustan con suavidad al cambiar las raciones: duplicarlos arruinaría el plato.",
+    "kcalPerServing": "kcal por ración",
+    "total": "total",
+    "per100g": "por 100 g",
+    "estimated": "Nutrición estimada: revisa los alimentos marcados",
+    "ingredients": "Ingredientes",
+    "steps": "Preparación",
+    "notes": "Notas",
+    "cooked": "Cocinada {count} veces",
+    "cook": "Cocinar",
+    "addToPlan": "Añadir al plan",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar «{title}»? Se puede recuperar exportando antes.",
+    "deleteError": "No se pudo eliminar la receta",
+    "unresolved": "Sin alimento asignado: no cuenta para las calorías",
+    "timer": "{minutes} min"
+  },
   "food": {
     "searchPlaceholder": "Buscar alimento…",
     "mine": "propio",

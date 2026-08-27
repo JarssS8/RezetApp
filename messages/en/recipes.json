@@ -27,6 +27,29 @@
   "import": {
     "title": "Import recipe"
   },
+  "detail": {
+    "servings": "Servings",
+    "fewer": "Fewer servings",
+    "more": "More servings",
+    "nonLinear": "Does not scale linearly",
+    "nonLinearNote": "Amber ingredients (salt, spices, yeast…) adjust gently when servings change: doubling them would ruin the dish.",
+    "kcalPerServing": "kcal per serving",
+    "total": "total",
+    "per100g": "per 100 g",
+    "estimated": "Estimated nutrition: check the flagged foods",
+    "ingredients": "Ingredients",
+    "steps": "Steps",
+    "notes": "Notes",
+    "cooked": "Cooked {count} times",
+    "cook": "Cook",
+    "addToPlan": "Add to plan",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete “{title}”? You can still export it first.",
+    "deleteError": "The recipe could not be deleted",
+    "unresolved": "No food assigned: does not count toward calories",
+    "timer": "{minutes} min"
+  },
   "food": {
     "searchPlaceholder": "Search food…",
     "mine": "mine",
