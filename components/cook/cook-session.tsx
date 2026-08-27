@@ -127,7 +127,7 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
 
       {step ? <p className="text-2xl leading-snug">{step.text}</p> : null}
 
-      {step ? <StepTimers text={step.text} locale={locale} /> : null}
+      {step ? <StepTimers text={step.text} locale={locale} stepIndex={index} timerSeconds={step.timerSeconds} /> : null}
 
       {stepRows.length > 0 ? <IngredientChecklist rows={stepRows} checked={checked} onToggle={toggle} /> : null}
 
