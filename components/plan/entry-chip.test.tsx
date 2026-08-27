@@ -80,4 +80,15 @@ describe('EntryChip', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reactivar' }))
     expect(onSkip).toHaveBeenCalledWith('e1', false)
   })
+
+  it('ofrece cocinar solo si la entrada tiene receta y sigue planificada', () => {
+    renderChip({ entry: baseEntry({ recipeId: 'r1', status: 'planned' }) })
+    expect(screen.getByRole('link', { name: /cocinar/i })).toHaveAttribute('href', '/cook/e1')
+    cleanup()
+    renderChip({ entry: baseEntry({ recipeId: 'r1', status: 'cooked' }) })
+    expect(screen.queryByRole('link', { name: /cocinar/i })).toBeNull()
+    cleanup()
+    renderChip({ entry: baseEntry({ recipeId: null, status: 'planned' }) })
+    expect(screen.queryByRole('link', { name: /cocinar/i })).toBeNull()
+  })
 })

@@ -1,7 +1,8 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { ClockIcon, LeftoversIcon, MinusIcon, PlusIcon, SkipIcon, TrashIcon } from '@/components/icons'
+import Link from 'next/link'
+import { ClockIcon, CookIcon, LeftoversIcon, MinusIcon, PlusIcon, SkipIcon, TrashIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { MealSlot } from '@/lib/validation/plan'
@@ -44,6 +45,17 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
           <span title={t('leftover')} aria-label={t('leftover')} className="inline-flex items-center rounded-pill bg-secondary px-1.5 py-0.5 text-secondary-foreground">
             <LeftoversIcon size={14} />
           </span>
+        ) : null}
+        {entry.recipeId && !cooked && !skipped ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={t('cook')}
+            render={<Link href={`/cook/${entry.id}`} />}
+          >
+            <CookIcon size={14} />
+          </Button>
         ) : null}
         <LeftoverDialog fromEntryId={entry.id} sourceSlot={entry.slot} />
         {cooked ? (
