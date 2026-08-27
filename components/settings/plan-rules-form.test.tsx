@@ -29,7 +29,7 @@ describe('PlanRulesForm', () => {
     expect(sent).toEqual([{ day: 1, slot: null, constraint: 'no-meat', value: '' }])
   })
 
-  it('una regla de minutos manda el número como texto y no deja guardar si está vacío', async () => {
+  it('conserva el valor de max-minutes como texto', async () => {
     const { updateAction } = renderForm({ initial: [{ day: null, slot: 'dinner', constraint: 'max-minutes', value: '30' }] })
     await userEvent.click(screen.getByRole('button', { name: messages.planRules.save }))
     await waitFor(() => expect(updateAction).toHaveBeenCalled())

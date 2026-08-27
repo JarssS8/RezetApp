@@ -30,6 +30,17 @@ beforeEach(async () => {
 })
 
 describe('plan-rules', () => {
+  it('un miembro no propietario no puede editar las reglas del plan', async () => {
+    const member: Ctx = { ...ctxA, role: 'member' }
+    await expect(updatePlanRules(member, [{ day: 1, slot: null, constraint: 'no-meat', value: '' }])).rejects.toMatchObject({ code: 'forbidden' })
+  })
+
+  it('el propietario sí puede editar las reglas del plan', async () => {
+    await expect(updatePlanRules(ctxA, [{ day: 1, slot: null, constraint: 'no-meat', value: '' }])).resolves.toEqual([
+      { day: 1, slot: null, constraint: 'no-meat', value: '' },
+    ])
+  })
+
   it('guarda y relee las reglas del hogar, y no ve las del vecino', async () => {
     await updatePlanRules(ctxA, [{ day: 1, slot: null, constraint: 'no-meat', value: '' }])
     expect(await getPlanRules(ctxA)).toEqual([{ day: 1, slot: null, constraint: 'no-meat', value: '' }])

@@ -35,6 +35,9 @@ export async function getPlanRules(ctx: Ctx): Promise<PlanRule[]> {
 }
 
 export async function updatePlanRules(ctx: Ctx, rules: PlanRule[]): Promise<PlanRule[]> {
+  // Solo el propietario cambia cómo se rellena el plan del hogar (mismo
+  // criterio que el resto de ajustes del hogar, ver updateHousehold).
+  if (ctx.role !== 'owner') throw new ServiceError('forbidden', 'Solo el propietario puede editar las reglas del plan')
   const parsed = PlanRulesSchema.parse(rules)
   await ctx.db.update(schema.households).set({ planRules: parsed }).where(eq(schema.households.id, ctx.householdId))
   return parsed
