@@ -37,10 +37,10 @@
     "hint": "El primero desaparece del catálogo y todo lo que lo usaba pasa al segundo. Nada se borra: la fusión se puede deshacer desde la base de datos.",
     "from": "Alimento duplicado",
     "into": "Alimento que se queda",
-    "search": "Buscar alimento",
     "submit": "Fusionar",
     "done": "{ingredients} ingredientes y {items} artículos actualizados",
     "error": "No se pudo fusionar",
+    "conflictAllergens": "El alimento que se queda es del catálogo global y el duplicado tiene un alérgeno que no tiene: revísalo a mano antes de fusionar",
     "sameFood": "Los dos alimentos son el mismo"
   }
 }

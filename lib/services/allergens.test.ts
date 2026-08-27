@@ -3,9 +3,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import * as schema from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import type { FoodInput } from '@/lib/validation/foods'
-import { householdAllergens, recipeAllergenMap } from './allergens'
+import { conflictingRecipeIds, householdAllergens, recipeAllergenMap } from './allergens'
 import type { Ctx } from './ctx'
-import { createFood } from './foods'
+import { createFood, mergeFoods } from './foods'
 import { createRecipe } from './recipes'
 
 let db: TestDb
@@ -66,5 +66,53 @@ describe('recipeAllergenMap', () => {
   it('no ve recetas de otro hogar', async () => {
     const ajena = await createRecipe(ctxB, { title: 'Ajena', servingsBase: 2, tags: [], imageUrls: [], ingredients: [{ rawText: '1 huevo' }], steps: [{ text: 'Bate' }] })
     expect((await recipeAllergenMap(ctxA, [ajena.recipe.id])).size).toBe(0)
+  })
+})
+
+describe('conflictingRecipeIds', () => {
+  // F2 de T28: si nadie en el hogar tiene alérgenos declarados, la función
+  // corta antes de mirar recetas ni alimentos (no tiene sentido calcular un
+  // choque que nunca puede darse).
+  it('si nadie en el hogar tiene alérgenos, no mira las recetas y devuelve un mapa vacío', async () => {
+    const harina = await createFood(ctxA, foodInput({ nameEs: 'harina', nameEn: 'flour', allergens: ['gluten'] }))
+    const conHarina = await createRecipe(ctxA, { title: 'Bizcocho', servingsBase: 8, tags: [], imageUrls: [], ingredients: [{ rawText: '200 g de harina', foodId: harina.id, quantity: 200, unit: 'g' }], steps: [{ text: 'Hornea' }] })
+
+    expect(await conflictingRecipeIds(ctxA, [conHarina.recipe.id])).toEqual(new Map())
+  })
+
+  it('marca solo las recetas que chocan, con el alérgeno concreto', async () => {
+    await db.update(schema.householdMembers).set({ allergens: ['gluten'] }).where(eq(schema.householdMembers.userId, anaId))
+    const harina = await createFood(ctxA, foodInput({ nameEs: 'harina', nameEn: 'flour', allergens: ['gluten'] }))
+    const conHarina = await createRecipe(ctxA, { title: 'Bizcocho', servingsBase: 8, tags: [], imageUrls: [], ingredients: [{ rawText: '200 g de harina', foodId: harina.id, quantity: 200, unit: 'g' }], steps: [{ text: 'Hornea' }] })
+    const sinHarina = await createRecipe(ctxA, { title: 'Ensalada', servingsBase: 2, tags: [], imageUrls: [], ingredients: [{ rawText: '1 lechuga' }], steps: [{ text: 'Corta' }] })
+
+    const conflicts = await conflictingRecipeIds(ctxA, [conHarina.recipe.id, sinHarina.recipe.id])
+    expect(conflicts.get(conHarina.recipe.id)).toEqual(['gluten'])
+    expect(conflicts.has(sinHarina.recipe.id)).toBe(false)
+  })
+
+  // Fix 1 de la revisión final: mergeFoods traslada los alérgenos del
+  // fusionado al que se queda, así que una receta que antes no chocaba puede
+  // pasar a chocar después de una fusión (y el filtro tiene que seguir viéndolo).
+  it('una receta sigue en conflicto tras la fusión: el alérgeno del duplicado pasa al alimento que se queda', async () => {
+    await db.update(schema.householdMembers).set({ allergens: ['gluten'] }).where(eq(schema.householdMembers.userId, anaId))
+    const generica = await createFood(ctxA, foodInput({ nameEs: 'harina blanca', nameEn: 'white flour' }))
+    const conGluten = await createFood(ctxA, foodInput({ nameEs: 'harina de trigo', nameEn: 'wheat flour', allergens: ['gluten'] }))
+    const receta = await createRecipe(ctxA, {
+      title: 'Bizcocho',
+      servingsBase: 8,
+      tags: [],
+      imageUrls: [],
+      ingredients: [{ rawText: '200 g de harina blanca', foodId: generica.id, quantity: 200, unit: 'g' }],
+      steps: [{ text: 'Hornea' }],
+    })
+
+    // Antes de fusionar, la harina blanca no tiene gluten: no choca.
+    expect(await conflictingRecipeIds(ctxA, [receta.recipe.id])).toEqual(new Map())
+
+    await mergeFoods(ctxA, conGluten.id, generica.id)
+
+    const conflicts = await conflictingRecipeIds(ctxA, [receta.recipe.id])
+    expect(conflicts.get(receta.recipe.id)).toEqual(['gluten'])
   })
 })

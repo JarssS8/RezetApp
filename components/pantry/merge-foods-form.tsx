@@ -40,7 +40,11 @@ export function MergeFoodsForm() {
     try {
       const res = await mergeFoodsAction(from.id, into.id)
       if (!res.ok) {
-        setError(te(actionErrorKey(res.code)))
+        // 'conflict' aquí es siempre el mismo motivo (fix 1 de la revisión
+        // final): el destino es global y el duplicado trae un alérgeno que no
+        // tiene, así que un mensaje específico ahorra al usuario tener que
+        // adivinarlo a partir del genérico.
+        setError(res.code === 'conflict' ? t('merge.conflictAllergens') : te(actionErrorKey(res.code)))
         return
       }
       setResult(res.data)

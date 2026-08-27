@@ -37,10 +37,10 @@
     "hint": "The first one disappears from the catalogue and everything using it moves to the second. Nothing is deleted: the merge can be undone from the database.",
     "from": "Duplicate food",
     "into": "Food that stays",
-    "search": "Search food",
     "submit": "Merge",
     "done": "{ingredients} ingredients and {items} items updated",
     "error": "Could not merge",
+    "conflictAllergens": "The food that stays is from the global catalogue and the duplicate has an allergen it doesn't: review it by hand before merging",
     "sameFood": "Both foods are the same"
   }
 }

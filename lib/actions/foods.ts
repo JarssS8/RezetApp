@@ -91,6 +91,11 @@ export async function mergeFoodsAction(fromId: string, intoId: string): Promise<
     const result = await mergeFoods(ctx, from.data, into.data)
     revalidatePath('/pantry')
     revalidatePath('/recipes')
+    // Una fusión puede sumar un alérgeno al alimento que se queda (fix 1 de
+    // la revisión final): una propuesta pendiente que lo usara pasaría a
+    // chocar con un alérgeno del hogar, así que la lista de propuestas
+    // también tiene que refrescarse.
+    revalidatePath('/plan/proposals')
     return ok(result)
   } catch (e) {
     return fromError(e)

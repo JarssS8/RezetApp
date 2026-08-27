@@ -377,7 +377,24 @@ export async function mergeFoods(ctx: Ctx, fromId: string, intoId: string): Prom
   if (from.householdId === null) throw new ServiceError('forbidden', 'Un alimento global no se puede fusionar: lo comparten todos los hogares')
   if (into.mergedIntoId !== null) throw new ServiceError('validation', 'El alimento de destino ya está fusionado en otro')
 
+  // El fusionado desaparece de las búsquedas, así que sus alérgenos también
+  // desaparecerían de cualquier receta que lo use si no se trasladan al que
+  // se queda (fix 1 de la revisión final: antes se perdían en silencio). Un
+  // destino del hogar se actualiza en la misma transacción que reapunta
+  // ingredientes y despensa. Un destino global es compartido por todos los
+  // hogares: no se le pueden sumar alérgenos de un alimento de esta casa sin
+  // revisión, así que si de verdad haría falta añadir alguno se rechaza con
+  // 'conflict' en vez de fusionar a medias (decisión 14 del plan).
+  const missingAllergens = from.allergens.filter((a) => !into.allergens.includes(a))
+  if (missingAllergens.length > 0 && into.householdId === null) {
+    throw new ServiceError('conflict', 'El alimento de destino es global: no se le pueden sumar los alérgenos del duplicado sin revisarlo a mano')
+  }
+
   const result = await ctx.db.transaction(async (tx) => {
+    if (missingAllergens.length > 0) {
+      await tx.update(schema.foods).set({ allergens: [...into.allergens, ...missingAllergens], updatedAt: new Date() }).where(eq(schema.foods.id, intoId))
+    }
+
     // Solo las recetas del hogar: un ingrediente de otra casa nunca apunta a
     // un alimento propio de esta, pero el filtro lo deja explícito.
     const ingredients = await tx

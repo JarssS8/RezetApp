@@ -10,8 +10,9 @@ import type { FoodInput } from '@/lib/validation/foods'
 import { correctFood, createFood, getFood, getFoodsNutrition, lookupBarcode, mergeFoods, resolveFoodName, resolveMany, searchFoods } from './foods'
 
 // Atajo para construir un FoodInput válido en los tests de mergeFoods: solo
-// hace falta variar el nombre, el resto son los valores por defecto del esquema.
-function foodInput(overrides: Pick<FoodInput, 'nameEs' | 'nameEn'>): FoodInput {
+// hace falta variar el nombre (y a veces los alérgenos), el resto son los
+// valores por defecto del esquema.
+function foodInput(overrides: Partial<FoodInput> & Pick<FoodInput, 'nameEs' | 'nameEn'>): FoodInput {
   return { aliases: [], defaultUnit: 'g', allergens: [], seasonalMonths: [], ...overrides }
 }
 
@@ -231,5 +232,27 @@ describe('mergeFoods', () => {
     await expect(mergeFoods(ctxA, b.id, c.id)).resolves.toBeTruthy()
     const rows = await db.select().from(schema.foods).where(eq(schema.foods.id, a.id))
     expect(rows[0]?.mergedIntoId).toBe(c.id) // la cadena se aplana: a -> c, no a -> b -> c
+  })
+
+  // Fix 1 de la revisión final: el fusionado desaparece de las búsquedas, así
+  // que un alérgeno que solo él tuviera se perdía en silencio si no se traslada.
+  it('funde los alérgenos del duplicado en el que se queda cuando el destino es del hogar', async () => {
+    const generica = await createFood(ctxA, foodInput({ nameEs: 'harina blanca', nameEn: 'white flour' }))
+    const conGluten = await createFood(ctxA, foodInput({ nameEs: 'harina de trigo', nameEn: 'wheat flour', allergens: ['gluten'] }))
+
+    const result = await mergeFoods(ctxA, conGluten.id, generica.id)
+    expect(result).toMatchObject({ ingredientsRepointed: 0, pantryItemsRepointed: 0 })
+
+    const merged = await getFood(ctxA, generica.id)
+    expect(merged?.allergens).toEqual(['gluten'])
+  })
+
+  it('no fusiona en un alimento global si perdería un alérgeno del duplicado', async () => {
+    const conGluten = await createFood(ctxA, foodInput({ nameEs: 'pan rallado', nameEn: 'breadcrumbs', allergens: ['gluten'] }))
+    const [global] = await db.insert(schema.foods).values({ nameEs: 'pan', nameEn: 'bread', searchNameEs: 'pan', searchNameEn: 'bread' }).returning()
+
+    await expect(mergeFoods(ctxA, conGluten.id, global!.id)).rejects.toMatchObject({ code: 'conflict' })
+    // No se ha fusionado nada: el fusionado sigue visible
+    expect((await searchFoods(ctxA, { q: 'pan rallado' })).map((f) => f.id)).toContain(conGluten.id)
   })
 })
