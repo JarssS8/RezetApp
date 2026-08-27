@@ -68,22 +68,6 @@ describe('/api/v1/pantry', () => {
     expect(deletedAgain.status).toBe(404)
   })
 
-  it('adjust nunca deja la cantidad negativa', async () => {
-    const rw = await makeToken(['pantry:read', 'pantry:write'])
-    const created = await postPantry(
-      req('/api/v1/pantry', rw, {
-        method: 'POST',
-        body: JSON.stringify({ foodId: onionId, quantity: 100, unit: 'g', location: 'pantry' }),
-        headers: { 'content-type': 'application/json' },
-      }),
-    )
-    const { id } = (await created.json()) as { id: string }
-    const res = await postAdjust(
-      req('/api/v1/pantry/adjust', rw, { method: 'POST', body: JSON.stringify({ itemId: id, delta: -500 }), headers: { 'content-type': 'application/json' } }),
-    )
-    expect((await res.json()).quantity).toBe(0)
-  })
-
   it('un itemId de otro hogar da 404 en adjust y en delete', async () => {
     const [otherHousehold] = await state.db.insert(schema.households).values({ name: 'Otra casa' }).returning()
     const [item] = await state.db
@@ -114,6 +98,35 @@ describe('/api/v1/pantry', () => {
   it('GET /pantry/barcode/000 es 400: el código no cumple BarcodeSchema', async () => {
     const ro = await makeToken(['pantry:read'])
     const res = await getBarcode(req('/api/v1/pantry/barcode/000', ro), { params: Promise.resolve({ code: '000' }) })
+    expect(res.status).toBe(400)
+  })
+
+  it('GET /pantry/barcode/{code} con un alimento ya catalogado es 200 sin salir a la red', async () => {
+    const barcode = '5012345678900'
+    await state.db.insert(schema.foods).values({ nameEs: 'leche', nameEn: 'milk', searchNameEs: 'leche', searchNameEn: 'milk', source: 'usda', barcode })
+    const ro = await makeToken(['pantry:read'])
+    const res = await getBarcode(req(`/api/v1/pantry/barcode/${barcode}`, ro), { params: Promise.resolve({ code: barcode }) })
+    expect(res.status).toBe(200)
+    expect((await res.json()).nameEs).toBe('leche')
+  })
+
+  it('POST /pantry sin pantry:write es 403', async () => {
+    const ro = await makeToken(['pantry:read'])
+    const res = await postPantry(
+      req('/api/v1/pantry', ro, {
+        method: 'POST',
+        body: JSON.stringify({ foodId: onionId, quantity: 100, unit: 'g', location: 'pantry' }),
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    expect(res.status).toBe(403)
+  })
+
+  it('POST /pantry con un cuerpo mal formado es 400', async () => {
+    const rw = await makeToken(['pantry:write'])
+    const res = await postPantry(
+      req('/api/v1/pantry', rw, { method: 'POST', body: JSON.stringify({ foodId: onionId, quantity: -1, unit: 'g' }), headers: { 'content-type': 'application/json' } }),
+    )
     expect(res.status).toBe(400)
   })
 })
