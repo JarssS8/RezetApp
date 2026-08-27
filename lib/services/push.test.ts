@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import { decryptSecret, getKeys } from '@/lib/crypto'
+import { PushSubscriptionSchema } from '@/lib/validation/push'
 import { getOrCreateVapidKeys, getVapidPublicKey, listPushSubscriptions, subscribePush, unsubscribePush, VAPID_SETTINGS_KEY } from './push'
 
 process.env.APP_SECRET = 'secreto-de-prueba-con-suficiente-longitud-1234'
@@ -101,4 +102,13 @@ describe('suscripciones de push', () => {
     await unsubscribePush(db, anaId, sub.endpoint)
     expect(await listPushSubscriptions(db, anaId)).toEqual([])
   })
+})
+
+// El esquema rechaza esquemas no https (SSRF almacenado) y claves con
+// caracteres fuera de base64url.
+it('PushSubscriptionSchema rechaza endpoints http y claves no base64url', () => {
+  const keys = { p256dh: 'BPx', auth: 'ok' }
+  expect(PushSubscriptionSchema.safeParse({ endpoint: 'http://169.254.169.254/x', keys }).success).toBe(false)
+  expect(PushSubscriptionSchema.safeParse({ endpoint: 'https://push.example.com/s/1', keys: { p256dh: 'a b', auth: 'ok' } }).success).toBe(false)
+  expect(PushSubscriptionSchema.safeParse({ endpoint: 'https://push.example.com/s/1', keys }).success).toBe(true)
 })
