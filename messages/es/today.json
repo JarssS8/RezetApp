@@ -1,1 +1,6 @@
-{ "title": "Hoy" }
+{
+  "title": "Hoy",
+  "ringLabel": "{cooked} de {planned} kcal cocinadas",
+  "ofPlanned": "de {planned} kcal",
+  "estimated": "estimado"
+}
