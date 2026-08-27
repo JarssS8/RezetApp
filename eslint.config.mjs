@@ -176,8 +176,11 @@ const config = [
               },
             },
             {
+              // 'services' incluido: scripts/notify-expiring.ts llama a
+              // notifyExpiring (lib/services/push.ts) desde un cron externo,
+              // sin pasar por HTTP ni por Next.
               from: { element: { type: 'scripts' } },
-              allow: { to: { element: { types: { anyOf: ['scripts', 'db', 'domain', 'lib'] } } } },
+              allow: { to: { element: { types: { anyOf: ['scripts', 'db', 'domain', 'lib', 'services'] } } } },
             },
           ],
         },

@@ -58,9 +58,30 @@ salientes son las que tú configuras explícitamente:
   local compatible con OpenAI).
 - Open Food Facts, al escanear un código de barras en la despensa.
 - ShopList, si activas el envío de la lista de la compra.
+- El servicio de push de tu propio navegador, si activas los avisos de
+  caducidad: el mensaje le llega ya cifrado, sin que pueda leerlo.
 
 Sin ninguna de esas configuraciones, la app funciona por completo sin salir a
 internet.
+
+## Notificaciones
+
+Cada dispositivo se apunta a los avisos de caducidad desde Ajustes →
+Notificaciones. Hacen falta HTTPS (o `localhost` en desarrollo) y que el
+navegador conceda permiso.
+
+El aviso lo dispara un cron externo, no un planificador dentro de la app (la
+app no trae uno a propósito): `pnpm notify:expiring` en desarrollo, o en
+producción
+
+```
+0 9 * * *  docker compose exec -T app node dist/scripts/notify-expiring.mjs
+```
+
+Las claves VAPID se generan solas la primera vez y se guardan cifradas en
+`app_settings`; no hay que configurar nada a mano. No salen datos del servidor
+hacia terceros salvo el servicio de push del propio navegador, que es quien
+entrega el mensaje ya cifrado.
 
 ## Licencias de datos
 

@@ -3,9 +3,10 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import * as schema from '@/db/schema'
 import { decryptSecret, encryptSecret, getKeys } from '@/lib/crypto'
-import { generateVapidKeys, type VapidKeys } from '@/lib/integrations/web-push'
-import type { PushSubscriptionInput } from '@/lib/validation/push'
-import type { Db } from './ctx'
+import { generateVapidKeys, sendWebPush, type VapidKeys } from '@/lib/integrations/web-push'
+import { PushSubscriptionSchema, type PushSubscriptionInput } from '@/lib/validation/push'
+import { expiringPantry } from './pantry'
+import type { Ctx, Db } from './ctx'
 import { ServiceError } from './ctx'
 
 // Reexportada para las rutas de app/api/push: las fronteras de eslint-boundaries
@@ -108,4 +109,100 @@ export async function listPushSubscriptions(db: Db, userId: string): Promise<{ e
     .from(schema.pushSubscriptions)
     .where(eq(schema.pushSubscriptions.userId, userId))
     .orderBy(schema.pushSubscriptions.createdAt)
+}
+
+export interface ExpiringNotification {
+  endpoint: string
+  title: string
+  body: string
+  url: string
+}
+
+// Cuántos alimentos se nombran en el cuerpo antes de resumir: una notificación
+// del sistema se corta sola, y una lista de quince nombres no se lee.
+const NAMES_IN_BODY = 3
+
+// Un aviso por dispositivo suscrito. `push_subscriptions` es por usuario (spec
+// §4 no le pone household_id) y un usuario puede estar en varios hogares: se
+// recorren todos los suyos y se junta lo que caduca en cada uno.
+export async function buildExpiringNotifications(db: Db, now: Date = new Date()): Promise<ExpiringNotification[]> {
+  const subs = await db
+    .select({
+      endpoint: schema.pushSubscriptions.endpoint,
+      userId: schema.pushSubscriptions.userId,
+      locale: schema.users.locale,
+    })
+    .from(schema.pushSubscriptions)
+    .innerJoin(schema.users, eq(schema.users.id, schema.pushSubscriptions.userId))
+
+  const out: ExpiringNotification[] = []
+  for (const sub of subs) {
+    const memberships = await db
+      .select({ householdId: schema.householdMembers.householdId, expiryAlertDays: schema.households.expiryAlertDays })
+      .from(schema.householdMembers)
+      .innerJoin(schema.households, eq(schema.households.id, schema.householdMembers.householdId))
+      .where(eq(schema.householdMembers.userId, sub.userId))
+
+    const names: string[] = []
+    for (const membership of memberships) {
+      const locale = sub.locale === 'en' ? 'en' : 'es'
+      const ctx: Ctx = { db, householdId: membership.householdId, userId: sub.userId, apiTokenId: null, role: null, locale, scopes: [] }
+      const expiring = await expiringPantry(ctx, membership.expiryAlertDays, now)
+      for (const item of expiring) names.push(item.name)
+    }
+    if (names.length === 0) continue
+
+    const locale = sub.locale === 'en' ? 'en' : 'es'
+    const head = names.slice(0, NAMES_IN_BODY).join(', ')
+    const rest = names.length - Math.min(NAMES_IN_BODY, names.length)
+    // Los textos de una notificación no pasan por next-intl (no hay petición ni
+    // contexto de React aquí): se escriben en los dos idiomas a mano, que son
+    // dos frases.
+    const title = locale === 'en' ? 'Something is about to expire' : 'Algo está a punto de caducar'
+    const body =
+      rest > 0
+        ? locale === 'en'
+          ? `${head} and ${rest} more`
+          : `${head} y ${rest} más`
+        : head
+    out.push({ endpoint: sub.endpoint, title, body, url: '/today' })
+  }
+  return out
+}
+
+export async function notifyExpiring(
+  db: Db,
+  deps: { send?: typeof sendWebPush } = {},
+  now: Date = new Date(),
+): Promise<{ sent: number; removed: number }> {
+  const send = deps.send ?? sendWebPush
+  const notifications = await buildExpiringNotifications(db, now)
+  if (notifications.length === 0) return { sent: 0, removed: 0 }
+
+  const vapid = await getOrCreateVapidKeys(db)
+  const subject = process.env.PUSH_CONTACT ?? process.env.APP_URL ?? 'https://localhost'
+  const rows = await db.select().from(schema.pushSubscriptions)
+  const byEndpoint = new Map(rows.map((r) => [r.endpoint, r]))
+
+  let sent = 0
+  let removed = 0
+  for (const notification of notifications) {
+    const row = byEndpoint.get(notification.endpoint)
+    if (!row) continue
+    const keys = PushSubscriptionSchema.shape.keys.safeParse(row.keys)
+    if (!keys.success) continue
+    const result = await send(
+      { endpoint: row.endpoint, keys: keys.data },
+      JSON.stringify({ title: notification.title, body: notification.body, url: notification.url }),
+      { ...vapid, subject },
+    )
+    if (result.ok) sent += 1
+    // Solo se borra ante 404/410: un corte de red no debe costarle al usuario
+    // volver a dar permiso en el navegador.
+    else if (result.gone) {
+      await db.delete(schema.pushSubscriptions).where(eq(schema.pushSubscriptions.endpoint, row.endpoint))
+      removed += 1
+    }
+  }
+  return { sent, removed }
 }

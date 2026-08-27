@@ -1,10 +1,20 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { eq } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import { decryptSecret, getKeys } from '@/lib/crypto'
+import type { Ctx } from '@/lib/services/ctx'
 import { PushSubscriptionSchema } from '@/lib/validation/push'
-import { getOrCreateVapidKeys, getVapidPublicKey, listPushSubscriptions, subscribePush, unsubscribePush, VAPID_SETTINGS_KEY } from './push'
+import {
+  buildExpiringNotifications,
+  getOrCreateVapidKeys,
+  getVapidPublicKey,
+  listPushSubscriptions,
+  notifyExpiring,
+  subscribePush,
+  unsubscribePush,
+  VAPID_SETTINGS_KEY,
+} from './push'
 
 process.env.APP_SECRET = 'secreto-de-prueba-con-suficiente-longitud-1234'
 
@@ -101,6 +111,57 @@ describe('suscripciones de push', () => {
     expect(await listPushSubscriptions(db, anaId)).toHaveLength(1)
     await unsubscribePush(db, anaId, sub.endpoint)
     expect(await listPushSubscriptions(db, anaId)).toEqual([])
+  })
+})
+
+describe('avisos de caducidad', () => {
+  const sub = { endpoint: 'https://push.example/expira', keys: { p256dh: 'BPz2xy9zAB', auth: 'abcXYZ123' } }
+  let ctxA: Ctx
+  let cebollaId: string
+
+  beforeEach(async () => {
+    const [household] = await db.insert(schema.households).values({ name: 'Casa de Ana' }).returning()
+    const [cebolla] = await db
+      .insert(schema.foods)
+      .values({ nameEs: 'cebolla', nameEn: 'onion', searchNameEs: 'cebolla', searchNameEn: 'onion', source: 'usda', kcal100g: 40 })
+      .returning()
+    if (!household || !cebolla) throw new Error('setup')
+    await db.insert(schema.householdMembers).values({ householdId: household.id, userId: anaId, role: 'owner' })
+    ctxA = { db, householdId: household.id, userId: anaId, apiTokenId: null, role: 'owner', locale: 'es', scopes: [] }
+    cebollaId = cebolla.id
+  })
+
+  it('avisa una vez por dispositivo, con lo que caduca en su hogar', async () => {
+    await subscribePush(db, anaId, sub)
+    await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-08-28' })
+
+    const notifications = await buildExpiringNotifications(db, new Date('2026-08-27T09:00:00Z'))
+    expect(notifications).toHaveLength(1)
+    expect(notifications[0]).toMatchObject({ endpoint: sub.endpoint, url: '/today' })
+    expect(notifications[0]?.body).toContain('cebolla')
+  })
+
+  it('no avisa si no caduca nada dentro de expiry_alert_days', async () => {
+    await subscribePush(db, anaId, sub)
+    await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-12-31' })
+    expect(await buildExpiringNotifications(db, new Date('2026-08-27T09:00:00Z'))).toEqual([])
+  })
+
+  it('borra la suscripción que el navegador ya ha revocado', async () => {
+    await subscribePush(db, anaId, sub)
+    await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-08-28' })
+    const send = vi.fn(async () => ({ ok: false as const, gone: true }))
+    const result = await notifyExpiring(db, { send }, new Date('2026-08-27T09:00:00Z'))
+    expect(result).toEqual({ sent: 0, removed: 1 })
+    expect(await listPushSubscriptions(db, anaId)).toEqual([])
+  })
+
+  it('un fallo pasajero no borra la suscripción', async () => {
+    await subscribePush(db, anaId, sub)
+    await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-08-28' })
+    const send = vi.fn(async () => ({ ok: false as const, gone: false }))
+    expect(await notifyExpiring(db, { send }, new Date('2026-08-27T09:00:00Z'))).toEqual({ sent: 0, removed: 0 })
+    expect(await listPushSubscriptions(db, anaId)).toHaveLength(1)
   })
 })
 
