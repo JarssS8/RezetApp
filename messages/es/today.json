@@ -5,7 +5,7 @@
   "estimated": "estimado",
   "emptyPlanLink": "No hay nada planificado. Ve al plan",
   "expiring": "Caduca pronto",
-  "expiringLine": "{name} · en {days} días",
+  "expiringLine": "{name} · en {days, plural, one {# día} other {# días}}",
   "addToPantry": "Añadir a despensa",
   "proposeWeek": "Proponer semana"
 }
