@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import * as schema from '@/db/schema'
@@ -12,6 +13,7 @@ let householdId: string
 let anaId: string
 let apiTokenId: string
 let recipeCebollaId: string
+let entryId: string
 
 // Un cliente MCP se autentica siempre con un token de API (nunca con sesión,
 // ver lib/mcp/auth.ts): createProposal exige exactamente uno de
@@ -61,18 +63,20 @@ beforeEach(async () => {
   })
   recipeCebollaId = sopa.recipe.id
 
-  await db.insert(schema.mealPlanEntries).values({ householdId, date: '2026-08-26', slot: 'dinner', recipeId: recipeCebollaId, servings: 2 })
+  const [entry] = await db
+    .insert(schema.mealPlanEntries)
+    .values({ householdId, date: '2026-08-26', slot: 'dinner', recipeId: recipeCebollaId, servings: 2 })
+    .returning({ id: schema.mealPlanEntries.id })
+  if (!entry) throw new Error('seed')
+  entryId = entry.id
 })
 
 describe('herramientas MCP del plan', () => {
-  it('get_meal_plan devuelve entradas y nutrición del rango', async () => {
+  it('get_meal_plan devuelve entradas y nutrición del rango, aplanada', async () => {
     const client = await connectedClient(mcpCtxOf(['plan:read']))
     const out = JSON.parse(textOf(await callTool(client, { name: 'get_meal_plan', arguments: { from: '2026-08-24', to: '2026-08-30' } })))
     expect(out.entries).toHaveLength(1)
-    // rangeNutrition devuelve { byDate, total } donde "total" es a su vez un
-    // Nutrition completo (perServing/total/per100g): el total agregado del
-    // rango está en total.total, no en total directamente.
-    expect(out.nutrition.total.total.kcal).toBeGreaterThan(0)
+    expect(out.nutrition.total.kcal).toBeGreaterThan(0)
     await client.close()
   })
 
@@ -97,6 +101,42 @@ describe('herramientas MCP del plan', () => {
     await client.close()
   })
 
+  it('set_meal_plan con una receta inventada falla y no crea ninguna propuesta', async () => {
+    const client = await connectedClient(mcpCtxOf(['plan:read', 'plan:write']))
+    const result = await callTool(client, {
+      name: 'set_meal_plan',
+      arguments: { add: [{ date: '2026-09-01', slot: 'dinner', recipeId: randomUUID(), servings: 2 }], remove: [] },
+    })
+    expect(result.isError).toBe(true)
+    const proposals = await db.select().from(schema.planProposals).where(eq(schema.planProposals.householdId, householdId))
+    expect(proposals).toHaveLength(0)
+    await client.close()
+  })
+
+  it('set_meal_plan con un item sin recipeId ni customTitle falla en el esquema', async () => {
+    const client = await connectedClient(mcpCtxOf(['plan:read', 'plan:write']))
+    const result = await callTool(client, {
+      name: 'set_meal_plan',
+      arguments: { add: [{ date: '2026-09-01', slot: 'dinner', servings: 2 }], remove: [] },
+    })
+    expect(result.isError).toBe(true)
+    await client.close()
+  })
+
+  it('set_meal_plan sin servings usa las raciones por defecto del hogar (ruling W3-R4)', async () => {
+    const client = await connectedClient(mcpCtxOf(['plan:read', 'plan:write']))
+    const out = JSON.parse(
+      textOf(
+        await callTool(client, {
+          name: 'set_meal_plan',
+          arguments: { add: [{ date: '2026-09-01', slot: 'dinner', recipeId: recipeCebollaId }], remove: [] },
+        }),
+      ),
+    )
+    expect(out.diff.add[0].servings).toBe(2) // households.default_servings por defecto
+    await client.close()
+  })
+
   it('un argumento que la herramienta no declara falla ruidosamente (esquema estricto)', async () => {
     const client = await connectedClient(mcpCtxOf(['plan:read']))
     const result = await callTool(client, { name: 'get_meal_plan', arguments: { from: '2026-08-24', to: '2026-08-30', ordena: 'por hambre' } })
@@ -118,6 +158,43 @@ describe('herramientas MCP del plan', () => {
     const names = (await client.listTools()).tools.map((t) => t.name)
     expect(names).toContain('get_meal_plan')
     expect(names).not.toContain('set_meal_plan')
+    await client.close()
+  })
+
+  it('update_meal_plan_entry con un id ajeno falla sin filtrar si existe', async () => {
+    const client = await connectedClient({ ...mcpCtxOf(['plan:read', 'plan:write']), mcpProfile: 'full' })
+    const result = await callTool(client, { name: 'update_meal_plan_entry', arguments: { entryId: randomUUID(), servings: 3 } })
+    expect(result.isError).toBe(true)
+    expect(textOf(result)).not.toMatch(/no encontrada|not found/i)
+    await client.close()
+  })
+
+  it('update_meal_plan_entry con date y slot mueve la entrada de verdad', async () => {
+    const client = await connectedClient({ ...mcpCtxOf(['plan:read', 'plan:write']), mcpProfile: 'full' })
+    const out = JSON.parse(textOf(await callTool(client, { name: 'update_meal_plan_entry', arguments: { entryId, date: '2026-08-27', slot: 'lunch' } })))
+    expect(out.date).toBe('2026-08-27')
+    expect(out.slot).toBe('lunch')
+    const [row] = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.id, entryId))
+    expect(row?.date).toBe('2026-08-27')
+    expect(row?.slot).toBe('lunch')
+    await client.close()
+  })
+
+  it('update_meal_plan_entry solo con servings cambia raciones sin mover la entrada', async () => {
+    const client = await connectedClient({ ...mcpCtxOf(['plan:read', 'plan:write']), mcpProfile: 'full' })
+    const out = JSON.parse(textOf(await callTool(client, { name: 'update_meal_plan_entry', arguments: { entryId, servings: 5 } })))
+    expect(out.servings).toBe(5)
+    const [row] = await db.select().from(schema.mealPlanEntries).where(eq(schema.mealPlanEntries.id, entryId))
+    expect(row?.servings).toBe(5)
+    expect(row?.date).toBe('2026-08-26')
+    expect(row?.slot).toBe('dinner')
+    await client.close()
+  })
+
+  it('update_meal_plan_entry con date sin slot falla en el esquema', async () => {
+    const client = await connectedClient({ ...mcpCtxOf(['plan:read', 'plan:write']), mcpProfile: 'full' })
+    const result = await callTool(client, { name: 'update_meal_plan_entry', arguments: { entryId, date: '2026-08-27' } })
+    expect(result.isError).toBe(true)
     await client.close()
   })
 })

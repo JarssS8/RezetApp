@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { getHouseholdOverview } from '@/lib/services/households'
 import { createProposal, listEntries, moveEntry, patchEntry, rangeNutrition } from '@/lib/services/plan'
 import { DateSchema, IdSchema, MealSlotSchema } from '@/lib/validation/common'
+import type { PlanEntryInput } from '@/lib/validation/plan'
 import type { McpCtx } from '../auth'
 import { guarded, hasScope, isFull } from '../guards'
 
@@ -13,29 +15,41 @@ const GetMealPlanInput = z.strictObject({
 // Mismo contrato que PlanBatchSchema (lib/validation/plan.ts), reescrito como
 // z.strictObject porque el SDK usa este esquema TAL CUAL para validar la
 // llamada: la propiedad "strict" es lo que hace fallar un argumento inventado.
+// El refine de "recipeId o customTitle" se repite aquí (PlanEntryInputSchema
+// no sirve directamente de inputSchema por no ser strict): sin él, un item
+// sin ninguno de los dos pasaba la validación del SDK y solo reventaba más
+// tarde, con el constraint de la base de datos, al leer la propuesta ya
+// creada (revisión ae9002d).
+// servings es opcional (ruling W3-R4): si el modelo no lo manda, el servidor
+// usa las raciones por defecto del hogar (nunca inventa un número el modelo).
+const SetMealPlanAddItem = z
+  .strictObject({
+    date: DateSchema,
+    slot: MealSlotSchema,
+    recipeId: IdSchema.optional(),
+    customTitle: z.string().min(1).max(120).optional(),
+    servings: z.number().int().min(1).max(100).optional(),
+  })
+  .refine((e) => e.recipeId !== undefined || e.customTitle !== undefined, { message: 'Cada entrada necesita recipeId o customTitle' })
+
 const SetMealPlanInput = z.strictObject({
-  add: z
-    .array(
-      z.strictObject({
-        date: DateSchema,
-        slot: MealSlotSchema,
-        recipeId: IdSchema.optional(),
-        customTitle: z.string().min(1).max(120).optional(),
-        servings: z.number().int().min(1).max(100),
-      }),
-    )
-    .max(60)
-    .default([]),
+  add: z.array(SetMealPlanAddItem).max(60).default([]),
   remove: z.array(IdSchema).max(60).default([]),
 })
 
-const UpdateEntryInput = z.strictObject({
-  entryId: IdSchema,
-  servings: z.number().int().min(1).max(100).optional(),
-  skipped: z.boolean().optional(),
-  date: DateSchema.optional(),
-  slot: MealSlotSchema.optional(),
-})
+// Un move (cambiar fecha/hueco) necesita las dos cosas a la vez, nunca solo
+// una: si llega una sin la otra, el resultado sería ambiguo (¿a qué hueco del
+// nuevo día, o a qué día del hueco nuevo?), así que se rechaza en el propio
+// esquema en vez de adivinar.
+const UpdateEntryInput = z
+  .strictObject({
+    entryId: IdSchema,
+    servings: z.number().int().min(1).max(100).optional(),
+    skipped: z.boolean().optional(),
+    date: DateSchema.optional(),
+    slot: MealSlotSchema.optional(),
+  })
+  .refine((e) => (e.date === undefined) === (e.slot === undefined), { message: 'date y slot deben ir juntos, o ninguno de los dos' })
 
 export function registerPlanTools(server: McpServer, ctx: McpCtx): boolean {
   let any = false
@@ -52,7 +66,19 @@ export function registerPlanTools(server: McpServer, ctx: McpCtx): boolean {
       },
       guarded('No se pudo leer el plan.', async ({ from, to }: z.infer<typeof GetMealPlanInput>) => {
         const [entries, nutrition] = await Promise.all([listEntries(ctx, { from, to }), rangeNutrition(ctx, { from, to })])
-        return { entries, nutrition }
+        // rangeNutrition devuelve { byDate, total } donde "total" es a su vez
+        // un Nutrition completo (perServing/total/per100g/isEstimated): se
+        // aplana aquí para que el modelo lea nutrition.total.kcal
+        // directamente, sin tener que conocer esa forma interna anidada.
+        return {
+          entries,
+          nutrition: {
+            byDate: nutrition.byDate,
+            total: nutrition.total.total,
+            perServing: nutrition.total.perServing,
+            isEstimated: nutrition.total.isEstimated,
+          },
+        }
       }),
     )
   }
@@ -64,11 +90,21 @@ export function registerPlanTools(server: McpServer, ctx: McpCtx): boolean {
       {
         title: 'Proponer cambios en el plan',
         description:
-          'Crea una PROPUESTA de altas y bajas del plan, en un solo lote. NO escribe el plan: la persona la aprueba o la descarta en la app. Dile siempre al usuario que ha quedado pendiente de su aprobación. No la uses para marcar algo como cocinado (log_cooked).',
+          'Crea una PROPUESTA de altas y bajas del plan, en un solo lote. NO escribe el plan: la persona la aprueba o la descarta en la app. Dile siempre al usuario que ha quedado pendiente de su aprobación. Las raciones son opcionales: si no las indicas, se usan las raciones por defecto del hogar. No la uses para marcar algo como cocinado (log_cooked).',
         inputSchema: SetMealPlanInput,
       },
       guarded('No se pudo crear la propuesta.', async (input: z.infer<typeof SetMealPlanInput>) => {
-        const view = await createProposal(ctx, { source: 'mcp', payload: input })
+        // El código decide CUÁNTO (raciones por defecto del hogar cuando el
+        // modelo no las da), no el modelo (docs/05-MCP.md, "la regla de oro").
+        const household = await getHouseholdOverview(ctx)
+        const add: PlanEntryInput[] = input.add.map((item) => ({
+          date: item.date,
+          slot: item.slot,
+          servings: item.servings ?? household.defaultServings,
+          ...(item.recipeId !== undefined ? { recipeId: item.recipeId } : {}),
+          ...(item.customTitle !== undefined ? { customTitle: item.customTitle } : {}),
+        }))
+        const view = await createProposal(ctx, { source: 'mcp', payload: { add, remove: input.remove } })
         return { proposalId: view.id, status: view.status, diff: view.diff }
       }),
     )
