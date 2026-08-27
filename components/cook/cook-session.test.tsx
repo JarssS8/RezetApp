@@ -83,6 +83,6 @@ describe('CookSession', () => {
         <CookSession recipeId="r1" entryId="e1" title="Sopa de cebolla" servingsBase={2} initialServings={2} ingredients={ingredients} steps={[]} locale="es" units="metric" sourceSlot="dinner" />
       </NextIntlClientProvider>,
     )
-    expect(screen.getByText(/no hay nada planificado/i)).toBeInTheDocument()
+    expect(screen.getByText(/esta receta no tiene pasos/i)).toBeInTheDocument()
   })
 })

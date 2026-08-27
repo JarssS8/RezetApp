@@ -10,9 +10,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { applyPlanBatchAction, searchRecipesForPlanAction } from '@/lib/actions/plan'
+import { MEAL_SLOTS } from '@/lib/domain'
 import { cn } from '@/lib/utils'
 import type { MealSlot } from '@/lib/validation/plan'
-import { MEAL_SLOTS } from './types'
 
 export interface AddEntrySheetProps {
   open: boolean

@@ -49,4 +49,8 @@ describe('TodayView', () => {
     renderToday({ entries: [{ ...entry, status: 'cooked' }] })
     expect(screen.queryByRole('link', { name: /cocinar|cook/i })).toBeNull()
   })
+  it('una sobra no ofrece cocinarla (la despensa ya se descontó el día que se cocinó)', () => {
+    renderToday({ entries: [{ ...entry, leftoverOfEntryId: 'e0' }] })
+    expect(screen.queryByRole('link', { name: /cocinar|cook/i })).toBeNull()
+  })
 })

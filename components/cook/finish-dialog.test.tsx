@@ -56,7 +56,7 @@ describe('FinishCookingDialog', () => {
     expect(LogCookedSchema.safeParse(payload).success).toBe(true)
   })
 
-  it('enseña los avisos de despensa que devuelve el servidor', async () => {
+  it('enseña los avisos de despensa formateados con formatQuantity, sin la unidad cruda en inglés', async () => {
     const user = userEvent.setup()
     logCookedAction.mockResolvedValue({
       ok: true,
@@ -65,6 +65,27 @@ describe('FinishCookingDialog', () => {
     renderDialog()
     await user.click(screen.getByRole('button', { name: /he terminado/i }))
     await user.click(screen.getByRole('button', { name: /^guardar$/i }))
-    expect(await screen.findByText(/cebolla/)).toBeInTheDocument()
+    // 300 - 100 = 200 g, formateado por formatQuantity (no Math.round a mano ni "ud" en crudo).
+    expect(await screen.findByText(/200 g de cebolla/)).toBeInTheDocument()
+  })
+
+  it('tras guardar con avisos, «Guardar» pasa a «Cerrar» y no reenvía el cocinado', async () => {
+    const user = userEvent.setup()
+    logCookedAction.mockResolvedValue({
+      ok: true,
+      data: { logId: 'l1', entryId, recipeId, servingsCooked: 4, kcalPerServing: null, deductions: [], leftoverEntryId: null, warnings: [{ foodId: 'f1', name: 'cebolla', requested: 300, deducted: 100, unit: 'g' }] },
+    })
+    renderDialog()
+    await user.click(screen.getByRole('button', { name: /he terminado/i }))
+    await user.click(screen.getByRole('button', { name: /^guardar$/i }))
+    await screen.findByText(/cebolla/)
+    expect(screen.queryByRole('button', { name: /^guardar$/i })).toBeNull()
+    expect(logCookedAction).toHaveBeenCalledTimes(1)
+    // El diálogo también trae su propia X con el mismo aria-label ("Cerrar");
+    // la primera es la del pie, la nuestra.
+    const [closeButton] = screen.getAllByRole('button', { name: /^cerrar$/i })
+    if (!closeButton) throw new Error('No se encontró el botón de cerrar')
+    await user.click(closeButton)
+    expect(logCookedAction).toHaveBeenCalledTimes(1)
   })
 })

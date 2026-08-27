@@ -2,18 +2,18 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ServingsStepper } from '@/components/recipes/servings-stepper'
-import { MEAL_SLOTS } from '@/components/plan/types'
 import { logCookedAction, type CookedResult } from '@/lib/actions/cooking'
 import { actionErrorKey } from '@/lib/actions/result'
+import { formatQuantity, MEAL_SLOTS, type MealSlot } from '@/lib/domain'
+import type { Locale } from '@/lib/domain/types'
 import { addDays, todayIso } from '@/lib/plan-dates'
-import type { MealSlot } from '@/lib/validation/plan'
 
 export interface FinishCookingDialogProps {
   recipeId: string
@@ -31,6 +31,7 @@ export function FinishCookingDialog({ recipeId, entryId, servings, sourceSlot }:
   const t = useTranslations('cook')
   const c = useTranslations('common')
   const e = useTranslations('errors')
+  const locale = useLocale() as Locale
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [cooked, setCooked] = useState(servings)
@@ -40,6 +41,10 @@ export function FinishCookingDialog({ recipeId, entryId, servings, sourceSlot }:
   const [leftoverSlot, setLeftoverSlot] = useState<MealSlot>(sourceSlot)
   const [pending, setPending] = useState(false)
   const [warnings, setWarnings] = useState<CookedResult['warnings']>([])
+  // Tras un envío correcto con avisos, «Guardar» pasa a «Cerrar»: si no, un
+  // segundo click reenviaría el mismo cocinado (la ventana de repetición del
+  // servidor lo evita, pero no hay motivo para dejarlo a mano).
+  const [done, setDone] = useState(false)
 
   async function submit() {
     setPending(true)
@@ -61,6 +66,7 @@ export function FinishCookingDialog({ recipeId, entryId, servings, sourceSlot }:
       router.push('/today')
       return
     }
+    setDone(true)
     router.refresh()
   }
 
@@ -105,14 +111,14 @@ export function FinishCookingDialog({ recipeId, entryId, servings, sourceSlot }:
           {warnings.length > 0 ? (
             <ul aria-label={t('warnings')} className="flex flex-col gap-1 rounded-sm bg-warn-soft p-2 text-sm text-warn">
               {warnings.map((w) => (
-                <li key={w.foodId}>{t('warningLine', { name: w.name, missing: Math.round(w.requested - w.deducted), unit: w.unit })}</li>
+                <li key={`${w.foodId}|${w.unit}`}>{t('warningLine', { name: w.name, missing: formatQuantity(w.requested - w.deducted, w.unit, locale) })}</li>
               ))}
             </ul>
           ) : null}
         </div>
         <DialogFooter>
-          <Button type="button" disabled={pending} onClick={() => void submit()}>
-            {c('actions.save')}
+          <Button type="button" disabled={pending} onClick={() => (done ? setOpen(false) : void submit())}>
+            {done ? c('actions.close') : c('actions.save')}
           </Button>
         </DialogFooter>
       </DialogContent>

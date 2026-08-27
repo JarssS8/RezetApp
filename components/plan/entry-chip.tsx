@@ -4,10 +4,10 @@ import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { ClockIcon, CookIcon, LeftoversIcon, MinusIcon, PlusIcon, SkipIcon, TrashIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { MEAL_SLOTS, type MealSlot } from '@/lib/domain'
 import { cn } from '@/lib/utils'
-import type { MealSlot } from '@/lib/validation/plan'
 import { LeftoverDialog } from './leftover-dialog'
-import { MEAL_SLOTS, type PlanEntryClient } from './types'
+import type { PlanEntryClient } from './types'
 
 export interface EntryChipProps {
   entry: PlanEntryClient
@@ -57,7 +57,7 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
             <CookIcon size={14} />
           </Button>
         ) : null}
-        <LeftoverDialog fromEntryId={entry.id} sourceSlot={entry.slot} />
+        {entry.recipeId && !entry.leftoverOfEntryId ? <LeftoverDialog fromEntryId={entry.id} sourceSlot={entry.slot} /> : null}
         {cooked ? (
           <span className="inline-flex items-center rounded-pill bg-primary/10 px-1.5 py-0.5 text-xs text-primary">{t('cooked')}</span>
         ) : null}

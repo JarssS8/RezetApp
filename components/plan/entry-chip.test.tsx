@@ -94,4 +94,17 @@ describe('EntryChip', () => {
     renderChip({ entry: baseEntry({ recipeId: 'r1', leftoverOfEntryId: 'e0', status: 'planned' }) })
     expect(screen.queryByRole('link', { name: /cocinar/i })).toBeNull()
   })
+
+  it('ofrece crear una sobra solo si la entrada tiene receta y no es ya una sobra', () => {
+    renderChip({ entry: baseEntry({ recipeId: 'r1', leftoverOfEntryId: null }) })
+    expect(screen.getByRole('button', { name: /crear sobra/i })).toBeInTheDocument()
+    cleanup()
+    // Una sobra ya descontó la despensa el día que se cocinó (docs/03-DOMINIO):
+    // no puede generar, a su vez, otra sobra.
+    renderChip({ entry: baseEntry({ recipeId: 'r1', leftoverOfEntryId: 'e0' }) })
+    expect(screen.queryByRole('button', { name: /crear sobra/i })).toBeNull()
+    cleanup()
+    renderChip({ entry: baseEntry({ recipeId: null, leftoverOfEntryId: null }) })
+    expect(screen.queryByRole('button', { name: /crear sobra/i })).toBeNull()
+  })
 })

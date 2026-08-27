@@ -5,10 +5,11 @@ import { CSS } from '@dnd-kit/utilities'
 import { useTranslations } from 'next-intl'
 import { PlusIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { MEAL_SLOTS } from '@/lib/domain'
 import { cn } from '@/lib/utils'
 import type { MealSlot } from '@/lib/validation/plan'
 import { EntryChip } from './entry-chip'
-import { MEAL_SLOTS, type PlanEntryClient } from './types'
+import type { PlanEntryClient } from './types'
 
 export interface DayColumnProps {
   date: string

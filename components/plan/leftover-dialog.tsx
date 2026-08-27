@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createLeftoverAction } from '@/lib/actions/plan'
+import { MEAL_SLOTS } from '@/lib/domain'
 import { addDays, todayIso } from '@/lib/plan-dates'
 import type { MealSlot } from '@/lib/validation/plan'
-import { MEAL_SLOTS } from './types'
 
 export interface LeftoverDialogProps {
   fromEntryId: string

@@ -11,11 +11,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { applyPlanBatchAction, movePlanEntryAction, patchPlanEntryAction } from '@/lib/actions/plan'
 import { useHouseholdEvents } from '@/lib/events/use-household-events'
+import { MEAL_SLOTS } from '@/lib/domain'
 import { addDays } from '@/lib/plan-dates'
 import type { MealSlot } from '@/lib/validation/plan'
 import { AddEntrySheet } from './add-entry-sheet'
 import { DayColumn } from './day-column'
-import { MEAL_SLOTS, type PlanEntryClient } from './types'
+import type { PlanEntryClient } from './types'
 
 export interface WeekViewProps {
   monday: string

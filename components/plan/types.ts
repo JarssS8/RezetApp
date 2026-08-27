@@ -20,8 +20,6 @@ export interface PlanEntryClient {
   imageUrl: string | null
 }
 
-export const MEAL_SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
-
 // A diferencia de PlanEntryClient, aquí sí se reutiliza el tipo de validación
 // (lib/validation/plan.ts::PlanEntryInput): las fronteras de eslint-boundaries
 // permiten a `components` importar de `validation` (no así de `services`), y
