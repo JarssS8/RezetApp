@@ -36,7 +36,6 @@ function hrefOf(query: CollectionQuery): string {
 // lib/services directamente: la frontera de eslint-boundaries lo prohíbe).
 export function CollectionBar({ collections, currentQuery }: CollectionBarProps) {
   const t = useTranslations('recipes')
-  const [items, setItems] = useState(collections)
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -56,9 +55,11 @@ export function CollectionBar({ collections, currentQuery }: CollectionBarProps)
     e.preventDefault()
     setError(null)
     startTransition(async () => {
+      // No hace falta actualizar estado local: createCollectionAction hace
+      // revalidatePath('/recipes') y el Server Component padre nos vuelve a
+      // pasar `collections` con la fila nueva ya incluida.
       const res = await createCollectionAction({ name, query: currentQuery })
       if (res.ok) {
-        setItems((prev) => [...prev, res.data])
         setOpen(false)
         setName('')
       } else {
@@ -68,9 +69,10 @@ export function CollectionBar({ collections, currentQuery }: CollectionBarProps)
   }
 
   function onDelete(id: string) {
+    // Igual que onSubmit: deleteCollectionAction revalida y el padre nos trae
+    // `collections` ya sin la fila borrada.
     startTransition(async () => {
-      const res = await deleteCollectionAction(id)
-      if (res.ok) setItems((prev) => prev.filter((item) => item.id !== id))
+      await deleteCollectionAction(id)
     })
   }
 
@@ -80,7 +82,7 @@ export function CollectionBar({ collections, currentQuery }: CollectionBarProps)
         <BookmarkIcon size={16} />
         {t('collections.title')}
       </span>
-      {items.map((item) => (
+      {collections.map((item) => (
         <span key={item.id} className="inline-flex items-center gap-1 rounded-pill border border-border py-0.5 pr-1 pl-3 text-sm">
           <Link href={hrefOf(item.query)}>{item.name}</Link>
           <Button type="button" variant="ghost" size="icon-xs" aria-label={t('collections.delete')} onClick={() => onDelete(item.id)} disabled={pending}>
