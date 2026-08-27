@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio'
 import type { Locale } from '@/lib/domain/types'
+import { isPrivateOrReservedHost } from '@/lib/net-hosts'
 import type { RecipeInput } from '@/lib/validation/recipes'
 
 export type RecipeDraft = RecipeInput & { warnings: string[] }
@@ -12,6 +13,9 @@ const MAX_BODY_BYTES = 2 * 1024 * 1024
 // SSRF (W2-R15): como máximo 3 saltos de redirección antes de rendirse.
 const MAX_REDIRECTS = 3
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
+// Tope de tiempo por petición (fix 10 de la revisión final): sin esto, un origen que
+// no responde nunca (o responde muy despacio a propósito) cuelga la importación.
+const FETCH_TIMEOUT_MS = 8000
 
 function emptyDraft(): RecipeDraft {
   return { title: '', servingsBase: 2, imageUrls: [], tags: [], ingredients: [], steps: [], warnings: [] }
@@ -122,73 +126,6 @@ export function draftFromMicrodata($: cheerio.CheerioAPI, url: string): RecipeDr
   return d
 }
 
-// URL.hostname devuelve las IPv6 entre corchetes ('[::1]'); hay que quitarlos
-// antes de comparar contra rangos reservados.
-function stripIPv6Brackets(hostname: string): string {
-  return hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname
-}
-
-// Loopback (127/8), LAN privada (10/8, 172.16/12, 192.168/16), link-local
-// (169.254/16) y 0.0.0.0. new URL() ya canonicaliza a esta forma cualquier
-// variante decimal/octal/hex de la IP (ver lib/validation/household.ts para
-// el mismo patrón, congelado y no reutilizable directamente desde aquí).
-function isReservedIPv4(hostname: string): boolean {
-  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname)
-  if (!m) return false
-  const octets = [m[1], m[2], m[3], m[4]].map(Number)
-  if (octets.some((n) => Number.isNaN(n) || n < 0 || n > 255)) return false
-  const [a, b, c, d] = octets
-  if (a === undefined || b === undefined || c === undefined || d === undefined) return false
-  if (a === 127) return true // loopback 127.0.0.0/8
-  if (a === 10) return true // LAN 10.0.0.0/8
-  if (a === 172 && b >= 16 && b <= 31) return true // LAN 172.16.0.0/12
-  if (a === 192 && b === 168) return true // LAN 192.168.0.0/16
-  if (a === 169 && b === 254) return true // link-local 169.254.0.0/16
-  if (a === 0 && b === 0 && c === 0 && d === 0) return true // 0.0.0.0
-  return false
-}
-
-// new URL() normaliza cualquier IPv4-mapped ('::ffff:127.0.0.1',
-// '::ffff:192.168.1.20'…) a su forma hexadecimal ('::ffff:7f00:1',
-// '::ffff:c0a8:114'…); hay que deshacerla para aplicar isReservedIPv4.
-function ipv4MappedToDotted(hostname: string): string | null {
-  const m = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i.exec(hostname)
-  if (!m || m[1] === undefined || m[2] === undefined) return null
-  const g1 = Number.parseInt(m[1], 16)
-  const g2 = Number.parseInt(m[2], 16)
-  return [(g1 >> 8) & 0xff, g1 & 0xff, (g2 >> 8) & 0xff, g2 & 0xff].join('.')
-}
-
-// Primer grupo hexadecimal de una IPv6 completa (sin comprimir con '::' al
-// principio): sirve para acotar fe80::/10 (link-local) y fc00::/7 (ULA) sin
-// tener que expandir la dirección entera.
-function firstHextet(hostname: string): number | null {
-  const m = /^([0-9a-f]{1,4})(?::|$)/i.exec(hostname)
-  return m && m[1] !== undefined ? Number.parseInt(m[1], 16) : null
-}
-
-// Host privado o reservado: no debe usarse como destino de una descarga que
-// dispara la propia app (SSRF, W2-R15). Cubre nombres reservados, loopback,
-// LAN privada, link-local (v4 y v6), ULA v6 e IPv4-mapped-a-IPv6.
-function isPrivateOrReservedHost(rawHostname: string): boolean {
-  // DNS resuelve 'localhost.' igual que 'localhost' (FQDN con punto final);
-  // sin quitarlo, 'localhost.' o 'sub.local.' se colarían como si fueran
-  // hosts distintos. Un FQDN público ('example.com.') sigue funcionando: el
-  // punto final no lo hace privado, solo se normaliza antes de comparar.
-  const h = stripIPv6Brackets(rawHostname).toLowerCase().replace(/\.+$/, '')
-  if (h === 'localhost' || h.endsWith('.local')) return true
-  if (h === '::1' || h === '::' || h === '0.0.0.0') return true
-  if (isReservedIPv4(h)) return true
-  const mapped = ipv4MappedToDotted(h)
-  if (mapped !== null) return isReservedIPv4(mapped)
-  if (!h.includes(':')) return false // no es una IPv6: ya se descartó como IPv4 arriba
-  const hextet = firstHextet(h)
-  if (hextet === null) return false
-  if (hextet >= 0xfe80 && hextet <= 0xfebf) return true // link-local fe80::/10
-  if (hextet >= 0xfc00 && hextet <= 0xfdff) return true // ULA fc00::/7
-  return false
-}
-
 // Solo http(s) a un host público: bloquea file:/data:/gopher:… y cualquier
 // destino que resuelva a localhost, LAN o loopback antes de llegar a fetch.
 function isPublicHttpUrl(url: string): boolean {
@@ -202,6 +139,32 @@ function isPublicHttpUrl(url: string): boolean {
   return !isPrivateOrReservedHost(parsed.hostname)
 }
 
+// Lee el cuerpo con un contador de bytes en vez de bufferizarlo entero primero: sin
+// content-length (o si miente), `res.text()` cargaría en memoria un cuerpo arbitrariamente
+// grande antes de poder comprobar MAX_BODY_BYTES (fix 10 de la revisión final). Se aborta
+// el stream en cuanto se supera el tope, sin esperar a que termine de llegar.
+async function readBodyWithLimit(res: Response): Promise<{ text: string; tooLarge: boolean }> {
+  const body = res.body
+  if (!body) {
+    const text = await res.text()
+    return { text, tooLarge: Buffer.byteLength(text, 'utf8') > MAX_BODY_BYTES }
+  }
+  const reader = body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => {})
+      return { text: '', tooLarge: true }
+    }
+    chunks.push(value)
+  }
+  return { text: Buffer.concat(chunks.map((c) => Buffer.from(c))).toString('utf8'), tooLarge: false }
+}
+
 export async function importRecipeFromUrl(url: string, fetchImpl: typeof fetch = fetch): Promise<RecipeDraft> {
   if (!isPublicHttpUrl(url)) return { ...emptyDraft(), sourceUrl: url, warnings: ['invalid_url'] }
 
@@ -210,9 +173,16 @@ export async function importRecipeFromUrl(url: string, fetchImpl: typeof fetch =
   let res: Response
   // redirect: 'manual' para poder validar cada salto antes de seguirlo (si no,
   // el propio fetch seguiría una redirección a un host privado sin que este
-  // código llegue a verla).
+  // código llegue a verla). Cada salto tiene su propio tope de tiempo (fix 10):
+  // sin él, un origen que nunca responde (o responde adrede muy despacio) cuelga
+  // la importación indefinidamente; un fetchImpl que rechaza (red caída, timeout)
+  // se traduce en fetch_failed en vez de propagar la excepción.
   for (;;) {
-    res = await fetchImpl(currentUrl, { headers: { 'user-agent': USER_AGENT, accept: 'text/html' }, redirect: 'manual' })
+    try {
+      res = await fetchImpl(currentUrl, { headers: { 'user-agent': USER_AGENT, accept: 'text/html' }, redirect: 'manual', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+    } catch {
+      return { ...emptyDraft(), sourceUrl: url, warnings: ['fetch_failed'] }
+    }
     if (!REDIRECT_STATUSES.has(res.status)) break
     redirects += 1
     if (redirects > MAX_REDIRECTS) return { ...emptyDraft(), sourceUrl: url, warnings: ['fetch_failed'] }
@@ -230,8 +200,8 @@ export async function importRecipeFromUrl(url: string, fetchImpl: typeof fetch =
   if (!res.ok) return { ...emptyDraft(), sourceUrl: url, warnings: ['fetch_failed'] }
   const contentLength = res.headers.get('content-length')
   if (contentLength && Number(contentLength) > MAX_BODY_BYTES) return { ...emptyDraft(), sourceUrl: url, warnings: ['body_too_large'] }
-  const body = await res.text()
-  if (Buffer.byteLength(body, 'utf8') > MAX_BODY_BYTES) return { ...emptyDraft(), sourceUrl: url, warnings: ['body_too_large'] }
+  const { text: body, tooLarge } = await readBodyWithLimit(res)
+  if (tooLarge) return { ...emptyDraft(), sourceUrl: url, warnings: ['body_too_large'] }
   const $ = cheerio.load(body)
   for (const el of $('script[type="application/ld+json"]').toArray()) {
     try {

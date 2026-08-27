@@ -135,6 +135,67 @@ describe('importRecipeFromUrl bloquea hosts privados/reservados (SSRF)', () => {
   })
 })
 
+// Fix 10 de la revisión final: tope de tiempo por petición y lectura del cuerpo con
+// contador de bytes (en vez de bufferizarlo entero antes de comprobar el tamaño).
+describe('importRecipeFromUrl: timeout y cuerpo por streaming', () => {
+  it('un fetchImpl que rechaza con TimeoutError (AbortSignal.timeout) se traduce en fetch_failed', async () => {
+    const fetchImpl = (async () => {
+      const err = new Error('The operation was aborted due to timeout')
+      err.name = 'TimeoutError'
+      throw err
+    }) as unknown as typeof fetch
+    const d = await importRecipeFromUrl('https://ejemplo.test/lento', fetchImpl)
+    expect(d.warnings).toContain('fetch_failed')
+  })
+
+  it('un fetchImpl que rechaza con cualquier otro error también se traduce en fetch_failed (no propaga la excepción)', async () => {
+    const fetchImpl = (async () => {
+      throw new Error('ECONNREFUSED')
+    }) as unknown as typeof fetch
+    await expect(importRecipeFromUrl('https://ejemplo.test/caido', fetchImpl)).resolves.toMatchObject({ warnings: ['fetch_failed'] })
+  })
+
+  it('cada llamada a fetchImpl lleva un AbortSignal con tope de tiempo', async () => {
+    let signal: AbortSignal | undefined
+    const fetchImpl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      signal = init?.signal ?? undefined
+      return new Response(html('recipe-jsonld.html'), { status: 200, headers: { 'content-type': 'text/html' } })
+    }) as unknown as typeof fetch
+    await importRecipeFromUrl('https://ejemplo.test/lentejas', fetchImpl)
+    expect(signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('un cuerpo sin content-length que supera el tope por streaming se corta como body_too_large sin volcarlo entero a memoria primero', async () => {
+    const chunkSize = 800_000 // 3 × 800_000 = 2_400_000 > MAX_BODY_BYTES (2 MiB)
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(chunkSize).fill(32))
+        controller.enqueue(new Uint8Array(chunkSize).fill(32))
+        controller.enqueue(new Uint8Array(chunkSize).fill(32))
+        controller.close()
+      },
+    })
+    const fetchImpl = (async () => new Response(stream, { status: 200, headers: { 'content-type': 'text/html' } })) as unknown as typeof fetch
+    const d = await importRecipeFromUrl('https://ejemplo.test/grande', fetchImpl)
+    expect(d.warnings).toContain('body_too_large')
+  })
+
+  it('un cuerpo por streaming dentro del tope se parsea con normalidad', async () => {
+    const body = html('recipe-jsonld.html')
+    const encoded = new TextEncoder().encode(body)
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoded)
+        controller.close()
+      },
+    })
+    const fetchImpl = (async () => new Response(stream, { status: 200, headers: { 'content-type': 'text/html' } })) as unknown as typeof fetch
+    const d = await importRecipeFromUrl('https://ejemplo.test/lentejas', fetchImpl)
+    expect(d.title).toBe('Lentejas con chorizo')
+    expect(d.warnings).toEqual([])
+  })
+})
+
 describe('importRecipeFromText', () => {
   it('separa título, ingredientes (líneas con cantidad) y pasos (numerados o tras "Preparación")', () => {
     const d = importRecipeFromText(`Tortilla de patatas\n\nIngredientes\n4 huevos\n500 g de patatas\nsal\n\nPreparación\n1. Pela las patatas.\n2. Bate los huevos.`, 'es')

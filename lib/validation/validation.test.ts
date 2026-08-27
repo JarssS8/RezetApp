@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   AiSettingsSchema, ApiTokenCreateSchema, DateRangeSchema, LogCookedSchema, normalizeAiBaseUrl, PantryAdjustSchema, PlanBatchSchema, ProposalPayloadSchema, RecipeInputSchema, RecipeSearchSchema,
+  ShoplistSettingsSchema,
 } from './index'
 
 const uuid = '11111111-1111-4111-8111-111111111111'
@@ -64,11 +65,26 @@ describe('validation', () => {
   it('normalizeAiBaseUrl: quita usuario/contraseña de la URL', () => {
     expect(normalizeAiBaseUrl('http://user:pass@localhost:8080/v1')).toBe('http://localhost:8080/v1')
   })
+  // fix 12 de la revisión final: https ya no basta por sí solo, también se
+  // rechaza si el host resuelve a algo privado/reservado (SSRF disfrazado de "nube").
+  it('normalizeAiBaseUrl: rechaza https a un host privado o reservado', () => {
+    expect(normalizeAiBaseUrl('https://192.168.1.20/v1')).toBeNull()
+    expect(normalizeAiBaseUrl('https://localhost/v1')).toBeNull()
+    expect(normalizeAiBaseUrl('https://169.254.169.254/latest/meta-data')).toBeNull()
+    expect(normalizeAiBaseUrl('https://api.example.com/v1')).toBe('https://api.example.com/v1')
+  })
   it('AiSettingsSchema: valida baseUrl con las mismas reglas SSRF', () => {
     const base = { provider: 'openai_compatible' as const, model: 'qwen3-8b', monthlyCapCents: 0, structuredOutput: true }
     expect(AiSettingsSchema.safeParse({ ...base, baseUrl: 'http://localhost:8080/v1' }).success).toBe(true)
     expect(AiSettingsSchema.safeParse({ ...base, baseUrl: null }).success).toBe(true)
     expect(AiSettingsSchema.safeParse({ ...base, baseUrl: 'http://example.com/v1' }).success).toBe(false)
     expect(AiSettingsSchema.safeParse({ ...base, baseUrl: 'javascript:alert(1)' }).success).toBe(false)
+  })
+  it('ShoplistSettingsSchema: fnUrl exige https y rechaza un host privado/reservado (SSRF)', () => {
+    expect(ShoplistSettingsSchema.safeParse({ fnUrl: 'https://fn.example.com', listToken: null }).success).toBe(true)
+    expect(ShoplistSettingsSchema.safeParse({ fnUrl: null, listToken: null }).success).toBe(true)
+    expect(ShoplistSettingsSchema.safeParse({ fnUrl: 'http://fn.example.com', listToken: null }).success).toBe(false)
+    expect(ShoplistSettingsSchema.safeParse({ fnUrl: 'https://192.168.1.20/fn', listToken: null }).success).toBe(false)
+    expect(ShoplistSettingsSchema.safeParse({ fnUrl: 'https://localhost/fn', listToken: null }).success).toBe(false)
   })
 })
