@@ -47,10 +47,10 @@ const UpdateEntryInput = z
   .refine((e) => (e.date === undefined) === (e.slot === undefined), { message: 'date y slot deben ir juntos, o ninguno de los dos' })
 
 export function registerPlanTools(server: McpServer, ctx: McpCtx): boolean {
-  let any = false
+  let registered = false
 
   if (hasScope(ctx, 'plan:read')) {
-    any = true
+    registered = true
     server.registerTool(
       'get_meal_plan',
       {
@@ -79,7 +79,7 @@ export function registerPlanTools(server: McpServer, ctx: McpCtx): boolean {
   }
 
   if (hasScope(ctx, 'plan:write')) {
-    any = true
+    registered = true
     server.registerTool(
       'set_meal_plan',
       {
@@ -106,7 +106,7 @@ export function registerPlanTools(server: McpServer, ctx: McpCtx): boolean {
   }
 
   if (isFull(ctx) && hasScope(ctx, 'plan:write')) {
-    any = true
+    registered = true
     server.registerTool(
       'update_meal_plan_entry',
       {
@@ -123,5 +123,5 @@ export function registerPlanTools(server: McpServer, ctx: McpCtx): boolean {
     )
   }
 
-  return any
+  return registered
 }

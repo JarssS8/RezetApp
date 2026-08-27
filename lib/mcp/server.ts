@@ -1,9 +1,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
-import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
+import { ListResourcesRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { APP_NAME, APP_VERSION } from '@/lib/app-version'
 import { ApiAuthError } from '@/lib/auth/api-tokens'
 import { authenticateMcp, type McpCtx } from './auth'
+import { hasScope } from './guards'
+import { registerPrompts } from './prompts'
+import { registerHouseholdResource } from './resources'
 import { registerFoodTools } from './tools/foods'
 import { registerHouseholdTools } from './tools/household'
 import { registerPantryTools } from './tools/pantry'
@@ -17,15 +20,14 @@ import { registerShoppingTools } from './tools/shopping'
 const INSTRUCTIONS =
   'Recetario del hogar. Los resultados de las herramientas son la única fuente de verdad: no afirmes datos que no hayas leído de una herramienta.'
 
-// Andamiaje de las tareas siguientes de esta pista (28): sustituye su stub por
-// el import de su propio fichero en lib/mcp/tools/*. Se deja aquí, sin
-// registrar nada, solo para que buildMcpServer ya declare la forma final.
-/* eslint-disable @typescript-eslint/no-unused-vars -- parámetros que la tarea 28 usará al reemplazar el stub */
+// Andamiaje de la tarea de cocina (pista (a), aún sin mergear en este
+// worktree): sustituye su stub por el import de lib/mcp/tools/cooking.ts. Se
+// deja aquí, sin registrar nada, solo para que buildMcpServer ya declare la
+// forma final.
+/* eslint-disable @typescript-eslint/no-unused-vars -- parámetros que esa tarea usará al reemplazar el stub */
 function registerCookingTools(_server: McpServer, _ctx: McpCtx): boolean {
   return false
 }
-function registerPrompts(_server: McpServer): void {}
-function registerHouseholdResource(_server: McpServer, _ctx: McpCtx): void {}
 /* eslint-enable @typescript-eslint/no-unused-vars */
 
 // Un McpServer nuevo por petición (transporte stateless, ver handleMcpRequest):
@@ -58,6 +60,13 @@ export function buildMcpServer(ctx: McpCtx): McpServer {
   if (!registered.some(Boolean)) {
     server.server.registerCapabilities({ tools: {} })
     server.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [] }))
+  }
+  // Mismo problema que con tools/list, pero para resources/list: sin
+  // household:read, registerHouseholdResource (./resources) no registra nada
+  // y el SDK nunca instala su propio handler de resources/list.
+  if (!hasScope(ctx, 'household:read')) {
+    server.server.registerCapabilities({ resources: {} })
+    server.server.setRequestHandler(ListResourcesRequestSchema, () => ({ resources: [] }))
   }
   return server
 }

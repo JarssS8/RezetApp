@@ -14,11 +14,11 @@ const CreateFoodInput = z.strictObject({
   nameEs: z.string().min(1).max(120).describe('Nombre en español'),
   nameEn: z.string().min(1).max(120).describe('Nombre en inglés'),
   defaultUnit: BaseUnitSchema.optional().describe("Unidad habitual: 'g', 'ml' o 'ud'"),
-  kcal100g: z.number().min(0).nullable().optional(),
-  protein100g: z.number().min(0).nullable().optional(),
-  carbs100g: z.number().min(0).nullable().optional(),
-  fat100g: z.number().min(0).nullable().optional(),
-  fiber100g: z.number().min(0).nullable().optional(),
+  kcal100g: z.number().min(0).nullable().optional().describe('kcal por 100 g'),
+  protein100g: z.number().min(0).nullable().optional().describe('Proteína en gramos por 100 g'),
+  carbs100g: z.number().min(0).nullable().optional().describe('Hidratos en gramos por 100 g'),
+  fat100g: z.number().min(0).nullable().optional().describe('Grasa en gramos por 100 g'),
+  fiber100g: z.number().min(0).nullable().optional().describe('Fibra en gramos por 100 g'),
   gramsPerUnit: z.number().positive().nullable().optional().describe('Gramos que pesa una pieza, si el alimento se cuenta por piezas'),
 })
 
