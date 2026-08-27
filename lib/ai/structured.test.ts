@@ -46,6 +46,16 @@ describe('generateStructured', () => {
     expect(err).toBeInstanceOf(AiStructuredError)
   })
 
+  // fix 5 de la revisión final: withBudget necesita el usage real aunque la
+  // llamada falle, para no dejar el tope de gasto inerte con un modelo que
+  // siempre devuelve una salida inválida.
+  it('cuando la salida no cumple el esquema, AiStructuredError conserva el usage real del proveedor', async () => {
+    const model = modelReturning('{"quantity":"dos"}')
+    const err = await generateStructured(openaiCfg, model as unknown as LanguageModel, schema, prompt).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(AiStructuredError)
+    expect((err as AiStructuredError).usage).toEqual({ inputTokens: 10, outputTokens: 4 })
+  })
+
   it("con structuredOutput y proveedor 'openai_compatible', pide validación estricta del esquema", async () => {
     const model = modelReturning('{"quantity":2}')
     await generateStructured(localCfg, model as unknown as LanguageModel, schema, prompt)

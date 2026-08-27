@@ -5,6 +5,7 @@ import * as schema from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import type { AiConfig } from './provider'
 import { languageModel } from './provider'
+import { AiStructuredError } from './structured'
 import { AiBudgetError, withBudget } from './budget'
 
 // Solo se sustituye languageModel (construye el modelo real del SDK): withBudget
@@ -74,11 +75,31 @@ describe('withBudget', () => {
     expect(row?.costCents).toBe(300) // 100 + 200 céntimos
   })
 
-  it('si fn lanza, no registra nada y propaga el error', async () => {
+  // I5 de la revisión final: antes, un fn que lanza no registraba nada y el tope
+  // de gasto quedaba inerte para cualquier modelo/proveedor que siempre fallara.
+  it('si fn lanza sin usage conocido, registra una fila a 0 tokens con operation:error y propaga el error', async () => {
     const householdId = await createHousehold({ aiMonthlyCapCents: 0 })
     const fn = vi.fn().mockRejectedValue(new Error('fallo de red'))
     await expect(withBudget(db, householdId, openaiCfg, 'test', fn)).rejects.toThrow('fallo de red')
     const rows = await db.select().from(schema.aiUsageLog).where(eq(schema.aiUsageLog.householdId, householdId))
-    expect(rows).toHaveLength(0)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ operation: 'test:error', tokensIn: 0, tokensOut: 0, costCents: 0 })
+  })
+
+  it('si fn lanza un AiStructuredError con usage (NoObjectGeneratedError del SDK), registra el coste real', async () => {
+    const householdId = await createHousehold({ aiMonthlyCapCents: 0 })
+    const fn = vi.fn().mockRejectedValue(new AiStructuredError('salida inválida', { inputTokens: 1_000_000, outputTokens: 1_000_000 }))
+    await expect(withBudget(db, householdId, openaiCfg, 'parse_ingredients', fn)).rejects.toBeInstanceOf(AiStructuredError)
+    const rows = await db.select().from(schema.aiUsageLog).where(eq(schema.aiUsageLog.householdId, householdId))
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ operation: 'parse_ingredients:error', tokensIn: 1_000_000, tokensOut: 1_000_000, costCents: 75 })
+  })
+
+  it('un fallo del proveedor local sigue costando 0, aunque registre el usage del error', async () => {
+    const householdId = await createHousehold({ aiMonthlyCapCents: 0 })
+    const fn = vi.fn().mockRejectedValue(new AiStructuredError('salida inválida', { inputTokens: 1_000_000, outputTokens: 1_000_000 }))
+    await expect(withBudget(db, householdId, localCfg, 'test', fn)).rejects.toBeInstanceOf(AiStructuredError)
+    const [row] = await db.select().from(schema.aiUsageLog).where(eq(schema.aiUsageLog.householdId, householdId))
+    expect(row).toMatchObject({ operation: 'test:error', tokensIn: 1_000_000, tokensOut: 1_000_000, costCents: 0 })
   })
 })

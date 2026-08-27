@@ -12,6 +12,8 @@ import type { Db } from '@/db/types'
 import { modelInfo } from './models'
 import { languageModel } from './provider'
 import type { AiConfig } from './provider'
+import { AiStructuredError } from './structured'
+import type { AiUsage } from './structured'
 
 export class AiBudgetError extends Error {
   readonly code = 'ai_budget'
@@ -21,15 +23,24 @@ export class AiBudgetError extends Error {
   }
 }
 
-interface Usage {
-  inputTokens: number
-  outputTokens: number
+type Usage = AiUsage
+
+// Uso a registrar cuando fn(model) lanza: el de AiStructuredError si lo trae
+// (NoObjectGeneratedError del AI SDK lo reporta aunque la salida no fuera un
+// objeto válido), o 0 tokens si el error no expone ningún uso (fallo de red,
+// error de dominio dentro de la propia tarea…).
+function usageFromThrown(err: unknown): Usage {
+  if (err instanceof AiStructuredError && err.usage) return err.usage
+  return { inputTokens: 0, outputTokens: 0 }
 }
 
 // Precio en céntimos por millón de tokens (in/out) para cfg: catálogo si lo
 // tiene, si no los `ai_price_*` del hogar (0 si tampoco los tiene); el
 // proveedor local siempre es 0, tenga o no el modelo en el catálogo.
-function resolvePrices(cfg: AiConfig, priceInOverride: number | null, priceOutOverride: number | null): { priceIn: number; priceOut: number } {
+// Exportada: lib/services/ai-settings.ts::testAiConnection la reutiliza para
+// que el coste estimado de la prueba de conexión tenga en cuenta los mismos
+// overrides del hogar que withBudget (fix 6 de la revisión final).
+export function resolvePrices(cfg: AiConfig, priceInOverride: number | null, priceOutOverride: number | null): { priceIn: number; priceOut: number } {
   if (cfg.provider === 'openai_compatible') return { priceIn: 0, priceOut: 0 }
   const info = modelInfo(cfg.provider, cfg.model)
   if (info) return { priceIn: info.inputCentsPerM, priceOut: info.outputCentsPerM }
@@ -63,9 +74,32 @@ export async function withBudget<T>(
   }
 
   const model = languageModel(cfg)
-  const { result, usage } = await fn(model)
-
   const { priceIn, priceOut } = resolvePrices(cfg, household?.priceInOverride ?? null, household?.priceOutOverride ?? null)
+
+  let outcome: { result: T; usage: Usage }
+  try {
+    outcome = await fn(model)
+  } catch (err) {
+    // Sin este catch, un modelo/proveedor que siempre falla nunca registra uso y el
+    // tope de gasto mensual queda inerte para él (I5 de la revisión final). Se
+    // registra con el usage real si el error lo trae, o a 0 tokens si no, con
+    // `operation` marcada como fallo para distinguirla en ai_usage_log; y se relanza
+    // el error original sin envolverlo, para que el llamador lo siga reconociendo.
+    const usage = usageFromThrown(err)
+    const costCents = Math.round((usage.inputTokens * priceIn + usage.outputTokens * priceOut) / 1_000_000)
+    await db.insert(schema.aiUsageLog).values({
+      householdId,
+      provider: cfg.provider,
+      model: cfg.model,
+      operation: `${operation}:error`,
+      tokensIn: usage.inputTokens,
+      tokensOut: usage.outputTokens,
+      costCents,
+    })
+    throw err
+  }
+
+  const { result, usage } = outcome
   const costCents = Math.round((usage.inputTokens * priceIn + usage.outputTokens * priceOut) / 1_000_000)
 
   await db.insert(schema.aiUsageLog).values({

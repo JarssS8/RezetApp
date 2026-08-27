@@ -73,6 +73,29 @@ describe('ai-settings', () => {
     await expect(updateAiSettings(ctxOf(a.householdId, a.userId, 'member'), baseInput)).rejects.toMatchObject({ code: 'forbidden' })
   })
 
+  // I1/fix 4 de la revisión final: sin persistir estos dos campos, un proveedor sin
+  // catálogo (anthropic) siempre costaba 0 y el tope mensual nunca saltaba para él.
+  it('persiste priceInCentsPerMtok/priceOutCentsPerMtok y los devuelve en getAiSettings', async () => {
+    const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
+    const ctx = ctxOf(a.householdId, a.userId, 'owner')
+    await updateAiSettings(ctx, { provider: 'anthropic', model: 'modelo-personalizado', baseUrl: null, monthlyCapCents: 0, structuredOutput: true, priceInCentsPerMtok: 300, priceOutCentsPerMtok: 1500 })
+    const [h] = await db.select().from(schema.households).where(eq(schema.households.id, a.householdId))
+    expect(h?.aiPriceInCentsPerMtok).toBe(300)
+    expect(h?.aiPriceOutCentsPerMtok).toBe(1500)
+    const settings = await getAiSettings(ctx)
+    expect(settings.priceInCentsPerMtok).toBe(300)
+    expect(settings.priceOutCentsPerMtok).toBe(1500)
+
+    // Sin mandarlos (undefined), no se borran los ya guardados.
+    await updateAiSettings(ctx, { ...baseInput })
+    expect((await getAiSettings(ctx)).priceInCentsPerMtok).toBe(300)
+
+    // Mandar null sí los borra explícitamente.
+    await updateAiSettings(ctx, { ...baseInput, priceInCentsPerMtok: null, priceOutCentsPerMtok: null })
+    expect((await getAiSettings(ctx)).priceInCentsPerMtok).toBeNull()
+    expect((await getAiSettings(ctx)).priceOutCentsPerMtok).toBeNull()
+  })
+
   it('spentThisMonthCents suma solo el gasto del mes en curso', async () => {
     const a = await createUserWithHousehold(db, { displayName: 'Ana', credential: cred('c1'), locale: 'es' })
     const now = new Date()
