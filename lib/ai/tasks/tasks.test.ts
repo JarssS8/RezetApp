@@ -117,10 +117,9 @@ describe('importRecipeFromTextAi', () => {
       sourceUrl: undefined,
       yieldGrams: undefined,
       tags: ['rápido'],
-      ingredients: [
-        { rawText: '4 huevos', scalesLinearly: true },
-        { rawText: 'sal al gusto', scalesLinearly: true },
-      ],
+      // Sin scalesLinearly: la IA solo copia rawText; el valor lo decide el servidor
+      // (lib/services/recipes.ts::prepareIngredientsWithFoods) al importar de verdad.
+      ingredients: [{ rawText: '4 huevos' }, { rawText: 'sal al gusto' }],
       steps: [
         { text: 'Bate los huevos', timerSeconds: null },
         { text: 'Cuaja en la sartén', timerSeconds: 180 },
@@ -151,7 +150,7 @@ describe('importRecipeFromImageAi', () => {
     const image = { bytes: new Uint8Array([1, 2, 3]), mime: 'image/jpeg' }
     const { result, usage } = await importRecipeFromImageAi(openaiCfg, model as unknown as LanguageModel, image, 'es')
     expect(result.title).toBe('Tortilla')
-    expect(result.ingredients).toEqual([{ rawText: '4 huevos', scalesLinearly: true }])
+    expect(result.ingredients).toEqual([{ rawText: '4 huevos' }])
     expect(usage).toEqual(MOCK_USAGE)
 
     const userMessage = model.doGenerateCalls[0]?.prompt.find((m) => m.role === 'user')

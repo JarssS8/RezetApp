@@ -11,7 +11,10 @@ export const RecipeIngredientInputSchema = z.strictObject({
   preparation: z.string().max(120).nullable().optional(),
   groupLabel: z.string().max(60).nullable().optional(),
   stepIndex: z.number().int().min(0).nullable().optional(),
-  scalesLinearly: z.boolean().default(true),
+  // Sin default: `true` y "no enviado" deben distinguirse (un cliente MCP que solo mande
+  // rawText+quantity+unit no debe colar una especia como lineal). lib/services/recipes.ts
+  // aplica la heurística de lib/domain (isNonLinearByDefault) cuando llega undefined.
+  scalesLinearly: z.boolean().optional(),
 })
 export const RecipeStepInputSchema = z.strictObject({ text: z.string().trim().min(1).max(2000), timerSeconds: z.number().int().positive().nullable().optional(), imageUrl: z.string().max(300).nullable().optional() })
 export const RecipeInputSchema = z.strictObject({
