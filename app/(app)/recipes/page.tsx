@@ -1,13 +1,16 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { PlusIcon, SettingsIcon, UploadIcon } from '@/components/icons'
+import { CollectionBar } from '@/components/recipes/collection-bar'
 import { RecipeCard } from '@/components/recipes/recipe-card'
 import { RecipeFilters } from '@/components/recipes/recipe-filters'
 import { RecipesLiveRefresh } from '@/components/recipes/recipes-live-refresh'
 import { TagFilter } from '@/components/recipes/tag-filter'
 import { requireHousehold } from '@/lib/auth/guards'
+import { listCollections } from '@/lib/services/collections'
 import { searchRecipes } from '@/lib/services/recipes'
 import { listTags } from '@/lib/services/tags'
+import { CollectionQuerySchema } from '@/lib/validation/collections'
 import { RecipeSearchSchema } from '@/lib/validation/recipes'
 
 const PAGE_SIZE = 20
@@ -30,9 +33,19 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
     offset: (page - 1) * PAGE_SIZE,
   })
   const query = parsed.success ? parsed.data : RecipeSearchSchema.parse({})
-  const [{ items, total }, tags] = await Promise.all([searchRecipes(ctx, query), listTags(ctx)])
+  const [{ items, total }, tags, collections] = await Promise.all([searchRecipes(ctx, query), listTags(ctx), listCollections(ctx)])
 
   const baseParams = Object.fromEntries(Object.entries(sp).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+
+  // El filtro que se guardaría es exactamente lo que hay marcado ahora,
+  // recortado al subconjunto que una colección admite (sin limit/offset).
+  const currentQuery = CollectionQuerySchema.parse({
+    ...(query.q ? { q: query.q } : {}),
+    ...(query.tags?.length ? { tags: query.tags } : {}),
+    ...(query.maxMinutes !== undefined ? { maxMinutes: query.maxMinutes } : {}),
+    ...(query.difficulty ? { difficulty: query.difficulty } : {}),
+    ...(query.onlyWithPantry ? { onlyWithPantry: true } : {}),
+  })
 
   return (
     <main>
@@ -53,6 +66,7 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
       </div>
       <RecipeFilters initial={query} />
       <TagFilter tags={tags.filter((tag) => tag.recipeCount > 0 || tag.parentId === null)} selected={query.tags ?? []} baseParams={baseParams} />
+      <CollectionBar collections={collections} currentQuery={currentQuery} />
       {items.length === 0 ? (
         <p className="mt-6 text-text-2">{total === 0 && !query.q ? t('empty') : t('noResults')}</p>
       ) : (

@@ -35,5 +35,17 @@ test.describe('filtro de etiquetas', () => {
     await page.getByRole('button', { name: /^dieta$|^diet$/i }).click()
     await expect(page).toHaveURL(/tags=dieta/)
     await expect(page.getByText(title)).toBeVisible()
+
+    // Guardar ese filtro como colección y comprobar que sobrevive a recargar
+    // la lista y que lleva de vuelta a la misma búsqueda.
+    await page.getByRole('button', { name: /guardar filtro|save filter/i }).click()
+    await page.getByLabel(/nombre de la colección|collection name/i).fill('Vegetarianas')
+    await page.getByRole('button', { name: /^guardar$|^save$/i }).click()
+    await expect(page.getByRole('link', { name: 'Vegetarianas' })).toBeVisible()
+
+    await page.goto('/recipes')
+    await page.getByRole('link', { name: 'Vegetarianas' }).click()
+    await expect(page).toHaveURL(/tags=dieta/)
+    await expect(page.getByText(title)).toBeVisible()
   })
 })

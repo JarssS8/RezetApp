@@ -52,6 +52,15 @@
       "mollusc": "Moluscos"
     }
   },
+  "collections": {
+    "title": "Colecciones",
+    "save": "Guardar filtro",
+    "name": "Nombre de la colección",
+    "confirm": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Borrar colección",
+    "error": "No se pudo guardar la colección"
+  },
   "new": "Nueva receta",
   "empty": "Aún no hay recetas. Crea la primera o importa una.",
   "noResults": "Sin resultados con esos filtros.",
