@@ -21,13 +21,12 @@ async function routeFiles(dir: string, prefix = '/api/v1'): Promise<string[]> {
   return out
 }
 
-// Excepción única y explícita (ruling del coordinador): /api/v1/cooking/log
-// está documentada por adelantado (ver el comentario junto a su entrada en
-// API_PATHS) pero su fichero llega con T17b, cuando se una la pista de
-// cocina. Se cuenta como documentada, pero no se exige en disco todavía; el
-// segundo test de abajo obliga a T17b a borrar esta entrada en cuanto el
-// fichero exista, así el hueco no puede quedar olvidado.
-const PENDING_ROUTES = new Set(['/api/v1/cooking/log'])
+// Mecanismo para rutas documentadas por adelantado cuyo fichero aún no ha
+// llegado (ver /api/v1/cooking/log en tareas anteriores, ya resuelta en
+// T17b): se cuentan como documentadas sin exigirse en disco todavía, y el
+// segundo test de abajo impide que la excepción quede olvidada una vez el
+// fichero existe. Vacío mientras no haya ninguna ruta pendiente.
+const PENDING_ROUTES = new Set<string>([])
 
 describe('superficie de la API', () => {
   it('cada route.ts de app/api/v1 está documentado, y cada ruta documentada existe', async () => {
