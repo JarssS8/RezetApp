@@ -68,7 +68,6 @@ export async function importRecipeAction(input: unknown): Promise<ActionResult<R
     const ctx = await requireHousehold()
     const parsed = RecipeImportSchema.safeParse(input)
     if (!parsed.success) return fail('validation', 'Entrada inválida')
-    if (parsed.data.kind === 'image') return fail('unsupported', 'Importar desde imagen llega con la IA (W4)')
     return ok(await importRecipe(ctx, parsed.data))
   } catch (e) {
     return fromError(e)
@@ -95,7 +94,7 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp
 // (sesión de cookie + requireHousehold). La ruta REST POST /api/v1/uploads
 // también admite la sesión, pero existe para clientes con token de API
 // (REST/MCP); ambos caminos comparten saveImage (decisión W2-R17).
-export async function uploadImageAction(formData: FormData): Promise<ActionResult<{ url: string }>> {
+export async function uploadImageAction(formData: FormData): Promise<ActionResult<{ url: string; uploadId: string }>> {
   try {
     const ctx = await requireHousehold()
     const file = formData.get('file')
@@ -104,7 +103,7 @@ export async function uploadImageAction(formData: FormData): Promise<ActionResul
     if (!ALLOWED_IMAGE_MIME_TYPES.has(file.type)) return fail('validation', 'No es una imagen válida')
     try {
       const saved = await saveImage(ctx.householdId, new Uint8Array(await file.arrayBuffer()))
-      return ok({ url: saved.url })
+      return ok({ url: saved.url, uploadId: saved.name })
     } catch {
       return fail('validation', 'No es una imagen válida')
     }

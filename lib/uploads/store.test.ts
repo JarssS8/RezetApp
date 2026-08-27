@@ -14,6 +14,7 @@ describe('uploads', () => {
     const png = await sharp({ create: { width: 2400, height: 1200, channels: 3, background: '#2F9E6B' } }).png().toBuffer()
     const saved = await saveImage('h1', new Uint8Array(png))
     expect(saved.url).toMatch(/^\/api\/uploads\/h1\/[0-9a-f-]{36}\.webp$/)
+    expect(saved.name).toBe(saved.path.split('/').pop())
     const buf = await readImage('h1', saved.path.split('/').pop()!)
     const meta = await sharp(buf!).metadata()
     expect(meta.format).toBe('webp')

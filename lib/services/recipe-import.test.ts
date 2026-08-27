@@ -1,6 +1,21 @@
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
-import { importRecipeFromText, importRecipeFromUrl } from './recipe-import'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import type { LanguageModel } from 'ai'
+import { MockLanguageModelV3 } from 'ai/test'
+import sharp from 'sharp'
+import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
+import type { VerifiedCredential } from '@/lib/auth/webauthn'
+import { saveImage } from '@/lib/uploads/store'
+import { updateAiSettings } from './ai-settings'
+import type { Ctx } from './ctx'
+import { createUserWithHousehold } from './households'
+import { importRecipe, importRecipeFromText, importRecipeFromUrl } from './recipe-import'
+
+// updateAiSettings cifra la clave del hogar con APP_SECRET (lib/crypto.ts):
+// solo hace falta para el bloque "kind image", pero se fija aquí porque
+// vitest carga los módulos de un fichero de test antes de sus beforeAll.
+process.env.APP_URL = 'http://localhost:3000'
+process.env.APP_SECRET = 'secreto-de-prueba-con-suficiente-longitud-1234'
 
 const html = (f: string) => readFileSync(new URL(`./__fixtures__/${f}`, import.meta.url), 'utf8')
 const fetchHtml = (body: string): typeof fetch => (async () => new Response(body, { status: 200, headers: { 'content-type': 'text/html' } })) as unknown as typeof fetch
@@ -202,5 +217,99 @@ describe('importRecipeFromText', () => {
     expect(d.title).toBe('Tortilla de patatas')
     expect(d.ingredients.map((i) => i.rawText)).toEqual(['4 huevos', '500 g de patatas', 'sal'])
     expect(d.steps.map((s) => s.text)).toEqual(['Pela las patatas.', 'Bate los huevos.'])
+  })
+})
+
+// importRecipe con kind 'image' necesita un hogar real (lee su ai_provider/ai_model
+// de la base de datos) y un fichero subido de verdad (readImage lo resuelve del
+// disco), así que este bloque corre en el proyecto vitest "db" (mismo patrón que
+// lib/services/ai-tasks.test.ts).
+describe('importRecipe: kind image (W4-c)', () => {
+  let db: TestDb
+  const cred = (id: string): VerifiedCredential => ({ credentialId: id, publicKey: Buffer.from([1, 2, 3]), counter: 0, transports: ['internal'], deviceType: 'singleDevice', backedUp: false })
+  const ctxOf = (householdId: string, userId: string): Ctx => ({ db, householdId, userId, apiTokenId: null, role: 'owner', locale: 'es', scopes: [] })
+
+  beforeAll(async () => {
+    db = await getTestDb()
+  })
+  afterAll(closeTestDb)
+  beforeEach(async () => {
+    await truncateAll(db)
+  })
+
+  async function makeHousehold(displayName: string): Promise<Ctx> {
+    const { userId, householdId } = await createUserWithHousehold(db, { displayName, credential: cred(`${displayName}-${Math.random()}`), locale: 'es' })
+    return ctxOf(householdId, userId)
+  }
+
+  // gpt-4o-mini admite visión en el catálogo (lib/ai/models.ts): es el proveedor
+  // configurado para que aiImportRecipe con kind 'image' no corte en ai_unsupported.
+  async function configureAiProvider(ctx: Ctx): Promise<void> {
+    await updateAiSettings(ctx, { provider: 'openai', model: 'gpt-4o-mini', baseUrl: null, apiKey: 'sk-test', monthlyCapCents: 0, structuredOutput: true })
+  }
+
+  async function sharpOnePixelPng(): Promise<Uint8Array> {
+    const buf = await sharp({ create: { width: 1, height: 1, channels: 3, background: '#2F9E6B' } }).png().toBuffer()
+    return new Uint8Array(buf)
+  }
+
+  function modelReturning(json: unknown): MockLanguageModelV3 {
+    return new MockLanguageModelV3({
+      doGenerate: async () => ({
+        content: [{ type: 'text', text: JSON.stringify(json) }],
+        finishReason: { unified: 'stop', raw: undefined },
+        usage: {
+          inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
+          outputTokens: { total: 20, text: 20, reasoning: undefined },
+        },
+        warnings: [],
+      }),
+    })
+  }
+
+  it('importa una receta de una foto subida y la deja como borrador', async () => {
+    const ctxA = await makeHousehold('Ana')
+    await configureAiProvider(ctxA)
+    const png = await sharpOnePixelPng()
+    const saved = await saveImage(ctxA.householdId, png)
+
+    const draft = await importRecipe(
+      ctxA,
+      { kind: 'image', uploadId: saved.name },
+      {
+        model: modelReturning({
+          title: 'Tortilla de la abuela',
+          description: null,
+          servingsBase: 4,
+          prepMinutes: 10,
+          cookMinutes: 15,
+          difficulty: 'easy',
+          tags: ['principal'],
+          ingredients: [{ rawText: '4 huevos' }, { rawText: '2 patatas' }],
+          steps: [{ text: 'Fríe las patatas', timerSeconds: null }],
+        }) as unknown as LanguageModel,
+      },
+    )
+    expect(draft.title).toBe('Tortilla de la abuela')
+    expect(draft.ingredients.map((i) => i.rawText)).toEqual(['4 huevos', '2 patatas'])
+    expect(draft.warnings).toEqual([])
+  })
+
+  it('sin proveedor de IA devuelve un borrador vacío con aviso, no una excepción', async () => {
+    const ctxA = await makeHousehold('Ana') // ai_provider por defecto: 'none'
+    const png = await sharpOnePixelPng()
+    const saved = await saveImage(ctxA.householdId, png)
+    const draft = await importRecipe(ctxA, { kind: 'image', uploadId: saved.name })
+    expect(draft.warnings).toContain('ai_no_provider')
+    expect(draft.title).toBe('')
+  })
+
+  it('un uploadId que no existe (o de otro hogar) avisa sin filtrar nada', async () => {
+    const ctxA = await makeHousehold('Ana')
+    const ctxB = await makeHousehold('Bea')
+    const png = await sharpOnePixelPng()
+    const saved = await saveImage(ctxB.householdId, png)
+    const draft = await importRecipe(ctxA, { kind: 'image', uploadId: saved.name })
+    expect(draft.warnings).toEqual(['upload_not_found'])
   })
 })

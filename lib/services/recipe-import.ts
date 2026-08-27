@@ -2,11 +2,39 @@ import * as cheerio from 'cheerio'
 import type { z } from 'zod'
 import type { Locale } from '@/lib/domain/types'
 import { isPrivateOrReservedHost } from '@/lib/net-hosts'
+import { readImage } from '@/lib/uploads/store'
 import type { RecipeImportSchema, RecipeInput } from '@/lib/validation/recipes'
+import { aiImportRecipe, type AiFailureCode, type AiTaskDeps } from './ai-tasks'
 import type { Ctx } from './ctx'
-import { ServiceError } from './ctx'
 
 export type RecipeDraft = RecipeInput & { warnings: string[] }
+
+// Todos los códigos de aviso que puede llevar un borrador. La interfaz los
+// traduce con recipes.import.warnings.<code> (components/recipes/import-form.tsx).
+export type RecipeImportWarning =
+  | 'no_recipe_found'
+  | 'no_ingredients'
+  | 'no_steps'
+  | 'fetch_failed'
+  | 'empty'
+  | 'invalid_url'
+  | 'body_too_large'
+  | 'upload_not_found'
+  | 'ai_no_provider'
+  | 'ai_unsupported'
+  | 'ai_budget'
+  | 'ai_output'
+
+// Un fallo de IA NO es una excepción: la app funciona sin IA (regla 3 de
+// AGENTS.md) y este camino tiene que degradar igual para la interfaz, para
+// REST y para el MCP. Se devuelve un borrador vacío con el motivo dentro.
+const AI_WARNING: Record<AiFailureCode, RecipeImportWarning> = {
+  no_provider: 'ai_no_provider',
+  ai_unsupported: 'ai_unsupported',
+  ai_budget: 'ai_budget',
+  ai_output: 'ai_output',
+  internal: 'ai_output',
+}
 
 const USER_AGENT = 'Mozilla/5.0 (compatible; RezetApp/0.1; +https://github.com/)'
 // Tope de tamaño de la página descargada: una receta razonable no pasa de unos
@@ -257,11 +285,20 @@ export function importRecipeFromText(raw: string, locale: Locale): RecipeDraft {
   return d
 }
 
-// Punto único de importación para las tres entradas (server action, REST y
-// MCP): antes la rama url/text/image vivía duplicada en lib/actions/recipes.ts.
-// La rama 'image' necesita visión y llega en W4(c).
-export async function importRecipe(ctx: Ctx, input: z.infer<typeof RecipeImportSchema>): Promise<RecipeDraft> {
+function draftWithWarning(warning: RecipeImportWarning): RecipeDraft {
+  return { ...emptyDraft(), warnings: [warning] }
+}
+
+// Punto único de importación para los tres adaptadores (acción, REST y MCP).
+// `deps` solo se usa en los tests, para inyectar un modelo de prueba.
+export async function importRecipe(ctx: Ctx, input: z.infer<typeof RecipeImportSchema>, deps: AiTaskDeps = {}): Promise<RecipeDraft> {
   if (input.kind === 'url') return importRecipeFromUrl(input.url)
   if (input.kind === 'text') return importRecipeFromText(input.text, ctx.locale)
-  throw new ServiceError('validation', 'Importar desde imagen llega con la IA')
+  // readImage ya acota el nombre del fichero y el hogar: un uploadId de otro
+  // hogar simplemente no se encuentra, sin decir si existe en algún sitio.
+  const bytes = await readImage(ctx.householdId, input.uploadId)
+  if (!bytes) return draftWithWarning('upload_not_found')
+  const result = await aiImportRecipe(ctx, { kind: 'image', bytes: new Uint8Array(bytes), mime: 'image/webp' }, deps)
+  if (!result.ok) return draftWithWarning(AI_WARNING[result.code])
+  return { ...result.data, warnings: [] }
 }

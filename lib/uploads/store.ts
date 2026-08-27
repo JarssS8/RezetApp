@@ -20,7 +20,7 @@ export function uploadsDir(): string {
 }
 
 // Guarda la imagen como webp (máx. 1600 px de lado) bajo el hogar. Lanza si los bytes no son una imagen.
-export async function saveImage(householdId: string, bytes: Uint8Array): Promise<{ path: string; url: string }> {
+export async function saveImage(householdId: string, bytes: Uint8Array): Promise<{ path: string; url: string; name: string }> {
   if (bytes.byteLength > MAX_UPLOAD_BYTES) throw new Error('Imagen demasiado grande')
   const webp = await sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS })
     .rotate()
@@ -32,7 +32,7 @@ export async function saveImage(householdId: string, bytes: Uint8Array): Promise
   await mkdir(dir, { recursive: true, mode: 0o750 })
   const path = join(dir, name)
   await writeFile(path, webp)
-  return { path, url: `/api/uploads/${householdId}/${name}` }
+  return { path, url: `/api/uploads/${householdId}/${name}`, name }
 }
 
 export async function readImage(householdId: string, file: string): Promise<Buffer | null> {
