@@ -21,14 +21,54 @@
   --warn: #D9803A;
   --danger: #C0392B;
   --acc-soft: color-mix(in srgb, var(--acc) 13%, #FFFFFF);
-  --acc-ink: color-mix(in srgb, var(--acc) 78%, #0A2118);
+  /* Tinta de acento para TEXTO. Bajó del 78% al 60% en W6: al 78% el ratio
+     sobre --surf era 3,60:1 con "miel" y 4,16:1 con "pistacho" (por debajo de
+     AA), y sobre --acc-soft -el par que estrena la píldora de seleccionado-
+     bajaba a 3,24:1. Al 60% el peor de los ocho (miel) da 5,14:1 sobre --surf,
+     4,68:1 sobre --surf-2 y 4,62:1 sobre --acc-soft. NO subir sin volver a
+     pasar tests/contracts/design-tokens.test.ts. */
+  --acc-ink: color-mix(in srgb, var(--acc) 60%, #0A2118);
+  /* Borde teñido del estado seleccionado. Decorativo: la píldora nunca dice el
+     estado solo con el borde (lleva fondo, tinta y aria-current/aria-pressed). */
+  --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
+  --acc-soft-2: color-mix(in srgb, var(--acc) 20%, var(--surf));
   --on-acc: #12261C; /* por defecto (huerta): tinta oscura, 4.7:1 (AA) */
+  /* Ámbar para texto pequeño. El --warn crudo es 2,97:1 sobre blanco y 2,58:1
+     sobre --warn-soft: sirve para bordes, iconos y fondos, no para leer. Al 65%
+     da 5,44:1 sobre --surf, 4,95:1 sobre --surf-2 y 4,74:1 sobre --warn-soft. */
+  --warn-ink: color-mix(in srgb, var(--warn) 65%, #0A2118);
+  /* Fondo semántico del agrupador hundido (hueco vacío del plan, caja de
+     vacío). Hasta W6 --surf-2 hacía tres trabajos distintos; este alias separa
+     uno para que se pueda mover sin arrastrar los otros dos. */
+  --surf-sunken: var(--surf-2);
+  /* Borde de tarjeta. En claro casi desaparece y manda la sombra; en oscuro la
+     sombra no se ve, así que se queda el borde entero (ver el bloque oscuro). */
+  --line-2: color-mix(in srgb, var(--line) 55%, var(--surf));
   --r-lg: 22px;
   --r-md: 16px;
   --r-sm: 12px;
-  --sh-card: 0 2px 10px -7px rgba(22, 28, 26, .22);
-  --sh-hero: 0 3px 14px -9px rgba(22, 28, 26, .30);
+  /* Sombras de dos capas: un filo corto que dibuja el canto y una difusa que
+     apoya la pieza. De una sola capa (lo de W0) una tarjeta sobre un fondo que
+     se separa un 2% de la superficie no se lee como tarjeta. */
+  --sh-card: 0 1px 2px -1px rgba(22, 28, 26, .10), 0 4px 12px -6px rgba(22, 28, 26, .18);
+  --sh-raised: 0 2px 4px -2px rgba(22, 28, 26, .12), 0 10px 24px -12px rgba(22, 28, 26, .22);
+  --sh-hero: 0 2px 6px -3px rgba(22, 28, 26, .12), 0 14px 32px -18px rgba(22, 28, 26, .26);
   --overlay: rgba(22, 28, 26, .35);
+  /* Degradado del placeholder de receta. El ángulo lo fija quien lo pinta con
+     --grad-food-angle (hash del id: recipe-placeholder.tsx); sin él, 135deg. */
+  --grad-food: linear-gradient(var(--grad-food-angle, 135deg), var(--acc-soft), var(--surf-2));
+  /* Escala tipográfica. Hasta W6 la app entera vivía entre text-2xl y text-xs. */
+  --fs-title: 1.875rem;
+  --fs-hero: 2.75rem;
+  --fs-num: 2rem;
+  /* Movimiento. Los tres presupuestos del informe de animaciones: 140ms para el
+     cambio de paso (se toca decenas de veces por sesión), 200ms para asentados y
+     salidas, 500ms para el anillo. prefers-reduced-motion ya los anula abajo. */
+  --dur-1: 140ms;
+  --dur-2: 200ms;
+  --dur-3: 500ms;
+  --ease-out: cubic-bezier(.23, 1, .32, 1);
+  --ease-in: cubic-bezier(.4, 0, 1, 1);
   --f-display: var(--font-outfit), "Helvetica Neue", system-ui, sans-serif;
   --f-body: var(--font-dm-sans), "Segoe UI", system-ui, sans-serif;
   --f-mono: var(--font-jetbrains-mono), ui-monospace, Menlo, monospace;
@@ -41,9 +81,17 @@
     --text: #F1EBE1; --text-2: #BBB0A1; --muted: #8B8175; --warn: #E8A33D; --danger: #E06555;
     --acc-soft: color-mix(in srgb, var(--acc) 17%, #16130F);
     --acc-ink: color-mix(in srgb, var(--acc) 68%, #F1EBE1);
+    --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
+    --acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf));
+    --warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1);
+    --surf-sunken: var(--surf-2);
+    /* En "Noche suave" la sombra apenas se lee: el borde entero se queda, y el
+       escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */
+    --line-2: var(--line);
     --on-acc: #12261C;
-    --sh-card: 0 2px 10px -7px rgba(0, 0, 0, .5);
-    --sh-hero: 0 3px 14px -9px rgba(0, 0, 0, .7);
+    --sh-card: 0 1px 2px -1px rgba(0, 0, 0, .55), 0 4px 12px -6px rgba(0, 0, 0, .65);
+    --sh-raised: 0 2px 4px -2px rgba(0, 0, 0, .60), 0 10px 24px -12px rgba(0, 0, 0, .70);
+    --sh-hero: 0 2px 6px -3px rgba(0, 0, 0, .60), 0 14px 32px -18px rgba(0, 0, 0, .75);
     --overlay: rgba(0, 0, 0, .55);
   }
 }
@@ -52,9 +100,17 @@
   --text: #F1EBE1; --text-2: #BBB0A1; --muted: #8B8175; --warn: #E8A33D; --danger: #E06555;
   --acc-soft: color-mix(in srgb, var(--acc) 17%, #16130F);
   --acc-ink: color-mix(in srgb, var(--acc) 68%, #F1EBE1);
+  --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
+  --acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf));
+  --warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1);
+  --surf-sunken: var(--surf-2);
+  /* En "Noche suave" la sombra apenas se lee: el borde entero se queda, y el
+     escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */
+  --line-2: var(--line);
   --on-acc: #12261C;
-  --sh-card: 0 2px 10px -7px rgba(0, 0, 0, .5);
-  --sh-hero: 0 3px 14px -9px rgba(0, 0, 0, .7);
+  --sh-card: 0 1px 2px -1px rgba(0, 0, 0, .55), 0 4px 12px -6px rgba(0, 0, 0, .65);
+  --sh-raised: 0 2px 4px -2px rgba(0, 0, 0, .60), 0 10px 24px -12px rgba(0, 0, 0, .70);
+  --sh-hero: 0 2px 6px -3px rgba(0, 0, 0, .60), 0 14px 32px -18px rgba(0, 0, 0, .75);
   --overlay: rgba(0, 0, 0, .55);
 }
 
@@ -122,6 +178,12 @@
   --color-warn: var(--warn);
   --color-warn-soft: color-mix(in srgb, var(--warn) 14%, var(--surf));
   --color-surface-2: var(--surf-2);
+  --color-acc-soft: var(--acc-soft);
+  --color-acc-soft-2: var(--acc-soft-2);
+  --color-acc-line: var(--acc-line);
+  --color-warn-ink: var(--warn-ink);
+  --color-surface-sunken: var(--surf-sunken);
+  --color-line-2: var(--line-2);
   --color-text-2: var(--text-2);
   /* Item 27 (revisión W2): `--muted` de la sección de tokens de diseño (arriba)
      y el `--muted` de shadcn (línea 86 de este fichero) comparten nombre; el
@@ -148,6 +210,7 @@
   --radius-pill: 999px;
 
   --shadow-card: var(--sh-card);
+  --shadow-raised: var(--sh-raised);
   --shadow-hero: var(--sh-hero);
   --color-overlay: var(--overlay);
 
