@@ -43,9 +43,9 @@ test.describe('el bucle', () => {
     await expect(page.getByText(/1 kg|1000 g/)).toBeVisible()
 
     // 4) La receta, en la cena de hoy. La cabecera de la columna de hoy se
-    //    distingue por el fondo `bg-accent` que le pone `isToday`.
+    //    distingue por el fondo `bg-acc-ink` que le pone `isToday`.
     await page.goto('/plan')
-    const todayHeader = page.locator('div.bg-accent', { hasText: /hoy|today/i })
+    const todayHeader = page.locator('div.bg-acc-ink', { hasText: /hoy|today/i })
     await expect(todayHeader).toBeVisible()
     const todayColumn = todayHeader.locator('xpath=..')
     await todayColumn.getByRole('button', { name: /^(añadir a cena|add to dinner)$/i }).click()

@@ -31,7 +31,7 @@ export function BottomBar() {
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium',
-                  active ? 'text-primary' : 'text-text-2',
+                  active ? 'text-acc-ink' : 'text-text-2',
                 )}
               >
                 <Icon size={24} />

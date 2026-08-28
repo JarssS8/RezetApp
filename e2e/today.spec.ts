@@ -10,7 +10,7 @@ test.describe('hoy', () => {
 
     // Una comida libre en la cena de hoy (mismo camino que e2e/plan.spec.ts)
     await page.goto('/plan')
-    const todayHeader = page.locator('div.bg-accent', { hasText: /hoy|today/i })
+    const todayHeader = page.locator('div.bg-acc-ink', { hasText: /hoy|today/i })
     const todayColumn = todayHeader.locator('xpath=..')
     await todayColumn.getByRole('button', { name: /^(añadir a cena|add to dinner)$/i }).click()
     await page.getByRole('button', { name: /^(comida libre|free meal)$/i }).click()

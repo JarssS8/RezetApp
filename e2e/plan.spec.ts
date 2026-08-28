@@ -8,12 +8,12 @@ test.describe('plan', () => {
     // No hay endpoint de recetas todavía (llega en W3): la alternativa del
     // plan de la tarea es crear la entrada como "comida libre" desde el "+"
     // de la columna de hoy. La cabecera de la columna de hoy se distingue de
-    // las demás por el fondo `bg-accent` que le pone `isToday` (day-column.tsx).
+    // las demás por el fondo `bg-acc-ink` que le pone `isToday` (day-column.tsx).
     // El locale efectivo (es/en) depende del Accept-Language del navegador de
     // prueba, así que los textos se buscan con expresiones bilingües (mismo
     // patrón que auth.spec.ts).
     await page.goto('/plan')
-    const todayHeader = page.locator('div.bg-accent', { hasText: /hoy|today/i })
+    const todayHeader = page.locator('div.bg-acc-ink', { hasText: /hoy|today/i })
     await expect(todayHeader).toBeVisible()
     const todayColumn = todayHeader.locator('xpath=..')
 

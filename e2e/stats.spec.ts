@@ -34,7 +34,7 @@ test.describe('estadísticas del plan', () => {
     // 3) Planificarla hoy, en la cena, desde el "+" de la columna de hoy
     // (mismo patrón que plan.spec.ts para localizar esa columna).
     await page.goto('/plan')
-    const todayHeader = page.locator('div.bg-accent', { hasText: /hoy|today/i })
+    const todayHeader = page.locator('div.bg-acc-ink', { hasText: /hoy|today/i })
     await expect(todayHeader).toBeVisible()
     const todayColumn = todayHeader.locator('xpath=..')
 

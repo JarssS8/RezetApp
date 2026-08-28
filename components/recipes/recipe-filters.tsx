@@ -100,7 +100,7 @@ export function RecipeFilters({ initial }: RecipeFiltersProps) {
           ))}
         </NativeSelect>
       </label>
-      <Button type="submit" size="sm">
+      <Button type="submit" size="sm" variant="secondary">
         {t('filters.apply')}
       </Button>
     </form>
