@@ -60,7 +60,7 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
         ) : null}
         {entry.recipeId && !entry.leftoverOfEntryId ? <LeftoverDialog fromEntryId={entry.id} sourceSlot={entry.slot} /> : null}
         {cooked ? (
-          <span className="inline-flex items-center rounded-pill bg-primary/10 px-1.5 py-0.5 text-xs text-primary">{t('cooked')}</span>
+          <span className="inline-flex items-center rounded-pill border border-transparent px-1.5 py-0.5 text-xs font-medium pill-selected">{t('cooked')}</span>
         ) : null}
         {entry.timeBudgetMinutes !== null ? (
           <span className="inline-flex items-center gap-0.5 text-xs text-text-2" aria-label={t('timeBudget')}>

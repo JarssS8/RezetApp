@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
+import { cn } from '@/lib/utils'
 import type { RecipeSearch } from '@/lib/validation/recipes'
 
 type FilterFields = Pick<RecipeSearch, 'q' | 'maxMinutes' | 'difficulty' | 'onlyWithPantry' | 'sort'>
@@ -57,8 +58,9 @@ export function RecipeFilters({ initial }: RecipeFiltersProps) {
         <Button
           type="button"
           size="sm"
-          variant={difficulty === undefined ? 'secondary' : 'outline'}
+          variant="outline"
           aria-pressed={difficulty === undefined}
+          className={cn('rounded-pill', difficulty === undefined && 'pill-selected')}
           onClick={() => setDifficulty(undefined)}
         >
           {t('filters.any')}
@@ -68,8 +70,9 @@ export function RecipeFilters({ initial }: RecipeFiltersProps) {
             key={d}
             type="button"
             size="sm"
-            variant={difficulty === d ? 'secondary' : 'outline'}
+            variant="outline"
             aria-pressed={difficulty === d}
+            className={cn('rounded-pill', difficulty === d && 'pill-selected')}
             onClick={() => setDifficulty(d)}
           >
             {t(`filters.${d}`)}

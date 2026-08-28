@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { TagIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { buildTagTree, displayTagName, type Locale, type TagNodeInput } from '@/lib/domain'
+import { cn } from '@/lib/utils'
 
 export interface TagFilterProps {
   tags: TagNodeInput[]
@@ -59,9 +60,9 @@ export function TagFilter({ tags, selected, baseParams }: TagFilterProps) {
             <Button
               type="button"
               size="sm"
-              variant={selected.includes(root.slug) ? 'secondary' : 'outline'}
+              variant="outline"
               aria-pressed={selected.includes(root.slug)}
-              className="rounded-pill"
+              className={cn('rounded-pill', selected.includes(root.slug) && 'pill-selected')}
               onClick={() => toggle(root.slug)}
             >
               {displayTagName(root, locale)}
@@ -74,9 +75,9 @@ export function TagFilter({ tags, selected, baseParams }: TagFilterProps) {
                   <Button
                     type="button"
                     size="sm"
-                    variant={selected.includes(child.slug) ? 'secondary' : 'outline'}
+                    variant="outline"
                     aria-pressed={selected.includes(child.slug)}
-                    className="rounded-pill"
+                    className={cn('rounded-pill', selected.includes(child.slug) && 'pill-selected')}
                     onClick={() => toggle(child.slug)}
                   >
                     {displayTagName(child, locale)}

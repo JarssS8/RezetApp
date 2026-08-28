@@ -83,7 +83,7 @@ export function CollectionBar({ collections, currentQuery }: CollectionBarProps)
         {t('collections.title')}
       </span>
       {collections.map((item) => (
-        <span key={item.id} className="inline-flex items-center gap-1 rounded-pill border border-border py-0.5 pr-1 pl-3 text-sm">
+        <span key={item.id} className="inline-flex items-center gap-1 rounded-pill border border-line-2 bg-card py-0.5 pr-1 pl-3 text-sm shadow-card">
           <Link href={hrefOf(item.query)}>{item.name}</Link>
           <Button type="button" variant="ghost" size="icon-xs" aria-label={t('collections.delete')} onClick={() => onDelete(item.id)} disabled={pending}>
             <TrashIcon size={14} />

@@ -50,7 +50,7 @@ export async function RecipeCard({ recipe }: RecipeCardProps) {
           {recipe.tags.length > 0 ? (
             <ul className="flex flex-wrap gap-1">
               {recipe.tags.map((tag) => (
-                <li key={tag} className="rounded-pill bg-surface-2 px-2 py-0.5 text-xs text-text-2">
+                <li key={tag} className="rounded-pill bg-acc-soft px-2 py-0.5 text-xs text-acc-ink">
                   {tag}
                 </li>
               ))}

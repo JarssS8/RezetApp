@@ -107,4 +107,12 @@ describe('EntryChip', () => {
     renderChip({ entry: baseEntry({ recipeId: null, leftoverOfEntryId: null }) })
     expect(screen.queryByRole('button', { name: /crear sobra/i })).toBeNull()
   })
+
+  it('el chip de cocinado usa la píldora de acento, no el primario al 10 %', () => {
+    renderChip({ entry: baseEntry({ status: 'cooked' }) })
+    const cooked = screen.getByText(/cocinad/i)
+    expect(cooked.className).toContain('pill-selected')
+    // bg-primary/10 con text-primary daba 3,03:1 con el acento por defecto.
+    expect(document.body.innerHTML).not.toContain('bg-primary/10')
+  })
 })

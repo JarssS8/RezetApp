@@ -155,7 +155,7 @@ export function RecipeDetailView({ detail, locale, units, initialServings }: Rec
           <ol className="mt-2 flex flex-col gap-3">
             {detail.steps.map((step, index) => (
               <li key={step.id} className="flex gap-3">
-                <span className="tabular flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs text-text-2">
+                <span className="tabular flex size-7 shrink-0 items-center justify-center rounded-full bg-acc-soft text-xs font-semibold text-acc-ink">
                   {index + 1}
                 </span>
                 <div>

@@ -55,8 +55,8 @@ export function PantryList({ items, unitSystem }: PantryListProps) {
           if (group.length === 0) return null
           return (
             <section key={id}>
-              <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-text-2">
-                <Icon size={18} />
+              <h2 className="mb-2 inline-flex items-center gap-2 rounded-pill bg-acc-soft px-3 py-1 text-sm font-semibold text-acc-ink">
+                <Icon size={18} strokeWidth={2.2} />
                 {t(`locations.${id}`)}
               </h2>
               <ul className="flex flex-col gap-2">

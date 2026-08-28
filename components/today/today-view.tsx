@@ -70,7 +70,7 @@ export function TodayView({ date, entries, progress, expiring, aiEnabled }: Toda
                       <span className="flex-1 truncate font-medium">{e.title}</span>
                       <span className="tabular shrink-0 text-xs text-text-2">{tp('servingsShort', { n: e.servings })}</span>
                       {e.status === 'cooked' ? (
-                        <span className="rounded-pill bg-primary/10 px-2 py-0.5 text-xs text-primary">{tp('cooked')}</span>
+                        <span className="rounded-pill border border-transparent px-2 py-0.5 text-xs font-medium pill-selected">{tp('cooked')}</span>
                       ) : e.recipeId && !e.leftoverOfEntryId ? (
                         <Link href={`/cook/${e.id}`} aria-label={c('nav.cook')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
                           <CookIcon size={20} />
