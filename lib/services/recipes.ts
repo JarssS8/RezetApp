@@ -568,8 +568,8 @@ export interface RecentlyCookedRecipe {
 }
 
 // Recetas con al menos un cocinado (recipes.last_cooked_at), más recientes
-// primero: usada por la herramienta MCP get_household_context. Sin servicio
-// de cocina todavía en W2 (docs/07-ROADMAP.md), así que solo lee la columna.
+// primero: usada por la herramienta MCP get_household_context. `logCooked`
+// (W3) es quien escribe esa columna; esta función solo la lee.
 export async function recentlyCooked(ctx: Ctx, limit: number): Promise<RecentlyCookedRecipe[]> {
   const rows = await ctx.db
     .select({ id: schema.recipes.id, title: schema.recipes.title, lastCookedAt: schema.recipes.lastCookedAt })

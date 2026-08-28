@@ -59,8 +59,13 @@ variable CSS y un atributo en la raíz.
 | Arándano | `#4A7FB5` |
 | Canela | `#A9764A` |
 
-`--on-acc` es el color del texto sobre el acento: blanco en claro, verde muy
-oscuro en Noche suave. Nunca escribas un color de contraste a mano.
+`--on-acc` es el color del texto sobre el acento (`--acc`). Depende del
+**acento elegido, no del tema**: cada uno de los ocho tiene su propio
+`--on-acc`, fijado al valor (tinta oscura o blanco) que cumple AA (≥4,5:1)
+sobre ese color concreto — la mayoría usa tinta oscura; higo y berenjena,
+al ser los más oscuros, usan blanco. Ver la tabla de `--on-acc` por acento en
+`design-tokens.css` y `app/globals.css` (ambos deben decir lo mismo). Nunca
+escribas un color de contraste a mano.
 
 ## Iconos
 

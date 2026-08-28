@@ -68,7 +68,7 @@ desde W5—, el recurso `household://context`, tokens con alcance y perfil,
 - Calendario semanal y mensual con arrastrar y soltar
 - Varias comidas por hueco
 - Sobras como comida planificable
-- Presupuesto de tiempo por día
+- Presupuesto de tiempo por comida (al añadirla)
 - Sincronización en vivo entre el hogar (SSE)
 - Propuesta de la IA en diff, con aprobar y descartar
 
@@ -82,7 +82,7 @@ desde W5.
 
 - Inventario con ubicaciones y caducidades
 - **Descuento automático al marcar cocinado**
-- Open Food Facts y USDA sembradas
+- USDA sembrada; Open Food Facts consultada en vivo al escanear
 - Escaneo de código de barras
 - Sugerir recetas por lo que caduca
 - Consolidación y **envío a ShopList**
