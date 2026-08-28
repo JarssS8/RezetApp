@@ -1,6 +1,6 @@
 // Claves VAPID y suscripciones de push (spec §4, §15).
 import { and, eq } from 'drizzle-orm'
-import { db } from '@/db'
+import { db as appDb } from '@/db'
 import * as schema from '@/db/schema'
 import { decryptSecret, encryptSecret, getKeys } from '@/lib/crypto'
 import { generateVapidKeys, sendWebPush, type VapidKeys } from '@/lib/integrations/web-push'
@@ -8,10 +8,6 @@ import { PushSubscriptionSchema, type PushSubscriptionInput } from '@/lib/valida
 import { expiringPantry } from './pantry'
 import type { Ctx, Db } from './ctx'
 import { ServiceError } from './ctx'
-
-// Reexportada para las rutas de app/api/push: las fronteras de eslint-boundaries
-// no dejan a `app` importar `db` directamente, solo a través de `services`.
-export { db }
 
 export const VAPID_SETTINGS_KEY = 'vapid'
 
@@ -85,21 +81,27 @@ export async function getOrCreateVapidKeys(db: Db): Promise<VapidKeys> {
   return resolveStoredVapid(db, value)
 }
 
-export async function getVapidPublicKey(db: Db): Promise<string> {
+// El valor por defecto existe para que las rutas de app/api/push no necesiten
+// la conexión, que es lo que la valla de eslint-boundaries les prohíbe tener.
+// Los tests y el script de cron siguen pasando el suyo.
+export async function getVapidPublicKey(db: Db = appDb): Promise<string> {
   return (await getOrCreateVapidKeys(db)).publicKey
 }
 
 // El endpoint es único en toda la instalación (lo impone el esquema): si el
 // mismo navegador se usa con otra cuenta, la suscripción cambia de dueño en
 // vez de fallar con una violación de unicidad.
-export async function subscribePush(db: Db, userId: string, sub: PushSubscriptionInput): Promise<void> {
+//
+// `db` va al final (con valor por defecto) en vez de al principio: así las
+// rutas de app/api/push no tienen que pasar `undefined` en su lugar.
+export async function subscribePush(userId: string, sub: PushSubscriptionInput, db: Db = appDb): Promise<void> {
   await db
     .insert(schema.pushSubscriptions)
     .values({ userId, endpoint: sub.endpoint, keys: sub.keys })
     .onConflictDoUpdate({ target: schema.pushSubscriptions.endpoint, set: { userId, keys: sub.keys } })
 }
 
-export async function unsubscribePush(db: Db, userId: string, endpoint: string): Promise<void> {
+export async function unsubscribePush(userId: string, endpoint: string, db: Db = appDb): Promise<void> {
   await db.delete(schema.pushSubscriptions).where(and(eq(schema.pushSubscriptions.userId, userId), eq(schema.pushSubscriptions.endpoint, endpoint)))
 }
 

@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as schema from '@/db/schema'
 import { closeTestDb, getTestDb, truncateAll, type TestDb } from '@/db/test/setup'
 import type { FoodInput } from '@/lib/validation/foods'
@@ -78,6 +78,15 @@ describe('conflictingRecipeIds', () => {
     const conHarina = await createRecipe(ctxA, { title: 'Bizcocho', servingsBase: 8, tags: [], imageUrls: [], ingredients: [{ rawText: '200 g de harina', foodId: harina.id, quantity: 200, unit: 'g' }], steps: [{ text: 'Hornea' }] })
 
     expect(await conflictingRecipeIds(ctxA, [conHarina.recipe.id])).toEqual(new Map())
+
+    // El atajo se nota: con el espía puesto, solo sale la consulta de
+    // householdAllergens; la de ingredientes no llega a ejecutarse. Sin esto,
+    // el caso no distinguiría "cortó por lo sano" de "consultó todo y no
+    // encontró nada", que es justo lo que la revisión de W4 quería cubrir.
+    const spy = vi.spyOn(ctxA.db, 'select')
+    await conflictingRecipeIds(ctxA, [conHarina.recipe.id])
+    expect(spy).toHaveBeenCalledTimes(1)
+    spy.mockRestore()
   })
 
   it('marca solo las recetas que chocan, con el alérgeno concreto', async () => {

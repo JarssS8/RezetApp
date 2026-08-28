@@ -111,4 +111,32 @@ describe('AddEntrySheet', () => {
     expect(screen.getByText('100')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Más raciones' })).toBeDisabled()
   })
+
+  it('el tiempo disponible viaja en el lote y el lote es válido; vacío no lo manda', async () => {
+    applyPlanBatchAction.mockResolvedValue({ ok: true, data: { added: [], removed: [] } })
+    renderSheet()
+    goFreeMode('Pizza')
+    fireEvent.change(screen.getByLabelText('Tiempo disponible (min)'), { target: { value: '30' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => expect(applyPlanBatchAction).toHaveBeenCalledTimes(1))
+    // W2-R11: lo que el componente manda se valida contra el esquema real.
+    const sent = applyPlanBatchAction.mock.calls[0]?.[0]
+    expect(PlanBatchSchema.safeParse(sent).success).toBe(true)
+    expect(sent?.add[0]?.timeBudgetMinutes).toBe(30)
+  })
+
+  it('sin tiempo disponible, la propiedad no se manda (exactOptionalPropertyTypes)', async () => {
+    applyPlanBatchAction.mockResolvedValue({ ok: true, data: { added: [], removed: [] } })
+    renderSheet()
+    goFreeMode('Pizza')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => expect(applyPlanBatchAction).toHaveBeenCalledTimes(1))
+    const sent = applyPlanBatchAction.mock.calls[0]?.[0]
+    expect(PlanBatchSchema.safeParse(sent).success).toBe(true)
+    expect(sent?.add[0]).not.toHaveProperty('timeBudgetMinutes')
+  })
 })

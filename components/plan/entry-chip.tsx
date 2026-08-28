@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { ClockIcon, CookIcon, LeftoversIcon, MinusIcon, PlusIcon, SkipIcon, TrashIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { NativeSelect } from '@/components/ui/native-select'
 import { MEAL_SLOTS, type MealSlot } from '@/lib/domain'
 import { cn } from '@/lib/utils'
 import { LeftoverDialog } from './leftover-dialog'
@@ -16,8 +17,8 @@ export interface EntryChipProps {
   onSkip: (id: string, skipped: boolean) => void
   onRemove: (id: string) => void
   // Alternativa accesible al arrastrar y soltar: mover con teclado eligiendo
-  // fecha y hueco en dos <select>. Opcional para no romper el chip "de solo
-  // lectura" usado, por ejemplo, en el diff de una propuesta.
+  // fecha y hueco en dos listas desplegables. Opcional para no romper el
+  // chip "de solo lectura" usado, por ejemplo, en el diff de una propuesta.
   days?: string[]
   onMove?: (id: string, date: string, slot: MealSlot) => void
 }
@@ -92,30 +93,30 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
         ) : null}
         {onMove && days ? (
           <span className="flex items-center gap-1">
-            <select
+            <NativeSelect
               aria-label={t('moveDate')}
               value={entry.date}
               onChange={(e) => onMove(entry.id, e.target.value, entry.slot)}
-              className="h-11 rounded-sm border border-border bg-transparent px-1 text-xs"
+              className="text-xs"
             >
               {days.map((d) => (
                 <option key={d} value={d}>
                   {d}
                 </option>
               ))}
-            </select>
-            <select
+            </NativeSelect>
+            <NativeSelect
               aria-label={t('moveSlot')}
               value={entry.slot}
               onChange={(e) => onMove(entry.id, entry.date, e.target.value as MealSlot)}
-              className="h-11 rounded-sm border border-border bg-transparent px-1 text-xs"
+              className="text-xs"
             >
               {MEAL_SLOTS.map((s) => (
                 <option key={s} value={s}>
                   {t(`slots.${s}`)}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </span>
         ) : null}
         <Button

@@ -90,26 +90,26 @@ describe('suscripciones de push', () => {
   const sub = { endpoint: 'https://push.example/abc', keys: { p256dh: 'BPk…', auth: 'xyz' } }
 
   it('guarda la suscripción y la reemplaza si el mismo endpoint vuelve con otro usuario', async () => {
-    await subscribePush(db, anaId, sub)
+    await subscribePush(anaId, sub, db)
     expect(await listPushSubscriptions(db, anaId)).toHaveLength(1)
     // El endpoint es único global (lo es en el esquema): si el dispositivo cambia
     // de dueño, la fila pasa al nuevo, no revienta con 23505.
-    await subscribePush(db, boId, sub)
+    await subscribePush(boId, sub, db)
     expect(await listPushSubscriptions(db, anaId)).toEqual([])
     expect(await listPushSubscriptions(db, boId)).toHaveLength(1)
   })
 
   it('suscribirse dos veces con el mismo endpoint no duplica', async () => {
-    await subscribePush(db, anaId, sub)
-    await subscribePush(db, anaId, sub)
+    await subscribePush(anaId, sub, db)
+    await subscribePush(anaId, sub, db)
     expect(await listPushSubscriptions(db, anaId)).toHaveLength(1)
   })
 
   it('darse de baja solo borra la propia', async () => {
-    await subscribePush(db, anaId, sub)
-    await unsubscribePush(db, boId, sub.endpoint)
+    await subscribePush(anaId, sub, db)
+    await unsubscribePush(boId, sub.endpoint, db)
     expect(await listPushSubscriptions(db, anaId)).toHaveLength(1)
-    await unsubscribePush(db, anaId, sub.endpoint)
+    await unsubscribePush(anaId, sub.endpoint, db)
     expect(await listPushSubscriptions(db, anaId)).toEqual([])
   })
 })
@@ -132,7 +132,7 @@ describe('avisos de caducidad', () => {
   })
 
   it('avisa una vez por dispositivo, con lo que caduca en su hogar', async () => {
-    await subscribePush(db, anaId, sub)
+    await subscribePush(anaId, sub, db)
     await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-08-28' })
 
     const notifications = await buildExpiringNotifications(db, new Date('2026-08-27T09:00:00Z'))
@@ -146,7 +146,7 @@ describe('avisos de caducidad', () => {
     if (!household2) throw new Error('setup')
     await db.insert(schema.householdMembers).values({ householdId: household2.id, userId: anaId, role: 'member' })
 
-    await subscribePush(db, anaId, sub)
+    await subscribePush(anaId, sub, db)
     await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-08-28' })
     await db.insert(schema.pantryItems).values({ householdId: household2.id, foodId: cebollaId, quantity: 200, unit: 'g', expiresAt: '2026-08-28' })
 
@@ -163,8 +163,8 @@ describe('avisos de caducidad', () => {
   // dispositivo (cada endpoint es una entrega push distinta).
   it('un usuario con dos dispositivos recibe un aviso por cada uno, con el mismo contenido', async () => {
     const otroDispositivo = { endpoint: 'https://push.example/expira-2', keys: { p256dh: 'BPz2xy9zCD', auth: 'defXYZ456' } }
-    await subscribePush(db, anaId, sub)
-    await subscribePush(db, anaId, otroDispositivo)
+    await subscribePush(anaId, sub, db)
+    await subscribePush(anaId, otroDispositivo, db)
     await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-08-28' })
 
     const notifications = await buildExpiringNotifications(db, new Date('2026-08-27T09:00:00Z'))
@@ -176,13 +176,13 @@ describe('avisos de caducidad', () => {
   })
 
   it('no avisa si no caduca nada dentro de expiry_alert_days', async () => {
-    await subscribePush(db, anaId, sub)
+    await subscribePush(anaId, sub, db)
     await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-12-31' })
     expect(await buildExpiringNotifications(db, new Date('2026-08-27T09:00:00Z'))).toEqual([])
   })
 
   it('borra la suscripción que el navegador ya ha revocado', async () => {
-    await subscribePush(db, anaId, sub)
+    await subscribePush(anaId, sub, db)
     await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-08-28' })
     const send = vi.fn(async () => ({ ok: false as const, gone: true }))
     const result = await notifyExpiring(db, { send }, new Date('2026-08-27T09:00:00Z'))
@@ -191,7 +191,7 @@ describe('avisos de caducidad', () => {
   })
 
   it('un fallo pasajero no borra la suscripción', async () => {
-    await subscribePush(db, anaId, sub)
+    await subscribePush(anaId, sub, db)
     await db.insert(schema.pantryItems).values({ householdId: ctxA.householdId, foodId: cebollaId, quantity: 300, unit: 'g', expiresAt: '2026-08-28' })
     const send = vi.fn(async () => ({ ok: false as const, gone: false }))
     expect(await notifyExpiring(db, { send }, new Date('2026-08-27T09:00:00Z'))).toEqual({ sent: 0, removed: 0 })

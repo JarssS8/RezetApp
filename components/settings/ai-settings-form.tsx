@@ -8,7 +8,7 @@ import type { AiSettingsSchema } from '@/lib/validation/household'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { NativeSelect } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 
 type AiSettings = z.infer<typeof AiSettingsSchema>
@@ -160,23 +160,13 @@ export function AiSettingsForm(props: AiSettingsFormProps) {
     <form onSubmit={handleSave} className="flex flex-col gap-4" data-testid="ai-settings-form">
       <div className="flex flex-col gap-2">
         <Label htmlFor="ai-provider">{t('provider')}</Label>
-        <Select
-          value={provider}
-          onValueChange={(value) => {
-            if (value !== null) setProvider(value)
-          }}
-        >
-          <SelectTrigger id="ai-provider">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PROVIDERS.map((p) => (
-              <SelectItem key={p} value={p}>
-                {t(`providers.${p}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <NativeSelect id="ai-provider" value={provider} onChange={(e) => setProvider(e.target.value as Provider)} className="w-full">
+          {PROVIDERS.map((p) => (
+            <option key={p} value={p}>
+              {t(`providers.${p}`)}
+            </option>
+          ))}
+        </NativeSelect>
       </div>
 
       <div className="flex flex-col gap-2">

@@ -10,6 +10,7 @@ import { FoodPicker } from '@/components/foods/food-picker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { type FoodSummary, type FoodWithNutrition } from '@/lib/actions/foods'
 import { upsertPantryItemAction, type PantryRow } from '@/lib/actions/pantry'
 import type { ActionResult } from '@/lib/actions/result'
@@ -122,18 +123,13 @@ export function PantryItemForm({ initialFood = null, initialQuery, upsert = upse
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="pantry-item-unit">{t('form.unit')}</Label>
-        <select
-          id="pantry-item-unit"
-          value={unit}
-          onChange={(e) => setUnit(e.target.value as BaseUnit)}
-          className="h-8 w-full rounded-sm border border-input bg-transparent px-2.5 text-sm"
-        >
+        <NativeSelect id="pantry-item-unit" value={unit} onChange={(e) => setUnit(e.target.value as BaseUnit)} className="w-full">
           {BASE_UNITS.map((u) => (
             <option key={u} value={u}>
               {unitLabel(u, 1, locale)}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </div>
 
       <div className="flex flex-col gap-2">

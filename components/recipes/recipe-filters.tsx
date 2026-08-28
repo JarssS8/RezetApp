@@ -5,6 +5,7 @@ import { type FormEvent, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { NativeSelect } from '@/components/ui/native-select'
 import type { RecipeSearch } from '@/lib/validation/recipes'
 
 type FilterFields = Pick<RecipeSearch, 'q' | 'maxMinutes' | 'difficulty' | 'onlyWithPantry' | 'sort'>
@@ -91,17 +92,13 @@ export function RecipeFilters({ initial }: RecipeFiltersProps) {
       </label>
       <label className="flex min-h-11 flex-col gap-0.5 text-xs text-text-2">
         {t('filters.sort')}
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as NonNullable<FilterFields['sort']>)}
-          className="h-8 rounded-sm border border-input bg-transparent px-2 text-sm"
-        >
+        <NativeSelect value={sort} onChange={(e) => setSort(e.target.value as NonNullable<FilterFields['sort']>)}>
           {SORTS.map((s) => (
             <option key={s} value={s}>
               {t(`filters.${s}`)}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       <Button type="submit" size="sm">
         {t('filters.apply')}

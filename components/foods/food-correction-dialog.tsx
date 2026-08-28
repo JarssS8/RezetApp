@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { correctFoodAction, createFoodAction, type FoodWithNutrition } from '@/lib/actions/foods'
 import type { ActionResult } from '@/lib/actions/result'
 import { BASE_UNITS, type BaseUnit } from '@/lib/domain/types'
@@ -283,18 +284,18 @@ export function FoodCorrectionDialog({ food, open, onOpenChange, onSaved, locale
           ))}
           <div>
             <Label htmlFor={`${uid}-defaultUnit`}>{t('food.fields.defaultUnit')}</Label>
-            <select
+            <NativeSelect
               id={`${uid}-defaultUnit`}
               value={form.defaultUnit}
               onChange={(e) => setForm((f) => ({ ...f, defaultUnit: e.target.value as BaseUnit }))}
-              className="h-8 w-full rounded-sm border border-input bg-transparent px-2.5 text-sm"
+              className="w-full"
             >
               {BASE_UNITS.map((u) => (
                 <option key={u} value={u}>
                   {unitLabel(u, 1, activeLocale)}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
           {NUMBER_FIELDS.map((key) => (
             <div key={key}>

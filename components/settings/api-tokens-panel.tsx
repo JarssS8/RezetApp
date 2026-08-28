@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { CheckIcon, CopyIcon, PlusIcon, TrashIcon } from '@/components/icons'
 import type { ActionResult } from '@/lib/actions/result'
 import { API_SCOPES } from '@/lib/validation/tokens'
@@ -215,15 +216,10 @@ function CreateTokenDialog({ createAction }: { createAction: CreateApiTokenFn })
             </fieldset>
             <div className="flex flex-col gap-2">
               <Label htmlFor="token-profile">{t('tokens.profile')}</Label>
-              <select
-                id="token-profile"
-                className="min-h-11 rounded-sm border border-input bg-transparent px-2.5 text-sm"
-                value={mcpProfile}
-                onChange={(e) => setMcpProfile(e.target.value === 'full' ? 'full' : 'basic')}
-              >
+              <NativeSelect id="token-profile" value={mcpProfile} onChange={(e) => setMcpProfile(e.target.value === 'full' ? 'full' : 'basic')}>
                 <option value="basic">{t('tokens.profiles.basic')}</option>
                 <option value="full">{t('tokens.profiles.full')}</option>
-              </select>
+              </NativeSelect>
             </div>
             {error && (
               <p role="alert" className="text-sm text-warn">

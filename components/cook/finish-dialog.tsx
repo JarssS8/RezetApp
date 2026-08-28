@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { ServingsStepper } from '@/components/recipes/servings-stepper'
 import { logCookedAction, type CookedResult } from '@/lib/actions/cooking'
 import { actionErrorKey } from '@/lib/actions/result'
@@ -90,17 +91,17 @@ export function FinishCookingDialog({ recipeId, entryId, servings, sourceSlot }:
             <div className="flex flex-col gap-3 rounded-sm bg-surface-2 p-3">
               <div className="flex flex-col gap-1">
                 <Label htmlFor="cook-leftover-date">{t('leftoverDate')}</Label>
-                <Input id="cook-leftover-date" type="date" value={leftoverDate} onChange={(ev) => setLeftoverDate(ev.target.value)} className="h-11" />
+                <Input id="cook-leftover-date" type="date" value={leftoverDate} onChange={(ev) => setLeftoverDate(ev.target.value)} />
               </div>
               <div className="flex flex-col gap-1">
                 <Label htmlFor="cook-leftover-slot">{t('leftoverSlot')}</Label>
-                <select id="cook-leftover-slot" value={leftoverSlot} onChange={(ev) => setLeftoverSlot(ev.target.value as MealSlot)} className="h-11 rounded-sm border border-border bg-transparent px-2 text-sm">
+                <NativeSelect id="cook-leftover-slot" value={leftoverSlot} onChange={(ev) => setLeftoverSlot(ev.target.value as MealSlot)}>
                   {MEAL_SLOTS.map((s) => (
                     <option key={s} value={s}>
                       {t(`slots.${s}`)}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm">{t('leftoverServings')}</span>
