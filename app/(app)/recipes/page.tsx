@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { PlusIcon, SettingsIcon, UploadIcon } from '@/components/icons'
+import { PlusIcon, RecipesIcon, SettingsIcon, UploadIcon } from '@/components/icons'
 import { CollectionBar } from '@/components/recipes/collection-bar'
 import { RecipeCard } from '@/components/recipes/recipe-card'
 import { RecipeFilters } from '@/components/recipes/recipe-filters'
 import { RecipesLiveRefresh } from '@/components/recipes/recipes-live-refresh'
 import { TagFilter } from '@/components/recipes/tag-filter'
+import { EmptyState } from '@/components/ui/empty-state'
 import { requireHousehold } from '@/lib/auth/guards'
 import { listCollections } from '@/lib/services/collections'
 import { searchRecipes } from '@/lib/services/recipes'
@@ -51,17 +52,17 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
   return (
     <main>
       <RecipesLiveRefresh />
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl">{t('title')}</h1>
-        <div className="flex gap-1">
-          <Link href="/recipes/import" aria-label={t('import.title')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="title-screen">{t('title')}</h1>
+        <div className="flex items-center gap-1">
+          <Link href="/recipes/import" aria-label={t('import.title')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2">
             <UploadIcon />
           </Link>
-          <Link href="/recipes/new" aria-label={t('new')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
-            <PlusIcon />
-          </Link>
-          <Link href="/settings" aria-label={c('settings')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
+          <Link href="/settings" aria-label={c('settings')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2">
             <SettingsIcon />
+          </Link>
+          <Link href="/recipes/new" aria-label={t('new')} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-pill bg-primary text-primary-foreground">
+            <PlusIcon />
           </Link>
         </div>
       </div>
@@ -69,7 +70,9 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
       <TagFilter tags={tags.filter((tag) => tag.recipeCount > 0 || tag.parentId === null)} selected={query.tags ?? []} baseParams={baseParams} />
       <CollectionBar collections={collections} currentQuery={currentQuery} />
       {items.length === 0 ? (
-        <p className="mt-6 text-text-2">{total === 0 && !query.q ? t('empty') : t('noResults')}</p>
+        <div className="mt-6">
+          <EmptyState icon={RecipesIcon} title={total === 0 && !query.q ? t('empty') : t('noResults')} />
+        </div>
       ) : (
         <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {items.map((r) => (
