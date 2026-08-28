@@ -23,14 +23,14 @@ export default async function PantryPage({ searchParams }: PantryPageProps) {
   const expiring = await expiringPantry(ctx, household.expiryAlertDays)
 
   return (
-    <main>
+    <main className="view-enter">
       <div className="flex items-center justify-between gap-2">
         <h1 className="title-screen">{t('title')}</h1>
         <div className="flex items-center gap-1">
-          <Link href="/pantry/merge" aria-label={t('merge.title')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2">
+          <Link href="/pantry/merge" aria-label={t('merge.title')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2 transition-colors duration-(--dur-1) ease-(--ease-out) hover:text-text">
             <MergeIcon />
           </Link>
-          <Link href="/pantry/scan" aria-label={t('scan.title')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2">
+          <Link href="/pantry/scan" aria-label={t('scan.title')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2 transition-colors duration-(--dur-1) ease-(--ease-out) hover:text-text">
             <BarcodeIcon />
           </Link>
           <Link href="/pantry/add" aria-label={t('add')} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-pill bg-primary text-primary-foreground">

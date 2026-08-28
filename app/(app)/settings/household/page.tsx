@@ -19,7 +19,7 @@ export default async function Page() {
   const canLeave = !isOwner || ownerCount > 1
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="view-enter flex flex-col gap-8">
       <div>
         <h2 className="text-lg">{t('sections.household')}</h2>
         <div className="mt-4">

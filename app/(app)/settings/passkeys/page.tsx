@@ -10,7 +10,7 @@ export default async function Page() {
   const ctx = await requireHousehold()
   const passkeys = await listPasskeys(ctx)
   return (
-    <div className="flex flex-col gap-4">
+    <div className="view-enter flex flex-col gap-4">
       <h2 className="text-lg">{t('sections.passkeys')}</h2>
       <AddPasskeyButton />
       <PasskeysPanel passkeys={passkeys} renameAction={renamePasskeyAction} removeAction={removePasskeyAction} />

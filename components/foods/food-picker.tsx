@@ -157,7 +157,15 @@ export function FoodPicker({ value, onChange, locale, onCreateNew, allowBarcode,
             onBlur={() => setTimeout(() => setOpen(false), 120)}
           />
           {open && optionCount > 0 && (
-            <ul id={listboxId} role="listbox" className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-card shadow-card">
+            // Entrada suave del desplegable (W6.5, §7): antes aparecía de
+            // golpe. `starting:` + 140ms porque es un combobox que se abre y
+            // cierra sin parar mientras se escribe: tiene que sentirse
+            // inmediato, no un desplegable "grande".
+            <ul
+              id={listboxId}
+              role="listbox"
+              className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-card shadow-card transition-opacity duration-(--dur-1) ease-(--ease-out) starting:opacity-0"
+            >
               {items.map((f, i) => (
                 <li
                   key={f.id}

@@ -9,7 +9,7 @@ export default async function Page() {
   const ctx = await requireHousehold()
   const members = await listMembers(ctx)
   return (
-    <div>
+    <div className="view-enter">
       <h2 className="text-lg">{t('sections.members')}</h2>
       <div className="mt-4">
         <MembersPanel

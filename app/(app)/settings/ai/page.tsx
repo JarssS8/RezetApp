@@ -15,7 +15,7 @@ export default async function Page() {
   const ctx = await requireHousehold()
   const settings = await getAiSettings(ctx)
   return (
-    <div>
+    <div className="view-enter">
       <h2 className="text-lg">{t('sections.ai')}</h2>
       <div className="mt-4 max-w-md">
         <AiSettingsForm

@@ -45,7 +45,7 @@ export function TodayView({ date, entries, progress, expiring, aiEnabled }: Toda
   const dateLabel = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`))
 
   return (
-    <main className="flex flex-col gap-5 pb-4">
+    <main className="view-enter flex flex-col gap-5 pb-4">
       <h1 className="title-screen">{t('title')}</h1>
 
       <KcalRing
@@ -60,11 +60,15 @@ export function TodayView({ date, entries, progress, expiring, aiEnabled }: Toda
         // El vacío entero es la invitación: así el enlace conserva el nombre
         // accesible que ya tenía (today.emptyPlanLink) y e2e/today.spec.ts:9
         // sigue encontrándolo, sin añadir ni una clave.
-        <Link href="/plan">
+        <Link href="/plan" className="view-enter block">
           <EmptyState icon={PlanIcon} title={t('emptyPlanLink')} />
         </Link>
       ) : (
-        <div className="flex flex-col gap-3">
+        // view-enter también aquí (sweep §10): esta rama y la del vacío de
+        // arriba son alternativas excluyentes; sin las dos, el intercambio
+        // entre "nada planificado" y "hay comidas" (un evento SSE, por
+        // ejemplo) se veía instantáneo al lado de todo lo demás que ya anima.
+        <div className="view-enter flex flex-col gap-3">
           {MEAL_SLOTS.map((slot) => {
             const ofSlot = entries.filter((e) => e.slot === slot)
             if (ofSlot.length === 0) return null

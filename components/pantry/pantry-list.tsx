@@ -38,6 +38,11 @@ export function PantryList({ items, unitSystem }: PantryListProps) {
   }, [])
 
   const visible = items.filter((item) => !removedIds.has(item.id))
+  // Índice global (no por ubicación) para la entrada escalonada del primer
+  // pintado (W6.5, §2): recortado a 8 antes de llegar a PantryRow, igual que
+  // la parrilla de recetas. Es un contador de renderizado, no estado de
+  // React: no necesita sobrevivir a un re-render, solo numerar esta pasada.
+  let staggerIndex = 0
 
   return (
     <div className="mt-4 flex flex-col gap-6">
@@ -55,7 +60,7 @@ export function PantryList({ items, unitSystem }: PantryListProps) {
               </h2>
               <ul className="flex flex-col gap-2">
                 {group.map((item) => (
-                  <PantryRow key={item.id} item={item} unitSystem={unitSystem} onRemoved={handleRemoved} />
+                  <PantryRow key={item.id} item={item} unitSystem={unitSystem} onRemoved={handleRemoved} staggerIndex={Math.min(staggerIndex++, 8)} />
                 ))}
               </ul>
             </section>

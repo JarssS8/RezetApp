@@ -16,7 +16,7 @@ export default async function Page() {
   const deepLink = linkResult.ok ? linkResult.data.deepLink : null
 
   return (
-    <div>
+    <div className="view-enter">
       <h2 className="text-lg">{t('sections.shoplist')}</h2>
       <div className="mt-4 max-w-md">
         <ShoplistSettingsForm

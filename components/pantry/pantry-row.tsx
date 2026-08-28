@@ -1,6 +1,6 @@
 'use client'
 import { useLocale, useTranslations } from 'next-intl'
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { toast } from 'sonner'
 import { MinusIcon, PlusIcon, TrashIcon, WarningIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -26,11 +26,15 @@ export interface PantryRowProps {
   // Inyectables para tests; por defecto las server actions reales.
   adjust?: (itemId: string, delta: number) => Promise<ActionResult<PantryItemRow>>
   remove?: (id: string) => Promise<ActionResult<void>>
+  // Entrada escalonada del primer pintado (W6.5, §2): índice YA recortado a 8
+  // por quien la llama (pantry-list.tsx). Sin ella, la fila no anima entrada
+  // (los tests de este componente no la pasan, y no la necesitan).
+  staggerIndex?: number
 }
 
 // Fila de despensa: nombre, cantidad en unidad de presentación, stepper de
 // ajuste rápido (optimista) y aviso de caducidad. Ver docs/03-DOMINIO.md.
-export function PantryRow({ item, unitSystem, onRemoved, adjust = adjustPantryItemAction, remove = removePantryItemAction }: PantryRowProps) {
+export function PantryRow({ item, unitSystem, onRemoved, adjust = adjustPantryItemAction, remove = removePantryItemAction, staggerIndex }: PantryRowProps) {
   const t = useTranslations('pantry')
   const te = useTranslations('errors')
   const locale = useLocale()
@@ -97,6 +101,10 @@ export function PantryRow({ item, unitSystem, onRemoved, adjust = adjustPantryIt
   return (
     <li
       data-removing={removing ? 'true' : undefined}
+      // staggerIndex solo llega del primer pintado (pantry-list.tsx): un
+      // ajuste optimista no vuelve a montar la fila, así que `stagger-in`
+      // (una animación de un solo disparo) no se repite en cada ajuste.
+      style={staggerIndex !== undefined ? ({ '--stagger-i': staggerIndex } as CSSProperties) : undefined}
       // Animación #2 del informe: dos pasos. Se marca la fila, se deja que la
       // transición corra y solo entonces se avisa al padre, que la saca del
       // array. `max-height` va con un pelín de retardo para que primero se
@@ -104,6 +112,7 @@ export function PantryRow({ item, unitSystem, onRemoved, adjust = adjustPantryIt
       className={cn(
         'flex max-h-24 items-center gap-3 overflow-hidden rounded-md border border-line-2 bg-card px-3 py-2.5 shadow-card',
         'transition-[opacity,transform,max-height] duration-(--dur-2) ease-(--ease-in)',
+        staggerIndex !== undefined && 'stagger-in',
         removing && 'max-h-0 scale-[.97] py-0 opacity-0',
       )}
     >

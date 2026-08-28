@@ -7,7 +7,7 @@ import { ImportButton } from '@/components/settings/import-button'
 export default async function Page() {
   const t = await getTranslations('settings')
   return (
-    <div>
+    <div className="view-enter">
       <h2 className="text-lg">{t('sections.data')}</h2>
       <p className="mt-1 text-text-2">{t('data.exportHint')}</p>
       <div className="mt-3">

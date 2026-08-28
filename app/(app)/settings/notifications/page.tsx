@@ -8,7 +8,7 @@ export default async function Page() {
   const t = await getTranslations('settings')
   const subs = ctx.userId ? await listPushSubscriptions(ctx.db, ctx.userId) : []
   return (
-    <div>
+    <div className="view-enter">
       <h2 className="text-lg">{t('sections.notifications')}</h2>
       <p className="mt-1 text-text-2">{t('notifications.hint')}</p>
       <div className="mt-3">

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
+import type { CSSProperties } from 'react'
 import { PlusIcon, RecipesIcon, SettingsIcon, UploadIcon } from '@/components/icons'
 import { CollectionBar } from '@/components/recipes/collection-bar'
 import { RecipeCard } from '@/components/recipes/recipe-card'
@@ -50,15 +51,15 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
   })
 
   return (
-    <main>
+    <main className="view-enter">
       <RecipesLiveRefresh />
       <div className="flex items-center justify-between gap-2">
         <h1 className="title-screen">{t('title')}</h1>
         <div className="flex items-center gap-1">
-          <Link href="/recipes/import" aria-label={t('import.title')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2">
+          <Link href="/recipes/import" aria-label={t('import.title')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2 transition-colors duration-(--dur-1) ease-(--ease-out) hover:text-text">
             <UploadIcon />
           </Link>
-          <Link href="/settings" aria-label={c('settings')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2">
+          <Link href="/settings" aria-label={c('settings')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2 transition-colors duration-(--dur-1) ease-(--ease-out) hover:text-text">
             <SettingsIcon />
           </Link>
           <Link href="/recipes/new" aria-label={t('new')} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-pill bg-primary text-primary-foreground">
@@ -75,8 +76,12 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
         </div>
       ) : (
         <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {items.map((r) => (
-            <li key={r.id}>
+          {items.map((r, i) => (
+            // Entrada escalonada del primer pintado (W6.5, §2): el índice se
+            // recorta a 8 antes de llegar al CSS (informe: pasado eso, el
+            // retraso se lee como espera). `stagger-in` es decorativa
+            // (app/globals.css): nunca bloquea el clic mientras corre.
+            <li key={r.id} className="stagger-in" style={{ '--stagger-i': Math.min(i, 8) } as CSSProperties}>
               <RecipeCard recipe={r} />
             </li>
           ))}

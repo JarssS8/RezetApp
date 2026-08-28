@@ -105,7 +105,13 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
             </Button>
           </div>
         ) : (
-          <Badge variant={proposal.status === 'approved' ? 'default' : 'secondary'}>{t(`proposals.${proposal.status}`)}</Badge>
+          // view-enter (sweep §10): al aprobar/descartar, los dos botones se
+          // sustituyen por esta etiqueta; sin la entrada suave el cambio se
+          // veía como un parpadeo al lado del resto de la tarjeta, que ya
+          // anima en otros sitios.
+          <span className="view-enter inline-block">
+            <Badge variant={proposal.status === 'approved' ? 'default' : 'secondary'}>{t(`proposals.${proposal.status}`)}</Badge>
+          </span>
         )}
       </div>
       {groups.map((group) => (

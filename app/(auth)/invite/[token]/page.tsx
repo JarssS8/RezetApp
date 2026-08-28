@@ -13,7 +13,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const invite = await getInviteInfo(token)
   if (!invite) {
     return (
-      <Card className="mx-auto w-full max-w-sm p-6">
+      <Card className="view-enter mx-auto w-full max-w-sm p-6">
         <p role="alert">{t('invite.invalid')}</p>
       </Card>
     )
@@ -21,7 +21,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const session = await getCurrentSession()
   const locale = (await getLocale()) === 'en' ? 'en' : 'es'
   return (
-    <Card className="mx-auto w-full max-w-sm p-6 shadow-hero">
+    <Card className="view-enter mx-auto w-full max-w-sm p-6 shadow-hero">
       <h1 className="title-content">{t('invite.title', { household: invite.householdName })}</h1>
       <p className="mt-1 text-sm text-text-2">{t('invite.by', { name: invite.invitedBy })}</p>
       {session ? (

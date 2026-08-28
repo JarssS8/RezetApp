@@ -17,7 +17,7 @@ export default async function CookPage() {
   const cookable = entries.filter((e) => e.recipeId !== null && e.leftoverOfEntryId === null && e.status === 'planned')
 
   return (
-    <main>
+    <main className="view-enter">
       <h1 className="title-screen">{t('title')}</h1>
       {cookable.length === 0 ? (
         <div className="mt-4">

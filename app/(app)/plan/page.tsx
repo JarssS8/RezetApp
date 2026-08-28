@@ -54,7 +54,7 @@ export default async function PlanPage({ searchParams }: PlanPageProps) {
   const parsedAddServings = addServingsRaw ? Number.parseInt(addServingsRaw, 10) : 0
 
   return (
-    <main className="flex flex-col gap-3 pb-4">
+    <main className="view-enter flex flex-col gap-3 pb-4">
       <h1 className="title-screen">{t('title')}</h1>
       <WeekView
         monday={monday}

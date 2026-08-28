@@ -13,7 +13,7 @@ export default async function RegisterPage() {
   // Registro cerrado (regla W1-R18): sin invitación no hay formulario que valga
   const open = await registrationOpen()
   return (
-    <Card className="mx-auto w-full max-w-sm p-6 shadow-hero">
+    <Card className="view-enter mx-auto w-full max-w-sm p-6 shadow-hero">
       <h1 className="title-content">{t('register.title')}</h1>
       <div className="mt-6">
         {open ? <PasskeyRegisterForm locale={locale} /> : <p role="status">{t('register.closed')}</p>}

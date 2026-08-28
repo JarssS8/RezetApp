@@ -17,7 +17,7 @@ export default async function Page() {
     units: user.units,
   }
   return (
-    <div>
+    <div className="view-enter">
       <h2 className="text-lg">{t('sections.appearance')}</h2>
       <div className="mt-4">
         <AppearanceForm initial={initial} updateAction={updateUserPrefsAction} />

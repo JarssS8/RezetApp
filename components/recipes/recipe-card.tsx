@@ -19,7 +19,11 @@ export async function RecipeCard({ recipe }: RecipeCardProps) {
 
   return (
     <Link href={`/recipes/${recipe.id}`} className="block">
-      <Card className="h-full transition-shadow hover:shadow-card">
+      {/* Hover de escritorio (W6.5, §6): la tarjeta se levanta y la sombra
+          crece un escalón. Presión (§3): active:scale-[.98], mismo presupuesto
+          --dur-2 que el hover para no mezclar dos duraciones en una tarjeta
+          que solo tiene una transición declarada. */}
+      <Card className="h-full transition-[transform,box-shadow] duration-(--dur-2) ease-(--ease-out) hover:-translate-y-0.5 hover:shadow-raised active:scale-[.98]">
         {recipe.imageUrl ? (
           // Imagen servida desde el volumen local (mismo origen): next/image
           // no aporta aquí (ya sale de saveImage en 1600 px máx./webp) y

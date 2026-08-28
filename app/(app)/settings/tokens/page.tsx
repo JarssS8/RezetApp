@@ -9,7 +9,7 @@ export default async function Page() {
   const ctx = await requireHousehold()
   const tokens = await listApiTokens(ctx)
   return (
-    <div>
+    <div className="view-enter">
       <h2 className="text-lg">{t('sections.tokens')}</h2>
       <div className="mt-4">
         <ApiTokensPanel tokens={tokens} isOwner={ctx.role === 'owner'} createAction={createApiTokenAction} revokeAction={revokeApiTokenAction} />
