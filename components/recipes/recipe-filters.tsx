@@ -54,13 +54,22 @@ export function RecipeFilters({ initial }: RecipeFiltersProps) {
         aria-label={t('filters.search')}
         className="w-full sm:w-48"
       />
+      {/* variant cambia a ghost cuando está seleccionado: outline trae
+          bg-background (capa utilities), que compite con el fondo de
+          pill-selected por la misma propiedad; ghost no fija ninguno en
+          reposo, así que la píldora lo tiene para ella sola. El borde va
+          aparte: `border` (con o sin color) es una clase BASE del propio
+          Button (cva), fuera de este fichero, así que ghost no la quita —
+          border-acc-line se añade a mano para que `cn` (twMerge) descarte el
+          `border-transparent` de esa base antes de que el navegador tenga que
+          arbitrar entre dos reglas de la misma capa. */}
       <div role="group" aria-label={t('filters.difficulty')} className="flex flex-wrap gap-1">
         <Button
           type="button"
           size="sm"
-          variant="outline"
+          variant={difficulty === undefined ? 'ghost' : 'outline'}
           aria-pressed={difficulty === undefined}
-          className={cn('rounded-pill', difficulty === undefined && 'pill-selected')}
+          className={cn('rounded-pill', difficulty === undefined && 'pill-selected border-acc-line')}
           onClick={() => setDifficulty(undefined)}
         >
           {t('filters.any')}
@@ -70,9 +79,9 @@ export function RecipeFilters({ initial }: RecipeFiltersProps) {
             key={d}
             type="button"
             size="sm"
-            variant="outline"
+            variant={difficulty === d ? 'ghost' : 'outline'}
             aria-pressed={difficulty === d}
-            className={cn('rounded-pill', difficulty === d && 'pill-selected')}
+            className={cn('rounded-pill', difficulty === d && 'pill-selected border-acc-line')}
             onClick={() => setDifficulty(d)}
           >
             {t(`filters.${d}`)}

@@ -57,12 +57,22 @@ export function TagFilter({ tags, selected, baseParams }: TagFilterProps) {
       {roots.map((root) => (
         <div key={root.id}>
           <h3>
+            {/* variant cambia a ghost cuando está seleccionado: outline trae
+                bg-background (capa utilities), que compite con el fondo de
+                pill-selected por la misma propiedad; ghost no lo fija en
+                reposo, así que la píldora lo tiene para ella sola. El borde
+                va aparte: `border` (con o sin color) es una clase BASE del
+                propio Button (cva), fuera de este fichero, así que ghost no
+                la quita — border-acc-line se añade a mano para que `cn`
+                (twMerge) descarte el `border-transparent` de esa base antes
+                de que el navegador tenga que arbitrar entre dos reglas de la
+                misma capa. */}
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant={selected.includes(root.slug) ? 'ghost' : 'outline'}
               aria-pressed={selected.includes(root.slug)}
-              className={cn('rounded-pill', selected.includes(root.slug) && 'pill-selected')}
+              className={cn('rounded-pill', selected.includes(root.slug) && 'pill-selected border-acc-line')}
               onClick={() => toggle(root.slug)}
             >
               {displayTagName(root, locale)}
@@ -75,9 +85,9 @@ export function TagFilter({ tags, selected, baseParams }: TagFilterProps) {
                   <Button
                     type="button"
                     size="sm"
-                    variant="outline"
+                    variant={selected.includes(child.slug) ? 'ghost' : 'outline'}
                     aria-pressed={selected.includes(child.slug)}
-                    className={cn('rounded-pill', selected.includes(child.slug) && 'pill-selected')}
+                    className={cn('rounded-pill', selected.includes(child.slug) && 'pill-selected border-acc-line')}
                     onClick={() => toggle(child.slug)}
                   >
                     {displayTagName(child, locale)}

@@ -164,10 +164,26 @@ describe('tokens de diseño', () => {
 })
 
 describe('utilidades de composición', () => {
-  it('la hoja que compila define las seis clases de W6 en @layer components', () => {
-    for (const cls of ['.title-screen', '.title-content', '.num-hero', '.num-lead', '.pill-selected', '.cn-toast']) {
+  it('la hoja que compila define las cinco clases de W6 que siguen en @layer components', () => {
+    for (const cls of ['.title-screen', '.title-content', '.num-hero', '.num-lead', '.cn-toast']) {
       expect(COMPILED, `falta ${cls}`).toContain(`${cls} {`)
     }
+  })
+
+  it('pill-selected vive en la capa utilities de Tailwind, no en components', () => {
+    // Fix del informe de Tarea 5: Tailwind v4 fija el orden de capas
+    // `theme, base, components, utilities` y una capa posterior gana SIEMPRE a
+    // una anterior sobre la misma propiedad, sin importar el orden de las
+    // clases en el JSX. Con la píldora en `components`, un botón
+    // `variant="outline"` (bg-background/border-border de `utilities`) se
+    // comía su fondo y su borde. Declarada con `@utility` entra en la capa
+    // `utilities` y compite en igualdad de condiciones. Ver comentario junto
+    // a la declaración en app/globals.css y en design-tokens.css.
+    expect(COMPILED, 'pill-selected debe declararse con @utility').toContain('@utility pill-selected {')
+    expect(COMPILED, 'pill-selected no debe quedar en @layer components').not.toContain('.pill-selected {')
+    // design-tokens.css no pasa por el compilador de Tailwind: ahí se queda
+    // como clase plana de referencia, documentando por qué difiere.
+    expect(DOC, 'design-tokens.css sigue documentando la clase plana').toContain('.pill-selected {')
   })
 
   it('las cifras protagonistas se pintan con la familia display, no con la monoespaciada', () => {

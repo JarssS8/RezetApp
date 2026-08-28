@@ -8,6 +8,28 @@
   }
 }
 
+/* EL estado seleccionado de la app. Hasta W6 solo lo tenía settings-nav.tsx y
+   el resto se conformaba con gris sobre gris (los filtros de recetas) o con
+   un cambio de color de texto (la barra inferior). Nunca es la única señal:
+   quien lo use pone además aria-current o aria-pressed.
+   Declarada con `@utility` (no `.pill-selected` dentro de `@layer components`,
+   como salió en la primera versión): Tailwind v4 fija el orden de capas
+   `theme, base, components, utilities` y una capa posterior gana SIEMPRE a una
+   anterior sobre la misma propiedad, sin que importe el orden de las clases en
+   el JSX ni la especificidad. Con la regla en `components`, cualquier botón
+   `variant="outline"` (que trae `bg-background`/`border-border` de la capa
+   `utilities`) se comía el fondo y el borde de la píldora, y solo se veía el
+   cambio de color de texto. Como `@utility`, la regla vive en `utilities`
+   junto a esas clases y compite en igualdad de condiciones. */
+@utility pill-selected {
+  background: var(--acc-soft);
+  color: var(--acc-ink);
+  border-color: var(--acc-line);
+  &:hover {
+    background: var(--acc-soft-2);
+  }
+}
+
 /* ---------- Tokens · dirección «Mercado» ---------- */
 :root {
   --acc: #2F9E6B;
@@ -286,19 +308,6 @@
     line-height: 1.05;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
-  }
-
-  /* EL estado seleccionado de la app. Hasta W6 solo lo tenía settings-nav.tsx
-     y el resto se conformaba con gris sobre gris (los filtros de recetas) o
-     con un cambio de color de texto (la barra inferior). Nunca es la única
-     señal: quien lo use pone además aria-current o aria-pressed. */
-  .pill-selected {
-    background: var(--acc-soft);
-    color: var(--acc-ink);
-    border-color: var(--acc-line);
-  }
-  .pill-selected:hover {
-    background: var(--acc-soft-2);
   }
 
   /* La clase que sonner aplica desde W0 (components/ui/sonner.tsx:21) y que no

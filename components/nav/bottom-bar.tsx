@@ -38,7 +38,13 @@ export function BottomBar() {
                     no se toca (AGENTS.md), solo se pinta lo que hay dentro. El
                     trazo del icono engorda a 2.2 en la pestaña activa: es la
                     segunda señal, además del fondo, y la que se lee de reojo. */}
-                <span className={cn('flex items-center justify-center rounded-pill border border-transparent px-4 py-0.5', active && 'pill-selected')}>
+                {/* border-transparent y pill-selected nunca van juntas: las dos
+                    tocan border-color y, aunque pill-selected ya vive en la
+                    capa utilities de Tailwind (ver app/globals.css), un
+                    empate ahí se resuelve por orden de aparición en la hoja
+                    compilada, no por el orden de las clases aquí — más
+                    seguro no dejar que compitan. */}
+                <span className={cn('flex items-center justify-center rounded-pill border px-4 py-0.5', active ? 'pill-selected' : 'border-transparent')}>
                   <Icon size={24} strokeWidth={active ? 2.2 : 1.85} />
                 </span>
                 <span>{t(`nav.${labelKey}`)}</span>

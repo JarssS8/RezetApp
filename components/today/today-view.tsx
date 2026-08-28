@@ -69,8 +69,12 @@ export function TodayView({ date, entries, progress, expiring, aiEnabled }: Toda
                     <li key={e.id} className="flex min-h-14 items-center gap-3 rounded-md border border-border bg-card px-3" data-status={e.status}>
                       <span className="flex-1 truncate font-medium">{e.title}</span>
                       <span className="tabular shrink-0 text-xs text-text-2">{tp('servingsShort', { n: e.servings })}</span>
+                      {/* Este chip solo se pinta cuando está cocinado: sin
+                          border-transparent, que competiría con el
+                          border-color de pill-selected por la misma
+                          propiedad (ver app/globals.css). */}
                       {e.status === 'cooked' ? (
-                        <span className="rounded-pill border border-transparent px-2 py-0.5 text-xs font-medium pill-selected">{tp('cooked')}</span>
+                        <span className="rounded-pill border px-2 py-0.5 text-xs font-medium pill-selected">{tp('cooked')}</span>
                       ) : e.recipeId && !e.leftoverOfEntryId ? (
                         <Link href={`/cook/${e.id}`} aria-label={c('nav.cook')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
                           <CookIcon size={20} />
