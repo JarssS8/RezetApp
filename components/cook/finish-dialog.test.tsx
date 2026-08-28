@@ -88,4 +88,16 @@ describe('FinishCookingDialog', () => {
     await user.click(closeButton)
     expect(logCookedAction).toHaveBeenCalledTimes(1)
   })
+
+  it('el bloque de sobras se despliega en vez de aparecer, y no atrapa el foco cerrado', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    await user.click(screen.getByRole('button', { name: /he terminado/i }))
+    // El campo de fecha vive siempre en el DOM (grid-rows anima el alto);
+    // cerrado, su contenedor lleva `inert` para que el foco no caiga dentro.
+    const dateInput = screen.getByLabelText(/^día$/i)
+    expect(dateInput.closest('[inert]')).not.toBeNull()
+    await user.click(screen.getByRole('checkbox', { name: /sobras/i }))
+    expect(dateInput.closest('[inert]')).toBeNull()
+  })
 })

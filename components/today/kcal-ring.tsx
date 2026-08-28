@@ -55,8 +55,8 @@ export function KcalRing({ plannedKcal, cookedKcal, isEstimated, hasUnknownKcal,
         <div className="flex flex-col">
           {/* Animación #1 del informe: hasta W6 el anillo saltaba al valor nuevo
               al cocinar o al llegar un evento SSE. 500 ms, solo strokeDashoffset,
-              nunca el color. prefers-reduced-motion ya lo anula globalmente
-              (app/globals.css). */}
+              nunca el color. El interruptor global de accesibilidad de
+              app/globals.css ya lo anula. */}
           <span className="num-hero">{nf.format(cookedKcal)}</span>
           <span className="tabular text-sm text-text-2">{t('ofPlanned', { planned: nf.format(plannedKcal) })}</span>
           {isEstimated ? <span className="text-xs text-text-2">{t('estimated')}</span> : null}

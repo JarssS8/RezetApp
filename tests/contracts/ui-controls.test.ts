@@ -86,10 +86,9 @@ describe('puerta de entrada', () => {
 })
 
 describe('jerarquía y contraste de la interfaz', () => {
-  // La sesión de cocina la reescribe entera la pista (c) de W6 (Tarea 13), que
-  // le pone su .title-content; hasta que esa pista mergee, es la única
-  // excepción de esta regla. La Tarea 13 vacía esta lista.
-  const PENDING = ['components/cook/cook-session.tsx']
+  // La Tarea 13 le puso su .title-content a la sesión de cocina: la lista ya
+  // no tiene excepciones.
+  const PENDING: string[] = []
 
   it('ninguna cabecera se pinta a mano: todas usan .title-screen o .title-content', () => {
     const offenders = [...sourceFiles('components'), ...sourceFiles('app')]

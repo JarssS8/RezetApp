@@ -233,12 +233,17 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
 
       <div className="flex flex-col gap-4 rounded-lg border border-line-2 bg-card p-4 shadow-card">
         {step ? (
-          <p data-testid="cook-step" className={cn('text-balance leading-snug', wall ? 'text-4xl' : 'text-2xl')}>
-            {step.text}
-          </p>
+          // Animación #4: el bloque entra con @starting-style desde opacidad 0.
+          // 140 ms y solo opacidad: se toca decenas de veces por sesión y con las
+          // manos mojadas, así que tiene que ser casi imperceptible. La `key`
+          // fuerza el remontaje por paso, que es lo que dispara la entrada.
+          <div key={step.id} className="flex flex-col gap-4 transition-opacity duration-(--dur-1) ease-(--ease-out) starting:opacity-0">
+            <p data-testid="cook-step" className={cn('text-balance leading-snug', wall ? 'text-4xl' : 'text-2xl')}>
+              {step.text}
+            </p>
+            <StepTimers text={step.text} locale={locale} stepIndex={index} timerSeconds={step.timerSeconds} />
+          </div>
         ) : null}
-
-        {step ? <StepTimers text={step.text} locale={locale} stepIndex={index} timerSeconds={step.timerSeconds} /> : null}
       </div>
 
       {wall || stepRows.length > 0 ? <IngredientChecklist rows={stepRows} checked={checked} onToggle={toggle} /> : null}

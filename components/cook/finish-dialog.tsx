@@ -87,28 +87,36 @@ export function FinishCookingDialog({ recipeId, entryId, servings, sourceSlot }:
             <input type="checkbox" checked={withLeftovers} onChange={(ev) => setWithLeftovers(ev.target.checked)} className="size-5 accent-primary" />
             <span>{t('leftovers')}</span>
           </label>
-          {withLeftovers ? (
-            <div className="flex flex-col gap-3 rounded-sm bg-surface-2 p-3">
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="cook-leftover-date">{t('leftoverDate')}</Label>
-                <Input id="cook-leftover-date" type="date" value={leftoverDate} onChange={(ev) => setLeftoverDate(ev.target.value)} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="cook-leftover-slot">{t('leftoverSlot')}</Label>
-                <NativeSelect id="cook-leftover-slot" value={leftoverSlot} onChange={(ev) => setLeftoverSlot(ev.target.value as MealSlot)}>
-                  {MEAL_SLOTS.map((s) => (
-                    <option key={s} value={s}>
-                      {t(`slots.${s}`)}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm">{t('leftoverServings')}</span>
-                <ServingsStepper value={leftoverServings} onChange={setLeftoverServings} />
+          <div
+            data-open={withLeftovers ? 'true' : undefined}
+            // Animación #5: hasta W6 el bloque aparecía de golpe y el diálogo
+            // pegaba un salto de tamaño. grid-rows de 0fr a 1fr es la forma de
+            // animar "alto automático" sin medir nada en JavaScript.
+            className="group grid grid-rows-[0fr] transition-[grid-template-rows] duration-(--dur-2) ease-in-out data-open:grid-rows-[1fr]"
+          >
+            <div className="overflow-hidden" inert={withLeftovers ? undefined : true}>
+              <div className="flex flex-col gap-3 rounded-sm bg-surface-sunken p-3 opacity-0 transition-opacity duration-(--dur-2) delay-75 ease-(--ease-out) group-data-open:opacity-100">
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="cook-leftover-date">{t('leftoverDate')}</Label>
+                  <Input id="cook-leftover-date" type="date" value={leftoverDate} onChange={(ev) => setLeftoverDate(ev.target.value)} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="cook-leftover-slot">{t('leftoverSlot')}</Label>
+                  <NativeSelect id="cook-leftover-slot" value={leftoverSlot} onChange={(ev) => setLeftoverSlot(ev.target.value as MealSlot)}>
+                    {MEAL_SLOTS.map((s) => (
+                      <option key={s} value={s}>
+                        {t(`slots.${s}`)}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm">{t('leftoverServings')}</span>
+                  <ServingsStepper value={leftoverServings} onChange={setLeftoverServings} />
+                </div>
               </div>
             </div>
-          ) : null}
+          </div>
           {warnings.length > 0 ? (
             <ul aria-label={t('warnings')} className="flex flex-col gap-1 rounded-sm bg-warn-soft p-2 text-sm text-warn-ink">
               {warnings.map((w) => (
