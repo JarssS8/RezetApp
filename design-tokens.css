@@ -18,7 +18,7 @@
   /* Derivados — nunca los escribas a ojo */
   --acc-soft: color-mix(in srgb, var(--acc) 13%, #FFFFFF);
   --acc-ink:  color-mix(in srgb, var(--acc) 78%, #0A2118);
-  --on-acc:   #FFFFFF;
+  --on-acc:   #12261C; /* por defecto (huerta): tinta oscura, 4.7:1 (AA) */
 
   /* Radios */
   --r-lg: 22px;   /* tarjetas, hero */
@@ -72,14 +72,18 @@
 /* Los ocho acentos, sacados de comida. Se aplican con data-accent en :root
    o en cualquier subárbol (una muestra de acento puede llevar su propio
    data-accent sin cambiar el tema de toda la página). */
-[data-accent="huerta"]    { --acc: #2F9E6B; }
-[data-accent="miel"]      { --acc: #D99A2B; }
-[data-accent="tomate"]    { --acc: #CE5540; }
-[data-accent="pistacho"]  { --acc: #7FA344; }
-[data-accent="higo"]      { --acc: #B4557A; }
-[data-accent="berenjena"] { --acc: #8C5A9E; }
-[data-accent="arandano"]  { --acc: #4A7FB5; }
-[data-accent="canela"]    { --acc: #A9764A; }
+/* --on-acc depende solo del acento (es el texto SOBRE el acento), no del
+   tema: se fija por acento al valor que cumple AA (≥4.5:1) sobre ese color.
+   El selector duplicado (:root[...] y [...]) hace que gane también sobre el
+   bloque :root[data-theme="dark"], que declara un --on-acc de reserva. */
+:root[data-accent="huerta"],    [data-accent="huerta"]    { --acc: #2F9E6B; --on-acc: #12261C; } /* 4.7:1 */
+:root[data-accent="miel"],      [data-accent="miel"]      { --acc: #D99A2B; --on-acc: #12261C; } /* 6.5:1 */
+:root[data-accent="tomate"],    [data-accent="tomate"]    { --acc: #CE5540; --on-acc: #0A100D; } /* 4.6:1 */
+:root[data-accent="pistacho"],  [data-accent="pistacho"]  { --acc: #7FA344; --on-acc: #12261C; } /* 5.5:1 */
+:root[data-accent="higo"],      [data-accent="higo"]      { --acc: #B4557A; --on-acc: #FFFFFF; } /* 4.6:1 */
+:root[data-accent="berenjena"], [data-accent="berenjena"] { --acc: #8C5A9E; --on-acc: #FFFFFF; } /* 5.2:1 */
+:root[data-accent="arandano"],  [data-accent="arandano"]  { --acc: #4A7FB5; --on-acc: #0A100D; } /* 4.6:1 */
+:root[data-accent="canela"],    [data-accent="canela"]    { --acc: #A9764A; --on-acc: #0A100D; } /* 4.9:1 */
 
 body {
   background: var(--bg);
