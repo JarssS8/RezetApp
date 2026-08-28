@@ -154,13 +154,31 @@ Los cinco de la barra inferior: sol/plato, sartén, calendario, alacena, libro.
 
 ### Presupuesto de movimiento
 
-Tres duraciones, ninguna suelta en un componente:
+**Decisión del usuario (W6.5, ruling W6-R5 — `.superpowers/sdd/2026-08-28-w6-identidad/progress.md`):**
+el informe de animaciones original (W6) rechazaba cinco animaciones por
+frecuencia de uso o por función — la lista que cerraba esta sección hasta
+entonces. El usuario miró la app desplegada y dijo, dos veces, que seguía sin
+ver movimiento. Es una decisión de gusto, no un error técnico, y la repitió
+tras la primera pasada: su palabra pesa más que la recomendación del informe.
+A partir de W6.5 la interfaz anima en todas partes donde el informe antes lo
+prohibía, dentro de los mismos presupuestos de duración y con el mismo
+interruptor de accesibilidad. Lo que sigue **no puede volver a la política
+anterior** sin que el usuario lo pida otra vez.
+
+Cuatro duraciones, ninguna suelta en un componente (Tailwind: `duration-(--dur-N)`):
 
 | Token | Duración | Para qué |
 |---|---|---|
-| `--dur-1` | 140 ms | Lo que se toca muchas veces (hover, cambio de fila) |
-| `--dur-2` | 200 ms | Estados que se asientan y salidas (desplegables, aparecer/desaparecer) |
+| `--dur-1` | 140 ms | Lo que se toca muchas veces (hover, cambio de fila, barra inferior, stepper, checklist) |
+| `--dur-2` | 200 ms | Estados que se asientan y salidas (diálogos, entrada de pantalla, hover de tarjeta) |
 | `--dur-3` | 500 ms | El anillo de kcal de Hoy |
+| `--dur-4` | 300 ms | El asentado más largo: la hoja inferior (bottom sheet) al abrir |
+
+Dos curvas más allá de `--ease-out`/`--ease-in`: `--ease-spring`
+(`cubic-bezier(.34, 1.56, .64, 1)`), solo para el pop del icono activo de la
+barra inferior — es el único sitio de la app con rebote, a propósito, porque
+se toca decenas de veces al día y el rebote es lo que hace que el cambio de
+pestaña se note sin llamar la atención el resto del tiempo.
 
 Excepción sancionada: el desplegable de sobras de `finish-dialog.tsx` añade
 `delay-75` (75 ms) antes de su `transition-opacity duration-(--dur-2)`, para
@@ -169,16 +187,51 @@ fracción — sin el retraso, el texto se ve encajarse dentro de una caja que a�
 está creciendo. Es la única duración fuera de la tabla; no sienta precedente
 para añadir más sin pasar antes por el informe de animaciones.
 
-Y lo que **no** se anima, a propósito:
+**Entrada de pantalla.** Cada una de las cinco pantallas, las páginas de
+ajustes y las tarjetas de la puerta de entrada (login, registro, invitación)
+llevan `view-enter` (`app/globals.css`, `@utility`): opacidad 0 → 1 y 6 px de
+ascenso, disparado por `@starting-style` en cuanto el contenedor se monta —
+tanto en la carga inicial como en una navegación de cliente, que desmonta el
+contenedor anterior y monta uno nuevo. Sin JavaScript ni estado en React.
 
-- **Barra inferior**: navegación core, se toca decenas de veces al día;
-  cualquier transición ahí es fricción acumulada, no pulido.
-- **Selector de raciones (stepper)**: se toca con prisa mientras se cocina o se
-  ajusta una receta; un retraso ahí estorba más de lo que embellece.
-- **Lista de comprobación de ingredientes**: mismo motivo que el stepper, se
-  marca con prisa.
-- **Propuestas del plan**: al intercambiar una propuesta no hay identidad
-  estable de elemento entre la que sale y la que entra, así que no hay nada
-  que animar de A a B.
-- **Parrilla de recetas**: es contenido funcional, no decoración; un stagger
-  de entrada al cargar sería ruido, no jerarquía.
+**Entrada escalonada del primer pintado.** La parrilla de recetas y las filas
+de despensa usan `stagger-in` (mismo fundido/ascenso, pero por `@keyframes`
+para poder escalonar con `animation-delay`): cada tarjeta o fila fija
+`--stagger-i` por *inline style* con su índice, recortado a 8 antes de llegar
+al CSS — pasado eso, el retraso se lee como espera, no como jerarquía. 40 ms
+por posición.
+
+**Presión.** `components/ui/button.tsx` lleva `active:scale-[.98]` en la base
+compartida por todas las variantes, con `--dur-1`; `recipe-card.tsx` y las
+filas/chips que se tocan (fila de despensa, chip de "cocinar" del plan)
+heredan el mismo gesto porque están construidos sobre `<Button>` o replican su
+transición.
+
+**Barra inferior** (el primer rechazo que W6-R5 levanta): la píldora de la
+pestaña activa y el color de la etiqueta transicionan en `--dur-1`; el icono
+hace un pop de escala (0.9 → 1, `--ease-spring`, `--dur-2`) **solo** al
+volverse activo — no en cada refresco de la pantalla.
+
+**Selector de raciones (stepper) y lista de comprobación de ingredientes**
+(el segundo y el tercer rechazo): se toca con prisa, así que el movimiento se
+queda en el presupuesto más corto, `--dur-1` (140 ms). El stepper remonta su
+número con `key={value}` y lo hace entrar con un fundido de `@starting-style`;
+la fila de la checklist transiciona opacidad y color de texto al marcar, nunca
+la tachadura (`text-decoration` no interpola de forma útil).
+
+**Propuestas del plan** (el cuarto rechazo): la etiqueta de estado
+(aprobada/descartada) que sustituye a los botones «Aprobar»/«Descartar» al
+decidir entra con `view-enter` — no hace falta identidad estable de elemento
+entre A y B para animar algo, solo un elemento nuevo que fundir.
+
+**Parrilla de recetas** (el quinto rechazo): la entrada escalonada de arriba
+vive en `app/(app)/recipes/page.tsx` (el índice), no en `recipe-card.tsx`, que
+sigue siendo un Server Component sin estado. En pantallas de escritorio, la
+tarjeta además se levanta al pasar el ratón (`hover:-translate-y-0.5
+hover:shadow-raised`, `--dur-2`).
+
+**Diálogos y hojas.** Los diálogos suben de 100 ms sueltos a `--dur-2` al
+abrir y `--dur-1` (más rápido, a propósito: "simétrico pero algo más rápido al
+cerrar") al cerrar. La hoja inferior (bottom sheet) sube su asentado de 200 ms
+a `--dur-4` (300 ms, el presupuesto nuevo) con `--ease-out`; su cierre se
+queda en `--dur-2`.

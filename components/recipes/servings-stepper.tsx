@@ -28,7 +28,14 @@ export function ServingsStepper({ value, min = 1, max = 100, onChange }: Serving
       >
         <MinusIcon size={18} />
       </Button>
-      <span className="tabular w-8 text-center text-xl font-medium">{value}</span>
+      {/* Cambio de valor con un fundido rápido (W6.5, §8): `key={value}`
+          fuerza un remontaje del <span> en cada paso, y `starting:` (igual
+          patrón que cook-session.tsx) lo hace entrar desde opacidad 0. 140ms
+          -el presupuesto más corto-: es el stepper que más se toca con
+          prisa, así que el fundido tiene que notarse sin frenar nada. */}
+      <span key={value} className="tabular w-8 text-center text-xl font-medium transition-opacity duration-(--dur-1) ease-(--ease-out) starting:opacity-0">
+        {value}
+      </span>
       <Button
         type="button"
         variant="outline"

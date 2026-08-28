@@ -21,10 +21,20 @@ export function IngredientChecklist({ rows, checked, onToggle }: IngredientCheck
         const isChecked = checked.has(row.id)
         return (
           <li key={row.id}>
-            <label className={cn('flex min-h-11 items-center gap-3 rounded-sm px-2', row.nonLinear && 'bg-warn-soft text-warn-ink', isChecked && 'opacity-60')}>
+            {/* Marcar/desmarcar transiciona opacidad y color de texto (W6.5,
+                §8), no la tachadura (text-decoration no interpola de forma
+                útil): 140ms, el mismo presupuesto que el stepper, para que
+                marcar con prisa mientras se cocina no se sienta frenado. */}
+            <label
+              className={cn(
+                'flex min-h-11 items-center gap-3 rounded-sm px-2 transition-opacity duration-(--dur-1) ease-(--ease-out)',
+                row.nonLinear && 'bg-warn-soft text-warn-ink',
+                isChecked && 'opacity-60',
+              )}
+            >
               <input type="checkbox" checked={isChecked} onChange={() => onToggle(row.id)} className="size-5 accent-primary" />
               {row.nonLinear ? <WarningIcon size={16} /> : null}
-              <span className={cn('flex-1', isChecked && 'line-through')}>{row.name}</span>
+              <span className={cn('flex-1 transition-colors duration-(--dur-1) ease-(--ease-out)', isChecked && 'text-text-2 line-through')}>{row.name}</span>
               <span className="tabular shrink-0">{row.text}</span>
             </label>
           </li>
