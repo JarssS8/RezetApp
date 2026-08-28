@@ -30,7 +30,9 @@ export function BottomBar() {
                 href={href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium',
+                  // Color de la etiqueta con transición de token (W6.5,
+                  // ruling W6-R5: la barra inferior deja de estar prohibida).
+                  'flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors duration-(--dur-1) ease-(--ease-out)',
                   active ? 'text-acc-ink' : 'text-text-2',
                 )}
               >
@@ -43,9 +45,20 @@ export function BottomBar() {
                     capa utilities de Tailwind (ver app/globals.css), un
                     empate ahí se resuelve por orden de aparición en la hoja
                     compilada, no por el orden de las clases aquí — más
-                    seguro no dejar que compitan. */}
-                <span className={cn('flex items-center justify-center rounded-pill border px-4 py-0.5', active ? 'pill-selected' : 'border-transparent')}>
-                  <Icon size={24} strokeWidth={active ? 2.2 : 1.85} />
+                    seguro no dejar que compitan. transition-colors anima el
+                    fondo/tinta/borde de la píldora al cambiar de pestaña. */}
+                <span
+                  className={cn(
+                    'flex items-center justify-center rounded-pill border px-4 py-0.5 transition-colors duration-(--dur-1) ease-(--ease-out)',
+                    active ? 'pill-selected' : 'border-transparent',
+                  )}
+                >
+                  {/* icon-pop solo se aplica en la pestaña que ACABA de
+                      activarse: se calcula del mismo `active` que ya decide
+                      el trazo grueso, así que solo dispara una vez por
+                      cambio de pestaña (cambia de "sin clase" a "con clase"),
+                      nunca en cada refresco de la página. */}
+                  <Icon size={24} strokeWidth={active ? 2.2 : 1.85} {...(active ? { className: 'icon-pop' } : {})} />
                 </span>
                 <span>{t(`nav.${labelKey}`)}</span>
               </Link>

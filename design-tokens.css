@@ -65,12 +65,15 @@
   /* Movimiento. Los tres presupuestos del informe de animaciones: 140ms para
      el cambio de paso (se toca decenas de veces por sesión), 200ms para
      asentados y salidas, 500ms para el anillo. prefers-reduced-motion ya los
-     anula abajo. */
+     anula abajo. W6.5 añade --dur-4 (300ms, el asentado de la hoja inferior)
+     y --ease-spring (el pop del icono activo de la barra inferior). */
   --dur-1: 140ms;
   --dur-2: 200ms;
   --dur-3: 500ms;
+  --dur-4: 300ms;
   --ease-out: cubic-bezier(.23, 1, .32, 1);
   --ease-in: cubic-bezier(.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
 
   /* Tipografía */
   --f-display: "Outfit", "Helvetica Neue", system-ui, sans-serif;
@@ -173,3 +176,29 @@ body {
    (4,35:1) y berenjena oscuro (4,46:1). --acc-soft-2 se queda declarado
    arriba aunque ya no lo pinte nada. */
 .cn-toast { border-radius: var(--r-md); box-shadow: var(--sh-raised); font-family: var(--f-body); }
+
+/* Movimiento W6.5 (ruling W6-R5: el usuario pidió animaciones visibles, dos
+   veces). En app/globals.css estas tres son `@utility` (compiladas por
+   Tailwind, capa utilities); aquí van planas, igual que .pill-selected más
+   arriba, porque este fichero es solo referencia para copiar valores. */
+.view-enter {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+.view-enter { @starting-style { opacity: 0; transform: translateY(6px); } }
+
+.stagger-in {
+  animation: rz-stagger-in var(--dur-2) var(--ease-out) both;
+  animation-delay: calc(var(--stagger-i, 0) * 40ms);
+}
+@keyframes rz-stagger-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.icon-pop { animation: rz-icon-pop var(--dur-2) var(--ease-spring); }
+@keyframes rz-icon-pop {
+  from { transform: scale(0.9); }
+  to { transform: scale(1); }
+}

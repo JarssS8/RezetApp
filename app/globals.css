@@ -36,6 +36,73 @@
   }
 }
 
+/* ---------- Movimiento W6.5: el usuario pidió, dos veces, animaciones que se
+   vean sin buscarlas. Ver ruling W6-R5 (progress.md): anula los cinco rechazos
+   del informe de animaciones original. Las tres utilidades de abajo son la
+   base compartida; el resto de W6.5 son ajustes puntuales de duración/easing
+   en los componentes que ya animaban desde W6. */
+
+/* Entrada de cada pantalla: opacidad 0 → 1 y un desplazamiento vertical de
+   6px, disparado por @starting-style en cuanto el <main> se monta -carga
+   inicial Y navegación de cliente, que desmonta el <main> anterior y monta
+   uno nuevo-. Sin JavaScript: es la razón de que @starting-style sirva aquí
+   y no un `useEffect` con una clase que añadir tras el montaje. */
+@utility view-enter {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+  @starting-style {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Entrada escalonada del primer pintado: la parrilla de recetas y las filas
+   de despensa. Mismo fundido/ascenso que view-enter pero con @keyframes (no
+   @starting-style: aquí hace falta escalonar con animation-delay, y solo las
+   animaciones lo admiten). Quien la usa fija `--stagger-i` por inline style
+   con el índice YA recortado a 8 (informe: más de 8 elementos empieza a
+   sentirse como espera, no como jerarquía); sin ese índice el retraso es 0.
+   `both` mantiene la opacidad en 0 durante el propio retraso y dispara la
+   animación en cuanto toca correr, sin flash inicial en el valor final.
+   Decorativa: nunca toca layout ni pointer-events, así que un clic durante el
+   fundido llega igual. */
+@utility stagger-in {
+  animation: rz-stagger-in var(--dur-2) var(--ease-out) both;
+  animation-delay: calc(var(--stagger-i, 0) * 40ms);
+}
+
+@keyframes rz-stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pop del icono de la barra inferior AL VOLVERSE activo (no en cada render):
+   bottom-bar.tsx solo añade esta clase a la pestaña que acaba de pasar a
+   activa, así que la animación se dispara una vez por cambio de pestaña, no
+   en cada refresco de la página. --ease-spring, no --ease-out: es el único
+   sitio de la app con rebote, a propósito -la barra se toca decenas de veces
+   al día y el rebote es lo que hace que el cambio de pestaña se note sin
+   llamar la atención el resto del tiempo-. */
+@utility icon-pop {
+  animation: rz-icon-pop var(--dur-2) var(--ease-spring);
+}
+
+@keyframes rz-icon-pop {
+  from {
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
 /* ---------- Tokens · dirección «Mercado» ---------- */
 :root {
   --acc: #2F9E6B;
@@ -91,12 +158,18 @@
   --fs-num: 2rem;
   /* Movimiento. Los tres presupuestos del informe de animaciones: 140ms para el
      cambio de paso (se toca decenas de veces por sesión), 200ms para asentados y
-     salidas, 500ms para el anillo. prefers-reduced-motion ya los anula abajo. */
+     salidas, 500ms para el anillo. prefers-reduced-motion ya los anula abajo.
+     W6.5 añade un cuarto presupuesto (--dur-4, 300ms) para el asentado más largo
+     de la hoja inferior (bottom sheet) y una curva con rebote (--ease-spring)
+     para el pop del icono activo de la barra: la directiva del usuario anula
+     el rechazo original de "sin movimiento en la barra inferior" (W6-R5). */
   --dur-1: 140ms;
   --dur-2: 200ms;
   --dur-3: 500ms;
+  --dur-4: 300ms;
   --ease-out: cubic-bezier(.23, 1, .32, 1);
   --ease-in: cubic-bezier(.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
   --f-display: var(--font-outfit), "Helvetica Neue", system-ui, sans-serif;
   --f-body: var(--font-dm-sans), "Segoe UI", system-ui, sans-serif;
   --f-mono: var(--font-jetbrains-mono), ui-monospace, Menlo, monospace;
