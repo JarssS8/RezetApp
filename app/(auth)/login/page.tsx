@@ -9,8 +9,8 @@ export default async function LoginPage() {
   if (await getCurrentSession()) redirect('/today')
   const t = await getTranslations('auth')
   return (
-    <Card className="mx-auto w-full max-w-sm p-6">
-      <h1 className="font-display text-2xl font-semibold">{t('login.title')}</h1>
+    <Card className="mx-auto w-full max-w-sm p-6 shadow-hero">
+      <h1 className="title-content">{t('login.title')}</h1>
       <div className="mt-6">
         <PasskeyLoginButton />
       </div>

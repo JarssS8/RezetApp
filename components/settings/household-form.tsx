@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import type { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { ActionResult } from '@/lib/actions/result'
@@ -48,58 +49,60 @@ export function HouseholdForm({ initial, isOwner, updateAction }: { initial: Hou
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="household-name">{t('household.name')}</Label>
-        <Input
-          id="household-name"
-          value={values.name}
-          onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
-          disabled={!isOwner}
-          maxLength={80}
-          required
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="household-servings">{t('household.defaultServings')}</Label>
-        <Input
-          id="household-servings"
-          type="number"
-          min={1}
-          max={50}
-          value={values.defaultServings}
-          onChange={(e) => setValues((v) => ({ ...v, defaultServings: Number(e.target.value) }))}
-          disabled={!isOwner}
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="household-alert">{t('household.expiryAlertDays')}</Label>
-        <Input
-          id="household-alert"
-          type="number"
-          min={0}
-          max={60}
-          value={values.expiryAlertDays}
-          onChange={(e) => setValues((v) => ({ ...v, expiryAlertDays: Number(e.target.value) }))}
-          disabled={!isOwner}
-        />
-      </div>
-      {isOwner && (
-        <Button type="submit" aria-busy={pending} disabled={pending}>
-          {t('household.save')}
-        </Button>
-      )}
-      {saved && !pending && (
-        <p role="status" className="text-sm text-text-2">
-          {t('household.saved')}
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-warn">
-          {t('household.error')}
-        </p>
-      )}
-    </form>
+    <Card className="p-4">
+      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="household-name">{t('household.name')}</Label>
+          <Input
+            id="household-name"
+            value={values.name}
+            onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
+            disabled={!isOwner}
+            maxLength={80}
+            required
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="household-servings">{t('household.defaultServings')}</Label>
+          <Input
+            id="household-servings"
+            type="number"
+            min={1}
+            max={50}
+            value={values.defaultServings}
+            onChange={(e) => setValues((v) => ({ ...v, defaultServings: Number(e.target.value) }))}
+            disabled={!isOwner}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="household-alert">{t('household.expiryAlertDays')}</Label>
+          <Input
+            id="household-alert"
+            type="number"
+            min={0}
+            max={60}
+            value={values.expiryAlertDays}
+            onChange={(e) => setValues((v) => ({ ...v, expiryAlertDays: Number(e.target.value) }))}
+            disabled={!isOwner}
+          />
+        </div>
+        {isOwner && (
+          <Button type="submit" aria-busy={pending} disabled={pending}>
+            {t('household.save')}
+          </Button>
+        )}
+        {saved && !pending && (
+          <p role="status" className="text-sm text-text-2">
+            {t('household.saved')}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-warn">
+            {t('household.error')}
+          </p>
+        )}
+      </form>
+    </Card>
   )
 }
 

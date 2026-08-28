@@ -71,3 +71,16 @@ describe('controles base', () => {
     expect(offenders).toEqual([])
   })
 })
+
+describe('puerta de entrada', () => {
+  it('las pantallas de auth llevan marca: wordmark y lavado de acento', () => {
+    const layout = readFileSync(join(ROOT, 'app/(auth)/layout.tsx'), 'utf8')
+    expect(layout).toContain('bg-acc-soft')
+    expect(layout).toContain('appName')
+    for (const page of ['app/(auth)/login/page.tsx', 'app/(auth)/register/page.tsx']) {
+      const source = readFileSync(join(ROOT, page), 'utf8')
+      expect(source, page).toContain('shadow-hero')
+      expect(source, page).toContain('title-content')
+    }
+  })
+})
