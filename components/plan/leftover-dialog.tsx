@@ -77,7 +77,7 @@ export function LeftoverDialog({ fromEntryId, sourceSlot, onCreated }: LeftoverD
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <Label htmlFor="leftover-date">{t('leftoverDate')}</Label>
-            <Input id="leftover-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-11" />
+            <Input id="leftover-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1">
             <Label htmlFor="leftover-slot">{t('leftoverSlot')}</Label>

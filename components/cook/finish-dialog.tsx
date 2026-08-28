@@ -91,7 +91,7 @@ export function FinishCookingDialog({ recipeId, entryId, servings, sourceSlot }:
             <div className="flex flex-col gap-3 rounded-sm bg-surface-2 p-3">
               <div className="flex flex-col gap-1">
                 <Label htmlFor="cook-leftover-date">{t('leftoverDate')}</Label>
-                <Input id="cook-leftover-date" type="date" value={leftoverDate} onChange={(ev) => setLeftoverDate(ev.target.value)} className="h-11" />
+                <Input id="cook-leftover-date" type="date" value={leftoverDate} onChange={(ev) => setLeftoverDate(ev.target.value)} />
               </div>
               <div className="flex flex-col gap-1">
                 <Label htmlFor="cook-leftover-slot">{t('leftoverSlot')}</Label>

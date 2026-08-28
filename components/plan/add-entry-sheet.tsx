@@ -141,7 +141,7 @@ export function AddEntrySheet({ open, onOpenChange, days, defaultDate, defaultSl
                     setSelectedId(null)
                   }}
                   placeholder={t('searchRecipe')}
-                  className="h-11 pl-8"
+                  className="pl-8"
                 />
               </div>
               <ul className="flex flex-col gap-1">
@@ -164,7 +164,7 @@ export function AddEntrySheet({ open, onOpenChange, days, defaultDate, defaultSl
           ) : (
             <div className="flex flex-col gap-1">
               <Label htmlFor="add-entry-free-title">{t('freeMealTitle')}</Label>
-              <Input id="add-entry-free-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} className="h-11" />
+              <Input id="add-entry-free-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} />
             </div>
           )}
 

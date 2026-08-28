@@ -17,8 +17,8 @@ export interface EntryChipProps {
   onSkip: (id: string, skipped: boolean) => void
   onRemove: (id: string) => void
   // Alternativa accesible al arrastrar y soltar: mover con teclado eligiendo
-  // fecha y hueco en dos <select>. Opcional para no romper el chip "de solo
-  // lectura" usado, por ejemplo, en el diff de una propuesta.
+  // fecha y hueco en dos listas desplegables. Opcional para no romper el
+  // chip "de solo lectura" usado, por ejemplo, en el diff de una propuesta.
   days?: string[]
   onMove?: (id: string, date: string, slot: MealSlot) => void
 }
