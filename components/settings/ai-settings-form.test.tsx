@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import common from '@/messages/es/common.json'
@@ -50,14 +51,18 @@ describe('AiSettingsForm', () => {
     expect(screen.getByText(/Gastado este mes: 3,40 €/)).toBeInTheDocument()
   })
 
-  it('no muestra la URL del servidor local salvo que el proveedor sea openai_compatible', () => {
+  it('no muestra la URL del servidor local salvo que el proveedor sea openai_compatible', async () => {
     renderForm({ provider: 'anthropic' })
     expect(screen.queryByLabelText('URL del servidor local')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('combobox'))
-    const option = screen.getByRole('option', { name: 'Servidor local (compatible OpenAI)' })
-    // Base UI solo confirma la selección de ratón si hubo pointerdown antes del click.
-    fireEvent.pointerDown(option, { pointerType: 'mouse' })
-    fireEvent.click(option)
+    await userEvent.selectOptions(screen.getByLabelText('Proveedor'), 'openai_compatible')
+    expect(screen.getByLabelText('URL del servidor local')).toBeInTheDocument()
+  })
+
+  it('cambiar de proveedor enseña la URL base del servidor propio', async () => {
+    renderForm({ provider: 'none' })
+    const select = screen.getByLabelText('Proveedor')
+    expect(select.tagName).toBe('SELECT')
+    await userEvent.selectOptions(select, 'openai_compatible')
     expect(screen.getByLabelText('URL del servidor local')).toBeInTheDocument()
   })
 
