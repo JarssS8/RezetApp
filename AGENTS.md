@@ -17,16 +17,21 @@ pregunta — casi seguro es un malentendido.
 
 W0 (esqueleto) y W1 (contratos: esquema, dominio, auth, validación, eventos)
 hechas el 2026-08-26. W2 (módulos) hecha el 2026-08-27: alimentos, recetas,
-plan, despensa, IA opcional, ShopList, ajustes y MCP mínimo. W3 (el bucle) hecha el
-2026-08-27: `logCooked` transaccional con descuento de despensa, modo cocina
-móvil, pantalla Hoy con SSE, REST completa (§11) con `openapi.json` y Swagger
-autoalojado, MCP completo. **W4 (extras) hecha el 2026-08-28**: reglas de
-autorrelleno, temporizadores y voz en cocina, modo pared, importación por
-foto/PDF y migración Mealie/Tandoor, etiquetas jerárquicas, colecciones,
-fusión de alimentos (UI + MCP `merge_foods`), alérgenos por miembro con filtro
-en propuestas, estadísticas plan/realidad, PWA con push de caducidad. Todo en
-`main` con `pnpm check`, `pnpm build` y `pnpm e2e` verdes.
-Siguiente: W5 (remate). El spec
+plan, despensa, IA opcional, ShopList, ajustes y MCP mínimo. W3 (el bucle)
+hecha el 2026-08-27: `logCooked` transaccional con descuento de despensa, modo
+cocina móvil, pantalla Hoy con SSE, REST completa (§11) con `openapi.json` y
+Swagger autoalojado, MCP completo (12 herramientas + perfil completo, prompts y
+recurso). W4 (extras) hecha el 2026-08-27: autorrelleno por reglas, cocina con
+temporizadores y voz, importar de foto y PDF, migración desde Mealie y Tandoor,
+etiquetas jerárquicas, colecciones, fusionar alimentos, alérgenos por miembro,
+estadísticas de plan frente a realidad, PWA y avisos push de caducidad.
+**W5 (remate) hecha el 2026-08-28**: NativeSelect único
+(`components/ui/native-select.tsx`) como única forma de pintar una lista
+desplegable, 44 px de objetivo táctil protegido por contrato, deuda saldada
+(migración desde Mealie/Tandoor robusta y repetible, sin reexport de `db`
+fuera de `lib/services`, prompts MCP en el idioma del hogar), e2e del bucle
+completo y pasada de axe AA en las cinco pantallas y los dos temas. El
+proyecto está completo. Siguiente: mantenimiento. El spec
 (`docs/superpowers/specs/2026-08-26-rezetapp-design.md`) manda sobre estos docs
 cuando difieren; los planes están en `docs/superpowers/plans/`.
 
@@ -35,10 +40,16 @@ cuando difieren; los planes están en `docs/superpowers/plans/`.
 - `pnpm dev` — desarrollo (necesita Postgres: `docker compose up -d db`)
 - `pnpm build` · `pnpm start` — producción local
 - `pnpm check` — typecheck + lint + i18n + tests + cobertura de `lib/domain` (lo que debe estar verde antes de cada commit)
+- `pnpm typecheck` · `pnpm lint` · `pnpm i18n:check` — cada pata por separado
 - `pnpm test` · `pnpm test -- lib/domain/scaling.test.ts` — todos / uno
-- `pnpm e2e` — Playwright (levanta `pnpm dev` si no hay `E2E_BASE_URL`)
+- `pnpm test:domain-coverage` — cobertura de `lib/domain` (umbral: 100 % de líneas)
+- `pnpm e2e` — Playwright (levanta `pnpm dev` si no hay `E2E_BASE_URL`; ver `e2e/README.md`)
 - `pnpm db:generate` — genera migración desde `db/schema/`
 - `pnpm db:migrate` · `pnpm db:seed` — aplicar migraciones / sembrar (idempotente)
+- `pnpm import:mealie <fichero> --household <uuid> [--dry-run]` · `pnpm import:tandoor …` — migrar recetas desde otra app (repetible, no duplica)
+- `pnpm notify:expiring` — enviar los avisos push de caducidad (pensado para un cron diario)
+- `pnpm build:icons` — regenerar los PNG de `public/` desde el SVG (se versionan)
+- `pnpm build:scripts` — empaquetar `migrate`/`seed`/`notify-expiring` para la imagen
 - `docker compose up -d` — app + Postgres; la app migra y siembra al arrancar
 
 ## Stack decidido

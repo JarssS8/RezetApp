@@ -57,10 +57,11 @@ Va pronto **a propósito**: es la parte con más riesgo de decepcionar. Cuanto a
 sepas si el flujo te convence, mejor. Conéctalo a un cliente MCP de escritorio y úsalo una
 semana entera antes de seguir.
 
-**Hecha en W3**: las doce herramientas del perfil básico y las del completo
-(salvo `merge_foods`, W4), los cuatro prompts, el recurso `household://context`,
-tokens con alcance y perfil, `openapi.json` y Swagger autoalojado en
-`/api/docs`, conexión documentada en `docs/05-MCP.md`.
+**Hecha en W3**: las doce herramientas del perfil básico y las seis del completo
+(`merge_foods` incluida, desde W4), los cuatro prompts —en el idioma del hogar
+desde W5—, el recurso `household://context`, tokens con alcance y perfil,
+`openapi.json` y Swagger autoalojado en `/api/docs`, conexión documentada en
+`docs/05-MCP.md`.
 
 ## Fase 3 · Plan
 
@@ -74,7 +75,8 @@ tokens con alcance y perfil, `openapi.json` y Swagger autoalojado en
 Aquí entra tu pareja como usuaria real, que es cuando aparecen los problemas de
 verdad.
 
-**Hecha en W2** salvo el presupuesto de tiempo por día (W4).
+**Hecha en W2**; el presupuesto de tiempo se puede fijar al añadir una comida
+desde W5.
 
 ## Fase 4 · Despensa y el bucle
 
@@ -89,7 +91,10 @@ El bucle se cierra aquí. Es cuando el agente pasa de sugerir en abstracto a
 sugerir con conocimiento de causa.
 
 **Hecha en W2**; el descuento automático al marcar cocinado (`log_cooked`, modo
-cocina y Hoy) llegó en W3. Queda la siembra de USDA (solo Open Food Facts).
+cocina y Hoy) llegó en W3. Las dos fuentes de alimentos están: **USDA** viene
+sembrada desde W1 (573 alimentos de Foundation Foods y SR Legacy en
+`db/seed/foods.json`, ver `db/seed/README.md`) y **Open Food Facts** se consulta
+en vivo al escanear un código de barras, no se siembra.
 
 ## Fase 5 · Lo que la hace tuya
 
@@ -110,11 +115,11 @@ cocina y Hoy) llegó en W3. Queda la siembra de USDA (solo Open Food Facts).
 Nada de esto es imprescindible, y todo esto es lo que haría que alguien eligiera
 RezetApp frente a Mealie.
 
-**Hecha en W4** salvo lo que el spec deja fuera: importar desde vídeo (sin
-especificar), el APK con Capacitor (se queda en PWA por ahora) y el tiempo de
-paso a paso ya venía de W3. Los temporizadores, la voz, el modo pared, la
-importación por foto/PDF, Mealie/Tandoor, etiquetas y colecciones, fusión de
-alimentos, alérgenos, estadísticas, push y PWA están en `main`.
+**Hecha en W4** salvo dos cosas, dichas claramente: **importar desde vídeo** no
+se ha construido (no está en el spec; extraer una receta de un vídeo son
+transcripción y muestreo de fotogramas, es decir, dos capacidades nuevas de
+`lib/ai`), y el **APK con Capacitor** está explícitamente fuera de alcance
+(spec §1: «queda PWA»). La PWA instalable sí está, desde W4.
 
 ## Lo que va a doler
 

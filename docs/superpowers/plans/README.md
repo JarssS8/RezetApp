@@ -11,8 +11,8 @@ reales. Escribir W2+ antes de W1 produciría planes inventados.
 | W1 | `2026-08-26-w1-contratos.md` | hecho (mergeado 2026-08-26) | 4 ramas ∥: schema+seed · domain · auth+hogar · validation+eventos |
 | W2 | `2026-08-26-w2-modulos.md` | hecho (mergeado 2026-08-27) | 8 ramas ∥ (40 tareas + fix wave) |
 | W3 | `2026-08-27-w3-bucle.md` | hecho (mergeado 2026-08-27) | (a) primero, luego 3 ramas ∥ (30 tareas + fix wave) |
-| W4 | `2026-08-27-w4-extras.md` | hecho (mergeado 2026-08-28) | (a) primero, luego 5 ramas ∥ (36 tareas) |
-| W5 | `2026-08-28-w5-remate.md` | escrito (2026-08-28) | 3 ramas ∥ (15 tareas) |
+| W4 | `2026-08-27-w4-extras.md` | hecho (mergeado 2026-08-27) | (a) primero, luego 5 ramas ∥ (36 tareas) |
+| W5 | `2026-08-28-w5-remate.md` | hecho (mergeado 2026-08-28) | 3 ramas ∥ (15 tareas) |
 
 ## Reglas de ejecución (todas las oleadas)
 
@@ -58,5 +58,12 @@ Orden de merge sugerido: (b) → (a) → (d) → (c) → (e) → (f) → (g) →
 ### W4 · Extras (6 ∥) — depende de W3
 (a) `plan-rules` en dominio + autorrelleno → propuesta `source='rules'`, evitar repetición · (b) temporizadores en pasos, voz, modo pared · (c) importar foto/PDF (visión), `scripts/import-mealie.ts`, `import-tandoor.ts`, `settings/data` · (d) etiquetas jerárquicas, colecciones, fusionar alimentos · (e) alérgenos por miembro en propuestas, estadísticas plan vs realidad · (f) PWA (manifest, SW shell), push VAPID en `app_settings`, `settings/notifications`.
 
-### W5 · Integración
-e2e de extremo a extremo (registro → receta → plan → cocinar → despensa → compra), axe en cinco pantallas × dos temas, revisión visual contra `docs/02-DISENO.md`, README final, `AGENTS.md` al día, docs sin contradicciones con el código.
+### W5 · Remate (3 ∥) — depende de W4
+(a) pulido: una sola lista desplegable (`components/ui/native-select.tsx`),
+`components/ui/select.tsx` borrado, objetivo táctil de 44 px en campos y
+desplegables con su contrato en `tests/contracts/ui-controls.test.ts`, campo de
+presupuesto de tiempo · (b) deuda: migración repetible y con aislamiento de
+fallos, el reexport de `db` fuera de `lib/services/push.ts`, el test del atajo
+de alérgenos, prompts MCP por idioma · (c) integración: `e2e/loop.spec.ts` con
+el bucle completo, `e2e/a11y.spec.ts` con axe en cinco pantallas × dos temas,
+README es/en, `AGENTS.md`, roadmap y docs sin contradicciones con el código.
