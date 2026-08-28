@@ -84,3 +84,32 @@ describe('puerta de entrada', () => {
     }
   })
 })
+
+describe('jerarquía y contraste de la interfaz', () => {
+  // La sesión de cocina la reescribe entera la pista (c) de W6 (Tarea 13), que
+  // le pone su .title-content; hasta que esa pista mergee, es la única
+  // excepción de esta regla. La Tarea 13 vacía esta lista.
+  const PENDING = ['components/cook/cook-session.tsx']
+
+  it('ninguna cabecera se pinta a mano: todas usan .title-screen o .title-content', () => {
+    const offenders = [...sourceFiles('components'), ...sourceFiles('app')]
+      .filter((f) => !PENDING.includes(f))
+      .filter((f) => {
+        const source = readFileSync(join(ROOT, f), 'utf8')
+        const index = source.indexOf('<h1')
+        if (index === -1) return false
+        const tag = source.slice(index, source.indexOf('>', index))
+        return !tag.includes('title-screen') && !tag.includes('title-content')
+      })
+    expect(offenders).toEqual([])
+  })
+
+  it('el ámbar pequeño usa la tinta de aviso, no el ámbar crudo', () => {
+    // text-warn sobre blanco es 2,97:1 y sobre --warn-soft 2,58:1: sirve para
+    // bordes, iconos y fondos, no para leer. text-warn-ink da 5,44:1 y 4,74:1.
+    const offenders = [...sourceFiles('components'), ...sourceFiles('app')].filter((f) =>
+      /\btext-warn\b(?!-)/.test(readFileSync(join(ROOT, f), 'utf8')),
+    )
+    expect(offenders).toEqual([])
+  })
+})

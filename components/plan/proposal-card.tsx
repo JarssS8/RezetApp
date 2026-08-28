@@ -119,7 +119,7 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
                   <span className="flex flex-col gap-0.5">
                     <span>{addLine(item)}</span>
                     {item.allergenConflicts.length > 0 ? (
-                      <span role="note" className="text-xs text-warn">
+                      <span role="note" className="text-xs text-warn-ink">
                         {allergenWarning(item)}
                       </span>
                     ) : null}

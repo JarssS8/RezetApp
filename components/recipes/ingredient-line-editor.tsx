@@ -34,7 +34,7 @@ export function confidenceLevel(line: Pick<PreparedIngredient, 'foodId' | 'needs
 
 const LEVEL_STYLES: Record<ConfidenceLevel, string> = {
   high: 'text-acc-ink',
-  mid: 'text-warn',
+  mid: 'text-warn-ink',
   low: 'text-destructive',
 }
 

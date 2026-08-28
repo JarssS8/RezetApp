@@ -17,7 +17,7 @@ export default async function CookPage() {
 
   return (
     <main>
-      <h1 className="text-2xl">{t('title')}</h1>
+      <h1 className="title-screen">{t('title')}</h1>
       {cookable.length === 0 ? (
         <p className="mt-4 text-sm text-text-2">{t('empty')}</p>
       ) : (

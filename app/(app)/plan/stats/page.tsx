@@ -29,7 +29,7 @@ export default async function PlanStatsPage({ searchParams }: PlanStatsPageProps
 
   return (
     <main className="flex flex-col gap-3 pb-4">
-      <h1 className="text-2xl">{t('stats.title')}</h1>
+      <h1 className="title-screen">{t('stats.title')}</h1>
       <PlanStatsPanel stats={stats} />
     </main>
   )

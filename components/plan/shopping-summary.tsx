@@ -43,19 +43,19 @@ function ShoppingGroup({ title, lines, locale, amber, showQuantity = true }: Sho
   if (lines.length === 0) return null
   return (
     <div className="flex flex-col gap-1.5">
-      <h2 className={cn('text-sm font-medium', amber && 'text-warn')}>{title}</h2>
+      <h2 className={cn('text-sm font-medium', amber && 'text-warn-ink')}>{title}</h2>
       <ul className="flex flex-col gap-1">
         {lines.map((line) => (
           <li
             key={lineKey(line)}
             className={cn(
               'flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm',
-              amber && 'border-warn/40 text-warn',
+              amber && 'border-warn/40 text-warn-ink',
             )}
           >
             <span className="truncate">{line.name}</span>
             <span className="flex shrink-0 items-center gap-2">
-              {line.pantryUnmatched ? <span className="text-xs text-warn">{t('shopping.pantryUnmatched')}</span> : null}
+              {line.pantryUnmatched ? <span className="text-xs text-warn-ink">{t('shopping.pantryUnmatched')}</span> : null}
               {showQuantity ? <span className="tabular text-text-2">{formatQuantity(line.quantity, line.unit, locale)}</span> : null}
             </span>
           </li>

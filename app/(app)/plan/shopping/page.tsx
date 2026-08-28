@@ -49,7 +49,7 @@ export default async function PlanShoppingPage({ searchParams }: PlanShoppingPag
     <main className="flex flex-col gap-3 pb-4">
       <PlanLiveRefresh types={['plan.changed', 'pantry.changed']} />
       <div>
-        <h1 className="text-2xl">{t('shopping.title')}</h1>
+        <h1 className="title-screen">{t('shopping.title')}</h1>
         <p className="text-sm text-text-2">{rangeText}</p>
       </div>
       <ShoppingSummary lines={lines} />

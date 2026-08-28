@@ -65,7 +65,7 @@ function LeaveSection({ leaveAction }: { leaveAction: LeaveHouseholdFn }) {
         </DialogHeader>
         <p className="text-sm text-text-2">{t('household.leaveConfirm')}</p>
         {error && (
-          <p role="alert" className="text-sm text-warn">
+          <p role="alert" className="text-sm text-warn-ink">
             {t('household.error')}
           </p>
         )}
@@ -122,7 +122,7 @@ function DeleteSection({ householdName, deleteAction }: { householdName: string;
           <Input id="delete-confirm-name" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} />
         </div>
         {error && (
-          <p role="alert" className="text-sm text-warn">
+          <p role="alert" className="text-sm text-warn-ink">
             {t('household.error')}
           </p>
         )}

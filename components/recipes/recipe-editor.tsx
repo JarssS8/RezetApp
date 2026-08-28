@@ -372,10 +372,10 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft, initialFoodN
 
   return (
     <form onSubmit={(e) => void handleSubmit(e)} aria-busy={saving} className="flex flex-col gap-6 pb-24">
-      <h1 className="font-display text-2xl">{recipeId ? t('editor.editTitle') : t('editor.newTitle')}</h1>
+      <h1 className="title-content">{recipeId ? t('editor.editTitle') : t('editor.newTitle')}</h1>
 
       {error ? (
-        <p role="alert" className="text-sm text-warn">
+        <p role="alert" className="text-sm text-warn-ink">
           {error}
         </p>
       ) : null}

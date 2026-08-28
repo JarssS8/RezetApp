@@ -23,7 +23,7 @@ export default async function AddPantryItemPage({ searchParams }: AddPantryItemP
 
   return (
     <main>
-      <h1 className="text-2xl">{t('add')}</h1>
+      <h1 className="title-screen">{t('add')}</h1>
       <div className="mt-4">
         <PantryItemForm initialFood={initialFood} {...(initialQuery ? { initialQuery } : {})} />
       </div>

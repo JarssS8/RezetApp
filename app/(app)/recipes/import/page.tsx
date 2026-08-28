@@ -14,7 +14,7 @@ export default async function ImportRecipePage() {
       <Link href="/recipes" aria-label={c('actions.back')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
         <ChevronLeftIcon />
       </Link>
-      <h1 className="mt-2 font-display text-2xl">{t('import.title')}</h1>
+      <h1 className="mt-2 title-screen">{t('import.title')}</h1>
       <div className="mt-4">
         <ImportForm />
       </div>

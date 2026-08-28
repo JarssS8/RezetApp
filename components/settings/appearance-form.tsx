@@ -167,7 +167,7 @@ export function AppearanceForm({ initial, updateAction }: { initial: AppearanceP
         </p>
       )}
       {error && (
-        <p role="alert" className="text-sm text-warn">
+        <p role="alert" className="text-sm text-warn-ink">
           {t('appearance.error')}
         </p>
       )}

@@ -102,7 +102,7 @@ export function CollectionBar({ collections, currentQuery }: CollectionBarProps)
               <Input id="collection-name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} />
             </div>
             {error && (
-              <p role="alert" className="text-sm text-warn">
+              <p role="alert" className="text-sm text-warn-ink">
                 {error}
               </p>
             )}

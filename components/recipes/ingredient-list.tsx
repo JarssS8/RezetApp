@@ -52,7 +52,7 @@ export interface IngredientListProps {
   rows: IngredientRow[]
 }
 
-// Pinta las filas ya calculadas: ámbar (text-warn + bg-warn-soft + WarningIcon)
+// Pinta las filas ya calculadas: ámbar (text-warn-ink + bg-warn-soft + WarningIcon)
 // para los ingredientes que no escalan linealmente, con una única nota al
 // final (nunca una por fila) explicando por qué.
 export function IngredientList({ rows }: IngredientListProps) {
@@ -65,7 +65,7 @@ export function IngredientList({ rows }: IngredientListProps) {
         {rows.map((row) => (
           <li
             key={row.id}
-            className={cn('flex items-start justify-between gap-3 py-2', row.nonLinear && 'rounded-sm bg-warn-soft px-2 text-warn')}
+            className={cn('flex items-start justify-between gap-3 py-2', row.nonLinear && 'rounded-sm bg-warn-soft px-2 text-warn-ink')}
           >
             <span className="flex flex-col gap-0.5">
               <span className="flex items-center gap-1">
@@ -84,7 +84,7 @@ export function IngredientList({ rows }: IngredientListProps) {
           </li>
         ))}
       </ul>
-      {hasNonLinear ? <p className="mt-2 text-xs text-warn">{t('detail.nonLinearNote')}</p> : null}
+      {hasNonLinear ? <p className="mt-2 text-xs text-warn-ink">{t('detail.nonLinearNote')}</p> : null}
     </div>
   )
 }

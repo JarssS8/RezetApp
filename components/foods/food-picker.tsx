@@ -232,7 +232,7 @@ export function FoodPicker({ value, onChange, locale, onCreateNew, allowBarcode,
           </Button>
         </div>
       ) : null}
-      {allowBarcode && barcodeOpen && barcodeNotFound ? <p className="mt-1 text-xs text-warn">{t('food.barcodeNotFound')}</p> : null}
+      {allowBarcode && barcodeOpen && barcodeNotFound ? <p className="mt-1 text-xs text-warn-ink">{t('food.barcodeNotFound')}</p> : null}
     </div>
   )
 }

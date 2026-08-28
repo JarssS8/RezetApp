@@ -223,12 +223,12 @@ export function AiSettingsForm(props: AiSettingsFormProps) {
       </Label>
 
       {saveError && (
-        <p role="alert" className="text-sm text-warn">
+        <p role="alert" className="text-sm text-warn-ink">
           {saveError}
         </p>
       )}
       {testResult && (
-        <p role="status" className={testResult.ok ? 'text-sm text-text-2' : 'text-sm text-warn'}>
+        <p role="status" className={testResult.ok ? 'text-sm text-text-2' : 'text-sm text-warn-ink'}>
           {testResult.message}
         </p>
       )}
