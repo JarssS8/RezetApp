@@ -49,7 +49,7 @@ export function PantryList({ items, unitSystem }: PantryListProps) {
           if (group.length === 0) return null
           return (
             <section key={id}>
-              <h2 className="mb-2 inline-flex items-center gap-2 rounded-pill bg-acc-soft px-3 py-1 text-sm font-semibold text-acc-ink">
+              <h2 className="pill-selected mb-2 inline-flex items-center gap-2 rounded-pill px-3 py-1 text-sm font-semibold">
                 <Icon size={18} strokeWidth={2.2} />
                 {t(`locations.${id}`)}
               </h2>

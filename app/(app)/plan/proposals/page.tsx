@@ -1,6 +1,8 @@
 import { getTranslations } from 'next-intl/server'
+import { SparklesIcon } from '@/components/icons'
 import { ProposalsList } from '@/components/plan/proposal-card'
 import type { ProposalClient } from '@/components/plan/types'
+import { EmptyState } from '@/components/ui/empty-state'
 import { requireHousehold } from '@/lib/auth/guards'
 import { listProposals, type ProposalView } from '@/lib/services/plan'
 
@@ -29,7 +31,7 @@ export default async function PlanProposalsPage() {
   return (
     <main className="flex flex-col gap-3 pb-4">
       <h1 className="title-screen">{t('proposals.title')}</h1>
-      {proposalsClient.length === 0 ? <p className="text-sm text-text-2">{t('proposals.empty')}</p> : null}
+      {proposalsClient.length === 0 ? <EmptyState icon={SparklesIcon} title={t('proposals.empty')} /> : null}
       <ProposalsList proposals={proposalsClient} />
     </main>
   )

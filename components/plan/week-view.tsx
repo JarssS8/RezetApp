@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation'
 import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { CalendarMonthIcon, ChartIcon, ChevronLeftIcon, ChevronRightIcon, SendIcon, SparklesIcon } from '@/components/icons'
+import { CalendarMonthIcon, ChartIcon, ChevronLeftIcon, ChevronRightIcon, PlanIcon, SendIcon, SparklesIcon } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { applyPlanBatchAction, movePlanEntryAction, patchPlanEntryAction } from '@/lib/actions/plan'
 import { useHouseholdEvents } from '@/lib/events/use-household-events'
 import { MEAL_SLOTS } from '@/lib/domain'
@@ -217,7 +218,7 @@ export function WeekView({
         </Button>
       </div>
 
-      {entries.length === 0 ? <p className="text-sm text-text-2">{t('empty')}</p> : null}
+      {entries.length === 0 ? <EmptyState icon={PlanIcon} title={t('empty')} /> : null}
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">

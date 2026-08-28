@@ -26,6 +26,7 @@ describe('movimiento', () => {
     for (const file of [
       'components/today/kcal-ring.tsx',
       'components/pantry/pantry-row.tsx',
+      'components/plan/day-column.tsx',
       'components/cook/cook-session.tsx',
       'components/cook/finish-dialog.tsx',
     ]) {

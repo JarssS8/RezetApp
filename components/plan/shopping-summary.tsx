@@ -1,4 +1,6 @@
 import { useLocale, useTranslations } from 'next-intl'
+import { SendIcon } from '@/components/icons'
+import { EmptyState } from '@/components/ui/empty-state'
 import { formatQuantity } from '@/lib/domain'
 import type { Locale, ShoppingLine } from '@/lib/domain'
 import { cn } from '@/lib/utils'
@@ -73,7 +75,7 @@ export function ShoppingSummary({ lines }: ShoppingSummaryProps) {
   const locale = useLocale() as Locale
   const { resolved, unresolved, noQuantity } = groupLines(lines)
 
-  if (lines.length === 0) return <p className="text-sm text-text-2">{t('shopping.empty')}</p>
+  if (lines.length === 0) return <EmptyState icon={SendIcon} title={t('shopping.empty')} />
 
   return (
     <div className="flex flex-col gap-4">

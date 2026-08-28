@@ -2,7 +2,7 @@
 
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { PlusIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { MEAL_SLOTS } from '@/lib/domain'
@@ -82,8 +82,8 @@ function SlotCell({
         // wireframe sin terminar.
         'flex min-h-[4.5rem] flex-col gap-1.5 rounded-md border border-transparent bg-surface-sunken p-1.5',
         // Animación #3 (informe de animaciones): el resaltado del destino se
-        // enciende en 150 ms en vez de saltar. Solo colores.
-        'transition-colors duration-150 ease-out',
+        // enciende en 140 ms (--dur-1) en vez de saltar. Solo colores.
+        'transition-colors duration-(--dur-1) ease-out',
         isOver && 'border-acc-line bg-acc-soft',
       )}
     >
@@ -102,12 +102,22 @@ function SlotCell({
 
 export function DayColumn({ date, isToday, kcal, onAdd, entriesBySlot, ...callbacks }: DayColumnProps) {
   const t = useTranslations('plan')
-  const label = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`))
+  // useLocale() en vez de `undefined`: la única llamada del repo que dejaba
+  // el locale a la implementación del motor JS en vez del idioma del hogar.
+  // Con `undefined` el nombre del día salía en el idioma del navegador/servidor,
+  // no en el elegido en ajustes, y además rompía la hidratación cuando ambos
+  // discrepaban (el server rinde con uno y el cliente con otro).
+  const locale = useLocale()
+  const label = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`))
   return (
     <div className="flex flex-col gap-2">
       <div
         data-testid={isToday ? 'today-column' : undefined}
-        className={cn('flex items-center justify-between rounded-sm border border-transparent px-1.5 py-1', isToday && 'pill-selected')}
+        // Ramas excluyentes (precedente: bottom-bar.tsx): pill-selected y
+        // border-transparent nunca van juntas porque las dos tocan
+        // border-color y un empate en la hoja compilada no depende del orden
+        // de las clases en el JSX.
+        className={cn('flex items-center justify-between rounded-sm border px-1.5 py-1', isToday ? 'pill-selected' : 'border-transparent')}
       >
         <span className="text-sm font-medium capitalize">{label}</span>
         {isToday ? <span className="text-xs font-semibold">{t('today')}</span> : null}
