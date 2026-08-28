@@ -35,7 +35,7 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
   return (
     <div
       data-status={entry.status}
-      className={cn('flex flex-col gap-1 rounded-md border border-border bg-card p-2 text-sm', skipped && 'opacity-60')}
+      className={cn('flex flex-col gap-1 rounded-md border border-line-2 bg-card p-2 text-sm shadow-card', skipped && 'opacity-60')}
     >
       <div className="flex items-center gap-1.5">
         <span className={cn('flex-1 truncate font-medium', skipped && 'line-through')}>{entry.title}</span>

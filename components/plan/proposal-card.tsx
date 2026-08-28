@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
+import { MinusIcon, PlusIcon } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { decideProposalAction } from '@/lib/actions/plan'
@@ -91,7 +92,7 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-3">
+    <div className="flex flex-col gap-2 rounded-md border border-line-2 bg-card p-3 shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs text-text-2">{originLabel()}</span>
         {proposal.status === 'pending' ? (
@@ -113,13 +114,16 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
           {group.add.length > 0 ? (
             <ul aria-label={t('proposals.adds')} className="flex flex-col gap-0.5">
               {group.add.map((item, i) => (
-                <li key={`${group.date}-add-${i}`} className="text-sm text-acc-ink">
-                  {addLine(item)}
-                  {item.allergenConflicts.length > 0 ? (
-                    <p role="note" className="text-xs text-warn">
-                      {allergenWarning(item)}
-                    </p>
-                  ) : null}
+                <li key={`${group.date}-add-${i}`} className="flex items-start gap-1.5 text-sm text-acc-ink">
+                  <PlusIcon size={14} className="mt-0.5 shrink-0" />
+                  <span className="flex flex-col gap-0.5">
+                    <span>{addLine(item)}</span>
+                    {item.allergenConflicts.length > 0 ? (
+                      <span role="note" className="text-xs text-warn">
+                        {allergenWarning(item)}
+                      </span>
+                    ) : null}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -127,8 +131,9 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
           {group.remove.length > 0 ? (
             <ul aria-label={t('proposals.removes')} className="flex flex-col gap-0.5">
               {group.remove.map((item) => (
-                <li key={item.id} className="text-sm text-warn">
-                  {removeLine(item)}
+                <li key={item.id} className="flex items-start gap-1.5 text-sm text-warn-ink">
+                  <MinusIcon size={14} className="mt-0.5 shrink-0" />
+                  <span>{removeLine(item)}</span>
                 </li>
               ))}
             </ul>

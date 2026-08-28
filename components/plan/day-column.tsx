@@ -43,7 +43,12 @@ function DraggableChip({ entry, ...callbacks }: { entry: PlanEntryClient } & Chi
     id: entry.id,
     data: { date: entry.date, slot: entry.slot },
   })
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
+  // Mientras se arrastra, el chip sigue al dedo 1:1 (sin transición: cualquier
+  // suavizado se siente como retardo). Al soltar, `transform` pasa a undefined
+  // y hasta W6 el chip se teletransportaba; ahora asienta en 200 ms.
+  const style = transform
+    ? { transform: CSS.Translate.toString(transform) }
+    : { transition: 'transform var(--dur-2) var(--ease-out)' }
   // Se mantiene el aria-roledescription por defecto de dnd-kit ("draggable");
   // nuestra pista (dragHint) se añade como descripción adicional, sin pisar
   // la descripción propia de dnd-kit (instrucciones de teclado).
@@ -72,8 +77,14 @@ function SlotCell({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex min-h-[4.5rem] flex-col gap-1.5 rounded-md border border-dashed border-border/70 p-1.5',
-        isOver && 'border-primary bg-accent/40',
+        // Superficie hundida en vez de punteado: veintiocho de estos en
+        // pantalla, y el punteado gris es lo que hacía que el plan pareciera un
+        // wireframe sin terminar.
+        'flex min-h-[4.5rem] flex-col gap-1.5 rounded-md border border-transparent bg-surface-sunken p-1.5',
+        // Animación #3 (informe de animaciones): el resaltado del destino se
+        // enciende en 150 ms en vez de saltar. Solo colores.
+        'transition-colors duration-150 ease-out',
+        isOver && 'border-acc-line bg-acc-soft',
       )}
     >
       <div className="flex items-center justify-between">
@@ -96,10 +107,10 @@ export function DayColumn({ date, isToday, kcal, onAdd, entriesBySlot, ...callba
     <div className="flex flex-col gap-2">
       <div
         data-testid={isToday ? 'today-column' : undefined}
-        className={cn('flex items-center justify-between rounded-sm px-1.5 py-1', isToday && 'bg-acc-ink text-bg')}
+        className={cn('flex items-center justify-between rounded-sm border border-transparent px-1.5 py-1', isToday && 'pill-selected')}
       >
         <span className="text-sm font-medium capitalize">{label}</span>
-        {isToday ? <span className="text-xs">{t('today')}</span> : null}
+        {isToday ? <span className="text-xs font-semibold">{t('today')}</span> : null}
       </div>
       {kcal !== null ? <p className="px-1.5 text-xs tabular text-text-2">{t('kcalDay', { kcal })}</p> : null}
       {MEAL_SLOTS.map((slot) => (

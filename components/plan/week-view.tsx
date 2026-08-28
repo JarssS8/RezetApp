@@ -172,24 +172,27 @@ export function WeekView({
           <ChevronLeftIcon size={18} />
         </Button>
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
-          <Link href={`/plan?week=${todayIso}`} className="inline-flex min-h-11 shrink-0 items-center rounded-sm border border-border px-3 text-sm font-medium">
+          <Link
+            href={`/plan?week=${todayIso}`}
+            className="inline-flex min-h-11 shrink-0 items-center rounded-sm border border-line-2 bg-card px-3 text-sm font-medium shadow-card"
+          >
             {t('today')}
           </Link>
           <Link
             href={`/plan/month?month=${monday.slice(0, 7)}`}
-            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border border-line-2 bg-card px-3 text-sm font-medium shadow-card"
           >
             <CalendarMonthIcon size={16} />
             {t('month')}
           </Link>
           <Link
             href="/plan/proposals"
-            className="relative inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium"
+            className="relative inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border border-line-2 bg-card px-3 text-sm font-medium shadow-card"
           >
             <SparklesIcon size={16} />
             {t('proposals.title')}
             {pendingProposals > 0 ? (
-              <Badge variant="destructive" className="absolute -top-2 -right-2">
+              <Badge variant="default" className="absolute -top-2 -right-2">
                 {pendingProposals}
               </Badge>
             ) : null}
@@ -197,11 +200,14 @@ export function WeekView({
           <Link
             href={`/plan/stats?week=${monday}`}
             aria-label={t('stats.link')}
-            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border border-line-2 bg-card px-3 text-sm font-medium shadow-card"
           >
             <ChartIcon size={16} />
           </Link>
-          <Link href="/plan/shopping" className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium">
+          <Link
+            href="/plan/shopping"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-sm bg-primary px-3 text-sm font-medium text-primary-foreground"
+          >
             <SendIcon size={16} />
             {t('shopping.title')}
           </Link>
