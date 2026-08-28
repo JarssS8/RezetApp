@@ -21,10 +21,24 @@ const steps = [
   { id: 's2', index: 1, text: 'Sirve caliente', timerSeconds: null, imageUrl: null },
 ]
 
-function renderSession(initialServings = 2) {
+// Admite sobrescribir raciones y pasos por separado, para el caso de la
+// receta sin pasos (Tarea 13) sin duplicar el JSX de montaje.
+function renderSession(overrides: { initialServings?: number; steps?: typeof steps } = {}) {
+  const { initialServings = 2, steps: stepsOverride = steps } = overrides
   return render(
     <NextIntlClientProvider locale="es" messages={{ cook: messages, common, recipes }}>
-      <CookSession recipeId="r1" entryId="e1" title="Sopa de cebolla" servingsBase={2} initialServings={initialServings} ingredients={ingredients} steps={steps} locale="es" units="metric" sourceSlot="dinner" />
+      <CookSession
+        recipeId="r1"
+        entryId="e1"
+        title="Sopa de cebolla"
+        servingsBase={2}
+        initialServings={initialServings}
+        ingredients={ingredients}
+        steps={stepsOverride}
+        locale="es"
+        units="metric"
+        sourceSlot="dinner"
+      />
     </NextIntlClientProvider>,
   )
 }
@@ -43,7 +57,7 @@ describe('CookSession', () => {
 
   it('escala los ingredientes al cambiar las raciones (dominio en cliente)', async () => {
     const user = userEvent.setup()
-    renderSession(2)
+    renderSession({ initialServings: 2 })
     expect(screen.getByText('300 g')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /más|más raciones|aumentar/i }))
     await user.click(screen.getByRole('button', { name: /más|más raciones|aumentar/i }))
@@ -98,6 +112,32 @@ describe('CookSession', () => {
         <CookSession recipeId="r1" entryId="e1" title="Sopa de cebolla" servingsBase={2} initialServings={2} ingredients={ingredients} steps={[]} locale="es" units="metric" sourceSlot="dinner" />
       </NextIntlClientProvider>,
     )
+    expect(screen.getByText(/esta receta no tiene pasos/i)).toBeInTheDocument()
+  })
+
+  it('pide la pantalla completa y enseña el progreso con puntos, no solo con texto', () => {
+    const { container } = renderSession()
+    const section = container.querySelector('[data-fullscreen]')
+    expect(section).not.toBeNull()
+    // El progreso deja de ser una frase gris: un punto por paso, el actual en
+    // acento. El texto sigue ahí para el lector de pantalla.
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1')
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuemax', '2')
+  })
+
+  it('el modo pared cambia de lienzo, no solo de tamaño de letra', async () => {
+    const { container } = renderSession()
+    await userEvent.click(screen.getByRole('button', { name: /modo pared/i }))
+    // La aserción de siempre: e2e/cook.spec.ts:70 depende de esta clase.
+    expect(screen.getByTestId('cook-step')).toHaveClass('text-4xl')
+    expect(container.querySelector('[data-wall="true"]')).not.toBeNull()
+  })
+
+  it('la receta sin pasos NO se lleva la pantalla: el vacío deja salir', () => {
+    const { container } = renderSession({ steps: [] })
+    // Sin barra inferior, un callejón sin salida. El vacío se queda dentro del
+    // marco de la app a propósito.
+    expect(container.querySelector('[data-fullscreen]')).toBeNull()
     expect(screen.getByText(/esta receta no tiene pasos/i)).toBeInTheDocument()
   })
 })

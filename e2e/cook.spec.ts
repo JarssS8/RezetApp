@@ -68,5 +68,7 @@ test.describe('cocinar', () => {
     await expect(page.getByRole('status').first()).toContainText(/\d\d:\d\d/)
     await page.getByRole('button', { name: /modo pared/i }).click()
     await expect(page.getByTestId('cook-step')).toHaveClass(/text-4xl/)
+    // W6: la sesión se lleva la pantalla, así que la barra inferior no está.
+    await expect(page.getByRole('navigation')).toHaveCount(0)
   })
 })

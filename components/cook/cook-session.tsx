@@ -1,11 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
-import { ChevronLeftIcon, ChevronRightIcon, CookIcon, VolumeIcon, VolumeOffIcon } from '@/components/icons'
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, CookIcon, VolumeIcon, VolumeOffIcon } from '@/components/icons'
 import { buildIngredientRows, type DetailIngredient } from '@/components/recipes/ingredient-list'
 import { ServingsStepper } from '@/components/recipes/servings-stepper'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { scaleRecipe } from '@/lib/domain'
 import type { Locale, UnitSystem } from '@/lib/domain/types'
 import { cn } from '@/lib/utils'
@@ -87,6 +89,7 @@ export interface CookSessionProps {
 // AGENTS.md garantiza que el número es idéntico al del servidor.
 export function CookSession({ recipeId, entryId, title, servingsBase, initialServings, ingredients, steps, locale, units, sourceSlot }: CookSessionProps) {
   const t = useTranslations('cook')
+  const c = useTranslations('common')
   const [servings, setServings] = useState(initialServings)
   const [index, setIndex] = useState(0)
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set())
@@ -144,18 +147,29 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
   }
 
   // Receta sin pasos: no hay nada que recorrer (repaso de la Tarea 6, antes no
-  // se pintaba nada en absoluto).
+  // se pintaba nada en absoluto). Sin `data-fullscreen`: el vacío se queda
+  // dentro del marco de la app, con la barra inferior, para que no sea un
+  // callejón sin salida.
   if (steps.length === 0) {
     return (
-      <section className="flex min-h-[70dvh] flex-col items-center justify-center gap-2 text-center text-text-2">
-        <p>{t('noSteps')}</p>
+      <section className="flex min-h-[70dvh] flex-col items-center justify-center">
+        <EmptyState icon={CookIcon} title={t('noSteps')} />
       </section>
     )
   }
 
   return (
     <section
-      className="flex min-h-[70dvh] flex-col gap-4"
+      data-fullscreen="true"
+      data-wall={wall ? 'true' : undefined}
+      // Pantalla completa de verdad (docs/02-DISENO, "Modo cocina"): el marco de
+      // la app se aparta al ver este data-fullscreen (app/(app)/layout.tsx), sin
+      // layout paralelo. El modo pared cambia además el lienzo, no solo el
+      // cuerpo de letra: fondo hundido y más aire para leer a dos metros.
+      className={cn(
+        'flex min-h-dvh flex-col gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]',
+        wall ? 'bg-surface-sunken gap-6 px-8' : 'mx-auto w-full max-w-xl',
+      )}
       // Teclado (portátil apoyado en la encimera) y deslizamiento con el dedo:
       // las dos formas de pasar de paso sin apuntar a un botón pequeño con las
       // manos pringadas (spec §8, "swipe/teclas").
@@ -177,7 +191,7 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
       }}
     >
       <header className="flex items-center justify-between gap-2">
-        <h1 className={cn('truncate font-display', wall ? 'text-3xl' : 'text-xl')}>{title}</h1>
+        <h1 className={cn('title-content truncate', wall && 'text-3xl')}>{title}</h1>
         <div className="flex items-center gap-2">
           {speech.supported ? (
             <Button
@@ -195,18 +209,37 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
             <CookIcon size={20} />
           </Button>
           <ServingsStepper value={servings} onChange={setServings} />
+          <Button type="button" variant="ghost" size="icon" aria-label={c('actions.close')} render={<Link href="/cook" />}>
+            <CloseIcon size={20} />
+          </Button>
         </div>
       </header>
 
-      <p className="tabular text-sm text-text-2">{t('stepOf', { current: index + 1, total: steps.length })}</p>
+      {/* Un punto por paso, el actual en acento: se lee de un vistazo desde el
+          otro lado de la encimera. El texto de siempre se queda como nombre
+          accesible de la barra, así que ningún lector de pantalla pierde nada. */}
+      <div
+        role="progressbar"
+        aria-valuemin={1}
+        aria-valuenow={index + 1}
+        aria-valuemax={steps.length}
+        aria-label={t('stepOf', { current: index + 1, total: steps.length })}
+        className="flex items-center gap-1.5"
+      >
+        {steps.map((s, i) => (
+          <span key={s.id} aria-hidden="true" className={cn('h-1.5 flex-1 rounded-pill', i <= index ? 'bg-primary' : 'bg-surface-sunken')} />
+        ))}
+      </div>
 
-      {step ? (
-        <p data-testid="cook-step" className={cn('leading-snug', wall ? 'text-4xl' : 'text-2xl')}>
-          {step.text}
-        </p>
-      ) : null}
+      <div className="flex flex-col gap-4 rounded-lg border border-line-2 bg-card p-4 shadow-card">
+        {step ? (
+          <p data-testid="cook-step" className={cn('text-balance leading-snug', wall ? 'text-4xl' : 'text-2xl')}>
+            {step.text}
+          </p>
+        ) : null}
 
-      {step ? <StepTimers text={step.text} locale={locale} stepIndex={index} timerSeconds={step.timerSeconds} /> : null}
+        {step ? <StepTimers text={step.text} locale={locale} stepIndex={index} timerSeconds={step.timerSeconds} /> : null}
+      </div>
 
       {wall || stepRows.length > 0 ? <IngredientChecklist rows={stepRows} checked={checked} onToggle={toggle} /> : null}
 
@@ -219,10 +252,10 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
 
       <div className="mt-auto flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <Button type="button" variant="outline" size="lg" disabled={index === 0} aria-label={t('previous')} onClick={() => goTo((i) => i - 1)}>
+          <Button type="button" variant="ghost" size="lg" disabled={index === 0} aria-label={t('previous')} onClick={() => goTo((i) => i - 1)}>
             <ChevronLeftIcon size={22} />
           </Button>
-          <Button type="button" size="lg" disabled={index >= steps.length - 1} aria-label={t('next')} onClick={() => goTo((i) => i + 1)}>
+          <Button type="button" variant="default" size="lg" disabled={index >= steps.length - 1} aria-label={t('next')} onClick={() => goTo((i) => i + 1)}>
             <ChevronRightIcon size={22} />
           </Button>
         </div>
