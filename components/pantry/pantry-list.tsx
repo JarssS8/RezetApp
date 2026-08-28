@@ -1,10 +1,9 @@
 'use client'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useCallback, useState } from 'react'
-import { CupboardIcon, FreezerIcon, FridgeIcon, MergeIcon } from '@/components/icons'
-import { Button } from '@/components/ui/button'
+import { CupboardIcon, FreezerIcon, FridgeIcon, PantryIcon } from '@/components/icons'
+import { EmptyState } from '@/components/ui/empty-state'
 import type { PantryRow as PantryItemRow } from '@/lib/actions/pantry'
 import type { UnitSystem } from '@/lib/domain/types'
 import { useHouseholdEvents } from '@/lib/events/use-household-events'
@@ -42,13 +41,8 @@ export function PantryList({ items, unitSystem }: PantryListProps) {
 
   return (
     <div className="mt-4 flex flex-col gap-6">
-      <div className="flex justify-end">
-        <Button render={<Link href="/pantry/merge" />} variant="ghost" size="icon" aria-label={t('merge.title')}>
-          <MergeIcon size={18} />
-        </Button>
-      </div>
       {visible.length === 0 ? (
-        <p className="text-center text-sm text-text-2">{t('empty')}</p>
+        <EmptyState icon={PantryIcon} title={t('empty')} />
       ) : (
         LOCATIONS.map(({ id, Icon }) => {
           const group = visible.filter((item) => item.location === id)
