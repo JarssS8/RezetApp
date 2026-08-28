@@ -153,7 +153,16 @@ body {
 /* Utilidades de composición. En la app viven en el @layer components de
    app/globals.css; aquí van planas para que este fichero siga siendo pegable
    tal cual. Las dos hojas tienen que decir lo mismo (contrato en
-   tests/contracts/design-tokens.test.ts). */
+   tests/contracts/design-tokens.test.ts).
+   Excepción: `.pill-selected` en app/globals.css es un `@utility` de Tailwind
+   v4, no una clase dentro de `@layer components`. Motivo (fix del informe de
+   Tarea 5): Tailwind fija el orden de capas `theme, base, components,
+   utilities` y una capa posterior gana SIEMPRE a una anterior sobre la misma
+   propiedad, sin importar el orden de las clases en el JSX. Con la píldora en
+   `components`, un botón `variant="outline"` (que trae `bg-background` de la
+   capa `utilities`) se comía su fondo. Aquí, sin compilador de Tailwind que
+   entienda `@utility`, se queda como clase plana normal — es solo referencia
+   para copiar valores, no CSS que se sirva tal cual. */
 .title-screen { font-family: var(--f-display); font-weight: 700; font-size: var(--fs-title); line-height: 1.05; letter-spacing: -0.02em; text-wrap: balance; }
 .title-content { font-family: var(--f-display); font-weight: 600; font-size: 1.5rem; line-height: 1.15; letter-spacing: -0.01em; text-wrap: balance; }
 .num-hero { font-family: var(--f-display); font-weight: 600; font-size: var(--fs-hero); line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }

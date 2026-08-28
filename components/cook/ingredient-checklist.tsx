@@ -21,7 +21,7 @@ export function IngredientChecklist({ rows, checked, onToggle }: IngredientCheck
         const isChecked = checked.has(row.id)
         return (
           <li key={row.id}>
-            <label className={cn('flex min-h-11 items-center gap-3 rounded-sm px-2', row.nonLinear && 'bg-warn-soft text-warn', isChecked && 'opacity-60')}>
+            <label className={cn('flex min-h-11 items-center gap-3 rounded-sm px-2', row.nonLinear && 'bg-warn-soft text-warn-ink', isChecked && 'opacity-60')}>
               <input type="checkbox" checked={isChecked} onChange={() => onToggle(row.id)} className="size-5 accent-primary" />
               {row.nonLinear ? <WarningIcon size={16} /> : null}
               <span className={cn('flex-1', isChecked && 'line-through')}>{row.name}</span>

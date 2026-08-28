@@ -121,7 +121,7 @@ function PasskeyCard({
           {passkey.lastUsedAt ? t('passkeys.lastUsed', { date: format.dateTime(new Date(passkey.lastUsedAt), { dateStyle: 'medium', timeStyle: 'short' }) }) : t('passkeys.never')}
         </p>
         {renameError && (
-          <p role="alert" className="text-sm text-warn">
+          <p role="alert" className="text-sm text-warn-ink">
             {t('passkeys.error')}
           </p>
         )}
@@ -142,7 +142,7 @@ function PasskeyCard({
                 </DialogHeader>
                 <p className="text-sm text-text-2">{t('passkeys.removeConfirm')}</p>
                 {removeError && (
-                  <p role="alert" className="text-sm text-warn">
+                  <p role="alert" className="text-sm text-warn-ink">
                     {t('passkeys.error')}
                   </p>
                 )}

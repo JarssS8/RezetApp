@@ -110,7 +110,7 @@ export function FinishCookingDialog({ recipeId, entryId, servings, sourceSlot }:
             </div>
           ) : null}
           {warnings.length > 0 ? (
-            <ul aria-label={t('warnings')} className="flex flex-col gap-1 rounded-sm bg-warn-soft p-2 text-sm text-warn">
+            <ul aria-label={t('warnings')} className="flex flex-col gap-1 rounded-sm bg-warn-soft p-2 text-sm text-warn-ink">
               {warnings.map((w) => (
                 <li key={`${w.foodId}|${w.unit}`}>{t('warningLine', { name: w.name, missing: formatQuantity(w.requested - w.deducted, w.unit, locale) })}</li>
               ))}

@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { EstimatedIcon, RecipesIcon } from '@/components/icons'
+import { EstimatedIcon } from '@/components/icons'
 import { Card, CardContent } from '@/components/ui/card'
 import type { RecipeSummary } from '@/lib/actions/recipes'
+import { RecipePlaceholder } from './recipe-placeholder'
 
 export interface RecipeCardProps {
   recipe: RecipeSummary
@@ -27,9 +28,7 @@ export async function RecipeCard({ recipe }: RecipeCardProps) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={recipe.imageUrl} alt="" className="aspect-video w-full object-cover" />
         ) : (
-          <div className="flex aspect-video w-full items-center justify-center bg-surface-2 text-muted">
-            <RecipesIcon size={32} />
-          </div>
+          <RecipePlaceholder recipeId={recipe.id} />
         )}
         <CardContent className="flex flex-col gap-1.5">
           <h2 className="truncate font-display text-base">{recipe.title}</h2>
@@ -50,7 +49,7 @@ export async function RecipeCard({ recipe }: RecipeCardProps) {
           {recipe.tags.length > 0 ? (
             <ul className="flex flex-wrap gap-1">
               {recipe.tags.map((tag) => (
-                <li key={tag} className="rounded-pill bg-surface-2 px-2 py-0.5 text-xs text-text-2">
+                <li key={tag} className="rounded-pill bg-acc-soft px-2 py-0.5 text-xs text-acc-ink">
                   {tag}
                 </li>
               ))}

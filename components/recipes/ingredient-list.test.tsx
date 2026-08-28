@@ -105,12 +105,12 @@ describe('IngredientList', () => {
 
     const saltRow = screen.getByText('sal').closest('li')
     expect(saltRow).not.toBeNull()
-    expect(saltRow).toHaveClass('text-warn')
+    expect(saltRow).toHaveClass('text-warn-ink')
     expect(within(saltRow as HTMLElement).getByTitle(recipes.detail.nonLinear)).toBeInTheDocument()
 
     const onionRow = screen.getByText('cebolla').closest('li')
     expect(onionRow).not.toBeNull()
-    expect(onionRow).not.toHaveClass('text-warn')
+    expect(onionRow).not.toHaveClass('text-warn-ink')
   })
 
   it('muestra la nota de no-lineales una sola vez', () => {

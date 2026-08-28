@@ -85,12 +85,12 @@ export function ImportButton() {
         </p>
       ) : null}
       {result && result.failed.length > 0 ? (
-        <p role="status" className="text-sm text-warn">
+        <p role="status" className="text-sm text-warn-ink">
           {t('data.importFailed', { failed: result.failed.length })}
         </p>
       ) : null}
       {errorMessage ? (
-        <p role="alert" className="text-sm text-warn">
+        <p role="alert" className="text-sm text-warn-ink">
           {errorMessage}
         </p>
       ) : null}

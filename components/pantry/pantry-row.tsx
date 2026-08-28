@@ -2,7 +2,7 @@
 import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { MinusIcon, PlusIcon, TrashIcon } from '@/components/icons'
+import { MinusIcon, PlusIcon, TrashIcon, WarningIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { adjustPantryItemAction, removePantryItemAction, type PantryRow as PantryItemRow } from '@/lib/actions/pantry'
 import type { ActionResult } from '@/lib/actions/result'
@@ -36,6 +36,7 @@ export function PantryRow({ item, unitSystem, onRemoved, adjust = adjustPantryIt
   const locale = useLocale()
   const [quantity, setQuantity] = useState(item.quantity)
   const [busy, setBusy] = useState(false)
+  const [removing, setRemoving] = useState(false)
 
   // Ajuste de estado durante el renderizado (patrón recomendado por React en
   // vez de un efecto): si llega una fila más reciente del servidor (tras un
@@ -83,17 +84,36 @@ export function PantryRow({ item, unitSystem, onRemoved, adjust = adjustPantryIt
         toast.error(te('generic'))
         return
       }
-      onRemoved?.(item.id)
+      // Se marca la fila y se avisa al padre cuando termina la transición. El
+      // temporizador de reserva cubre el caso en que el navegador no dispare
+      // `transitionend` (pestaña en segundo plano, reduced-motion con .01ms).
+      setRemoving(true)
+      window.setTimeout(() => onRemoved?.(item.id), 240)
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <li className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2.5">
+    <li
+      data-removing={removing ? 'true' : undefined}
+      // Animación #2 del informe: dos pasos. Se marca la fila, se deja que la
+      // transición corra y solo entonces se avisa al padre, que la saca del
+      // array. `max-height` va con un pelín de retardo para que primero se
+      // apague y luego se cierre el hueco, no las dos cosas a la vez.
+      className={cn(
+        'flex max-h-24 items-center gap-3 overflow-hidden rounded-md border border-line-2 bg-card px-3 py-2.5 shadow-card',
+        'transition-[opacity,transform,max-height] duration-(--dur-2) ease-(--ease-in)',
+        removing && 'max-h-0 scale-[.97] py-0 opacity-0',
+      )}
+    >
+      <span aria-hidden="true" className="size-2 shrink-0 rounded-pill bg-acc-line" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{item.name}</p>
-        <p className={cn('text-xs', expiry.warn ? 'text-warn' : 'text-text-2')}>{expiry.label}</p>
+        <p className={cn('inline-flex items-center gap-1 text-xs', expiry.warn ? 'rounded-pill bg-warn-soft px-1.5 py-0.5 text-warn-ink' : 'text-text-2')}>
+          {expiry.warn ? <WarningIcon size={12} /> : null}
+          {expiry.label}
+        </p>
       </div>
       <div className="flex items-center gap-1">
         <Button type="button" variant="outline" size="icon-sm" aria-label={t('decrease')} disabled={busy} onClick={() => void handleAdjust(-step)}>

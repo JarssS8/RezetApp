@@ -4,6 +4,7 @@ import { useState, useTransition, type FormEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import type { z } from 'zod'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { ActionResult } from '@/lib/actions/result'
@@ -80,7 +81,7 @@ export function AppearanceForm({ initial, updateAction }: { initial: AppearanceP
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <Card className="flex flex-col gap-6 p-4">
       <fieldset className="flex flex-col gap-2">
         <legend className="text-sm font-medium">{t('appearance.theme')}</legend>
         <div className="flex flex-wrap gap-2">
@@ -166,10 +167,10 @@ export function AppearanceForm({ initial, updateAction }: { initial: AppearanceP
         </p>
       )}
       {error && (
-        <p role="alert" className="text-sm text-warn">
+        <p role="alert" className="text-sm text-warn-ink">
           {t('appearance.error')}
         </p>
       )}
-    </div>
+    </Card>
   )
 }

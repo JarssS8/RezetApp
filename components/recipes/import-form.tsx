@@ -160,13 +160,13 @@ export function ImportForm() {
       )}
 
       {error ? (
-        <p role="alert" className="text-sm text-warn">
+        <p role="alert" className="text-sm text-warn-ink">
           {error}
         </p>
       ) : null}
 
       {warnings.length > 0 ? (
-        <ul role="status" className="flex flex-col gap-1 text-sm text-warn">
+        <ul role="status" className="flex flex-col gap-1 text-sm text-warn-ink">
           {warnings.filter(isWarningKey).map((w) => (
             <li key={w}>{t(`import.warnings.${w}`)}</li>
           ))}

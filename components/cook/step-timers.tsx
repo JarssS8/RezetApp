@@ -76,7 +76,7 @@ export function StepTimers({ text, locale, stepIndex, timerSeconds }: StepTimers
         <ul className="flex flex-wrap items-center gap-3">
           {timers.map((timer) => (
             <li key={timer.id} className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2">
-              <output role="status" aria-live="polite" className={cn('tabular text-2xl font-medium', timer.remaining === 0 && 'text-warn')}>
+              <output role="status" aria-live="polite" className={cn('tabular text-2xl font-medium', timer.remaining === 0 && 'text-warn-ink')}>
                 {timer.remaining === 0 ? t('timerDone') : mmss(timer.remaining)}
               </output>
               {timer.remaining > 0 ? (

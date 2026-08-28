@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { ChevronLeftIcon, CookIcon, EditIcon, PlanIcon, RecipesIcon, TrashIcon } from '@/components/icons'
+import { ChevronLeftIcon, CookIcon, EditIcon, PlanIcon, TrashIcon } from '@/components/icons'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { deleteRecipeAction, type RecipeDetail } from '@/lib/actions/recipes'
@@ -14,6 +14,7 @@ import type { Locale, UnitSystem } from '@/lib/domain/types'
 import { cn } from '@/lib/utils'
 import { buildIngredientRows, IngredientList, type DetailIngredient } from './ingredient-list'
 import { NutritionRow } from './nutrition-row'
+import { RecipePlaceholder } from './recipe-placeholder'
 import { ServingsStepper } from './servings-stepper'
 
 type SerializableRecipe = Omit<RecipeDetail['recipe'], 'createdAt' | 'updatedAt' | 'lastCookedAt' | 'deletedAt'> & {
@@ -107,12 +108,10 @@ export function RecipeDetailView({ detail, locale, units, initialServings }: Rec
         // eslint-disable-next-line @next/next/no-img-element
         <img src={imageUrl} alt="" className="mt-2 aspect-video w-full rounded-lg object-cover" />
       ) : (
-        <div className="mt-2 flex aspect-video w-full items-center justify-center rounded-lg bg-surface-2 text-text-2">
-          <RecipesIcon size={40} />
-        </div>
+        <RecipePlaceholder recipeId={detail.recipe.id} className="mt-2 rounded-lg" />
       )}
 
-      <h1 className="mt-3 font-display text-2xl">{detail.recipe.title}</h1>
+      <h1 className="mt-3 title-content">{detail.recipe.title}</h1>
       {detail.recipe.description ? <p className="mt-1 text-sm text-text-2">{detail.recipe.description}</p> : null}
       <p className="tabular mt-1 text-xs text-text-2">{t('detail.cooked', { count: detail.recipe.timesCooked })}</p>
 
@@ -142,7 +141,7 @@ export function RecipeDetailView({ detail, locale, units, initialServings }: Rec
         </div>
       ) : null}
 
-      <section className="mt-6">
+      <section className="mt-6 rounded-lg border border-line-2 bg-card p-4 shadow-card">
         <h2 className="font-display text-lg">{t('detail.ingredients')}</h2>
         <div className="mt-2">
           <IngredientList rows={rows} />
@@ -150,12 +149,12 @@ export function RecipeDetailView({ detail, locale, units, initialServings }: Rec
       </section>
 
       {detail.steps.length > 0 ? (
-        <section className="mt-6">
+        <section className="mt-6 rounded-lg border border-line-2 bg-card p-4 shadow-card">
           <h2 className="font-display text-lg">{t('detail.steps')}</h2>
           <ol className="mt-2 flex flex-col gap-3">
             {detail.steps.map((step, index) => (
               <li key={step.id} className="flex gap-3">
-                <span className="tabular flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs text-text-2">
+                <span className="tabular flex size-7 shrink-0 items-center justify-center rounded-full bg-acc-soft text-xs font-semibold text-acc-ink">
                   {index + 1}
                 </span>
                 <div>
@@ -171,7 +170,7 @@ export function RecipeDetailView({ detail, locale, units, initialServings }: Rec
       ) : null}
 
       {detail.recipe.notes ? (
-        <section className="mt-6">
+        <section className="mt-6 rounded-lg border border-line-2 bg-card p-4 shadow-card">
           <h2 className="font-display text-lg">{t('detail.notes')}</h2>
           <p className="mt-2 whitespace-pre-line text-sm text-text-2">{detail.recipe.notes}</p>
         </section>

@@ -8,7 +8,7 @@ export default async function MergePantryFoodsPage() {
 
   return (
     <main>
-      <h1 className="text-2xl">{t('merge.title')}</h1>
+      <h1 className="title-screen">{t('merge.title')}</h1>
       <p className="mt-2 text-sm text-text-2">{t('merge.hint')}</p>
       <div className="mt-4">
         <MergeFoodsForm />

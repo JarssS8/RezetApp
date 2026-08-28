@@ -19,7 +19,7 @@ export function BottomBar() {
   return (
     <nav
       aria-label={t('navLabel')}
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 backdrop-blur pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-line-2 bg-card/95 backdrop-blur pb-[env(safe-area-inset-bottom)]"
     >
       <ul className="mx-auto grid max-w-xl grid-cols-5">
         {NAV_ITEMS.map(({ href, labelKey, Icon }) => {
@@ -30,11 +30,23 @@ export function BottomBar() {
                 href={href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium',
+                  'flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium',
                   active ? 'text-acc-ink' : 'text-text-2',
                 )}
               >
-                <Icon size={24} />
+                {/* La píldora vive dentro del área táctil de 56 px: el objetivo
+                    no se toca (AGENTS.md), solo se pinta lo que hay dentro. El
+                    trazo del icono engorda a 2.2 en la pestaña activa: es la
+                    segunda señal, además del fondo, y la que se lee de reojo. */}
+                {/* border-transparent y pill-selected nunca van juntas: las dos
+                    tocan border-color y, aunque pill-selected ya vive en la
+                    capa utilities de Tailwind (ver app/globals.css), un
+                    empate ahí se resuelve por orden de aparición en la hoja
+                    compilada, no por el orden de las clases aquí — más
+                    seguro no dejar que compitan. */}
+                <span className={cn('flex items-center justify-center rounded-pill border px-4 py-0.5', active ? 'pill-selected' : 'border-transparent')}>
+                  <Icon size={24} strokeWidth={active ? 2.2 : 1.85} />
+                </span>
                 <span>{t(`nav.${labelKey}`)}</span>
               </Link>
             </li>

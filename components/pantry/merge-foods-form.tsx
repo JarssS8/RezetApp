@@ -66,7 +66,7 @@ export function MergeFoodsForm() {
         <Label>{t('merge.into')}</Label>
         <FoodPicker key={`into-${resetKey}`} value={into} onChange={setInto} locale={locale} />
       </div>
-      {sameFood ? <p className="text-xs text-warn">{t('merge.sameFood')}</p> : null}
+      {sameFood ? <p className="text-xs text-warn-ink">{t('merge.sameFood')}</p> : null}
       <Button type="button" aria-busy={saving} disabled={!canSubmit || saving} onClick={() => void handleSubmit()}>
         {t('merge.submit')}
       </Button>
@@ -76,7 +76,7 @@ export function MergeFoodsForm() {
         </p>
       ) : null}
       {error ? (
-        <p role="alert" className="text-sm text-warn">
+        <p role="alert" className="text-sm text-warn-ink">
           {t('merge.error')}: {error}
         </p>
       ) : null}

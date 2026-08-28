@@ -98,7 +98,7 @@ function TokenCard({ token, isOwner, revokeAction }: { token: ApiTokenRow; isOwn
           {token.lastUsedAt ? t('tokens.lastUsed', { date: format.dateTime(new Date(token.lastUsedAt), { dateStyle: 'medium', timeStyle: 'short' }) }) : t('tokens.never')}
         </p>
         {error && (
-          <p role="alert" className="text-sm text-warn">
+          <p role="alert" className="text-sm text-warn-ink">
             {error}
           </p>
         )}
@@ -183,7 +183,7 @@ function CreateTokenDialog({ createAction }: { createAction: CreateApiTokenFn })
         </DialogHeader>
         {result ? (
           <div className="flex flex-col gap-3">
-            <p role="alert" className="text-sm text-warn">
+            <p role="alert" className="text-sm text-warn-ink">
               {t('tokens.created')}
             </p>
             <div className="flex items-center gap-2 rounded-sm border border-border bg-surface-2 p-2">
@@ -222,7 +222,7 @@ function CreateTokenDialog({ createAction }: { createAction: CreateApiTokenFn })
               </NativeSelect>
             </div>
             {error && (
-              <p role="alert" className="text-sm text-warn">
+              <p role="alert" className="text-sm text-warn-ink">
                 {error}
               </p>
             )}

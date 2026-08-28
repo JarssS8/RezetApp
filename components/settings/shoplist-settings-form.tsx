@@ -133,7 +133,7 @@ export function ShoplistSettingsForm(props: ShoplistSettingsFormProps) {
       {props.deepLink ? <OpenListLink deepLink={props.deepLink} t={t} /> : null}
 
       {saveError && (
-        <p role="alert" className="text-sm text-warn">
+        <p role="alert" className="text-sm text-warn-ink">
           {saveError}
         </p>
       )}

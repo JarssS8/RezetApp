@@ -145,7 +145,7 @@ export function PlanRulesForm({ initial, isOwner, updateAction }: PlanRulesFormP
         </Button>
         {saved ? <span className="text-sm text-acc-ink">{t('planRules.saved')}</span> : null}
         {error ? (
-          <span role="alert" className="text-sm text-warn">
+          <span role="alert" className="text-sm text-warn-ink">
             {t('planRules.error')}
           </span>
         ) : null}

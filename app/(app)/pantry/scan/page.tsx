@@ -8,7 +8,7 @@ export default async function ScanBarcodePage() {
 
   return (
     <main>
-      <h1 className="text-2xl">{t('scan.title')}</h1>
+      <h1 className="title-screen">{t('scan.title')}</h1>
       <div className="mt-4">
         <BarcodeScanner />
       </div>

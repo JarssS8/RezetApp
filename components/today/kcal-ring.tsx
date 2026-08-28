@@ -5,6 +5,7 @@ export interface KcalRingProps {
   cookedKcal: number
   isEstimated: boolean
   hasUnknownKcal?: boolean
+  dateLabel: string
 }
 
 const RADIUS = 46
@@ -13,36 +14,55 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 // Anillo informativo: cocinado sobre planificado de HOY. Sin objetivo diario ni
 // diario alimentario (respuesta 1 de AGENTS.md). Sin librería de gráficos: dos
 // círculos SVG y una máscara de trazo.
-export function KcalRing({ plannedKcal, cookedKcal, isEstimated, hasUnknownKcal }: KcalRingProps) {
+//
+// Desde W6 es el hero de la pantalla: superficie de acento suave, la fecha
+// arriba y la cifra en la voz display (Outfit), no en la monoespaciada. Es el
+// único dato de la app que se pinta así de grande; el resto de cifras siguen
+// en columna con .tabular.
+export function KcalRing({ plannedKcal, cookedKcal, isEstimated, hasUnknownKcal, dateLabel }: KcalRingProps) {
   const t = useTranslations('today')
   const locale = useLocale()
-  const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 })
+  // useGrouping: 'always' porque el CLDR de "es" agrupa a partir de dos
+  // dígitos antes del separador (min2): sin esto, 2000 kcal saldría "2000" en
+  // vez de "2.000" y la cifra grande del hero se leería mal de un vistazo.
+  const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: 0, useGrouping: 'always' })
   const ratio = plannedKcal > 0 ? Math.min(1, cookedKcal / plannedKcal) : 0
   const offset = CIRCUMFERENCE * (1 - ratio)
 
   return (
-    <figure className="flex items-center gap-4">
-      <svg viewBox="0 0 100 100" className="size-28 shrink-0 -rotate-90" role="img" aria-label={t('ringLabel', { cooked: nf.format(cookedKcal), planned: nf.format(plannedKcal) })}>
-        <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="var(--surf-2)" strokeWidth="8" />
-        <circle
-          data-testid="kcal-ring-progress"
-          cx="50"
-          cy="50"
-          r={RADIUS}
-          fill="none"
-          stroke="var(--acc)"
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={CIRCUMFERENCE}
-          strokeDashoffset={offset}
-        />
-      </svg>
-      <figcaption className="flex flex-col">
-        <span className="tabular text-3xl font-medium">{nf.format(cookedKcal)}</span>
-        <span className="tabular text-sm text-text-2">{t('ofPlanned', { planned: nf.format(plannedKcal) })}</span>
-        {isEstimated ? <span className="text-xs text-text-2">{t('estimated')}</span> : null}
-        {hasUnknownKcal ? <span className="text-xs text-text-2">{t('unknownKcal')}</span> : null}
-      </figcaption>
+    <figure className="flex flex-col gap-3 rounded-lg bg-acc-soft p-4 shadow-hero">
+      <figcaption className="text-sm font-medium text-text-2 capitalize">{dateLabel}</figcaption>
+      <div className="flex items-center gap-4">
+        <svg viewBox="0 0 100 100" className="size-28 shrink-0 -rotate-90" role="img" aria-label={t('ringLabel', { cooked: nf.format(cookedKcal), planned: nf.format(plannedKcal) })}>
+          {/* La pista se pinta con --surf (no con --surf-2): sobre el acento
+              suave del hero, el gris hundido casi no se distinguía. Es
+              decoración: el valor lo dicen el aria-label y la cifra. */}
+          <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="var(--surf)" strokeWidth="8" />
+          <circle
+            data-testid="kcal-ring-progress"
+            className="transition-[stroke-dashoffset] duration-(--dur-3) ease-(--ease-out)"
+            cx="50"
+            cy="50"
+            r={RADIUS}
+            fill="none"
+            stroke="var(--acc)"
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={CIRCUMFERENCE}
+            strokeDashoffset={offset}
+          />
+        </svg>
+        <div className="flex flex-col">
+          {/* Animación #1 del informe: hasta W6 el anillo saltaba al valor nuevo
+              al cocinar o al llegar un evento SSE. 500 ms, solo strokeDashoffset,
+              nunca el color. prefers-reduced-motion ya lo anula globalmente
+              (app/globals.css). */}
+          <span className="num-hero">{nf.format(cookedKcal)}</span>
+          <span className="tabular text-sm text-text-2">{t('ofPlanned', { planned: nf.format(plannedKcal) })}</span>
+          {isEstimated ? <span className="text-xs text-text-2">{t('estimated')}</span> : null}
+          {hasUnknownKcal ? <span className="text-xs text-text-2">{t('unknownKcal')}</span> : null}
+        </div>
+      </div>
     </figure>
   )
 }

@@ -72,16 +72,18 @@ describe('ProposalCard', () => {
     expect(screen.queryByText('2026-08-24')).not.toBeInTheDocument()
   })
 
-  it('pinta los altas en text-acc-ink y las bajas en text-warn', () => {
+  it('pinta los altas en text-acc-ink y las bajas en text-warn-ink, con el <li> como portador', () => {
     renderCard(baseProposal())
 
-    const added = screen.getByText('+ Lentejas · Comida · ×2')
+    // El texto vive en un <span> junto al icono de marcador; el color sigue
+    // en el <li> (mismo elemento que agrupa icono + texto).
+    const added = screen.getByText('+ Lentejas · Comida · ×2').closest('li')
     expect(added).toHaveClass('text-acc-ink')
-    const added2 = screen.getByText('+ Tortilla · Cena · ×1')
+    const added2 = screen.getByText('+ Tortilla · Cena · ×1').closest('li')
     expect(added2).toHaveClass('text-acc-ink')
 
-    const removed = screen.getByText('− Pasta · Cena')
-    expect(removed).toHaveClass('text-warn')
+    const removed = screen.getByText('− Pasta · Cena').closest('li')
+    expect(removed).toHaveClass('text-warn-ink')
   })
 
   it('pendiente muestra los botones Aprobar/Descartar', () => {

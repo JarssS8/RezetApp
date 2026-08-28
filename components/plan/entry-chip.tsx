@@ -35,7 +35,7 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
   return (
     <div
       data-status={entry.status}
-      className={cn('flex flex-col gap-1 rounded-md border border-border bg-card p-2 text-sm', skipped && 'opacity-60')}
+      className={cn('flex flex-col gap-1 rounded-md border border-line-2 bg-card p-2 text-sm shadow-card', skipped && 'opacity-60')}
     >
       <div className="flex items-center gap-1.5">
         <span className={cn('flex-1 truncate font-medium', skipped && 'line-through')}>{entry.title}</span>
@@ -60,7 +60,10 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
         ) : null}
         {entry.recipeId && !entry.leftoverOfEntryId ? <LeftoverDialog fromEntryId={entry.id} sourceSlot={entry.slot} /> : null}
         {cooked ? (
-          <span className="inline-flex items-center rounded-pill bg-primary/10 px-1.5 py-0.5 text-xs text-primary">{t('cooked')}</span>
+          // Este chip solo se pinta si cooked es true: sin border-transparent,
+          // que competiría con el border-color de pill-selected por la misma
+          // propiedad (ver app/globals.css).
+          <span className="inline-flex items-center rounded-pill border px-1.5 py-0.5 text-xs font-medium pill-selected">{t('cooked')}</span>
         ) : null}
         {entry.timeBudgetMinutes !== null ? (
           <span className="inline-flex items-center gap-0.5 text-xs text-text-2" aria-label={t('timeBudget')}>

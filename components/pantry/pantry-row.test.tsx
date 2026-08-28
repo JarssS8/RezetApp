@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import errors from '@/messages/es/errors.json'
@@ -14,7 +15,7 @@ import { PantryRow } from './pantry-row'
 // adjust/remove explícitamente).
 vi.mock('@/lib/actions/pantry', () => ({
   adjustPantryItemAction: vi.fn(),
-  removePantryItemAction: vi.fn(),
+  removePantryItemAction: vi.fn(async () => ({ ok: true as const, data: undefined })),
 }))
 
 const food: FoodWithNutrition = {
@@ -70,13 +71,13 @@ describe('PantryRow', () => {
     renderRow()
     expect(screen.getByText('500 g')).toBeInTheDocument()
     const expiryText = screen.getByText(pantry.expiresIn.replace('{days}', '3'))
-    expect(expiryText).toHaveClass('text-warn')
+    expect(expiryText).toHaveClass('text-warn-ink')
   })
 
   it('no marca en ámbar una caducidad lejana', () => {
     renderRow({ item: makeItem({ daysToExpiry: 10 }) })
     const expiryText = screen.getByText(pantry.expiresIn.replace('{days}', '10'))
-    expect(expiryText).not.toHaveClass('text-warn')
+    expect(expiryText).not.toHaveClass('text-warn-ink')
   })
 
   it('al pulsar "+" ajusta de forma optimista y llama a adjust con (id, paso)', async () => {
@@ -123,5 +124,16 @@ describe('PantryRow', () => {
     fireEvent.click(screen.getByRole('button', { name: pantry.remove }))
     await waitFor(() => expect(onRemoved).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111'))
     expect(remove).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111')
+  })
+
+  it('al borrar, la fila se marca como saliente antes de desaparecer', async () => {
+    const onRemoved = vi.fn()
+    renderRow({ onRemoved })
+    await userEvent.click(screen.getByRole('button', { name: pantry.remove }))
+    // La fila se marca primero (data-removing) y solo después avisa al padre:
+    // sin eso, el <li> desaparecía del array en el siguiente render y no había
+    // nada que animar.
+    expect(screen.getByRole('listitem')).toHaveAttribute('data-removing', 'true')
+    await waitFor(() => expect(onRemoved).toHaveBeenCalledWith(expect.any(String)))
   })
 })

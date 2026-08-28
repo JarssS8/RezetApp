@@ -55,7 +55,7 @@ export default async function PlanPage({ searchParams }: PlanPageProps) {
 
   return (
     <main className="flex flex-col gap-3 pb-4">
-      <h1 className="text-2xl">{t('title')}</h1>
+      <h1 className="title-screen">{t('title')}</h1>
       <WeekView
         monday={monday}
         days={days}

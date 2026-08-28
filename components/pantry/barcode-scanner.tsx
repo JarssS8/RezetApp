@@ -243,7 +243,7 @@ export function BarcodeScanner({ lookup = lookupBarcodeAction }: BarcodeScannerP
           </Button>
         </div>
       ) : null}
-      {showManual && manualError ? <p role="alert" className="text-xs text-warn">{te('generic')}</p> : null}
+      {showManual && manualError ? <p role="alert" className="text-xs text-warn-ink">{te('generic')}</p> : null}
       <FoodCorrectionDialog
         food={null}
         open={createOpen}

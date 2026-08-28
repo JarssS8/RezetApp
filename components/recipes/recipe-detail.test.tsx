@@ -117,7 +117,7 @@ describe('RecipeDetailView', () => {
   it('las kcal por ración no cambian al escalar (solo el total)', () => {
     const { container } = renderView()
 
-    const perServingEl = container.querySelector('.font-display.text-3xl')
+    const perServingEl = container.querySelector('[data-testid="kcal-per-serving"]')
     expect(perServingEl).not.toBeNull()
     const perServingBefore = perServingEl?.textContent
     expect(container.textContent).toContain('400')
@@ -126,7 +126,7 @@ describe('RecipeDetailView', () => {
     fireEvent.click(more)
     fireEvent.click(more)
 
-    expect(container.querySelector('.font-display.text-3xl')?.textContent).toBe(perServingBefore)
+    expect(container.querySelector('[data-testid="kcal-per-serving"]')?.textContent).toBe(perServingBefore)
     expect(container.textContent).toContain('600')
     expect(container.textContent).not.toContain('400')
   })

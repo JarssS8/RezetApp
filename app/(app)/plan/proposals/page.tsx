@@ -28,7 +28,7 @@ export default async function PlanProposalsPage() {
 
   return (
     <main className="flex flex-col gap-3 pb-4">
-      <h1 className="text-2xl">{t('proposals.title')}</h1>
+      <h1 className="title-screen">{t('proposals.title')}</h1>
       {proposalsClient.length === 0 ? <p className="text-sm text-text-2">{t('proposals.empty')}</p> : null}
       <ProposalsList proposals={proposalsClient} />
     </main>

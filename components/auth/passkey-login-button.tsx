@@ -43,7 +43,7 @@ export function PasskeyLoginButton({ inviteToken }: { inviteToken?: string }) {
         </p>
       )}
       {error && (
-        <p role="alert" className="text-sm text-warn">
+        <p role="alert" className="text-sm text-warn-ink">
           {error}
         </p>
       )}

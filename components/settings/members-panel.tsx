@@ -98,7 +98,7 @@ function InviteDialog({ createInviteAction }: { createInviteAction: CreateInvite
           <DialogTitle>{t('members.invite')}</DialogTitle>
         </DialogHeader>
         {error && (
-          <p role="alert" className="text-sm text-warn">
+          <p role="alert" className="text-sm text-warn-ink">
             {t('members.error')}
           </p>
         )}
@@ -262,7 +262,7 @@ function MemberCard({
         </fieldset>
 
         {error && (
-          <p role="alert" className="text-sm text-warn">
+          <p role="alert" className="text-sm text-warn-ink">
             {t('members.error')}
           </p>
         )}
@@ -279,7 +279,7 @@ function MemberCard({
               </DialogHeader>
               <p className="text-sm text-text-2">{t('members.removeConfirm', { name: member.displayName })}</p>
               {removeError && (
-                <p role="alert" className="text-sm text-warn">
+                <p role="alert" className="text-sm text-warn-ink">
                   {t('members.error')}
                 </p>
               )}
