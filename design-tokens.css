@@ -168,5 +168,8 @@ body {
 .num-hero { font-family: var(--f-display); font-weight: 600; font-size: var(--fs-hero); line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .num-lead { font-family: var(--f-display); font-weight: 600; font-size: var(--fs-num); line-height: 1.05; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .pill-selected { background: var(--acc-soft); color: var(--acc-ink); border-color: var(--acc-line); }
-.pill-selected:hover { background: var(--acc-soft-2); }
+.pill-selected:hover { border-color: var(--acc); }
+/* El hover no toca el fondo: acc-ink/acc-soft-2 suspendía AA en miel claro
+   (4,35:1) y berenjena oscuro (4,46:1). --acc-soft-2 se queda declarado
+   arriba aunque ya no lo pinte nada. */
 .cn-toast { border-radius: var(--r-md); box-shadow: var(--sh-raised); font-family: var(--f-body); }

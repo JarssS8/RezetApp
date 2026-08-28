@@ -20,13 +20,19 @@
    `variant="outline"` (que trae `bg-background`/`border-border` de la capa
    `utilities`) se comía el fondo y el borde de la píldora, y solo se veía el
    cambio de color de texto. Como `@utility`, la regla vive en `utilities`
-   junto a esas clases y compite en igualdad de condiciones. */
+   junto a esas clases y compite en igualdad de condiciones.
+   El hover NO oscurece el fondo con `--acc-soft-2`: el par acc-ink/acc-soft-2
+   suspendía AA en miel claro (4,35:1) y berenjena oscuro (4,46:1). El hover
+   solo marca el borde con `--acc`, que no participa en ningún par de
+   contraste texto/fondo. `--acc-soft-2` se queda declarado (lo documenta
+   design-tokens.css) aunque ya no lo pinte nada: puede volver a hacer falta
+   si algún día hay un segundo nivel de "seleccionado". */
 @utility pill-selected {
   background: var(--acc-soft);
   color: var(--acc-ink);
   border-color: var(--acc-line);
   &:hover {
-    background: var(--acc-soft-2);
+    border-color: var(--acc);
   }
 }
 

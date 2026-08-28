@@ -103,6 +103,13 @@ describe('tokens de diseño', () => {
     }
   })
 
+  // `acc-soft-2` queda fuera de estos pares a propósito: hasta W6 `.pill-selected:hover`
+  // pintaba `acc-ink` (texto) sobre `acc-soft-2` (fondo) y ese par suspendía AA en
+  // miel claro (4,35:1) y berenjena oscuro (4,46:1). El hover ahora solo cambia
+  // `border-color` a `--acc` (app/globals.css, design-tokens.css), así que ya no hay
+  // ningún sitio de la interfaz que pinte texto sobre `acc-soft-2`. El token se queda
+  // declarado (documentado más arriba) por si un futuro estado de dos niveles lo
+  // necesita, pero no entra en el contrato de contraste mientras nada lo use como fondo.
   it('--acc-ink cumple AA sobre superficie, fondo, hundido y acento suave en los ocho acentos y los dos temas', () => {
     const failures: string[] = []
     for (const [name, acc] of Object.entries(ACCENTS)) {
