@@ -19,6 +19,33 @@ function sourceFiles(dir: string): string[] {
   return out
 }
 
+// Extrae el contenido de cada `className=...` (string simple o `{cn(...)}`)
+// de un fuente JSX/TSX. Solo se mira dentro de className: un hex fuera de ahí
+// (p. ej. `themeColor` de app/layout.tsx, que necesita valores literales para
+// la barra del sistema, no una variable CSS) es legítimo y no debe contarse.
+function classNameChunks(source: string): string[] {
+  const out: string[] = []
+  const marker = /className\s*=\s*/g
+  for (const match of source.matchAll(marker)) {
+    const start = (match.index ?? 0) + match[0].length
+    const opener = source[start]
+    if (opener === '"' || opener === "'" || opener === '`') {
+      const end = source.indexOf(opener, start + 1)
+      out.push(source.slice(start, end === -1 ? source.length : end))
+    } else if (opener === '{') {
+      let depth = 0
+      let i = start
+      do {
+        if (source[i] === '{') depth += 1
+        else if (source[i] === '}') depth -= 1
+        i += 1
+      } while (depth > 0 && i < source.length)
+      out.push(source.slice(start, i))
+    }
+  }
+  return out
+}
+
 describe('controles base', () => {
   it('el campo, el botón y la lista desplegable cumplen el objetivo táctil de 44 px', () => {
     for (const file of ['components/ui/input.tsx', 'components/ui/button.tsx', 'components/ui/native-select.tsx']) {
@@ -35,7 +62,12 @@ describe('controles base', () => {
 
   it('ningún componente usa la paleta cruda de Tailwind ni hexadecimales en JSX', () => {
     const palette = /\b(?:bg|text|border|ring)-(?:gray|slate|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/
-    const offenders = sourceFiles('components').filter((f) => palette.test(readFileSync(join(ROOT, f), 'utf8')))
+    const hex = /#[0-9a-fA-F]{3,8}\b/
+    const offenders = [...sourceFiles('components'), ...sourceFiles('app')].filter((f) => {
+      const src = readFileSync(join(ROOT, f), 'utf8')
+      if (palette.test(src)) return true
+      return classNameChunks(src).some((chunk) => hex.test(chunk))
+    })
     expect(offenders).toEqual([])
   })
 })
