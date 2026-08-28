@@ -94,7 +94,10 @@ export function DayColumn({ date, isToday, kcal, onAdd, entriesBySlot, ...callba
   const label = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`))
   return (
     <div className="flex flex-col gap-2">
-      <div className={cn('flex items-center justify-between rounded-sm px-1.5 py-1', isToday && 'bg-acc-ink text-primary-foreground')}>
+      <div
+        data-testid={isToday ? 'today-column' : undefined}
+        className={cn('flex items-center justify-between rounded-sm px-1.5 py-1', isToday && 'bg-acc-ink text-bg')}
+      >
         <span className="text-sm font-medium capitalize">{label}</span>
         {isToday ? <span className="text-xs">{t('today')}</span> : null}
       </div>

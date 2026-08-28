@@ -8,13 +8,13 @@ test.describe('plan', () => {
     // Este caso planifica una COMIDA LIBRE (sin receta) a propósito: es la
     // rama que ningún otro spec toca. El plan con una receta de verdad,
     // cocinarla y la compra que sale de ahí están en e2e/loop.spec.ts.
-    // La cabecera de la columna de hoy se distingue de
-    // las demás por el fondo `bg-acc-ink` que le pone `isToday` (day-column.tsx).
+    // La cabecera de la columna de hoy lleva `data-testid="today-column"`
+    // (day-column.tsx), puesto por `isToday`.
     // El locale efectivo (es/en) depende del Accept-Language del navegador de
     // prueba, así que los textos se buscan con expresiones bilingües (mismo
     // patrón que auth.spec.ts).
     await page.goto('/plan')
-    const todayHeader = page.locator('div.bg-acc-ink', { hasText: /hoy|today/i })
+    const todayHeader = page.getByTestId('today-column')
     await expect(todayHeader).toBeVisible()
     const todayColumn = todayHeader.locator('xpath=..')
 
