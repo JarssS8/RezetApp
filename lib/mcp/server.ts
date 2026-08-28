@@ -29,7 +29,7 @@ const INSTRUCTIONS =
 // alguna herramienta (devuelve si lo hizo); con un token sin scopes (o sin
 // ninguno relevante) no se registra ninguna. ctx.mcpProfile ("basic"/"full")
 // es lo que separa, herramienta a herramienta, las doce del perfil básico de
-// las cinco del perfil completo (docs/05-MCP.md, "Barandillas de
+// las seis del perfil completo (docs/05-MCP.md, "Barandillas de
 // seguridad"): cada registerXTools consulta isFull(ctx) donde corresponda
 // antes de registrar las suyas.
 export function buildMcpServer(ctx: McpCtx): McpServer {

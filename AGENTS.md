@@ -93,7 +93,8 @@ Cerradas el 2026-08-26:
    el plan y en el anillo de Hoy. Sin objetivo diario ni diario alimentario.
 2. **Raciones por hueco con default del hogar.** `households.default_servings`;
    cada `meal_plan_entries.servings` puede diferir (invitados).
-3. **Cocina en móvil.** Modo cocina para 6" en mano. Modo pared/tablet es fase 5.
+3. **Cocina en móvil.** Modo cocina para 6" en mano. El modo pared/tablet se
+   planeó para la fase 5 y llegó con W4.
 4. **IA: elegible entre servidor local OpenAI-compatible y API cloud.** GPU
    objetivo 4–8 GB → modelos 4B–8B cuantizados (Q4_K_M) servidos con
    `llama-server` (llama.cpp): salida estructurada por gramática, control de
