@@ -107,9 +107,10 @@ hoy en el plan y las cabeceras de ubicación de la despensa.
 
 Dos reglas, sin excepción:
 
-- **El color nunca es la única señal.** `.pill-selected` siempre va acompañado
-  de `aria-current` o `aria-pressed` en el mismo elemento. Quien no distingue
-  colores tiene que enterarse igual de qué está seleccionado.
+- **El color nunca es la única señal.** Además del fondo de `.pill-selected`,
+  el elemento lleva texto visible que dice qué es, o `aria-current`/
+  `aria-pressed` en el mismo nodo. Quien no distingue colores tiene que
+  enterarse igual de qué está seleccionado.
 - **Vive dentro del área táctil, sin reducirla.** La píldora es el fondo del
   control completo, no un adorno interior que le roba espacio de toque.
 
@@ -160,6 +161,13 @@ Tres duraciones, ninguna suelta en un componente:
 | `--dur-1` | 140 ms | Lo que se toca muchas veces (hover, cambio de fila) |
 | `--dur-2` | 200 ms | Estados que se asientan y salidas (desplegables, aparecer/desaparecer) |
 | `--dur-3` | 500 ms | El anillo de kcal de Hoy |
+
+Excepción sancionada: el desplegable de sobras de `finish-dialog.tsx` añade
+`delay-75` (75 ms) antes de su `transition-opacity duration-(--dur-2)`, para
+que el contenido no empiece a aparecer hasta que el contenedor ha abierto una
+fracción — sin el retraso, el texto se ve encajarse dentro de una caja que aún
+está creciendo. Es la única duración fuera de la tabla; no sienta precedente
+para añadir más sin pasar antes por el informe de animaciones.
 
 Y lo que **no** se anima, a propósito:
 

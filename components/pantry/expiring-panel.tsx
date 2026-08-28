@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { WarnPanel } from '@/components/warn-panel'
+import { WarnPanel } from '@/components/ui/warn-panel'
 import type { PantryRow } from '@/lib/actions/pantry'
 
 export interface ExpiringPanelProps {
