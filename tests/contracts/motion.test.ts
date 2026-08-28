@@ -16,6 +16,10 @@ describe('movimiento', () => {
     expect(read('components/plan/day-column.tsx')).toContain('transition-colors')
     expect(read('components/cook/cook-session.tsx')).toContain('transition-opacity')
     expect(read('components/cook/finish-dialog.tsx')).toContain('grid-rows-[0fr]')
+    // El desplegable de sobras necesita las dos mitades del patrón `group`:
+    // el contenedor que abre y el hijo que se desvanece al mismo ritmo.
+    expect(read('components/cook/finish-dialog.tsx')).toContain('group')
+    expect(read('components/cook/finish-dialog.tsx')).toContain('group-data-open:opacity-100')
   })
 
   it('las duraciones salen de tokens, no de números sueltos', () => {
