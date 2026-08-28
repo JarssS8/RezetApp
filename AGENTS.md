@@ -30,8 +30,17 @@ estadísticas de plan frente a realidad, PWA y avisos push de caducidad.
 desplegable, 44 px de objetivo táctil protegido por contrato, deuda saldada
 (migración desde Mealie/Tandoor robusta y repetible, sin reexport de `db`
 fuera de `lib/services`, prompts MCP en el idioma del hogar), e2e del bucle
-completo y pasada de axe AA en las cinco pantallas y los dos temas. El
-proyecto está completo. Siguiente: mantenimiento. El spec
+completo y pasada de axe AA en las cinco pantallas y los dos temas.
+**W6 (identidad) hecha el 2026-08-28**: patrón único de «seleccionado» con
+`--acc-soft`/`--acc-ink`, superficie en vez de línea (sombras de dos capas,
+`--line-2` por tema, sin punteado en el plan), jerarquía tipográfica
+(`.title-screen`, hero de kcal con fecha, una sola familia para las cifras
+grandes), `EmptyState` y placeholder de receta con degradado por id, cocina a
+pantalla completa con `data-fullscreen`, puerta de entrada con marca, `--warn-ink`
+para el ámbar pequeño y las cinco animaciones aprobadas. Todo en `main` con
+`pnpm check`, `pnpm build` y `pnpm e2e` verdes, y axe limpio en las cinco
+pantallas más login y registro, en los dos temas. El proyecto está completo.
+Siguiente: mantenimiento. El spec
 (`docs/superpowers/specs/2026-08-26-rezetapp-design.md`) manda sobre estos docs
 cuando difieren; los planes están en `docs/superpowers/plans/`.
 
@@ -195,6 +204,8 @@ parezcan plantilla. Aplica los tokens antes de dar nada por bueno.
 - Los ejemplos en español de `docs/03-DOMINIO.md` y `docs/06-SHOPLIST.md`
   (`escalar`, `Linea`, `enviarACompra`…) se implementan con identificadores en
   inglés (`scaleQuantity`, `ShoppingLine`, `pushToShopList`).
+- **Cifras**: Outfit para la cifra protagonista, JetBrains Mono para las
+  cifras en columna (manda `docs/02-DISENO.md` desde W6).
 
 ## Índice de documentos
 

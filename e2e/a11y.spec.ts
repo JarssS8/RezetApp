@@ -31,3 +31,19 @@ for (const colorScheme of ['light', 'dark'] as const) {
     })
   })
 }
+
+for (const colorScheme of ['light', 'dark'] as const) {
+  test.describe(`accesibilidad de la puerta de entrada (${colorScheme})`, () => {
+    test(`login y registro pasan axe en tema ${colorScheme}`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme })
+      // Sin sesión: son las dos únicas pantallas que se ven sin registrarse, y
+      // en W6 estrenan wordmark, lavado de acento y tarjeta con sombra.
+      for (const screen of ['/login', '/register']) {
+        await page.goto(screen)
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+        const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze()
+        expect(violations.map((v) => `${v.id} (${v.nodes.length}): ${v.help}`), `${screen} en tema ${colorScheme}`).toEqual([])
+      }
+    })
+  })
+}

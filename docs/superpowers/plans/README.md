@@ -13,6 +13,7 @@ reales. Escribir W2+ antes de W1 produciría planes inventados.
 | W3 | `2026-08-27-w3-bucle.md` | hecho (mergeado 2026-08-27) | (a) primero, luego 3 ramas ∥ (30 tareas + fix wave) |
 | W4 | `2026-08-27-w4-extras.md` | hecho (mergeado 2026-08-27) | (a) primero, luego 5 ramas ∥ (36 tareas) |
 | W5 | `2026-08-28-w5-remate.md` | hecho (mergeado 2026-08-28) | 3 ramas ∥ (15 tareas) |
+| W6 | `2026-08-28-w6-identidad.md` | hecho (mergeado 2026-08-28) | 3 ramas ∥ (15 tareas) |
 
 ## Reglas de ejecución (todas las oleadas)
 

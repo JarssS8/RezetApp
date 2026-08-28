@@ -25,9 +25,16 @@ sintió agresiva. El diagnóstico, para no repetirlo:
 
 | Rol | Familia | Uso |
 |---|---|---|
-| Títulos | **Outfit** 600/700 | Cabeceras de pantalla, nombres de receta |
+| Títulos | **Outfit** 600/700 | Cabeceras de pantalla (`.title-screen`), títulos de contenido (`.title-content`) y **la cifra protagonista** (`.num-hero`, `.num-lead`) |
 | Interfaz | **DM Sans** 400/500/600/700 | Todo el texto corriente |
-| Datos | **JetBrains Mono** 500/600 | Cantidades, kcal, fechas, etiquetas |
+| Datos | **JetBrains Mono** 500/600 | Cifras **en columna**: cantidades, fechas, tablas, totales pequeños (`.tabular`) |
+
+La cifra protagonista —las kcal cocinadas del anillo de Hoy y las kcal por ración
+de la ficha— va en **Outfit con `tabular-nums`**, no en monoespaciada: un número
+hero en mono se lee como panel de control, justo lo que esta dirección evita
+(ver «Qué evitar»). La monoespaciada se reserva para lo que se compara en
+columna, que es donde su ancho fijo sirve para algo. Hasta W6 el mismo dato salía
+en las dos familias según la pantalla.
 
 Los números que se comparan en columna llevan `font-variant-numeric: tabular-nums`.
 El texto corrido no pasa de ~65 caracteres de ancho.
@@ -42,6 +49,23 @@ píldoras: 20px o 999px
 ```
 
 En Tailwind se mapean explícitamente `--radius-sm/md/lg/xl` → `--r-sm/--r-md/--r-lg/--r-lg`; no se usa `--radius`.
+
+## Superficie antes que línea
+
+La jerarquía entre una tarjeta y su fondo se lee por **sombra y escalón de
+fondo**, no por borde. `--sh-card` y `--sh-hero` son sombras de dos capas
+(una de contacto, corta y cerrada; otra de elevación, larga y difusa) — una
+sola capa se ve plana o se ve dura, nunca a media distancia.
+
+En «Noche suave» la sombra casi no se distingue sobre el carbón cálido, así
+que el borde hace el trabajo que en claro hace la sombra: `--line-2` se queda
+**entero** en oscuro (`var(--line)`, sin mezclar) y **casi desaparece** en claro
+(`--line` mezclado al 55 % con `--surf`). Es el mismo token cumpliendo dos
+papeles distintos según el tema, no una inconsistencia.
+
+`--surf-sunken` (alias de `--surf-2`) es el fondo del agrupador **hundido**:
+la caja de `EmptyState` y el hueco vacío de un día sin planificar en el plan.
+No es una tarjeta que sobresale, es un hueco que retrocede.
 
 ## Acentos elegibles
 
@@ -67,6 +91,28 @@ al ser los más oscuros, usan blanco. Ver la tabla de `--on-acc` por acento en
 `design-tokens.css` y `app/globals.css` (ambos deben decir lo mismo). Nunca
 escribas un color de contraste a mano.
 
+`--warn` sirve para bordes, iconos y fondos; el texto pequeño de aviso va en
+`--warn-ink` (5,44:1 sobre `--surf`, 4,74:1 sobre `--warn-soft`). Igual que con
+el acento, el ámbar tiene una tinta propia para texto y un tono suave para
+fondo: no se lee texto pequeño directamente sobre `--warn` ni sobre
+`--warn-soft`.
+
+## El estado seleccionado
+
+Un solo patrón para «esto está activo, elegido o encendido», en toda la app:
+`.pill-selected` (fondo `--acc-soft`, tinta `--acc-ink`, borde decorativo
+`--acc-line`). Lo llevan la pestaña activa de la barra inferior, los filtros de
+etiquetas y de dificultad, los dos chips de «cocinado», la cabecera del día de
+hoy en el plan y las cabeceras de ubicación de la despensa.
+
+Dos reglas, sin excepción:
+
+- **El color nunca es la única señal.** `.pill-selected` siempre va acompañado
+  de `aria-current` o `aria-pressed` en el mismo elemento. Quien no distingue
+  colores tiene que enterarse igual de qué está seleccionado.
+- **Vive dentro del área táctil, sin reducirla.** La píldora es el fondo del
+  control completo, no un adorno interior que le roba espacio de toque.
+
 ## Iconos
 
 **Dibujados a medida**, no una librería. Es el detalle de openGym que más se nota
@@ -84,6 +130,15 @@ Los cinco de la barra inferior: sol/plato, sartén, calendario, alacena, libro.
 - **Modo cocina**: pantalla completa, un paso, temporizador pulsable, wake lock.
 - **Día del plan**: chips de comida, marca de sobras, presupuesto de tiempo.
 - **Fila de despensa**: nombre, cantidad, y días hasta caducar en ámbar si < 7 días (fijo, visual); la alerta de Hoy usa `expiry_alert_days` del hogar.
+- **Vacío (`EmptyState`)**: caja hundida sobre `--surf-sunken`, icono a medida
+  dentro de un círculo `--acc-soft`/`--acc-ink`, título en `.title-content` y,
+  si hace falta, frase y acción. Un solo componente para las ocho pantallas que
+  pueden estar vacías; nunca un párrafo gris suelto.
+- **Placeholder de receta**: sin foto, degradado `--acc-soft` → `--surf-2` con
+  ángulo derivado del id (ocho ángulos fijos, hash determinista — el mismo id
+  da el mismo ángulo en servidor y cliente, si no React avisa de un desajuste
+  de hidratación) y el icono de recetas encima. Evita que la parrilla sin
+  fotos se vea como una rejilla de rectángulos grises idénticos.
 
 ## Reglas de tema
 
@@ -91,5 +146,31 @@ Los cinco de la barra inferior: sol/plato, sartén, calendario, alacena, libro.
 - `body` pinta fondo explícito desde token.
 - El acento se define una vez; los derivados (`--acc-soft`, `--acc-ink`) con
   `color-mix`, no a ojo.
-- Respeta `prefers-reduced-motion`.
+- Respeta `prefers-reduced-motion`: el interruptor es **global** y vive en
+  `app/globals.css` (`@media (prefers-reduced-motion: reduce)` anulando
+  duraciones y transiciones); ningún componente escribe su propia media query.
 - Foco visible en todo lo interactivo.
+
+### Presupuesto de movimiento
+
+Tres duraciones, ninguna suelta en un componente:
+
+| Token | Duración | Para qué |
+|---|---|---|
+| `--dur-1` | 140 ms | Lo que se toca muchas veces (hover, cambio de fila) |
+| `--dur-2` | 200 ms | Estados que se asientan y salidas (desplegables, aparecer/desaparecer) |
+| `--dur-3` | 500 ms | El anillo de kcal de Hoy |
+
+Y lo que **no** se anima, a propósito:
+
+- **Barra inferior**: navegación core, se toca decenas de veces al día;
+  cualquier transición ahí es fricción acumulada, no pulido.
+- **Selector de raciones (stepper)**: se toca con prisa mientras se cocina o se
+  ajusta una receta; un retraso ahí estorba más de lo que embellece.
+- **Lista de comprobación de ingredientes**: mismo motivo que el stepper, se
+  marca con prisa.
+- **Propuestas del plan**: al intercambiar una propuesta no hay identidad
+  estable de elemento entre la que sale y la que entra, así que no hay nada
+  que animar de A a B.
+- **Parrilla de recetas**: es contenido funcional, no decoración; un stagger
+  de entrada al cargar sería ruido, no jerarquía.
