@@ -15,9 +15,10 @@ de EE. UU.; no requiere atribución legal, pero se cita aquí por transparencia:
   (descargado 2026-08-26, versión del dataset 2018-04; USDA no la actualiza más)
 - Página de descargas (para futuras versiones): <https://fdc.nal.usda.gov/download-datasets>
 
-Cuando se use **Open Food Facts** (licencia ODbL) para productos envasados con
-código de barras, la atribución correspondiente se documentará en W2, cuando se
-implemente esa fuente (`source = 'off'`).
+Cuando se usa **Open Food Facts** (licencia ODbL) para productos envasados con
+código de barras (`source = 'off'`), esos datos no se siembran: se consultan en
+vivo al escanear. Su atribución está en `README.md`, sección «Licencias de
+datos».
 
 ### Cómo descargar y regenerar
 

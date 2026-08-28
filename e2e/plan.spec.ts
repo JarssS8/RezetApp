@@ -5,9 +5,10 @@ test.describe('plan', () => {
   test('comida libre en Cena de hoy: chip, saltar, propuestas vacías y punto en el mes', async ({ page }) => {
     await registerHousehold(page, 'Cata')
 
-    // No hay endpoint de recetas todavía (llega en W3): la alternativa del
-    // plan de la tarea es crear la entrada como "comida libre" desde el "+"
-    // de la columna de hoy. La cabecera de la columna de hoy se distingue de
+    // Este caso planifica una COMIDA LIBRE (sin receta) a propósito: es la
+    // rama que ningún otro spec toca. El plan con una receta de verdad,
+    // cocinarla y la compra que sale de ahí están en e2e/loop.spec.ts.
+    // La cabecera de la columna de hoy se distingue de
     // las demás por el fondo `bg-acc-ink` que le pone `isToday` (day-column.tsx).
     // El locale efectivo (es/en) depende del Accept-Language del navegador de
     // prueba, así que los textos se buscan con expresiones bilingües (mismo

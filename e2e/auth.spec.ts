@@ -21,7 +21,9 @@ test.describe('passkeys', () => {
   test('invitación: segunda persona entra como miembro', async ({ browser }) => {
     const owner = await browser.newPage()
     const ownerName = await registerHousehold(owner, 'Ana')
-    // Crear invitación por la API interna (la UI de ajustes llega en W2)
+    // La invitación se crea por la API interna a propósito: el recorrido por la
+    // interfaz de Ajustes → Miembros lo cubre e2e/settings.spec.ts, y aquí lo
+    // que se prueba es que la segunda passkey entra en el hogar existente.
     const res = await owner.request.post('/api/v1/household/invites')
     expect(res.ok()).toBeTruthy()
     const { url } = (await res.json()) as { url: string }
