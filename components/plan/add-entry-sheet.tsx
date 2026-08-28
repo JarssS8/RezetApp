@@ -53,6 +53,9 @@ export function AddEntrySheet({ open, onOpenChange, days, defaultDate, defaultSl
   const [results, setResults] = useState<RecipeOption[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(initialRecipeId)
   const [customTitle, setCustomTitle] = useState('')
+  // Cadena, no número: un campo vacío es "sin presupuesto" (null en la
+  // columna), y `Number('')` es 0, que significa otra cosa.
+  const [timeBudget, setTimeBudget] = useState('')
   const [pending, setPending] = useState(false)
   const requestSeq = useRef(0)
 
@@ -78,10 +81,14 @@ export function AddEntrySheet({ open, onOpenChange, days, defaultDate, defaultSl
   async function submit() {
     if (!canSubmit) return
     setPending(true)
+    const minutes = Number.parseInt(timeBudget, 10)
+    // exactOptionalPropertyTypes: la propiedad se añade o no se añade; nunca
+    // se le asigna `undefined`.
+    const budget = Number.isFinite(minutes) && minutes >= 0 ? { timeBudgetMinutes: minutes } : {}
     const item =
       mode === 'recipe' && selectedId !== null
-        ? { date, slot, recipeId: selectedId, servings }
-        : { date, slot, customTitle: customTitle.trim(), servings }
+        ? { date, slot, recipeId: selectedId, servings, ...budget }
+        : { date, slot, customTitle: customTitle.trim(), servings, ...budget }
     const result = await applyPlanBatchAction({ add: [item], remove: [] })
     setPending(false)
     if (!result.ok) {
@@ -167,6 +174,19 @@ export function AddEntrySheet({ open, onOpenChange, days, defaultDate, defaultSl
               <Input id="add-entry-free-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} />
             </div>
           )}
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="add-entry-time-budget">{t('timeBudget')}</Label>
+            <Input
+              id="add-entry-time-budget"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={600}
+              value={timeBudget}
+              onChange={(e) => setTimeBudget(e.target.value)}
+            />
+          </div>
 
           <div className="flex items-center gap-2">
             <span className="text-sm">{t('servings')}</span>
