@@ -47,4 +47,27 @@ describe('prompts MCP', () => {
     for (const idea of ['caduc', 'repet', 'alérgen', 'aprob']) expect(text.toLowerCase()).toContain(idea)
     await client.close()
   })
+
+  it('con el hogar en inglés, títulos y contenido en inglés', async () => {
+    const client = await connectedClient(fakeCtx({ locale: 'en', scopes: ['recipes:read'] }))
+    const { prompts } = await client.listPrompts()
+    // Los nombres NO se traducen: son el identificador del protocolo.
+    expect(prompts.map((p) => p.name).sort()).toEqual(['cooking_session', 'nutrition_summary', 'plan_week', 'prepare_shopping'])
+    expect(prompts.find((p) => p.name === 'plan_week')?.title).toBe('Plan the week')
+
+    const got = await client.getPrompt({ name: 'plan_week', arguments: {} })
+    const text = got.messages[0]?.content
+    expect(text?.type).toBe('text')
+    expect(text && text.type === 'text' ? text.text : '').toContain('get_household_context')
+    expect(text && text.type === 'text' ? text.text : '').not.toMatch(/Planifica/)
+    await client.close()
+  })
+
+  it('con el hogar en español sigue en español y con los mismos argumentos', async () => {
+    const client = await connectedClient(fakeCtx({ locale: 'es', scopes: ['recipes:read'] }))
+    const { prompts } = await client.listPrompts()
+    expect(prompts.find((p) => p.name === 'plan_week')?.title).toBe('Planificar la semana')
+    expect(prompts.find((p) => p.name === 'cooking_session')?.arguments?.map((a) => a.name)).toEqual(['recipe'])
+    await client.close()
+  })
 })

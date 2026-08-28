@@ -43,7 +43,7 @@ export function buildMcpServer(ctx: McpCtx): McpServer {
     registerCookingTools(server, ctx),
     registerFoodTools(server, ctx),
   ]
-  registerPrompts(server)
+  registerPrompts(server, ctx.locale)
   registerHouseholdResource(server, ctx)
   // McpServer solo instala su propio handler de tools/list (y declara la
   // capacidad) al registrar la primera herramienta con .registerTool(): si
