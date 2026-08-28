@@ -238,4 +238,74 @@
      de <html>, no el de la muestra). Sigue siendo "solo tokens": ningún
      literal de color en el componente. */
   .accent-swatch { background: var(--acc); }
+
+  /* Cabecera de pantalla. Las doce pantallas la comparten: es lo que hace que
+     "dónde estoy" se lea sin leer. Outfit 700 es el peso más alto que carga
+     app/layout.tsx; no se pide ninguno nuevo. `text-wrap: balance` en vez de
+     `truncate` porque los títulos en inglés y los nombres de receta largos
+     tienen que caber en dos líneas, no cortarse. */
+  .title-screen {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: var(--fs-title);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /* Título de contenido dentro de una pantalla: el nombre de la receta, el de
+     la sesión de cocina, el de la puerta de entrada. Un escalón por debajo de
+     .title-screen para que no compitan cuando salen juntos. */
+  .title-content {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 1.5rem;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  /* La cifra protagonista (kcal cocinadas del anillo). Outfit, no mono: un
+     número hero monoespaciado se lee como panel de control, justo lo que la
+     dirección "Mercado" evita (docs/02-DISENO, "Qué evitar"). `tabular-nums`
+     se queda porque el número cambia en vivo y no debe bailar de ancho. */
+  .num-hero {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: var(--fs-hero);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Misma voz, un escalón menos: las kcal por ración de la ficha de receta. */
+  .num-lead {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: var(--fs-num);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* EL estado seleccionado de la app. Hasta W6 solo lo tenía settings-nav.tsx
+     y el resto se conformaba con gris sobre gris (los filtros de recetas) o
+     con un cambio de color de texto (la barra inferior). Nunca es la única
+     señal: quien lo use pone además aria-current o aria-pressed. */
+  .pill-selected {
+    background: var(--acc-soft);
+    color: var(--acc-ink);
+    border-color: var(--acc-line);
+  }
+  .pill-selected:hover {
+    background: var(--acc-soft-2);
+  }
+
+  /* La clase que sonner aplica desde W0 (components/ui/sonner.tsx:21) y que no
+     existía: el toast salía con la sombra dura de la librería. */
+  .cn-toast {
+    border-radius: var(--r-md);
+    box-shadow: var(--sh-raised);
+    font-family: var(--f-body);
+  }
 }

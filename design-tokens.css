@@ -149,3 +149,15 @@ body {
   color: var(--text);
   font-family: var(--f-body);
 }
+
+/* Utilidades de composición. En la app viven en el @layer components de
+   app/globals.css; aquí van planas para que este fichero siga siendo pegable
+   tal cual. Las dos hojas tienen que decir lo mismo (contrato en
+   tests/contracts/design-tokens.test.ts). */
+.title-screen { font-family: var(--f-display); font-weight: 700; font-size: var(--fs-title); line-height: 1.05; letter-spacing: -0.02em; text-wrap: balance; }
+.title-content { font-family: var(--f-display); font-weight: 600; font-size: 1.5rem; line-height: 1.15; letter-spacing: -0.01em; text-wrap: balance; }
+.num-hero { font-family: var(--f-display); font-weight: 600; font-size: var(--fs-hero); line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.num-lead { font-family: var(--f-display); font-weight: 600; font-size: var(--fs-num); line-height: 1.05; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.pill-selected { background: var(--acc-soft); color: var(--acc-ink); border-color: var(--acc-line); }
+.pill-selected:hover { background: var(--acc-soft-2); }
+.cn-toast { border-radius: var(--r-md); box-shadow: var(--sh-raised); font-family: var(--f-body); }

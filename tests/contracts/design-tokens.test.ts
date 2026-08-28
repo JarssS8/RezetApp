@@ -162,3 +162,30 @@ describe('tokens de diseño', () => {
     }
   })
 })
+
+describe('utilidades de composición', () => {
+  it('la hoja que compila define las seis clases de W6 en @layer components', () => {
+    for (const cls of ['.title-screen', '.title-content', '.num-hero', '.num-lead', '.pill-selected', '.cn-toast']) {
+      expect(COMPILED, `falta ${cls}`).toContain(`${cls} {`)
+    }
+  })
+
+  it('las cifras protagonistas se pintan con la familia display, no con la monoespaciada', () => {
+    // La incoherencia que W6 cierra: kcal-ring usaba .tabular (JetBrains Mono)
+    // y nutrition-row font-display (Outfit) para el MISMO dato. La regla queda
+    // escrita aquí y en docs/02-DISENO.md: Outfit para la cifra protagonista,
+    // JetBrains Mono (.tabular) para las cifras en columna.
+    const heroBlock = COMPILED.slice(COMPILED.indexOf('.num-hero {'), COMPILED.indexOf('.num-hero {') + 260)
+    expect(heroBlock).toContain('var(--f-display)')
+    expect(heroBlock).toContain('tabular-nums')
+    expect(heroBlock).not.toContain('var(--f-mono)')
+  })
+
+  it('el toast tiene estilo propio: la clase que aplica sonner existe', () => {
+    // components/ui/sonner.tsx:21 aplica `cn-toast` desde W0 y la clase no
+    // estaba definida en ningún sitio: los toasts salían con el aspecto por
+    // defecto de la librería, sombra dura incluida.
+    expect(readFileSync(join(ROOT, 'components/ui/sonner.tsx'), 'utf8')).toContain('cn-toast')
+    expect(COMPILED).toContain('.cn-toast {')
+  })
+})
