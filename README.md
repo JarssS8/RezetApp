@@ -30,6 +30,17 @@ ahí el registro queda **cerrado** y las siguientes entran por invitación (Ajus
 - No hace falta S3 ni ningún almacenamiento externo: las imágenes se guardan en
   el volumen local `./data/uploads`.
 
+## Instalarla en el móvil
+
+RezetApp es una PWA: desde Chrome en Android (o Safari en iPhone, «Añadir a
+pantalla de inicio») se instala como una aplicación más, con su icono y sin la
+barra del navegador. Arranca en Hoy y, sin red, enseña una página de aviso en
+vez de un error del navegador.
+
+Hace falta HTTPS (o `localhost`): es el mismo requisito que las passkeys. **No
+hay APK**: la PWA es la respuesta del proyecto a tenerla en el móvil, y no se
+publica nada en ninguna tienda.
+
 ## Desarrollo
 
 ```bash
@@ -137,6 +148,11 @@ Si ya tienes recetas en [Mealie](https://mealie.io) o en
    pnpm import:tandoor ./export.json --household <uuid> --dry-run
    pnpm import:tandoor ./export.json --household <uuid>
    ```
+
+El comando resume al terminar cuántas recetas importó, cuántas ya estaban,
+cuántas omitió (les faltaban ingredientes o pasos) y cuántas fallaron, con sus
+títulos. **Repetirlo es seguro**: una receta cuyo título ya existe en el hogar
+no se vuelve a crear, y una receta que falla no interrumpe a las demás.
 
 Las recetas se crean con el mismo servicio que usa la interfaz, así que
 resuelven los alimentos y calculan la nutrición igual que si se hubieran

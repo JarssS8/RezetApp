@@ -30,6 +30,17 @@ in `.env` (handy on a test instance or a trusted network).
 - No S3 or external storage needed: images are stored on the local
   `./data/uploads` volume.
 
+## Installing it on your phone
+
+RezetApp is a PWA: from Chrome on Android (or Safari on iPhone, “Add to Home
+Screen”) it installs like any other app, with its own icon and no browser bar.
+It opens on Today and, with no network, shows a notice page instead of a
+browser error.
+
+It needs HTTPS (or `localhost`): the same requirement as passkeys. **There is
+no APK**: the PWA is this project's answer to having it on your phone, and
+nothing is published to any store.
+
 ## Development
 
 ```bash
@@ -90,6 +101,27 @@ message already encrypted.
   data requires attributing Open Food Facts and sharing any derived database
   under the same license.
 
+## Optional AI
+
+AI is optional at every point: with no provider configured, RezetApp is still a
+complete recipe box (parsing ingredients, importing recipes, estimating
+nutrition and proposing a week of meals are the only features that use it).
+Each household picks its provider in Settings → Artificial intelligence:
+Anthropic, OpenAI, or your own OpenAI-compatible server.
+
+For a local server, the recommended option is
+[`llama-server`](https://github.com/ggml-org/llama.cpp) with a quantised qwen3
+model (Q4_K_M): `qwen3-4b` for 4 GB GPUs or `qwen3-8b` for 8 GB.
+
+```bash
+llama-server -m qwen3-8b-q4_k_m.gguf -ngl 99 -c 8192 -fa --jinja --port 8080
+```
+
+Point `AI_LOCAL_BASE_URL` (or the server URL in Settings) at
+`http://localhost:8080/v1`. Ollama works just as well: it exposes the same API
+under `/v1` (`http://localhost:11434/v1`), so point there and use the model
+name you pulled with `ollama pull`.
+
 ## ShopList integration
 
 RezetApp does not have a shopping list: it works out what's missing and pushes
@@ -118,6 +150,12 @@ them in by hand:
    pnpm import:tandoor ./export.json --household <uuid>
    ```
 
+When it finishes, the command reports how many recipes it imported, how many
+were already there, how many it skipped (missing ingredients or steps) and how
+many failed, with their titles. **Running it again is safe**: a recipe whose
+title already exists in the household is not created twice, and a recipe that
+fails does not stop the rest.
+
 Recipes are created through the same service the UI uses, so they resolve
 foods and compute nutrition exactly as if they had been typed in by hand.
 **Photos are not migrated**: the other instance's image URLs aren't reachable
@@ -126,5 +164,7 @@ the editor.
 
 ## MCP
 
-RezetApp exposes an MCP endpoint at `/mcp` so it can be driven from a desktop
-MCP client. See [`docs/05-MCP.md`](docs/05-MCP.md) (phase W3).
+RezetApp exposes an MCP endpoint at `/mcp` so you can drive the recipe box from
+a desktop MCP client or a coding assistant. How to connect it (token, client
+configuration and a manual `curl` check) is in the
+["Connection" section of `docs/05-MCP.md`](docs/05-MCP.md#conexión).
