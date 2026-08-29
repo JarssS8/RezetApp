@@ -55,7 +55,8 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
       <RecipesLiveRefresh />
       <div className="flex items-center justify-between gap-2">
         <h1 className="title-screen">{t('title')}</h1>
-        <div className="flex items-center gap-1">
+        {/* Auditoría W7, hallazgo 2.1: 4px entre objetivos táctiles de 44px. */}
+        <div className="flex items-center gap-2">
           <Link href="/recipes/import" aria-label={t('import.title')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2 transition-colors duration-(--dur-1) ease-(--ease-out) hover:text-text">
             <UploadIcon />
           </Link>

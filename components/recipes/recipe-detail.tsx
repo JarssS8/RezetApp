@@ -83,13 +83,15 @@ export function RecipeDetailView({ detail, locale, units, initialServings }: Rec
     }
   }
 
+  // Auditoría W7, hallazgo 7.2: recipes/[id] era una de las 13 rutas sin view-enter.
   return (
-    <main className="pb-6">
+    <main className="view-enter pb-6">
       <div className="flex items-center justify-between gap-2">
         <Link href="/recipes" aria-label={tc('actions.back')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
           <ChevronLeftIcon />
         </Link>
-        <div className="flex gap-1">
+        {/* Auditoría W7, hallazgo 2.1: 4px entre objetivos táctiles de 44px. */}
+        <div className="flex gap-2">
           <Link
             href={`/recipes/${detail.recipe.id}/edit`}
             aria-label={t('detail.edit')}

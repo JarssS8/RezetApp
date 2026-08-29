@@ -41,7 +41,8 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
         <span className={cn('flex-1 truncate font-medium', skipped && 'line-through')}>{entry.title}</span>
         <span className="shrink-0 text-xs text-text-2">{t('servingsShort', { n: entry.servings })}</span>
       </div>
-      <div className="flex flex-wrap items-center gap-1">
+      {/* Auditoría W7, hallazgo 2.1: 4px entre objetivos táctiles de 44px. */}
+      <div className="flex flex-wrap items-center gap-2">
         {entry.leftoverOfEntryId ? (
           <span title={t('leftover')} aria-label={t('leftover')} className="inline-flex items-center rounded-pill bg-secondary px-1.5 py-0.5 text-secondary-foreground">
             <LeftoversIcon size={14} />
@@ -72,7 +73,8 @@ export function EntryChip({ entry, defaultServings, onServingsChange, onSkip, on
           </span>
         ) : null}
         {nonDefaultServings ? (
-          <span className="inline-flex items-center gap-0.5">
+          // Auditoría W7, hallazgo 2.1: 2px entre objetivos táctiles de 44px.
+          <span className="inline-flex items-center gap-2">
             <Button
               type="button"
               variant="ghost"

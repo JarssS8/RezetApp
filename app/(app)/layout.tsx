@@ -10,7 +10,11 @@ import { requireSession } from '@/lib/auth/guards'
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await requireSession()
   return (
-    <div className="group mx-auto min-h-dvh max-w-xl px-4 pb-24 pt-[max(1rem,env(safe-area-inset-top))] has-[[data-fullscreen]]:max-w-none has-[[data-fullscreen]]:p-0">
+    // Auditoría W7, hallazgo 5.4: pb-24 (96px) fijo contra una barra de 56px +
+    // env(safe-area-inset-bottom) (34px en iPhone) dejaba solo 6px de holgura;
+    // con el tamaño de letra del sistema al máximo la barra crece y se come
+    // el último contenido. calc() con el inset en vez del número fijo.
+    <div className="group mx-auto min-h-dvh max-w-xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] has-[[data-fullscreen]]:max-w-none has-[[data-fullscreen]]:p-0">
       {children}
       <div className="group-has-[[data-fullscreen]]:hidden">
         <BottomBar />

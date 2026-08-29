@@ -103,7 +103,13 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-footer"
-      className={cn("mt-auto flex flex-col gap-2 p-4", className)}
+      // Auditoría W7, hallazgo 5.3: la hoja de `side="bottom"` se pega a
+      // `bottom-0` (arriba, data-[side=bottom]:bottom-0) y viewportFit:
+      // 'cover' hace que, en la PWA instalada de iPhone, el botón de este pie
+      // caiga bajo el indicador de inicio. `env(safe-area-inset-bottom)` es 0
+      // en cualquier dispositivo sin esa franja, así que `max()` con el `p-4`
+      // de siempre no cambia nada donde no hace falta.
+      className={cn("mt-auto flex flex-col gap-2 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]", className)}
       {...props}
     />
   )
