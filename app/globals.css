@@ -140,8 +140,15 @@
   --danger-ink: color-mix(in srgb, var(--danger) 72%, #0A2118);
   /* Fondo semántico del agrupador hundido (hueco vacío del plan, caja de
      vacío). Hasta W6 --surf-2 hacía tres trabajos distintos; este alias separa
-     uno para que se pueda mover sin arrastrar los otros dos. */
-  --surf-sunken: var(--surf-2);
+     uno para que se pueda mover sin arrastrar los otros dos.
+     Auditoría W7, hallazgo 4.3: `var(--surf-2)` a secas daba 1,06:1 sobre
+     --bg en claro — no se leía como hundido, y es el fondo de EmptyState y de
+     los 28 huecos vacíos del plan. En oscuro sí funciona (1,21:1 + bordes) y
+     se deja tal cual. En claro se sube un 10% de --text-2 (sigue siendo
+     --surf-2 en esencia, solo un pelín más gris): 1,23–1,27:1, a la par que
+     el oscuro. Sigue sin llevar información por sí sola (bordes y contenido
+     hacen el resto), así que no es un par de contraste AA. */
+  --surf-sunken: color-mix(in srgb, var(--text-2) 10%, var(--surf-2));
   /* Borde de tarjeta. En claro casi desaparece y manda la sombra; en oscuro la
      sombra no se ve, así que se queda el borde entero (ver el bloque oscuro). */
   --line-2: color-mix(in srgb, var(--line) 55%, var(--surf));
@@ -332,7 +339,10 @@
 @layer base {
   * { @apply border-border outline-ring/50; }
   html { -webkit-tap-highlight-color: transparent; }
-  body { background: var(--bg); color: var(--text); font-family: var(--f-body); }
+  /* Auditoría W7, hallazgo 6.2: 1.5 ya era lo que salía por defecto en
+     Tailwind v4 (cumplía el rango 1.5–1.75 por accidente); se deja explícito
+     como decisión, no como valor de fábrica sin anotar. */
+  body { background: var(--bg); color: var(--text); font-family: var(--f-body); line-height: 1.5; }
   h1, h2, h3 { font-family: var(--f-display); font-weight: 600; letter-spacing: -0.01em; }
   .tabular { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
   :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }

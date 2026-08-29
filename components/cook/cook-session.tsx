@@ -239,7 +239,9 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
         className="flex items-center gap-1.5"
       >
         {steps.map((s, i) => (
-          <span key={s.id} aria-hidden="true" className={cn('h-1.5 flex-1 rounded-pill', i <= index ? 'bg-primary' : 'bg-surface-sunken')} />
+          // Auditoría W7, hallazgo 10.1: --acc-ink en vez de --primary (==
+          // --acc crudo) para que el paso completado llegue a ≥3:1.
+          <span key={s.id} aria-hidden="true" className={cn('h-1.5 flex-1 rounded-pill', i <= index ? 'bg-acc-ink' : 'bg-surface-sunken')} />
         ))}
       </div>
 

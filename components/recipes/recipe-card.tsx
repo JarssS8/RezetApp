@@ -53,9 +53,14 @@ export async function RecipeCard({ recipe }: RecipeCardProps) {
             ) : null}
           </div>
           {recipe.tags.length > 0 ? (
+            // Auditoría W7, hallazgo 4.2: mismo tratamiento que
+            // recipe-detail.tsx (bg-surface-2/text-text-2). El acento
+            // (bg-acc-soft/text-acc-ink) ya significa "seleccionado" en
+            // pill-selected y en los filtros activos; una etiqueta pasiva no
+            // debería pedir prestado ese lenguaje visual.
             <ul className="flex flex-wrap gap-1">
               {recipe.tags.map((tag) => (
-                <li key={tag} className="rounded-pill bg-acc-soft px-2 py-0.5 text-xs text-acc-ink">
+                <li key={tag} className="rounded-pill bg-surface-2 px-2 py-0.5 text-xs text-text-2">
                   {tag}
                 </li>
               ))}

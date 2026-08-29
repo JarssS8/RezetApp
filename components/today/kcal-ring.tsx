@@ -34,10 +34,14 @@ export function KcalRing({ plannedKcal, cookedKcal, isEstimated, hasUnknownKcal,
       <figcaption className="text-sm font-medium text-text-2 capitalize">{dateLabel}</figcaption>
       <div className="flex items-center gap-4">
         <svg viewBox="0 0 100 100" className="size-28 shrink-0 -rotate-90" role="img" aria-label={t('ringLabel', { cooked: nf.format(cookedKcal), planned: nf.format(plannedKcal) })}>
-          {/* La pista se pinta con --surf (no con --surf-2): sobre el acento
-              suave del hero, el gris hundido casi no se distinguía. Es
-              decoración: el valor lo dicen el aria-label y la cifra. */}
-          <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="var(--surf)" strokeWidth="8" />
+          {/* Auditoría W7, hallazgo 10.2: --surf (y antes --surf-2) daban
+              1,00–1,23:1 sobre --acc-soft en los ocho acentos — la pista era
+              casi invisible. --text-2 es el único token comprobado (aparte de
+              --acc-ink, reservado para la parte llena) que llega a ≥1,5:1 de
+              verdad: --acc-line, el candidato obvio, se queda en 1,32–1,73:1
+              según el acento y no lo garantiza. Sigue siendo decoración — el
+              valor lo dicen el aria-label y la cifra —, pero ahora se ve. */}
+          <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="var(--text-2)" strokeWidth="8" />
           <circle
             data-testid="kcal-ring-progress"
             className="transition-[stroke-dashoffset] duration-(--dur-3) ease-(--ease-out)"

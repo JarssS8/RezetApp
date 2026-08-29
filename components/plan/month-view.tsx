@@ -80,7 +80,11 @@ export function MonthView({ weeks, todayIso, prevMonth, nextMonth }: MonthViewPr
                 {cell.slots.length > 0 ? (
                   <span data-testid={`meals-${cell.date}`} aria-label={t('plannedMeals', { n: cell.slots.length })} className="flex gap-0.5">
                     {cell.slots.map((slot) => (
-                      <span key={slot} data-testid="meal-dot" className="h-1.5 w-1.5 rounded-pill bg-primary" />
+                      // Auditoría W7, hallazgo 10.1: --acc-ink en vez de --primary
+                      // (== --acc crudo): el único indicador visual de que un día
+                      // tiene comidas necesita ≥3:1, y --acc-ink lo cumple en los
+                      // ocho acentos y los dos temas (verificado por design-tokens.test.ts).
+                      <span key={slot} data-testid="meal-dot" className="h-1.5 w-1.5 rounded-pill bg-acc-ink" />
                     ))}
                   </span>
                 ) : null}

@@ -41,8 +41,11 @@
   --danger-ink: color-mix(in srgb, var(--danger) 72%, #0A2118);
   /* Fondo semántico del agrupador hundido (hueco vacío del plan, caja de
      vacío). Hasta W6 --surf-2 hacía tres trabajos distintos; este alias separa
-     uno para que se pueda mover sin arrastrar los otros dos. */
-  --surf-sunken: var(--surf-2);
+     uno para que se pueda mover sin arrastrar los otros dos.
+     Auditoría W7, hallazgo 4.3: `var(--surf-2)` a secas daba 1,06:1 sobre
+     --bg en claro. En oscuro (1,21:1 + bordes) se deja tal cual; en claro se
+     sube un 10% de --text-2 para llegar a 1,23–1,27:1, a la par del oscuro. */
+  --surf-sunken: color-mix(in srgb, var(--text-2) 10%, var(--surf-2));
   /* Borde de tarjeta. En claro casi desaparece y manda la sombra; en oscuro la
      sombra no se ve, así que se queda el borde entero (ver el bloque oscuro). */
   --line-2: color-mix(in srgb, var(--line) 55%, var(--surf));
@@ -157,10 +160,13 @@
 :root[data-accent="arandano"],  [data-accent="arandano"]  { --acc: #4A7FB5; --on-acc: #0A100D; } /* 4.6:1 */
 :root[data-accent="canela"],    [data-accent="canela"]    { --acc: #A9764A; --on-acc: #0A100D; } /* 4.9:1 */
 
+/* Auditoría W7, hallazgo 6.2: 1.5 ya era el valor por defecto de Tailwind v4
+   (cumplía 1.5–1.75 por accidente); se deja explícito como decisión. */
 body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--f-body);
+  line-height: 1.5;
 }
 
 /* Utilidades de composición. En la app viven en el @layer components de
