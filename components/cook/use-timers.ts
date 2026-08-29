@@ -66,6 +66,11 @@ export function useTimers(sessionKey: string, onFinish?: (timer: CookTimer) => v
   }, [tickAction])
 
   useEffect(() => {
+    // Límite conocido (revisión W9, hallazgo 1): el tick vive en este efecto,
+    // así que si la pantalla de cocina está desmontada cuando un temporizador
+    // llega a cero, la alarma no suena; al volver, el restante se recalcula a 0
+    // por reloj de pared. Avisar en segundo plano exigiría un temporizador
+    // global fuera de React o notificaciones del service worker.
     if (!anyRunning) return
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)

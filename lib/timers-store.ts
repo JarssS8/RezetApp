@@ -68,6 +68,13 @@ export const useTimersStore = create<TimersStoreState>()((set) => ({
       if (!session || !(id in session)) return state
       const rest = { ...session }
       delete rest[id]
+      // Poda: una sesión sin temporizadores no deja un objeto vacío colgado
+      // para siempre en el mapa (revisión W9, hallazgo 2).
+      if (Object.keys(rest).length === 0) {
+        const sessions = { ...state.sessions }
+        delete sessions[sessionKey]
+        return { sessions }
+      }
       return { sessions: { ...state.sessions, [sessionKey]: rest } }
     }),
   tick: (at) => {

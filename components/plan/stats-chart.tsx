@@ -3,7 +3,7 @@
 import { BarController, BarElement, CategoryScale, Chart, Legend, LinearScale, Tooltip, type ChartConfiguration } from 'chart.js'
 import { useReducedMotion } from 'motion/react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 // Registro manual (en vez de 'chart.js/auto'): solo lo que hace falta para
 // una barra con leyenda y tooltip, sin arrastrar el resto de controladores y
@@ -42,6 +42,23 @@ export function StatsChart({ days }: StatsChartProps) {
   // la interfaz: un único interruptor, leído, nunca redeclarado).
   const shouldReduceMotion = useReducedMotion()
 
+  // El gráfico lee sus colores con getComputedStyle una vez por render del
+  // efecto: si el tema cambia con la pantalla abierta (ajuste del sistema o
+  // data-theme), este contador fuerza un repintado con los tokens nuevos
+  // (revisión W9, hallazgo 3).
+  const [themeVersion, setThemeVersion] = useState(0)
+  useEffect(() => {
+    const bump = () => setThemeVersion((v) => v + 1)
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    media.addEventListener('change', bump)
+    const observer = new MutationObserver(bump)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => {
+      media.removeEventListener('change', bump)
+      observer.disconnect()
+    }
+  }, [])
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -72,7 +89,7 @@ export function StatsChart({ days }: StatsChartProps) {
     }
     chartRef.current = new Chart(canvas, config)
     return () => chartRef.current?.destroy()
-  }, [days, locale, shouldReduceMotion, t])
+  }, [days, locale, shouldReduceMotion, t, themeVersion])
 
   return (
     <div className="h-56 w-full">
