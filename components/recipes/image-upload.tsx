@@ -46,8 +46,12 @@ export function ImageUpload({ images, onChange }: ImageUploadProps) {
         {images.map((url, index) => (
           <div key={url} className="relative">
             {/* Servida desde el volumen local (mismo origen): sin next/image, igual que recipe-detail.tsx. */}
+            {/* Auditoría W7, 1.6: aquí SÍ hace falta alt con texto — es la
+                miniatura de la foto recién subida, sin título al lado que
+                haga de alternativa. Único caso de la W7-R1 con clave i18n
+                nueva (editor.imageAlt). */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="" className="size-20 rounded-md object-cover" />
+            <img src={url} alt={t('editor.imageAlt')} loading="lazy" decoding="async" className="size-20 rounded-md object-cover" />
             <Button
               type="button"
               variant="destructive"

@@ -29,8 +29,10 @@ export async function RecipeCard({ recipe }: RecipeCardProps) {
           // no aporta aquí (ya sale de saveImage en 1600 px máx./webp) y
           // rompería el tratamiento de esquinas del Card, pensado para un
           // <img> como primer hijo directo (ver *:[img:first-child] en card.tsx).
+          // Auditoría W7, 3.1: la rejilla pinta todas las tarjetas de golpe;
+          // sin next/image había que poner a mano lo que aportaba lazy-loading.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={recipe.imageUrl} alt="" className="aspect-video w-full object-cover" />
+          <img src={recipe.imageUrl} alt="" loading="lazy" decoding="async" className="aspect-video w-full object-cover" />
         ) : (
           <RecipePlaceholder recipeId={recipe.id} />
         )}

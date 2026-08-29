@@ -148,6 +148,7 @@
     "images": "Photos",
     "addImage": "Add photo",
     "removeImage": "Remove photo",
+    "imageAlt": "Uploaded recipe photo",
     "uploadError": "The image could not be uploaded",
     "tags": "Tags",
     "tagPlaceholder": "Type and press Enter",

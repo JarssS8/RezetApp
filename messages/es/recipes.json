@@ -148,6 +148,7 @@
     "images": "Fotos",
     "addImage": "Añadir foto",
     "removeImage": "Quitar foto",
+    "imageAlt": "Foto de la receta subida",
     "uploadError": "No se pudo subir la imagen",
     "tags": "Etiquetas",
     "tagPlaceholder": "Escribe y pulsa Enter",
