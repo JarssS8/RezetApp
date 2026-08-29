@@ -142,6 +142,8 @@ export function AddEntrySheet({ open, onOpenChange, days, defaultDate, defaultSl
               <div className="relative">
                 <SearchIcon size={16} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-text-2" />
                 <Input
+                  // Auditoría W7, hallazgo 8.3: placeholder-only, sin nombre accesible.
+                  aria-label={t('searchRecipe')}
                   value={query}
                   onChange={(e) => {
                     setQuery(e.target.value)
@@ -157,9 +159,13 @@ export function AddEntrySheet({ open, onOpenChange, days, defaultDate, defaultSl
                     <button
                       type="button"
                       onClick={() => setSelectedId(r.id)}
+                      // Auditoría W7, hallazgo 4.1: pill-selected en vez de
+                      // border-primary/bg-accent sueltos, y aria-pressed
+                      // (no llevaba ninguna señal de estado para el lector).
+                      aria-pressed={selectedId === r.id}
                       className={cn(
                         'min-h-11 w-full rounded-sm border px-2.5 text-left text-sm',
-                        selectedId === r.id ? 'border-primary bg-accent' : 'border-border bg-card',
+                        selectedId === r.id ? 'pill-selected' : 'border-border bg-card',
                       )}
                     >
                       {r.title}

@@ -142,6 +142,12 @@ export function FoodPicker({ value, onChange, locale, onCreateNew, allowBarcode,
         <div className="relative flex-1">
           <Input
             role="combobox"
+            // Auditoría W7, hallazgo 8.3: combobox sin nombre accesible alguno
+            // (ni Label ni aria-label). El propio placeholder ya dice qué es;
+            // aquí solo se repite como aria-label, igual que recipe-filters.tsx
+            // y pantry/page.tsx (los dos buscadores que la auditoría admite
+            // como excepción a "nada de placeholder-only").
+            aria-label={t('food.searchPlaceholder')}
             aria-expanded={open}
             aria-controls={listboxId}
             aria-autocomplete="list"
@@ -222,6 +228,11 @@ export function FoodPicker({ value, onChange, locale, onCreateNew, allowBarcode,
       {allowBarcode && barcodeOpen ? (
         <div className="mt-2 flex items-center gap-2">
           <Input
+            // Auditoría W7, hallazgo 8.3: placeholder-only. Bonus del mismo
+            // hallazgo: inputMode="numeric" para que el móvil ofrezca el
+            // teclado numérico en vez del completo.
+            aria-label={t('food.barcodePlaceholder')}
+            inputMode="numeric"
             value={barcodeValue}
             placeholder={t('food.barcodePlaceholder')}
             onChange={(e) => {
