@@ -2,6 +2,7 @@
   "appName": "RezetApp",
   "navLabel": "Main navigation",
   "settings": "Settings",
+  "more": "More options",
   "logout": "Log out",
   "nav": { "today": "Today", "cook": "Cook", "plan": "Plan", "pantry": "Pantry", "recipes": "Recipes" },
   "actions": { "save": "Save", "cancel": "Cancel", "close": "Close", "back": "Back", "delete": "Delete", "confirm": "Confirm" },
