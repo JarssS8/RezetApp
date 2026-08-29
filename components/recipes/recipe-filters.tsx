@@ -1,47 +1,50 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { parseAsInteger, useQueryStates } from 'nuqs'
 import { type FormEvent, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
+import { RECIPE_DIFFICULTIES, RECIPE_SORTS, recipeSearchParsers } from '@/lib/recipe-search-params'
 import { cn } from '@/lib/utils'
-import type { RecipeSearch } from '@/lib/validation/recipes'
 
-type FilterFields = Pick<RecipeSearch, 'q' | 'maxMinutes' | 'difficulty' | 'onlyWithPantry' | 'sort'>
+type Difficulty = (typeof RECIPE_DIFFICULTIES)[number]
+type Sort = (typeof RECIPE_SORTS)[number]
 
-export interface RecipeFiltersProps {
-  initial: Partial<FilterFields>
-}
+// Además de los campos que pinta este formulario, se incluye `page` en el
+// mapa solo para poder borrarlo al enviar: cambiar el filtro siempre vuelve
+// a la primera página, igual que hacía el URLSearchParams construido a mano.
+const filterQueryKeys = { ...recipeSearchParsers, page: parseAsInteger }
 
-const DIFFICULTIES = ['easy', 'medium', 'hard'] as const
-const SORTS = ['relevance', 'recent', 'most_cooked', 'title'] as const
-
-// Formulario de filtros de /recipes: en vez de un submit normal (que
-// recargaría con GET nativo, perdiendo el historial de cliente), construye
-// la query a mano y navega con el router — así la página server sigue
-// siendo la única fuente de verdad (lee searchParams, valida con
-// RecipeSearchSchema) y este formulario solo decide qué URL pedir.
-export function RecipeFilters({ initial }: RecipeFiltersProps) {
+// Formulario de filtros de /recipes. W9: la URL es el estado (nuqs) — antes
+// se construía la query a mano con URLSearchParams y se navegaba con
+// router.push para no perder el historial de cliente; useQueryStates hace
+// exactamente eso por debajo, y con `shallow: false` fuerza a que la página
+// server (que lee searchParams y valida con RecipeSearchSchema) vuelva a
+// pedir los resultados. `tags` no se pinta aquí (lo gestiona TagFilter) pero
+// se limpia al enviar, igual que antes.
+export function RecipeFilters() {
   const t = useTranslations('recipes')
-  const router = useRouter()
-  const [q, setQ] = useState(initial.q ?? '')
-  const [difficulty, setDifficulty] = useState<FilterFields['difficulty']>(initial.difficulty)
-  const [maxMinutes, setMaxMinutes] = useState<number | undefined>(initial.maxMinutes)
-  const [onlyWithPantry, setOnlyWithPantry] = useState(initial.onlyWithPantry ?? false)
-  const [sort, setSort] = useState<NonNullable<FilterFields['sort']>>(initial.sort ?? 'relevance')
+  const [urlState, setUrlState] = useQueryStates(filterQueryKeys, { shallow: false })
+  const [q, setQ] = useState(urlState.q ?? '')
+  const [difficulty, setDifficulty] = useState<Difficulty | undefined>(urlState.difficulty ?? undefined)
+  const [maxMinutes, setMaxMinutes] = useState<number | undefined>(urlState.maxMinutes ?? undefined)
+  const [onlyWithPantry, setOnlyWithPantry] = useState(urlState.onlyWithPantry ?? false)
+  const [sort, setSort] = useState<Sort>(urlState.sort ?? 'relevance')
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const params = new URLSearchParams()
     const trimmed = q.trim()
-    if (trimmed) params.set('q', trimmed)
-    if (maxMinutes !== undefined && maxMinutes > 0) params.set('maxMinutes', String(maxMinutes))
-    if (difficulty) params.set('difficulty', difficulty)
-    if (onlyWithPantry) params.set('onlyWithPantry', '1')
-    params.set('sort', sort)
-    router.push(`/recipes?${params.toString()}`)
+    void setUrlState({
+      q: trimmed || null,
+      maxMinutes: maxMinutes !== undefined && maxMinutes > 0 ? maxMinutes : null,
+      difficulty: difficulty ?? null,
+      onlyWithPantry: onlyWithPantry || null,
+      sort,
+      tags: null,
+      page: null,
+    })
   }
 
   return (
@@ -74,7 +77,7 @@ export function RecipeFilters({ initial }: RecipeFiltersProps) {
         >
           {t('filters.any')}
         </Button>
-        {DIFFICULTIES.map((d) => (
+        {RECIPE_DIFFICULTIES.map((d) => (
           <Button
             key={d}
             type="button"
@@ -104,8 +107,8 @@ export function RecipeFilters({ initial }: RecipeFiltersProps) {
       </label>
       <label className="flex min-h-11 flex-col gap-0.5 text-xs text-text-2">
         {t('filters.sort')}
-        <NativeSelect value={sort} onChange={(e) => setSort(e.target.value as NonNullable<FilterFields['sort']>)}>
-          {SORTS.map((s) => (
+        <NativeSelect value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+          {RECIPE_SORTS.map((s) => (
             <option key={s} value={s}>
               {t(`filters.${s}`)}
             </option>

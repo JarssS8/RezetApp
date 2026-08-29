@@ -1,37 +1,39 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { parseAsInteger, useQueryStates } from 'nuqs'
 import { useLocale, useTranslations } from 'next-intl'
 import { TagIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { buildTagTree, displayTagName, type Locale, type TagNodeInput } from '@/lib/domain'
+import { recipeSearchParsers } from '@/lib/recipe-search-params'
 import { cn } from '@/lib/utils'
 
 export interface TagFilterProps {
   tags: TagNodeInput[]
   selected: string[]
-  baseParams: Record<string, string>
 }
+
+// Solo los dos parámetros que este componente toca; todo lo demás que haya en
+// la URL (q, sort, hasIngredients de expiring-panel…) lo deja intacto nuqs
+// solo: a diferencia de la versión anterior (URLSearchParams a mano sobre un
+// `baseParams` que la página server tenía que pasar), useQueryStates parte de
+// la URL real del navegador, así que no hace falta reconstruirla entera.
+const tagQueryKeys = { tags: recipeSearchParsers.tags, page: parseAsInteger }
 
 // Filtro de etiquetas de /recipes: se pintan agrupadas por su raíz (jerarquía
 // de lib/domain/tags), un botón por raíz y otro por cada hija. El árbol lo
 // arma este componente (buildTagTree), la página solo pasa las filas planas.
-// Mismo patrón que RecipeFilters: navega con router.push construyendo la
-// query a mano, la página server sigue siendo la única fuente de verdad.
-export function TagFilter({ tags, selected, baseParams }: TagFilterProps) {
+// W9: URL como estado (nuqs) en vez de router.push con una query armada a mano.
+export function TagFilter({ tags, selected }: TagFilterProps) {
   const t = useTranslations('recipes')
   const locale = useLocale() as Locale
-  const router = useRouter()
+  const [, setQuery] = useQueryStates(tagQueryKeys, { shallow: false })
 
   if (tags.length === 0) return null
 
   function navigate(next: string[]) {
-    const params = new URLSearchParams(baseParams)
-    params.delete('page')
-    if (next.length > 0) params.set('tags', next.join(','))
-    else params.delete('tags')
-    const query = params.toString()
-    router.push(query ? `/recipes?${query}` : '/recipes')
+    // Cambiar de etiquetas vuelve a la primera página, igual que antes.
+    void setQuery({ tags: next.length > 0 ? next : null, page: null })
   }
 
   function toggle(slug: string) {

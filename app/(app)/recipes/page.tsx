@@ -63,8 +63,12 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
         primaryAction={{ ariaLabel: t('new'), icon: <PlusIcon />, href: '/recipes/new' }}
         menuItems={[{ key: 'import', label: t('import.title'), icon: <UploadIcon size={18} />, href: '/recipes/import' }]}
       />
-      <RecipeFilters initial={query} />
-      <TagFilter tags={tags.filter((tag) => tag.recipeCount > 0 || tag.parentId === null)} selected={query.tags ?? []} baseParams={baseParams} />
+      {/* W9: RecipeFilters y TagFilter leen y escriben la URL directamente con
+          nuqs — ya no necesitan que la página les pase el filtro inicial ni
+          el resto de la query (baseParams sigue haciendo falta más abajo,
+          para los enlaces de paginación, que se quedan como Link normales). */}
+      <RecipeFilters />
+      <TagFilter tags={tags.filter((tag) => tag.recipeCount > 0 || tag.parentId === null)} selected={query.tags ?? []} />
       <CollectionBar collections={collections} currentQuery={currentQuery} />
       {items.length === 0 ? (
         <div className="mt-6">

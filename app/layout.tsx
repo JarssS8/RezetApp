@@ -3,6 +3,7 @@ import { DM_Sans, JetBrains_Mono, Outfit } from 'next/font/google'
 import { cookies } from 'next/headers'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import { RegisterServiceWorker } from '@/components/pwa/register-sw'
 import { PREFS_COOKIE, readPrefs } from '@/lib/prefs'
 import './globals.css'
@@ -36,10 +37,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       className={`${outfit.variable} ${dmSans.variable} ${mono.variable}`}
     >
       <body className="min-h-dvh antialiased">
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <RegisterServiceWorker />
-          {children}
-        </NextIntlClientProvider>
+        {/* URL como estado (nuqs, W9): los filtros de /recipes leen y escriben
+            la query con useQueryState(s) en vez de construir URLSearchParams
+            a mano; el adaptador de App Router es quien sabe hablar con
+            next/navigation por debajo. */}
+        <NuqsAdapter>
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            <RegisterServiceWorker />
+            {children}
+          </NextIntlClientProvider>
+        </NuqsAdapter>
       </body>
     </html>
   )

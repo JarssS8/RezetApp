@@ -1,12 +1,10 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { NuqsTestingAdapter } from 'nuqs/adapters/testing'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import recipes from '@/messages/es/recipes.json'
-
-const push = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
-const { TagFilter } = await import('./tag-filter')
+import { TagFilter } from './tag-filter'
 
 const TAGS = [
   { id: '1', name: 'Dieta', nameEn: 'Diet', slug: 'dieta', parentId: null },
@@ -16,13 +14,24 @@ const TAGS = [
 
 afterEach(cleanup)
 
+// W9: TagFilter ya no recibe `baseParams` (nuqs preserva solo lo que hay en
+// la URL real del navegador), así que el resto de la búsqueda que "ya
+// estaba puesta" se simula con la URL inicial del NuqsTestingAdapter.
+function renderTagFilter(props: { selected: string[] }, initialSearch = '') {
+  const onUrlUpdate = vi.fn()
+  render(
+    <NuqsTestingAdapter searchParams={initialSearch} onUrlUpdate={onUrlUpdate}>
+      <NextIntlClientProvider locale="es" messages={{ recipes }}>
+        <TagFilter tags={TAGS} {...props} />
+      </NextIntlClientProvider>
+    </NuqsTestingAdapter>,
+  )
+  return onUrlUpdate
+}
+
 describe('TagFilter', () => {
   it('agrupa las etiquetas por su raíz y marca las seleccionadas', () => {
-    render(
-      <NextIntlClientProvider locale="es" messages={{ recipes }}>
-        <TagFilter tags={TAGS} selected={['vegano']} baseParams={{ q: 'sopa' }} />
-      </NextIntlClientProvider>,
-    )
+    renderTagFilter({ selected: ['vegano'] })
     expect(screen.getByText('Dieta')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Vegano' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Vegetariano' })).toHaveAttribute('aria-pressed', 'false')
@@ -30,31 +39,27 @@ describe('TagFilter', () => {
 
   it('marcar una etiqueta navega conservando el resto de la búsqueda', async () => {
     const user = userEvent.setup()
-    render(
-      <NextIntlClientProvider locale="es" messages={{ recipes }}>
-        <TagFilter tags={TAGS} selected={[]} baseParams={{ q: 'sopa' }} />
-      </NextIntlClientProvider>,
-    )
+    const onUrlUpdate = renderTagFilter({ selected: [] }, 'q=sopa')
     await user.click(screen.getByRole('button', { name: 'Dieta' }))
-    expect(push).toHaveBeenCalledWith('/recipes?q=sopa&tags=dieta')
+    expect(onUrlUpdate).toHaveBeenCalledTimes(1)
+    expect(onUrlUpdate.mock.calls[0]?.[0].queryString).toBe('?q=sopa&tags=dieta')
   })
 
   it('desmarcar la última etiqueta quita el parámetro entero', async () => {
     const user = userEvent.setup()
-    render(
-      <NextIntlClientProvider locale="es" messages={{ recipes }}>
-        <TagFilter tags={TAGS} selected={['vegano']} baseParams={{}} />
-      </NextIntlClientProvider>,
-    )
+    const onUrlUpdate = renderTagFilter({ selected: ['vegano'] }, 'tags=vegano')
     await user.click(screen.getByRole('button', { name: 'Vegano' }))
-    expect(push).toHaveBeenCalledWith('/recipes')
+    expect(onUrlUpdate.mock.calls[0]?.[0].queryString).toBe('')
   })
 
   it('no pinta nada sin etiquetas', () => {
+    const onUrlUpdate = vi.fn()
     const { container } = render(
-      <NextIntlClientProvider locale="es" messages={{ recipes }}>
-        <TagFilter tags={[]} selected={[]} baseParams={{}} />
-      </NextIntlClientProvider>,
+      <NuqsTestingAdapter onUrlUpdate={onUrlUpdate}>
+        <NextIntlClientProvider locale="es" messages={{ recipes }}>
+          <TagFilter tags={[]} selected={[]} />
+        </NextIntlClientProvider>
+      </NuqsTestingAdapter>,
     )
     expect(container).toBeEmptyDOMElement()
   })

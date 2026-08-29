@@ -9,6 +9,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogT
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createCollectionAction, deleteCollectionAction } from '@/lib/actions/collections'
+import { serializeRecipeSearch } from '@/lib/recipe-search-params'
 import type { CollectionQuery } from '@/lib/validation/collections'
 
 export interface CollectionBarProps {
@@ -17,17 +18,24 @@ export interface CollectionBarProps {
 }
 
 // Construye la URL de /recipes que reproduce exactamente el filtro guardado.
-// El orden de los parámetros importa para los tests (maxMinutes antes que tags).
+// serializeRecipeSearch (lib/recipe-search-params, nuqs/server) es la misma
+// definición de parámetros que usan RecipeFilters y TagFilter: el orden en la
+// URL resultante (importa para los tests: maxMinutes antes que tags) lo pone
+// esa definición, no el orden de este objeto.
+//
+// Los `...(condición && { clave: valor })` de abajo, en vez de pasar `query`
+// tal cual, son por `exactOptionalPropertyTypes`: los campos opcionales de
+// CollectionQuery (zod) admiten `undefined`, pero nuqs distingue "ausente"
+// (omitido) de "bórralo" (`null`) — pasar `undefined` explícito no compila.
 function hrefOf(query: CollectionQuery): string {
-  const params = new URLSearchParams()
-  if (query.q) params.set('q', query.q)
-  if (query.maxMinutes !== undefined) params.set('maxMinutes', String(query.maxMinutes))
-  if (query.difficulty) params.set('difficulty', query.difficulty)
-  if (query.onlyWithPantry) params.set('onlyWithPantry', '1')
-  if (query.sort) params.set('sort', query.sort)
-  if (query.tags?.length) params.set('tags', query.tags.join(','))
-  const s = params.toString()
-  return s ? `/recipes?${s}` : '/recipes'
+  return serializeRecipeSearch('/recipes', {
+    ...(query.q !== undefined && { q: query.q }),
+    ...(query.tags !== undefined && { tags: query.tags }),
+    ...(query.maxMinutes !== undefined && { maxMinutes: query.maxMinutes }),
+    ...(query.difficulty !== undefined && { difficulty: query.difficulty }),
+    ...(query.onlyWithPantry !== undefined && { onlyWithPantry: query.onlyWithPantry }),
+    ...(query.sort !== undefined && { sort: query.sort }),
+  })
 }
 
 // Fila de colecciones bajo el filtro de /recipes: cada una es un enlace a la
