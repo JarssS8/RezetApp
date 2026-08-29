@@ -1,4 +1,5 @@
 'use client'
+import { AnimatePresence } from 'motion/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -49,7 +50,14 @@ export function PantryList({ items, unitSystem }: PantryListProps) {
 
   return (
     <div className="mt-4 flex flex-col gap-6">
-      {visible.length === 0 ? (
+      {/* `items` (del servidor), no `visible`: borrar la última fila de la
+          despensa la saca de `visible` en el momento del click, antes de que
+          AnimatePresence (más abajo) termine de animar su salida. Con
+          `visible` aquí, ese <ul> desmontaría de golpe a mitad de la
+          animación. `items` solo cambia cuando llega un `pantry.changed` de
+          verdad (router.refresh()), momento en el que la fila ya lleva rato
+          fuera. */}
+      {items.length === 0 ? (
         // Auditoría W7, hallazgo 8.5: misma acción que el "+" de la cabecera
         // (app/(app)/pantry/page.tsx), reutilizando la clave existente.
         <EmptyState
@@ -63,8 +71,11 @@ export function PantryList({ items, unitSystem }: PantryListProps) {
         />
       ) : (
         LOCATIONS.map(({ id, Icon }) => {
+          // Mismo motivo que arriba: existencia de la sección con `items`
+          // crudo, contenido de la lista con `visible` (la que de verdad se
+          // pinta, filas saliendo incluidas).
+          if (!items.some((item) => item.location === id)) return null
           const group = visible.filter((item) => item.location === id)
-          if (group.length === 0) return null
           return (
             <section key={id}>
               <h2 className="pill-selected mb-2 inline-flex items-center gap-2 rounded-pill px-3 py-1 text-sm font-semibold">
@@ -72,9 +83,11 @@ export function PantryList({ items, unitSystem }: PantryListProps) {
                 {t(`locations.${id}`)}
               </h2>
               <ul className="flex flex-col gap-2">
-                {group.map((item) => (
-                  <PantryRow key={item.id} item={item} unitSystem={unitSystem} onRemoved={handleRemoved} staggerIndex={Math.min(staggerIndex++, 8)} />
-                ))}
+                <AnimatePresence initial={false}>
+                  {group.map((item) => (
+                    <PantryRow key={item.id} item={item} unitSystem={unitSystem} onRemoved={handleRemoved} staggerIndex={Math.min(staggerIndex++, 8)} />
+                  ))}
+                </AnimatePresence>
               </ul>
             </section>
           )

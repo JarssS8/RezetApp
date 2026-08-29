@@ -126,14 +126,21 @@ describe('PantryRow', () => {
     expect(remove).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111')
   })
 
-  it('al borrar, la fila se marca como saliente antes de desaparecer', async () => {
+  it('al borrar, deshabilita los botones mientras la petición está en curso', async () => {
+    let resolveRemove: (value: { ok: true; data: undefined }) => void = () => {}
+    const remove = vi.fn(() => new Promise<{ ok: true; data: undefined }>((resolve) => (resolveRemove = resolve)))
     const onRemoved = vi.fn()
-    renderRow({ onRemoved })
+    renderRow({ remove, onRemoved })
     await userEvent.click(screen.getByRole('button', { name: pantry.remove }))
-    // La fila se marca primero (data-removing) y solo después avisa al padre:
-    // sin eso, el <li> desaparecía del array en el siguiente render y no había
-    // nada que animar.
-    expect(screen.getByRole('listitem')).toHaveAttribute('data-removing', 'true')
-    await waitFor(() => expect(onRemoved).toHaveBeenCalledWith(expect.any(String)))
+    // Mientras se espera la confirmación del servidor, el resto de acciones
+    // de la fila quedan bloqueadas (mismo `busy` que usa el ajuste rápido).
+    expect(screen.getByRole('button', { name: pantry.remove })).toBeDisabled()
+    expect(screen.getByRole('button', { name: pantry.increase })).toBeDisabled()
+    expect(onRemoved).not.toHaveBeenCalled()
+    resolveRemove({ ok: true, data: undefined })
+    // AnimatePresence (pantry-list.tsx) es quien anima y retira el <li> del
+    // DOM; esta fila, aislada en el test, solo garantiza que avisa al padre
+    // en cuanto el servidor confirma el borrado.
+    await waitFor(() => expect(onRemoved).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111'))
   })
 })

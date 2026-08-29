@@ -11,7 +11,10 @@ import { describe, expect, it } from 'vitest'
 // de un presupuesto de duración (--dur-1..4) y respete el interruptor global
 // de accesibilidad. Las cinco filas originales siguen documentadas porque
 // siguen siendo el ejemplo de referencia de cada patrón (transición simple,
-// dos pasos con `data-removing`, colores, @starting-style, grid-rows).
+// colores, @starting-style, grid-rows) — la salida de la despensa, la quinta,
+// pasó de dos pasos con `data-removing` a `motion` (W9b): CSS no sabe animar
+// un desmontaje real, así que esa fila ahora es la referencia de cuándo SÍ
+// hace falta la librería en vez del sistema de movimiento en CSS.
 const ROOT = join(import.meta.dirname, '..', '..')
 const read = (f: string) => readFileSync(join(ROOT, f), 'utf8')
 
@@ -39,7 +42,11 @@ const SOURCE_FILES = [...collectTsx('components'), ...collectTsx('app')]
 describe('movimiento', () => {
   it('las cinco animaciones de referencia de W6 siguen con su presupuesto', () => {
     expect(read('components/today/kcal-ring.tsx')).toContain('transition-[stroke-dashoffset]')
-    expect(read('components/pantry/pantry-row.tsx')).toContain('data-removing')
+    // W9b: la salida de la despensa se mueve a `motion` (AnimatePresence en
+    // pantry-list.tsx + `exit` en pantry-row.tsx) — ver el bloque "motion (JS)"
+    // más abajo para su presupuesto y su guardia de reduced-motion.
+    expect(read('components/pantry/pantry-row.tsx')).toContain('exit=')
+    expect(read('components/pantry/pantry-list.tsx')).toContain('AnimatePresence')
     expect(read('components/plan/day-column.tsx')).toContain('transition-colors')
     expect(read('components/cook/cook-session.tsx')).toContain('transition-opacity')
     expect(read('components/cook/finish-dialog.tsx')).toContain('grid-rows-[0fr]')
@@ -48,14 +55,25 @@ describe('movimiento', () => {
     expect(read('components/cook/finish-dialog.tsx')).toContain('group')
     expect(read('components/cook/finish-dialog.tsx')).toContain('group-data-open:opacity-100')
 
-    for (const file of [
-      'components/today/kcal-ring.tsx',
-      'components/pantry/pantry-row.tsx',
-      'components/plan/day-column.tsx',
-      'components/cook/cook-session.tsx',
-      'components/cook/finish-dialog.tsx',
-    ]) {
+    for (const file of ['components/today/kcal-ring.tsx', 'components/plan/day-column.tsx', 'components/cook/cook-session.tsx', 'components/cook/finish-dialog.tsx']) {
       expect(read(file), file).toMatch(/duration-\(--dur-[1234]\)/)
+    }
+  })
+
+  it('motion (JS): todo elemento <motion.*> respeta reduced-motion y ancla su duración a un token', () => {
+    // motion anima con estilos en línea (Web Animations API): el interruptor
+    // CSS global de app/globals.css (`prefers-reduced-motion` + `!important`
+    // sobre transition/animation-duration) no lo alcanza. Cada fichero que
+    // monta un elemento `motion.*` tiene que leer la preferencia él mismo.
+    const motionElementFiles = SOURCE_FILES.filter((file) => /<motion\.[a-zA-Z]+[\s>]/.test(read(file)))
+    expect(motionElementFiles.length, 'ningún fichero usa <motion.*>: ¿se movió o se borró la referencia?').toBeGreaterThan(0)
+    for (const file of motionElementFiles) {
+      const src = read(file)
+      expect(src, `${file}: monta <motion.*> sin useReducedMotion()`).toContain('useReducedMotion')
+      // Nada de números sueltos: la duración en segundos que motion recibe
+      // lleva al lado, en un comentario, el --dur-N (design-tokens.css) del
+      // que sale (regla de la última prueba de este fichero, versión JS).
+      expect(src, `${file}: duración de motion sin comentario --dur-N al lado`).toMatch(/--dur-[1234]/)
     }
   })
 

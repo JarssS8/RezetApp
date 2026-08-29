@@ -1,7 +1,7 @@
 'use client'
 
 import { useDraggable, useDroppable } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
+import { motion, useReducedMotion } from 'motion/react'
 import { useLocale, useTranslations } from 'next-intl'
 import { PlusIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -39,16 +39,23 @@ interface ChipCallbacks {
 // y la posición mientras se arrastra.
 function DraggableChip({ entry, ...callbacks }: { entry: PlanEntryClient } & ChipCallbacks) {
   const t = useTranslations('plan')
+  const shouldReduceMotion = useReducedMotion()
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: entry.id,
     data: { date: entry.date, slot: entry.slot },
   })
-  // Mientras se arrastra, el chip sigue al dedo 1:1 (sin transición: cualquier
-  // suavizado se siente como retardo). Al soltar, `transform` pasa a undefined
-  // y hasta W6 el chip se teletransportaba; ahora asienta en 200 ms.
-  const style = transform
-    ? { transform: CSS.Translate.toString(transform) }
-    : { transition: 'transform var(--dur-2) var(--ease-out)' }
+  // Mientras se arrastra (`transform` con valor), el chip sigue al dedo 1:1:
+  // `duration: 0` aplica la posición al vuelo, sin que motion la interprete
+  // como una animación que suavizar (cualquier suavizado aquí se siente como
+  // retardo). Solo al soltar (`transform` null) entra el muelle: antes de W9b
+  // el chip asentaba con una transición CSS lineal de 200ms (--dur-2); ahora
+  // es un muelle suave (bounce bajo, sin rebote visible) con la misma
+  // duración de referencia. reduced-motion también fuerza `duration: 0`: la
+  // preferencia del sistema no llega aquí sola porque motion anima por
+  // Web Animations API, no por `transition` CSS (el interruptor global de
+  // app/globals.css no la alcanza).
+  const isSettling = !transform && !shouldReduceMotion
+  const transition = isSettling ? ({ type: 'spring', bounce: 0.15, duration: 0.2 } as const) : ({ duration: 0 } as const)
   // Se mantiene el aria-roledescription por defecto de dnd-kit ("draggable");
   // nuestra pista (dragHint) se añade como descripción adicional, sin pisar
   // la descripción propia de dnd-kit (instrucciones de teclado).
@@ -61,12 +68,20 @@ function DraggableChip({ entry, ...callbacks }: { entry: PlanEntryClient } & Chi
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- se descartan a propósito, ver comentario de arriba
   const { role: _role, tabIndex: _tabIndex, ...a11yAttributes } = attributes
   return (
-    <div ref={setNodeRef} style={style} {...a11yAttributes} {...listeners} aria-describedby={describedBy} className={cn('touch-none', isDragging && 'opacity-50')}>
+    <motion.div
+      ref={setNodeRef}
+      animate={{ x: transform?.x ?? 0, y: transform?.y ?? 0 }}
+      transition={transition}
+      {...a11yAttributes}
+      {...listeners}
+      aria-describedby={describedBy}
+      className={cn('touch-none', isDragging && 'opacity-50')}
+    >
       <span id={hintId} className="sr-only">
         {t('dragHint')}
       </span>
       <EntryChip entry={entry} {...callbacks} />
-    </div>
+    </motion.div>
   )
 }
 
