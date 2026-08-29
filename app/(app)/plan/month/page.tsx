@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server'
 import { MonthView, type MonthDayCell } from '@/components/plan/month-view'
 import { PlanLiveRefresh } from '@/components/plan/plan-live-refresh'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
 import { MEAL_SLOTS } from '@/lib/domain'
 import { addDays, monthRange, todayIso, weekRange } from '@/lib/plan-dates'
@@ -78,7 +79,8 @@ export default async function PlanMonthPage({ searchParams }: PlanMonthPageProps
   return (
     <main className="view-enter flex flex-col gap-3 pb-4">
       <PlanLiveRefresh />
-      <h1 className="title-screen">{t('month')}</h1>
+      {/* W8: subpantalla sin pestaña propia; vuelve a Plan. */}
+      <ScreenHeader title={t('month')} backHref="/plan" />
       <MonthView month={month} weeks={weeks} todayIso={today} prevMonth={shiftMonth(month, -1)} nextMonth={shiftMonth(month, 1)} />
     </main>
   )

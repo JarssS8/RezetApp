@@ -3,6 +3,7 @@ import { SparklesIcon } from '@/components/icons'
 import { ProposalsList } from '@/components/plan/proposal-card'
 import type { ProposalClient } from '@/components/plan/types'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
 import { listProposals, type ProposalView } from '@/lib/services/plan'
 
@@ -30,7 +31,8 @@ export default async function PlanProposalsPage() {
 
   return (
     <main className="view-enter flex flex-col gap-3 pb-4">
-      <h1 className="title-screen">{t('proposals.title')}</h1>
+      {/* W8: subpantalla sin pestaña propia; vuelve a Plan. */}
+      <ScreenHeader title={t('proposals.title')} backHref="/plan" />
       {proposalsClient.length === 0 ? <EmptyState icon={SparklesIcon} title={t('proposals.empty')} /> : null}
       <ProposalsList proposals={proposalsClient} />
     </main>

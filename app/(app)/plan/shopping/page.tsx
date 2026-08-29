@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import { PlanLiveRefresh } from '@/components/plan/plan-live-refresh'
 import { ShoppingPushButton } from '@/components/plan/shopping-push-button'
 import { ShoppingSummary } from '@/components/plan/shopping-summary'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
 import { getShopListLinkAction } from '@/lib/actions/shopping'
 import { todayIso, weekRange } from '@/lib/plan-dates'
@@ -49,7 +50,8 @@ export default async function PlanShoppingPage({ searchParams }: PlanShoppingPag
     <main className="view-enter flex flex-col gap-3 pb-4">
       <PlanLiveRefresh types={['plan.changed', 'pantry.changed']} />
       <div>
-        <h1 className="title-screen">{t('shopping.title')}</h1>
+        {/* W8: subpantalla sin pestaña propia; vuelve a Plan. */}
+        <ScreenHeader title={t('shopping.title')} backHref="/plan" />
         <p className="text-sm text-text-2">{rangeText}</p>
       </div>
       <ShoppingSummary lines={lines} />

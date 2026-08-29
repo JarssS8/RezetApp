@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server'
 import { PantryItemForm } from '@/components/pantry/pantry-item-form'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
 import { getFood } from '@/lib/services/foods'
 import { IdSchema } from '@/lib/validation/common'
@@ -23,7 +24,8 @@ export default async function AddPantryItemPage({ searchParams }: AddPantryItemP
 
   return (
     <main className="view-enter">
-      <h1 className="title-screen">{t('add')}</h1>
+      {/* W8: subpantalla sin pestaña propia; vuelve a Despensa. */}
+      <ScreenHeader title={t('add')} backHref="/pantry" />
       <div className="mt-4">
         <PantryItemForm initialFood={initialFood} {...(initialQuery ? { initialQuery } : {})} />
       </div>

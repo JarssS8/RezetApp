@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server'
 import { PlanStatsPanel } from '@/components/plan/plan-stats-panel'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
 import { todayIso, weekRange } from '@/lib/plan-dates'
 import { planStats } from '@/lib/services/plan'
@@ -29,7 +30,8 @@ export default async function PlanStatsPage({ searchParams }: PlanStatsPageProps
 
   return (
     <main className="view-enter flex flex-col gap-3 pb-4">
-      <h1 className="title-screen">{t('stats.title')}</h1>
+      {/* W8: subpantalla sin pestaña propia; vuelve a Plan. */}
+      <ScreenHeader title={t('stats.title')} backHref="/plan" />
       <PlanStatsPanel stats={stats} />
     </main>
   )
