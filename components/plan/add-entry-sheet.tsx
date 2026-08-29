@@ -200,7 +200,7 @@ export function AddEntrySheet({ open, onOpenChange, days, defaultDate, defaultSl
           </div>
         </div>
         <SheetFooter>
-          <Button type="button" disabled={!canSubmit || pending} onClick={() => void submit()}>
+          <Button type="button" disabled={!canSubmit || pending} aria-busy={pending} onClick={() => void submit()}>
             {c('actions.save')}
           </Button>
         </SheetFooter>

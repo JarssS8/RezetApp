@@ -174,13 +174,23 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
       )}
       // Teclado (portátil apoyado en la encimera) y deslizamiento con el dedo:
       // las dos formas de pasar de paso sin apuntar a un botón pequeño con las
-      // manos pringadas (spec §8, "swipe/teclas").
-      tabIndex={0}
+      // manos pringadas (spec §8, "swipe/teclas"). Sin tabIndex: las flechas ya
+      // funcionan por burbujeo desde cualquier botón hijo (auditoría W7, 2.6);
+      // meter la section entera en el orden de tabulación no aporta nada y sí
+      // ruido de lector de pantalla.
       onKeyDown={(e) => {
         if (e.key === 'ArrowRight') goTo((i) => i + 1)
         if (e.key === 'ArrowLeft') goTo((i) => i - 1)
       }}
-      onTouchStart={(e) => setTouchStartX(e.touches[0]?.clientX ?? null)}
+      onTouchStart={(e) => {
+        const x = e.touches[0]?.clientX ?? null
+        // Ignora los toques que empiezan a menos de 24 px de cualquier borde:
+        // ahí es donde iOS hace swipe-back y Android predictive back
+        // (auditoría W7, 2.5). El gesto de cambio de paso vive en el resto de
+        // la pantalla, sin pelearse con el gesto del sistema.
+        if (x !== null && (x < 24 || x > window.innerWidth - 24)) return
+        setTouchStartX(x)
+      }}
       onTouchEnd={(e) => {
         const start = touchStartX
         setTouchStartX(null)

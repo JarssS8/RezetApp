@@ -54,8 +54,14 @@ function DraggableChip({ entry, ...callbacks }: { entry: PlanEntryClient } & Chi
   // la descripción propia de dnd-kit (instrucciones de teclado).
   const hintId = `plan-drag-hint-${entry.id}`
   const describedBy = [attributes['aria-describedby'], hintId].filter(Boolean).join(' ')
+  // No se propagan `role`/`tabIndex` de dnd-kit: sin KeyboardSensor registrado
+  // (ver week-view.tsx), ese role="button" + tabIndex=0 anuncia instrucciones
+  // de teclado que no funcionan y mete el chip (que ya contiene botones y
+  // selects reales) en el orden de tabulación como si fuera interactivo.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- se descartan a propósito, ver comentario de arriba
+  const { role: _role, tabIndex: _tabIndex, ...a11yAttributes } = attributes
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} aria-describedby={describedBy} className={cn('touch-none', isDragging && 'opacity-50')}>
+    <div ref={setNodeRef} style={style} {...a11yAttributes} {...listeners} aria-describedby={describedBy} className={cn('touch-none', isDragging && 'opacity-50')}>
       <span id={hintId} className="sr-only">
         {t('dragHint')}
       </span>

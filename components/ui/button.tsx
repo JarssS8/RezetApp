@@ -1,6 +1,7 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
+import { LoaderIcon } from "@/components/icons"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
@@ -71,14 +72,27 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  children,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // Auditoría W7, hallazgo 2.4: `disabled` solo da opacidad (indistinguible de
+  // "este botón no aplica"). Con `aria-busy` (2.3) se antepone un giro mínimo
+  // — icono existente + animate-spin, sin librería de spinner — para que la
+  // espera se vea, no solo se sienta. `animate-spin` es una animación infinita
+  // de Tailwind, no uno de los presupuestos --dur-1..4 (motion.test.ts solo
+  // prohíbe `duration-N` suelto): no hay duración que tokenizar aquí, y el
+  // interruptor global de accesibilidad de app/globals.css ya la congela por
+  // el selector `*`.
+  const busy = props["aria-busy"] === true || props["aria-busy"] === "true"
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      {busy ? <LoaderIcon className="animate-spin" /> : null}
+      {children}
+    </ButtonPrimitive>
   )
 }
 

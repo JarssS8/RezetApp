@@ -97,10 +97,10 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
         <span className="text-xs text-text-2">{originLabel()}</span>
         {proposal.status === 'pending' ? (
           <div className="flex gap-2">
-            <Button type="button" size="sm" disabled={pending} onClick={() => void decide('approve')}>
+            <Button type="button" size="sm" disabled={pending} aria-busy={pending} onClick={() => void decide('approve')}>
               {t('proposals.approve')}
             </Button>
-            <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => void decide('reject')}>
+            <Button type="button" variant="outline" size="sm" disabled={pending} aria-busy={pending} onClick={() => void decide('reject')}>
               {t('proposals.reject')}
             </Button>
           </div>

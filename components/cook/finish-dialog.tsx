@@ -126,7 +126,7 @@ export function FinishCookingDialog({ recipeId, entryId, servings, sourceSlot }:
           ) : null}
         </div>
         <DialogFooter>
-          <Button type="button" disabled={pending} onClick={() => (done ? setOpen(false) : void submit())}>
+          <Button type="button" disabled={pending} aria-busy={pending} onClick={() => (done ? setOpen(false) : void submit())}>
             {done ? c('actions.close') : c('actions.save')}
           </Button>
         </DialogFooter>

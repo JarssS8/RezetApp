@@ -95,7 +95,7 @@ export function LeftoverDialog({ fromEntryId, sourceSlot, onCreated }: LeftoverD
           </div>
         </div>
         <DialogFooter>
-          <Button type="button" disabled={pending} onClick={() => void submit()}>
+          <Button type="button" disabled={pending} aria-busy={pending} onClick={() => void submit()}>
             {c('actions.save')}
           </Button>
         </DialogFooter>
