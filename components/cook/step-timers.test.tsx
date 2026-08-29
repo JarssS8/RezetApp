@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import cook from '@/messages/es/cook.json'
+import { resetTimersStore } from '@/lib/timers-store'
 import { StepTimers } from './step-timers'
 
 const playAlarm = vi.fn()
@@ -16,7 +17,13 @@ function renderTimers(props: Partial<React.ComponentProps<typeof StepTimers>> = 
   )
 }
 
-beforeEach(() => playAlarm.mockClear())
+beforeEach(() => {
+  playAlarm.mockClear()
+  // El store (lib/timers-store) vive fuera de React y todas las pruebas de
+  // este fichero caen en la misma sessionKey por defecto: sin resetearlo, un
+  // temporizador de un caso se colaría en el siguiente.
+  resetTimersStore()
+})
 afterEach(() => vi.useRealTimers())
 
 describe('StepTimers', () => {

@@ -17,6 +17,11 @@ export interface StepTimersProps {
   // recipe_steps.timer_seconds: el temporizador que el autor de la receta puso
   // a mano. Hasta W4 se ignoraba y solo se usaban los detectados en el texto.
   timerSeconds: number | null
+  // Identifica la sesión de cocina (receta/entrada del plan) ante
+  // lib/timers-store: sin ella, dos sesiones con el mismo stepIndex
+  // mezclarían temporizadores. Un valor fijo por defecto basta para usos
+  // sueltos (tests, storybook) donde solo hay una sesión a la vez.
+  sessionKey?: string
 }
 
 function mmss(seconds: number): string {
@@ -29,10 +34,10 @@ function mmss(seconds: number): string {
 // como botones. El estado vive en useTimers, fuera del componente: así los
 // temporizadores sobreviven al cambio de paso (el arroz sigue contando
 // mientras lees el paso siguiente) y pueden correr varios a la vez.
-export function StepTimers({ text, locale, stepIndex, timerSeconds }: StepTimersProps) {
+export function StepTimers({ text, locale, stepIndex, timerSeconds, sessionKey = 'default' }: StepTimersProps) {
   const t = useTranslations('cook')
   const onFinish = useCallback(() => playAlarm(), [])
-  const { timers, start, toggle, reset, dismiss } = useTimers(onFinish)
+  const { timers, start, toggle, reset, dismiss } = useTimers(sessionKey, onFinish)
 
   const spans = detectTimers(text, locale)
   const runningIds = new Set(timers.map((timer) => timer.id))

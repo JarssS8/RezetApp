@@ -97,6 +97,12 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set())
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
   const wall = useSyncExternalStore(subscribeWall, getWallSnapshot, getWallServerSnapshot)
+  // Identifica esta sesión ante lib/timers-store (W9): la entrada del plan si
+  // existe, si no la receta — así dos sesiones de cocina no comparten
+  // temporizadores por coincidir el stepIndex, y los de esta sí sobreviven a
+  // salir de la pantalla y volver (o a que el paso se remonte con la
+  // animación de entrada).
+  const timersSessionKey = entryId ? `entry:${entryId}` : `recipe:${recipeId}`
 
   // Mantiene la pantalla encendida mientras dura la sesión de cocina (spec §8).
   useWakeLock(true)
@@ -276,7 +282,7 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
             <p data-testid="cook-step" className={cn('text-balance leading-snug', wall ? 'text-4xl' : 'text-2xl')}>
               {step.text}
             </p>
-            <StepTimers text={step.text} locale={locale} stepIndex={index} timerSeconds={step.timerSeconds} />
+            <StepTimers text={step.text} locale={locale} stepIndex={index} timerSeconds={step.timerSeconds} sessionKey={timersSessionKey} />
           </div>
         ) : null}
       </div>

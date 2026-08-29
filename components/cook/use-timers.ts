@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { remainingOf, useTimersStore, type TimerState } from '@/lib/timers-store'
 
 export interface CookTimer {
   id: string
@@ -18,6 +19,10 @@ export interface TimersApi {
   dismiss: (id: string) => void
 }
 
+function toPublic(t: TimerState, now: number): CookTimer {
+  return { id: t.id, label: t.label, totalSeconds: t.totalSeconds, remaining: remainingOf(t, now), running: t.running }
+}
+
 // Un temporizador corriendo ancla su fin en reloj de pared (`endsAt`, epoch
 // ms), no en "voy restando 1 cada segundo" (fix 5 de la revisión final): si
 // el dispositivo se suspende (pantalla bloqueada, portátil en reposo) el
@@ -27,58 +32,38 @@ export interface TimersApi {
 // espera de un aviso. Con `endsAt`, ese primer tick tras despertar (o el
 // `visibilitychange` al volver a la pestaña) recalcula `remaining` desde
 // `Date.now()` y colapsa de golpe al valor correcto, incluido cero.
-interface TimerState {
-  id: string
-  label: string
-  totalSeconds: number
-  running: boolean
-  endsAt: number | null // solo tiene sentido mientras running
-  pausedRemaining: number // segundos que quedaban la última vez que se paró (pausa, fin, o recién creado)
-}
-
-function remainingOf(t: TimerState, now: number): number {
-  if (!t.running || t.endsAt === null) return t.pausedRemaining
-  return Math.max(0, Math.ceil((t.endsAt - now) / 1000))
-}
-
-function toPublic(t: TimerState, now: number): CookTimer {
-  return { id: t.id, label: t.label, totalSeconds: t.totalSeconds, remaining: remainingOf(t, now), running: t.running }
-}
-
-// Varios temporizadores a la vez con UN solo intervalo: uno por temporizador
-// haría que los segundos se separaran entre sí (cada setInterval deriva por su
-// cuenta) y en la cocina eso se nota. El intervalo solo existe mientras haya
-// alguno corriendo.
-export function useTimers(onFinish?: (timer: CookTimer) => void): TimersApi {
-  const [internal, setInternal] = useState<TimerState[]>([])
+//
+// W9: el estado real (`endsAt`, `pausedRemaining`…) vive en lib/timers-store,
+// fuera de React — este hook es ahora solo un selector fino sobre ese store,
+// con `sessionKey` (receta/entrada del plan) para que dos sesiones de cocina
+// no mezclen temporizadores. Así sobreviven a navegar a otra pantalla y
+// volver, y al remontaje del paso actual dentro de la misma sesión.
+export function useTimers(sessionKey: string, onFinish?: (timer: CookTimer) => void): TimersApi {
+  const session = useTimersStore((state) => state.sessions[sessionKey])
+  const startAction = useTimersStore((state) => state.start)
+  const toggleAction = useTimersStore((state) => state.toggle)
+  const resetAction = useTimersStore((state) => state.reset)
+  const dismissAction = useTimersStore((state) => state.dismiss)
+  const tickAction = useTimersStore((state) => state.tick)
   const [now, setNow] = useState(() => Date.now())
   const finishRef = useRef(onFinish)
   useEffect(() => {
     finishRef.current = onFinish
   }, [onFinish])
 
-  const anyRunning = internal.some((t) => t.running && remainingOf(t, now) > 0)
+  const timers = session ?? {}
+  const anyRunning = Object.values(timers).some((t) => t.running && remainingOf(t, now) > 0)
 
   // Recalcula desde el reloj y detecta finales: nunca resta ciegamente, así
   // que da igual cuánto haya tardado en llegar este tick.
   const tick = useCallback(() => {
     const at = Date.now()
     setNow(at)
-    setInternal((prev) => {
-      const finished: TimerState[] = []
-      const next = prev.map((t) => {
-        if (!t.running) return t
-        if (remainingOf(t, at) > 0) return t
-        const stopped: TimerState = { ...t, running: false, endsAt: null, pausedRemaining: 0 }
-        finished.push(stopped)
-        return stopped
-      })
-      // El aviso se dispara fuera del cálculo del estado para no llamar a
-      // onFinish dos veces si React reejecuta el actualizador (StrictMode).
-      for (const t of finished) queueMicrotask(() => finishRef.current?.(toPublic(t, at)))
-      return next
-    })
-  }, [])
+    const finished = tickAction(at)
+    // El aviso se dispara fuera de la actualización del store para no
+    // depender de cuántas veces la invoque internamente zustand.
+    for (const t of finished) queueMicrotask(() => finishRef.current?.(toPublic(t, at)))
+  }, [tickAction])
 
   useEffect(() => {
     if (!anyRunning) return
@@ -99,33 +84,10 @@ export function useTimers(onFinish?: (timer: CookTimer) => void): TimersApi {
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [tick])
 
-  const start = useCallback((id: string, seconds: number, label: string) => {
-    setInternal((prev) => {
-      const timer: TimerState = { id, label, totalSeconds: seconds, running: true, endsAt: Date.now() + seconds * 1000, pausedRemaining: seconds }
-      return prev.some((t) => t.id === id) ? prev.map((t) => (t.id === id ? timer : t)) : [...prev, timer]
-    })
-  }, [])
+  const start = useCallback((id: string, seconds: number, label: string) => startAction(sessionKey, id, seconds, label), [startAction, sessionKey])
+  const toggle = useCallback((id: string) => toggleAction(sessionKey, id), [toggleAction, sessionKey])
+  const reset = useCallback((id: string) => resetAction(sessionKey, id), [resetAction, sessionKey])
+  const dismiss = useCallback((id: string) => dismissAction(sessionKey, id), [dismissAction, sessionKey])
 
-  const toggle = useCallback((id: string) => {
-    setInternal((prev) =>
-      prev.map((t) => {
-        if (t.id !== id) return t
-        const remaining = remainingOf(t, Date.now())
-        if (remaining === 0) return t
-        return t.running
-          ? { ...t, running: false, endsAt: null, pausedRemaining: remaining }
-          : { ...t, running: true, endsAt: Date.now() + remaining * 1000 }
-      }),
-    )
-  }, [])
-
-  const reset = useCallback((id: string) => {
-    setInternal((prev) => prev.map((t) => (t.id === id ? { ...t, running: false, endsAt: null, pausedRemaining: t.totalSeconds } : t)))
-  }, [])
-
-  const dismiss = useCallback((id: string) => {
-    setInternal((prev) => prev.filter((t) => t.id !== id))
-  }, [])
-
-  return { timers: internal.map((t) => toPublic(t, now)), start, toggle, reset, dismiss }
+  return { timers: Object.values(timers).map((t) => toPublic(t, now)), start, toggle, reset, dismiss }
 }

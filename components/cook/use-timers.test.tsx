@@ -1,13 +1,19 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { resetTimersStore } from '@/lib/timers-store'
 import { useTimers } from './use-timers'
 
-beforeEach(() => vi.useFakeTimers())
+// El store (lib/timers-store) vive fuera de React: a diferencia del useState
+// de antes, no se limpia solo entre tests con solo desmontar el componente.
+beforeEach(() => {
+  vi.useFakeTimers()
+  resetTimersStore()
+})
 afterEach(() => vi.useRealTimers())
 
 describe('useTimers', () => {
   it('cuenta atrás dos temporizadores a la vez sin desincronizarlos', () => {
-    const { result } = renderHook(() => useTimers())
+    const { result } = renderHook(() => useTimers('sesion'))
     act(() => {
       result.current.start('a', 10, 'Arroz')
       result.current.start('b', 30, 'Horno')
@@ -18,7 +24,7 @@ describe('useTimers', () => {
   })
 
   it('pausa y reanuda sin perder lo que queda', () => {
-    const { result } = renderHook(() => useTimers())
+    const { result } = renderHook(() => useTimers('sesion'))
     act(() => result.current.start('a', 10, 'Arroz'))
     act(() => vi.advanceTimersByTime(2000))
     act(() => result.current.toggle('a'))
@@ -31,7 +37,7 @@ describe('useTimers', () => {
 
   it('avisa una sola vez al llegar a cero y se queda parado en cero', async () => {
     const onFinish = vi.fn()
-    const { result } = renderHook(() => useTimers(onFinish))
+    const { result } = renderHook(() => useTimers('sesion', onFinish))
     act(() => result.current.start('a', 2, 'Arroz'))
     await act(async () => {
       vi.advanceTimersByTime(5000)
@@ -42,7 +48,7 @@ describe('useTimers', () => {
   })
 
   it('reset vuelve al total parado; dismiss lo quita; start sobre uno vivo lo reinicia', () => {
-    const { result } = renderHook(() => useTimers())
+    const { result } = renderHook(() => useTimers('sesion'))
     act(() => result.current.start('a', 10, 'Arroz'))
     act(() => vi.advanceTimersByTime(4000))
     act(() => result.current.reset('a'))
@@ -61,7 +67,7 @@ describe('useTimers', () => {
   // siguiente tick real se recalcula `remaining` desde el reloj ya saltado.
   it('un salto de reloj de 5 minutos colapsa el remaining al valor real y avisa una sola vez', async () => {
     const onFinish = vi.fn()
-    const { result } = renderHook(() => useTimers(onFinish))
+    const { result } = renderHook(() => useTimers('sesion', onFinish))
     act(() => result.current.start('a', 120, 'Arroz')) // 2 minutos
     act(() => {
       vi.setSystemTime(Date.now() + 5 * 60 * 1000) // el dispositivo se suspende 5 minutos
@@ -79,7 +85,7 @@ describe('useTimers', () => {
   })
 
   it('sin ninguno corriendo no deja un intervalo vivo', () => {
-    const { result, unmount } = renderHook(() => useTimers())
+    const { result, unmount } = renderHook(() => useTimers('sesion'))
     act(() => result.current.start('a', 1, 'Arroz'))
     act(() => vi.advanceTimersByTime(2000))
     expect(vi.getTimerCount()).toBe(0)
