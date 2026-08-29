@@ -1,6 +1,14 @@
 'use client'
 
 import { useLocale, useTranslations } from 'next-intl'
+import dynamic from 'next/dynamic'
+import type { StatsChartDay } from './stats-chart'
+
+// chart.js (~200 KB) no debe entrar en el bundle compartido de una app que la
+// mayoría de las veces no visita esta subpantalla: dynamic + ssr:false lo dejan
+// fuera del bundle de plan-stats-panel.tsx y solo lo piden al navegador cuando
+// esta pantalla se monta de verdad.
+const StatsChart = dynamic(() => import('./stats-chart').then((m) => m.StatsChart), { ssr: false })
 
 export interface PlanStatsPanelProps {
   stats: {
@@ -15,6 +23,7 @@ export interface PlanStatsPanelProps {
     cookedKcal: number
     cookedOffPlan: number
     topRecipes: { title: string; times: number }[]
+    days: StatsChartDay[]
   }
 }
 
@@ -61,6 +70,11 @@ export function PlanStatsPanel({ stats }: PlanStatsPanelProps) {
 
       <p className="text-sm text-text-2">{t('stats.kcal', { cooked: stats.cookedKcal, planned: stats.plannedKcal })}</p>
       <p className="text-sm text-text-2">{t('stats.offPlan', { count: stats.cookedOffPlan })}</p>
+
+      <div className="flex flex-col gap-2">
+        <h2 className="text-sm font-semibold text-text-2">{t('stats.chart.title')}</h2>
+        <StatsChart days={stats.days} />
+      </div>
 
       {stats.topRecipes.length > 0 ? (
         <div className="flex flex-col gap-1">

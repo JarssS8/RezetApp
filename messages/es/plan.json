@@ -105,6 +105,9 @@
     "top": "Lo que más se cocina",
     "topLine": "<name>{title}</name> · {times}",
     "noData": "Todavía no hay nada cocinado ni saltado en este rango.",
-    "link": "Ver plan y realidad"
+    "link": "Ver plan y realidad",
+    "chart": {
+      "title": "Kcal por día"
+    }
   }
 }

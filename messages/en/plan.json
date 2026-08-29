@@ -105,6 +105,9 @@
     "top": "What you cook most",
     "topLine": "<name>{title}</name> · {times}",
     "noData": "Nothing cooked or skipped in this range yet.",
-    "link": "See plan vs reality"
+    "link": "See plan vs reality",
+    "chart": {
+      "title": "Kcal per day"
+    }
   }
 }

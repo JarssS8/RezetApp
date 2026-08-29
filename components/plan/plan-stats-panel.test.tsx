@@ -16,6 +16,10 @@ const stats = {
   cookedKcal: 7800,
   cookedOffPlan: 1,
   topRecipes: [{ title: 'Sopa', times: 3 }],
+  days: [
+    { date: '2026-08-31', plannedKcal: 2000, cookedKcal: 1800 },
+    { date: '2026-09-01', plannedKcal: 2000, cookedKcal: 0 },
+  ],
 }
 
 describe('PlanStatsPanel', () => {

@@ -600,6 +600,18 @@ describe('planStats', () => {
     const stats = await planStats(ctxOf(a), { from: '2026-08-31', to: '2026-09-06' })
     expect(stats).toMatchObject({ planned: 3, cooked: 1, skipped: 1, pending: 1, cookedOffPlan: 1 })
     expect(stats.topRecipes).toEqual([{ title: 'Sopa', times: 2 }])
+    // Un elemento por día del rango (W9b, gráfico de Estadísticas): lo
+    // cocinado sin plan (09-03) no aparece aquí porque sale de cookingLog, no
+    // de mealPlanEntries — es la otra mitad de la verdad, no un día del plan.
+    expect(stats.days).toEqual([
+      { date: '2026-08-31', plannedKcal: 600, cookedKcal: 600 },
+      { date: '2026-09-01', plannedKcal: 600, cookedKcal: 0 },
+      { date: '2026-09-02', plannedKcal: 600, cookedKcal: 0 },
+      { date: '2026-09-03', plannedKcal: 0, cookedKcal: 0 },
+      { date: '2026-09-04', plannedKcal: 0, cookedKcal: 0 },
+      { date: '2026-09-05', plannedKcal: 0, cookedKcal: 0 },
+      { date: '2026-09-06', plannedKcal: 0, cookedKcal: 0 },
+    ])
     expect(await planStats(ctxOf(b), { from: '2026-08-31', to: '2026-09-06' })).toMatchObject({ planned: 0, cookedOffPlan: 0 })
   })
 })

@@ -37,3 +37,29 @@ export function planAdherence(entries: PlanStatEntry[]): PlanAdherence {
     cookedKcal: kcal(cooked),
   }
 }
+
+// Un día del rango, para el gráfico de barras de Estadísticas (W9b). PURO:
+// reutiliza el mismo cálculo de kcal que planAdherence (misma exclusión de
+// sobras), solo que agrupado por fecha en vez de para el rango entero.
+export interface PlanDayStat {
+  date: string
+  plannedKcal: number
+  cookedKcal: number
+}
+
+export function planStatsByDay(entries: (PlanStatEntry & { date: string })[], days: string[]): PlanDayStat[] {
+  const byDate = new Map<string, PlanStatEntry[]>()
+  for (const day of days) byDate.set(day, [])
+  for (const entry of entries) {
+    const list = byDate.get(entry.date)
+    // Fecha fuera de `days` (no debería pasar: el servicio pide las filas del
+    // mismo rango): se ignora en vez de crear un día suelto que el gráfico no
+    // sabría dónde colocar.
+    if (!list) continue
+    list.push(entry)
+  }
+  return days.map((date) => {
+    const { plannedKcal, cookedKcal } = planAdherence(byDate.get(date) ?? [])
+    return { date, plannedKcal, cookedKcal }
+  })
+}

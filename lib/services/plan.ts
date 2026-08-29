@@ -1,8 +1,9 @@
 import { and, eq, gte, inArray, isNull, lte, type SQL } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { emitHouseholdEvent } from '@/lib/events/bus'
-import { aggregateNutrition, EMPTY_MACROS, entryStatus, planAdherence } from '@/lib/domain'
-import type { FoodConversion, Nutrition, PlanAdherence, PlannedEntry, ShoppingIngredient } from '@/lib/domain'
+import { aggregateNutrition, EMPTY_MACROS, entryStatus, planAdherence, planStatsByDay } from '@/lib/domain'
+import type { FoodConversion, Nutrition, PlanAdherence, PlanDayStat, PlannedEntry, ShoppingIngredient } from '@/lib/domain'
+import { addDays } from '@/lib/plan-dates'
 import { ProposalPayloadSchema } from '@/lib/validation/plan'
 import type { MealSlot, PlanBatch, PlanEntryInput, PlanEntryMove, PlanEntryPatch, ProposalPayload } from '@/lib/validation/plan'
 import { conflictingRecipeIds } from './allergens'
@@ -458,6 +459,10 @@ export interface PlanStats extends PlanAdherence {
   to: string
   cookedOffPlan: number
   topRecipes: { title: string; times: number }[]
+  // Desglose diario para el gráfico de barras de Estadísticas (W9b): mismos
+  // números que `plannedKcal`/`cookedKcal` de arriba, pero por fecha en vez de
+  // para el rango entero. Todo el cálculo sale de planStatsByDay (dominio).
+  days: PlanDayStat[]
 }
 
 const TOP_RECIPES_LIMIT = 5
@@ -468,6 +473,7 @@ const TOP_RECIPES_LIMIT = 5
 export async function planStats(ctx: Ctx, range: { from: string; to: string }): Promise<PlanStats> {
   const rows = await ctx.db
     .select({
+      date: schema.mealPlanEntries.date,
       cookedAt: schema.mealPlanEntries.cookedAt,
       skippedAt: schema.mealPlanEntries.skippedAt,
       leftoverOfEntryId: schema.mealPlanEntries.leftoverOfEntryId,
@@ -484,14 +490,21 @@ export async function planStats(ctx: Ctx, range: { from: string; to: string }): 
       ),
     )
 
-  const adherence = planAdherence(
-    rows.map((r) => ({
-      status: entryStatus({ cookedAt: r.cookedAt, skippedAt: r.skippedAt }),
-      isLeftover: r.leftoverOfEntryId !== null,
-      kcalPerServing: r.kcalPerServing,
-      servings: r.servings,
-    })),
-  )
+  const statEntries = rows.map((r) => ({
+    date: r.date,
+    status: entryStatus({ cookedAt: r.cookedAt, skippedAt: r.skippedAt }),
+    isLeftover: r.leftoverOfEntryId !== null,
+    kcalPerServing: r.kcalPerServing,
+    servings: r.servings,
+  }))
+  const adherence = planAdherence(statEntries)
+
+  // Un elemento por fecha entre `from` y `to`, ambos incluidos (el único
+  // llamador, la página de estadísticas, siempre pasa una semana con
+  // weekRange, pero el bucle no asume 7 días fijos).
+  const days: string[] = []
+  for (let d = range.from; d <= range.to; d = addDays(d, 1)) days.push(d)
+  const dayStats = planStatsByDay(statEntries, days)
 
   const logRows = await ctx.db
     .select({ entryId: schema.cookingLog.entryId, title: schema.recipes.title })
@@ -519,6 +532,7 @@ export async function planStats(ctx: Ctx, range: { from: string; to: string }): 
     to: range.to,
     cookedOffPlan: logRows.filter((r) => r.entryId === null).length,
     topRecipes,
+    days: dayStats,
   }
 }
 
