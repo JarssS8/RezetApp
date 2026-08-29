@@ -6,6 +6,11 @@ const withNextIntl = createNextIntlPlugin('./lib/i18n/request.ts')
 const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
+  // Caché de cliente del enrutador: sin esto, cada cambio de pestaña vuelve a
+  // pedir la pantalla entera al servidor y enseña su loading.tsx aunque no
+  // haya cambiado nada. 30s es seguro aquí: los cambios de datos en vivo ya
+  // llegan por SSE (useHouseholdEvents → router.refresh, que ignora la caché).
+  experimental: { staleTimes: { dynamic: 30, static: 180 } },
   // Sin telemetría de Next en la imagen: se fija también NEXT_TELEMETRY_DISABLED=1 en el Dockerfile.
   // Evita que Turbopack empaquete el binario nativo de sharp.
   serverExternalPackages: ['sharp'],
