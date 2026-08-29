@@ -52,24 +52,28 @@ function PasskeyCard({
   const format = useFormatter()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(passkey.name ?? '')
-  const [renameError, setRenameError] = useState(false)
+  // Código de ActionResult, no solo un booleano (auditoría W7-ola1, matiz del
+  // hallazgo 8.1): `validation` (nombre vacío/demasiado largo) sí es un error
+  // de este campo; un fallo de red/servidor no vuelve inválido lo tecleado.
+  const [renameErrorCode, setRenameErrorCode] = useState<string | null>(null)
   const [renamePending, startRenameTransition] = useTransition()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [removeError, setRemoveError] = useState(false)
   const [removePending, startRemoveTransition] = useTransition()
+  const renameError = renameErrorCode !== null
 
   function onCancelRename() {
     setName(passkey.name ?? '')
-    setRenameError(false)
+    setRenameErrorCode(null)
     setEditing(false)
   }
 
   function onSubmitRename(e: FormEvent) {
     e.preventDefault()
-    setRenameError(false)
+    setRenameErrorCode(null)
     startRenameTransition(async () => {
       const res = await renameAction(passkey.credentialId, name.trim())
-      if (!res.ok) setRenameError(true)
+      if (!res.ok) setRenameErrorCode(res.code)
       else setEditing(false)
     })
   }
@@ -98,7 +102,10 @@ function PasskeyCard({
                   maxLength={60}
                   required
                   autoFocus
-                  aria-invalid={renameError}
+                  // aria-invalid solo con error de validación de verdad (ver
+                  // comentario junto al estado, arriba); aria-describedby se
+                  // mantiene con cualquier error, sea de validación o de servidor.
+                  aria-invalid={renameErrorCode === 'validation'}
                   aria-describedby={renameError ? `passkey-rename-error-${passkey.credentialId}` : undefined}
                 />
               </div>

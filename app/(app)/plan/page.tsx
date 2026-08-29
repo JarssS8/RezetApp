@@ -54,7 +54,11 @@ export default async function PlanPage({ searchParams }: PlanPageProps) {
   const parsedAddServings = addServingsRaw ? Number.parseInt(addServingsRaw, 10) : 0
 
   return (
-    <main className="view-enter flex flex-col gap-3 pb-4">
+    // data-wide (auditoría W7, hallazgo 5.1): WeekView pinta `lg:grid-cols-7`
+    // (7 columnas + chips de hasta 6 botones de 44px) — a ese ancho, el marco
+    // de app/(app)/layout.tsx pasa de max-w-xl a max-w-5xl vía `:has()`. El
+    // resto de rutas de /plan (month, proposals, shopping, stats) no lo llevan.
+    <main data-wide="true" className="view-enter flex flex-col gap-3 pb-4">
       <h1 className="title-screen">{t('title')}</h1>
       <WeekView
         monday={monday}

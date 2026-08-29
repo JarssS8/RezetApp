@@ -14,7 +14,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // env(safe-area-inset-bottom) (34px en iPhone) dejaba solo 6px de holgura;
     // con el tamaño de letra del sistema al máximo la barra crece y se come
     // el último contenido. calc() con el inset en vez del número fijo.
-    <div className="group mx-auto min-h-dvh max-w-xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] has-[[data-fullscreen]]:max-w-none has-[[data-fullscreen]]:p-0">
+    //
+    // Auditoría W7, hallazgo 5.1: `data-wide`, mismo patrón que
+    // `data-fullscreen` de arriba (un atributo en la propia pantalla, `:has()`
+    // aquí) — no un layout paralelo. Solo /plan (WeekView, 7 columnas) lo
+    // marca; el resto de pantallas se queda en max-w-xl de siempre.
+    <div className="group mx-auto min-h-dvh max-w-xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] has-[[data-fullscreen]]:max-w-none has-[[data-fullscreen]]:p-0 has-[[data-wide]]:max-w-5xl">
       {children}
       <div className="group-has-[[data-fullscreen]]:hidden">
         <BottomBar />

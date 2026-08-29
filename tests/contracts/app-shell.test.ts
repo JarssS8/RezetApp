@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 // jsdom exigiría simular la sesión entera para verificar una clase de CSS.
 const ROOT = join(import.meta.dirname, '..', '..')
 const LAYOUT = readFileSync(join(ROOT, 'app/(app)/layout.tsx'), 'utf8')
+const PLAN_PAGE = readFileSync(join(ROOT, 'app/(app)/plan/page.tsx'), 'utf8')
 
 describe('marco de la app', () => {
   it('cede el ancho y el relleno cuando un hijo pide pantalla completa', () => {
@@ -25,5 +26,13 @@ describe('marco de la app', () => {
   it('no hay ningún layout paralelo bajo cook', () => {
     expect(existsSync(join(ROOT, 'app/(app)/cook/[entryId]/layout.tsx'))).toBe(false)
     expect(existsSync(join(ROOT, 'app/(app)/cook/recipe/[id]/layout.tsx'))).toBe(false)
+  })
+
+  // Auditoría W7, hallazgo 5.1: WeekView pide `lg:grid-cols-7` dentro de un
+  // marco de max-w-xl (576px) — mismo mecanismo que data-fullscreen, marco
+  // más ancho solo cuando la propia pantalla lo pide.
+  it('ensancha el marco a max-w-5xl cuando /plan pide data-wide', () => {
+    expect(LAYOUT).toContain('has-[[data-wide]]:max-w-5xl')
+    expect(PLAN_PAGE).toContain('data-wide="true"')
   })
 })

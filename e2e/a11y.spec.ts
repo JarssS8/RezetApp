@@ -16,7 +16,13 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 for (const colorScheme of ['light', 'dark'] as const) {
   test.describe(`accesibilidad (${colorScheme})`, () => {
     test(`las cinco pantallas pasan axe en tema ${colorScheme}`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme })
+      // reducedMotion: 'reduce' (revisión W7-ola1): sin esto, axe a veces
+      // fotografía el color de texto a mitad del fundido de `view-enter`
+      // (opacidad parcial, no el color final) y mide un contraste falso que
+      // no existe una vez asentada la animación. El interruptor global de
+      // movimiento reducido (app/globals.css) colapsa esas transiciones a
+      // .01ms, así que axe siempre mide el color ya asentado.
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' })
       await registerHousehold(page, 'Axe')
 
       for (const screen of SCREENS) {
@@ -35,7 +41,9 @@ for (const colorScheme of ['light', 'dark'] as const) {
 for (const colorScheme of ['light', 'dark'] as const) {
   test.describe(`accesibilidad de la puerta de entrada (${colorScheme})`, () => {
     test(`login y registro pasan axe en tema ${colorScheme}`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme })
+      // reducedMotion: 'reduce' (revisión W7-ola1): ver el comentario del
+      // primer bloque de arriba — mismo motivo, mismo fix.
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' })
       // Sin sesión: son las dos únicas pantallas que se ven sin registrarse, y
       // en W6 estrenan wordmark, lavado de acento y tarjeta con sombra.
       for (const screen of ['/login', '/register']) {

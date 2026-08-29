@@ -85,24 +85,29 @@ function DeleteSection({ householdName, deleteAction }: { householdName: string;
   const c = useTranslations('common')
   const [open, setOpen] = useState(false)
   const [confirmText, setConfirmText] = useState('')
-  const [error, setError] = useState(false)
+  // Código de ActionResult, no solo un booleano (auditoría W7-ola1, matiz del
+  // hallazgo 8.1): distingue el único error de verdad "de este campo"
+  // (`validation`, del propio deleteHouseholdAction) de un fallo de la
+  // llamada al servidor, que no vuelve inválido el texto que se tecleó.
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const matches = confirmText === householdName
+  const error = errorCode !== null
 
   function onOpenChange(next: boolean) {
     setOpen(next)
     if (!next) {
       setConfirmText('')
-      setError(false)
+      setErrorCode(null)
     }
   }
 
   function onConfirm() {
     if (!matches) return
-    setError(false)
+    setErrorCode(null)
     startTransition(async () => {
       const res = await deleteAction(confirmText)
-      if (!res.ok) setError(true)
+      if (!res.ok) setErrorCode(res.code)
     })
   }
 
@@ -123,7 +128,10 @@ function DeleteSection({ householdName, deleteAction }: { householdName: string;
             id="delete-confirm-name"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
-            aria-invalid={error}
+            // aria-invalid solo con error de validación de verdad; un fallo
+            // de servidor no vuelve inválido lo que se tecleó (aria-describedby
+            // sí se mantiene siempre: el texto de abajo sigue siendo relevante).
+            aria-invalid={errorCode === 'validation'}
             aria-describedby={error ? 'delete-confirm-error' : undefined}
           />
         </div>
