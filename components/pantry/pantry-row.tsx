@@ -103,39 +103,50 @@ export function PantryRow({ item, unitSystem, onRemoved, adjust = adjustPantryIt
       data-removing={removing ? 'true' : undefined}
       // staggerIndex solo llega del primer pintado (pantry-list.tsx): un
       // ajuste optimista no vuelve a montar la fila, así que `stagger-in`
-      // (una animación de un solo disparo) no se repite en cada ajuste.
+      // (una animación de un solo disparo) no se repite en cada ajuste. El
+      // custom property se fija aquí (no en el contenido) porque desciende
+      // por herencia hasta donde `.stagger-in` la lee.
       style={staggerIndex !== undefined ? ({ '--stagger-i': staggerIndex } as CSSProperties) : undefined}
-      // Animación #2 del informe: dos pasos. Se marca la fila, se deja que la
-      // transición corra y solo entonces se avisa al padre, que la saca del
-      // array. `max-height` va con un pelín de retardo para que primero se
-      // apague y luego se cierre el hueco, no las dos cosas a la vez.
-      className={cn(
-        'flex max-h-24 items-center gap-3 overflow-hidden rounded-md border border-line-2 bg-card px-3 py-2.5 shadow-card',
-        'transition-[opacity,transform,max-height] duration-(--dur-2) ease-(--ease-in)',
-        staggerIndex !== undefined && 'stagger-in',
-        removing && 'max-h-0 scale-[.97] py-0 opacity-0',
-      )}
+      // Auditoría W7, hallazgo 7.1: antes se animaba `max-height`, la única
+      // propiedad de layout que reflowaba por frame en toda la app (se nota
+      // con listas largas). Mismo patrón que finish-dialog.tsx: una pista de
+      // grid que pasa de 1fr a 0fr, sin medir nada en JavaScript y sin tocar
+      // el árbol de layout en cada fotograma como max-height. El timeout de
+      // reserva de handleRemove (240ms) sigue siendo quien avisa al padre;
+      // esto solo cambia cómo se ve mientras tanto.
+      className={cn('grid transition-[grid-template-rows] duration-(--dur-2) ease-(--ease-in)', removing ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]')}
     >
-      <span aria-hidden="true" className="size-2 shrink-0 rounded-pill bg-acc-line" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{item.name}</p>
-        <p className={cn('inline-flex items-center gap-1 text-xs', expiry.warn ? 'rounded-pill bg-warn-soft px-1.5 py-0.5 text-warn-ink' : 'text-text-2')}>
-          {expiry.warn ? <WarningIcon size={12} /> : null}
-          {expiry.label}
-        </p>
+      <div className="overflow-hidden">
+        <div
+          className={cn(
+            'flex items-center gap-3 rounded-md border border-line-2 bg-card px-3 py-2.5 shadow-card',
+            'transition-[opacity,transform] duration-(--dur-2) ease-(--ease-in)',
+            staggerIndex !== undefined && 'stagger-in',
+            removing && 'scale-[.97] opacity-0',
+          )}
+        >
+          <span aria-hidden="true" className="size-2 shrink-0 rounded-pill bg-acc-line" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{item.name}</p>
+            <p className={cn('inline-flex items-center gap-1 text-xs', expiry.warn ? 'rounded-pill bg-warn-soft px-1.5 py-0.5 text-warn-ink' : 'text-text-2')}>
+              {expiry.warn ? <WarningIcon size={12} /> : null}
+              {expiry.label}
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button type="button" variant="outline" size="icon-sm" aria-label={t('decrease')} disabled={busy} onClick={() => void handleAdjust(-step)}>
+              <MinusIcon size={16} />
+            </Button>
+            <span className="w-14 text-center text-sm tabular">{formatQuantity(display.quantity, display.unit, locale)}</span>
+            <Button type="button" variant="outline" size="icon-sm" aria-label={t('increase')} disabled={busy} onClick={() => void handleAdjust(step)}>
+              <PlusIcon size={16} />
+            </Button>
+          </div>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label={t('remove')} disabled={busy} onClick={() => void handleRemove()}>
+            <TrashIcon size={16} />
+          </Button>
+        </div>
       </div>
-      <div className="flex items-center gap-1">
-        <Button type="button" variant="outline" size="icon-sm" aria-label={t('decrease')} disabled={busy} onClick={() => void handleAdjust(-step)}>
-          <MinusIcon size={16} />
-        </Button>
-        <span className="w-14 text-center text-sm tabular">{formatQuantity(display.quantity, display.unit, locale)}</span>
-        <Button type="button" variant="outline" size="icon-sm" aria-label={t('increase')} disabled={busy} onClick={() => void handleAdjust(step)}>
-          <PlusIcon size={16} />
-        </Button>
-      </div>
-      <Button type="button" variant="ghost" size="icon-sm" aria-label={t('remove')} disabled={busy} onClick={() => void handleRemove()}>
-        <TrashIcon size={16} />
-      </Button>
     </li>
   )
 }

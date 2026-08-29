@@ -1,12 +1,15 @@
 'use client'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useCallback, useState } from 'react'
 import { CupboardIcon, FreezerIcon, FridgeIcon, PantryIcon } from '@/components/icons'
+import { buttonVariants } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import type { PantryRow as PantryItemRow } from '@/lib/actions/pantry'
 import type { UnitSystem } from '@/lib/domain/types'
 import { useHouseholdEvents } from '@/lib/events/use-household-events'
+import { cn } from '@/lib/utils'
 import { PantryRow } from './pantry-row'
 
 const LOCATIONS = [
@@ -47,7 +50,17 @@ export function PantryList({ items, unitSystem }: PantryListProps) {
   return (
     <div className="mt-4 flex flex-col gap-6">
       {visible.length === 0 ? (
-        <EmptyState icon={PantryIcon} title={t('empty')} />
+        // Auditoría W7, hallazgo 8.5: misma acción que el "+" de la cabecera
+        // (app/(app)/pantry/page.tsx), reutilizando la clave existente.
+        <EmptyState
+          icon={PantryIcon}
+          title={t('empty')}
+          action={
+            <Link href="/pantry/add" className={cn(buttonVariants({ variant: 'default' }))}>
+              {t('add')}
+            </Link>
+          }
+        />
       ) : (
         LOCATIONS.map(({ id, Icon }) => {
           const group = visible.filter((item) => item.location === id)

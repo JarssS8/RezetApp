@@ -87,7 +87,23 @@ export function RecipeDetailView({ detail, locale, units, initialServings }: Rec
   return (
     <main className="view-enter pb-6">
       <div className="flex items-center justify-between gap-2">
-        <Link href="/recipes" aria-label={tc('actions.back')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
+        {/* Auditoría W7, hallazgo 9.1: destino fijo en vez de volver de verdad.
+            router.back() cuando hay historia (conserva filtros y scroll de
+            donde se vino: Plan, Hoy, una búsqueda con etiquetas); el href
+            de /recipes se queda como reserva — enlace de verdad, no solo un
+            fallback en memoria — para cuando se llega aquí sin historia (URL
+            directa, pestaña nueva). */}
+        <Link
+          href="/recipes"
+          aria-label={tc('actions.back')}
+          className="inline-flex min-h-11 min-w-11 items-center justify-center"
+          onClick={(e) => {
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              e.preventDefault()
+              router.back()
+            }
+          }}
+        >
           <ChevronLeftIcon />
         </Link>
         {/* Auditoría W7, hallazgo 2.1: 4px entre objetivos táctiles de 44px. */}
@@ -107,8 +123,9 @@ export function RecipeDetailView({ detail, locale, units, initialServings }: Rec
 
       {imageUrl ? (
         // Servida desde el volumen local (mismo origen): sin next/image, igual que recipe-card.tsx.
+        // Auditoría W7, 3.1: mismo fix que recipe-card.tsx e image-upload.tsx.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="" className="mt-2 aspect-video w-full rounded-lg object-cover" />
+        <img src={imageUrl} alt="" loading="lazy" decoding="async" className="mt-2 aspect-video w-full rounded-lg object-cover" />
       ) : (
         <RecipePlaceholder recipeId={detail.recipe.id} className="mt-2 rounded-lg" />
       )}

@@ -218,7 +218,27 @@ export function WeekView({
         </Button>
       </div>
 
-      {entries.length === 0 ? <EmptyState icon={PlanIcon} title={t('empty')} /> : null}
+      {entries.length === 0 ? (
+        // Auditoría W7, hallazgo 8.5: misma afordancia que el "+" de cada
+        // hueco (day-column.tsx), no un enlace nuevo — abre la misma hoja de
+        // añadir, en Hoy y en Almuerzo por defecto.
+        <EmptyState
+          icon={PlanIcon}
+          title={t('empty')}
+          action={
+            <Button
+              type="button"
+              onClick={() => {
+                setPendingAdd(null)
+                setSheetTarget({ date: todayIso, slot: 'lunch' })
+                setSheetSeq((s) => s + 1)
+              }}
+            >
+              {t('addTo', { slot: t('slots.lunch') })}
+            </Button>
+          }
+        />
+      ) : null}
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">

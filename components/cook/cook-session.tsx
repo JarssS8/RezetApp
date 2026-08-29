@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, CookIcon, VolumeIcon, VolumeOffIcon } from '@/components/icons'
@@ -90,6 +91,7 @@ export interface CookSessionProps {
 export function CookSession({ recipeId, entryId, title, servingsBase, initialServings, ingredients, steps, locale, units, sourceSlot }: CookSessionProps) {
   const t = useTranslations('cook')
   const c = useTranslations('common')
+  const router = useRouter()
   const [servings, setServings] = useState(initialServings)
   const [index, setIndex] = useState(0)
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set())
@@ -221,7 +223,26 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
             <CookIcon size={20} />
           </Button>
           <ServingsStepper value={servings} onChange={setServings} />
-          <Button type="button" variant="ghost" size="icon" aria-label={c('actions.close')} render={<Link href="/cook" />}>
+          {/* Auditoría W7, hallazgo 9.1: router.back() cuando hay historia (se
+              cocinó desde Hoy, desde Plan o desde la propia receta), con
+              /cook como reserva de enlace real para cuando no la hay. */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={c('actions.close')}
+            render={
+              <Link
+                href="/cook"
+                onClick={(e) => {
+                  if (typeof window !== 'undefined' && window.history.length > 1) {
+                    e.preventDefault()
+                    router.back()
+                  }
+                }}
+              />
+            }
+          >
             <CloseIcon size={20} />
           </Button>
         </div>

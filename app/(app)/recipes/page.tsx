@@ -7,11 +7,13 @@ import { RecipeCard } from '@/components/recipes/recipe-card'
 import { RecipeFilters } from '@/components/recipes/recipe-filters'
 import { RecipesLiveRefresh } from '@/components/recipes/recipes-live-refresh'
 import { TagFilter } from '@/components/recipes/tag-filter'
+import { buttonVariants } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { requireHousehold } from '@/lib/auth/guards'
 import { listCollections } from '@/lib/services/collections'
 import { searchRecipes } from '@/lib/services/recipes'
 import { listTags } from '@/lib/services/tags'
+import { cn } from '@/lib/utils'
 import { CollectionQuerySchema } from '@/lib/validation/collections'
 import { RecipeSearchSchema } from '@/lib/validation/recipes'
 
@@ -73,7 +75,20 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
       <CollectionBar collections={collections} currentQuery={currentQuery} />
       {items.length === 0 ? (
         <div className="mt-6">
-          <EmptyState icon={RecipesIcon} title={total === 0 && !query.q ? t('empty') : t('noResults')} />
+          {/* Auditoría W7, hallazgo 8.5: acción solo en el vacío de verdad
+              (sin recetas todavía); con filtros activos "crear receta" no es
+              la salida que se busca, así que noResults se queda sin action. */}
+          <EmptyState
+            icon={RecipesIcon}
+            title={total === 0 && !query.q ? t('empty') : t('noResults')}
+            action={
+              total === 0 && !query.q ? (
+                <Link href="/recipes/new" className={cn(buttonVariants({ variant: 'default' }))}>
+                  {t('new')}
+                </Link>
+              ) : undefined
+            }
+          />
         </div>
       ) : (
         <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
