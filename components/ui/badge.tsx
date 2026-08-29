@@ -12,8 +12,11 @@ const badgeVariants = cva(
         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
         secondary:
           "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
+        // Auditoría W7, hallazgo 1.2: mismo par que en button.tsx —
+        // text-danger-ink y fondo oscuro al 12% en vez de 20% para llegar a
+        // 4,5:1 de verdad en oscuro (ver comentario extenso en button.tsx).
         destructive:
-          "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+          "bg-destructive/10 text-danger-ink focus-visible:ring-destructive/20 dark:bg-destructive/12 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
         outline:
           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost:

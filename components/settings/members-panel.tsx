@@ -98,7 +98,7 @@ function InviteDialog({ createInviteAction }: { createInviteAction: CreateInvite
           <DialogTitle>{t('members.invite')}</DialogTitle>
         </DialogHeader>
         {error && (
-          <p role="alert" className="text-sm text-warn-ink">
+          <p role="alert" className="text-sm text-danger-ink">
             {t('members.error')}
           </p>
         )}
@@ -257,12 +257,22 @@ function MemberCard({
             </div>
           )}
           {editable && (
-            <Input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onDraftKeyDown} placeholder={t('members.dietaryPlaceholder')} maxLength={30} />
+            // Auditoría W7, hallazgo 8.3: placeholder-only. El <legend> del
+            // fieldset no le da nombre accesible al <input> (solo lo hace
+            // <label>), así que hace falta el aria-label aparte.
+            <Input
+              aria-label={t('members.dietaryFlags')}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={onDraftKeyDown}
+              placeholder={t('members.dietaryPlaceholder')}
+              maxLength={30}
+            />
           )}
         </fieldset>
 
         {error && (
-          <p role="alert" className="text-sm text-warn-ink">
+          <p role="alert" className="text-sm text-danger-ink">
             {t('members.error')}
           </p>
         )}
@@ -279,7 +289,7 @@ function MemberCard({
               </DialogHeader>
               <p className="text-sm text-text-2">{t('members.removeConfirm', { name: member.displayName })}</p>
               {removeError && (
-                <p role="alert" className="text-sm text-warn-ink">
+                <p role="alert" className="text-sm text-danger-ink">
                   {t('members.error')}
                 </p>
               )}

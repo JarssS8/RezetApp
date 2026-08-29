@@ -370,19 +370,42 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft, initialFoodN
     }
   }
 
+  // Auditoría W7, hallazgo 8.1: `error` es un único string para todo el
+  // formulario, pero "falta título" SÍ es un error de un campo concreto -el
+  // único caso de este editor con esa correspondencia 1:1-, así que se separa
+  // para pintarlo junto al campo con aria-invalid/aria-describedby en vez de
+  // (no además de: el resumen debe complementar, no duplicar) el aviso
+  // genérico de arriba. El resto de errores (red, análisis, guardado) no
+  // señalan un campo concreto y se quedan en el aviso general.
+  const titleError = error === t('editor.titleRequired') ? error : null
+  const bannerError = titleError ? null : error
+
   return (
     <form onSubmit={(e) => void handleSubmit(e)} aria-busy={saving} className="flex flex-col gap-6 pb-24">
       <h1 className="title-content">{recipeId ? t('editor.editTitle') : t('editor.newTitle')}</h1>
 
-      {error ? (
-        <p role="alert" className="text-sm text-warn-ink">
-          {error}
+      {bannerError ? (
+        <p role="alert" className="text-sm text-danger-ink">
+          {bannerError}
         </p>
       ) : null}
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="recipe-title">{t('editor.title')}</Label>
-        <Input id="recipe-title" value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={160} />
+        <Input
+          id="recipe-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          maxLength={160}
+          aria-invalid={!!titleError}
+          aria-describedby={titleError ? 'recipe-title-error' : undefined}
+        />
+        {titleError ? (
+          <p id="recipe-title-error" role="alert" className="text-sm text-danger-ink">
+            {titleError}
+          </p>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-2">

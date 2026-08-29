@@ -67,7 +67,7 @@ export function ImageUpload({ images, onChange }: ImageUploadProps) {
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => void handleFiles(e.target.files)} />
       </div>
       {error ? (
-        <p role="alert" className="text-xs text-warn-ink">
+        <p role="alert" className="text-xs text-danger-ink">
           {error}
         </p>
       ) : null}

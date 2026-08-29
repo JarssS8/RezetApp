@@ -160,7 +160,7 @@ export function ImportForm() {
       )}
 
       {error ? (
-        <p role="alert" className="text-sm text-warn-ink">
+        <p role="alert" className="text-sm text-danger-ink">
           {error}
         </p>
       ) : null}

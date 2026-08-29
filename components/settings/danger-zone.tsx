@@ -65,7 +65,7 @@ function LeaveSection({ leaveAction }: { leaveAction: LeaveHouseholdFn }) {
         </DialogHeader>
         <p className="text-sm text-text-2">{t('household.leaveConfirm')}</p>
         {error && (
-          <p role="alert" className="text-sm text-warn-ink">
+          <p role="alert" className="text-sm text-danger-ink">
             {t('household.error')}
           </p>
         )}
@@ -119,10 +119,16 @@ function DeleteSection({ householdName, deleteAction }: { householdName: string;
         <p className="text-sm text-text-2">{t('household.deleteHint', { name: householdName })}</p>
         <div className="flex flex-col gap-2">
           <Label htmlFor="delete-confirm-name">{t('household.deleteConfirmField')}</Label>
-          <Input id="delete-confirm-name" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} />
+          <Input
+            id="delete-confirm-name"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            aria-invalid={error}
+            aria-describedby={error ? 'delete-confirm-error' : undefined}
+          />
         </div>
         {error && (
-          <p role="alert" className="text-sm text-warn-ink">
+          <p id="delete-confirm-error" role="alert" className="text-sm text-danger-ink">
             {t('household.error')}
           </p>
         )}

@@ -38,7 +38,7 @@ export function InviteAcceptButton({ token, displayName }: { token: string; disp
         </p>
       )}
       {error && (
-        <p role="alert" className="text-sm text-warn-ink">
+        <p role="alert" className="text-sm text-danger-ink">
           {error}
         </p>
       )}

@@ -14,6 +14,7 @@
   --text-2:  #485450;
   --muted:   #8A9691;
   --warn:    #D9803A;
+  --danger:  #C0392B;
 
   /* Derivados — nunca los escribas a ojo */
   --acc-soft: color-mix(in srgb, var(--acc) 13%, #FFFFFF);
@@ -33,6 +34,11 @@
      sobre --warn-soft: sirve para bordes, iconos y fondos, no para leer. Al 65%
      da 5,44:1 sobre --surf, 4,95:1 sobre --surf-2 y 4,74:1 sobre --warn-soft. */
   --warn-ink: color-mix(in srgb, var(--warn) 65%, #0A2118);
+  /* Tinta de peligro para TEXTO (auditoría W7, hallazgo 1.2). Espejo exacto de
+     --warn-ink: --danger crudo suspende AA en varios estados de `destructive`
+     (button/badge). NO tocar sin volver a pasar
+     tests/contracts/design-tokens.test.ts. */
+  --danger-ink: color-mix(in srgb, var(--danger) 72%, #0A2118);
   /* Fondo semántico del agrupador hundido (hueco vacío del plan, caja de
      vacío). Hasta W6 --surf-2 hacía tres trabajos distintos; este alias separa
      uno para que se pueda mover sin arrastrar los otros dos. */
@@ -92,11 +98,13 @@
     --text-2: #BBB0A1;
     --muted:  #8B8175;
     --warn:   #E8A33D;
+    --danger: #E06555;
     --acc-soft: color-mix(in srgb, var(--acc) 17%, #16130F);
     --acc-ink:  color-mix(in srgb, var(--acc) 68%, #F1EBE1);
     --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
     --acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf));
     --warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1);
+    --danger-ink: color-mix(in srgb, var(--danger) 88%, #F1EBE1);
     --surf-sunken: var(--surf-2);
     /* En "Noche suave" la sombra apenas se lee: el borde entero se queda, y
        el escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */
@@ -116,11 +124,13 @@
   --text-2: #BBB0A1;
   --muted:  #8B8175;
   --warn:   #E8A33D;
+  --danger: #E06555;
   --acc-soft: color-mix(in srgb, var(--acc) 17%, #16130F);
   --acc-ink:  color-mix(in srgb, var(--acc) 68%, #F1EBE1);
   --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
   --acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf));
   --warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1);
+  --danger-ink: color-mix(in srgb, var(--danger) 88%, #F1EBE1);
   --surf-sunken: var(--surf-2);
   /* En "Noche suave" la sombra apenas se lee: el borde entero se queda, y
      el escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */

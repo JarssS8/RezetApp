@@ -14,7 +14,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   if (!invite) {
     return (
       <Card className="view-enter mx-auto w-full max-w-sm p-6">
-        <p role="alert">{t('invite.invalid')}</p>
+        <p role="alert" className="text-sm text-danger-ink">
+          {t('invite.invalid')}
+        </p>
       </Card>
     )
   }

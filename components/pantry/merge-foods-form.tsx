@@ -76,7 +76,7 @@ export function MergeFoodsForm() {
         </p>
       ) : null}
       {error ? (
-        <p role="alert" className="text-sm text-warn-ink">
+        <p role="alert" className="text-sm text-danger-ink">
           {t('merge.error')}: {error}
         </p>
       ) : null}

@@ -99,13 +99,21 @@ export function CollectionBar({ collections, currentQuery }: CollectionBarProps)
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="collection-name">{t('collections.name')}</Label>
-              <Input id="collection-name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} />
+              <Input
+                id="collection-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                maxLength={60}
+                aria-invalid={!!error}
+                aria-describedby={error ? 'collection-name-error' : undefined}
+              />
+              {error && (
+                <p id="collection-name-error" role="alert" className="text-sm text-danger-ink">
+                  {error}
+                </p>
+              )}
             </div>
-            {error && (
-              <p role="alert" className="text-sm text-warn-ink">
-                {error}
-              </p>
-            )}
             <DialogFooter>
               <DialogClose render={<Button type="button" variant="outline" />}>{t('collections.cancel')}</DialogClose>
               <Button type="submit" aria-busy={pending} disabled={pending || !name.trim()}>

@@ -59,8 +59,8 @@ const ACCENTS = {
   canela: '#A9764A',
 } as const
 
-const LIGHT = { surf: '#FFFFFF', bg: '#FBFBFC', surf2: '#F2F5F3', text: '#161C1A', text2: '#485450', warn: '#D9803A' }
-const DARK = { surf: '#1F1B16', bg: '#16130F', surf2: '#2A241D', text: '#F1EBE1', text2: '#BBB0A1', warn: '#E8A33D' }
+const LIGHT = { surf: '#FFFFFF', bg: '#FBFBFC', surf2: '#F2F5F3', text: '#161C1A', text2: '#485450', warn: '#D9803A', danger: '#C0392B' }
+const DARK = { surf: '#1F1B16', bg: '#16130F', surf2: '#2A241D', text: '#F1EBE1', text2: '#BBB0A1', warn: '#E8A33D', danger: '#E06555' }
 
 // Mezclas espejo de las del CSS. Cambiar una aquí sin cambiarla allí hace
 // fallar el test de paridad de abajo, que busca la cadena literal.
@@ -68,6 +68,13 @@ const accSoft = (acc: string, dark: boolean) => (dark ? mix(acc, DARK.bg, 0.17) 
 const accInk = (acc: string, dark: boolean) => (dark ? mix(acc, DARK.text, 0.68) : mix(acc, '#0A2118', 0.6))
 const warnInk = (dark: boolean) => (dark ? mix(DARK.warn, DARK.text, 0.85) : mix(LIGHT.warn, '#0A2118', 0.65))
 const warnSoft = (dark: boolean) => (dark ? mix(DARK.warn, DARK.surf, 0.14) : mix(LIGHT.warn, LIGHT.surf, 0.14))
+// Auditoría W7, hallazgo 1.2: espejo de warnInk/warnSoft para --danger-ink.
+const dangerInk = (dark: boolean) => (dark ? mix(DARK.danger, DARK.text, 0.88) : mix(LIGHT.danger, '#0A2118', 0.72))
+// Fondos reales de `destructive` (button.tsx/badge.tsx): reposo y hover, con
+// las opacidades que quedaron tras el hallazgo 1.2 (oscuro bajado de /20-/30
+// a /12-/16 porque ninguna tinta de texto razonable llegaba a 4,5:1 con la
+// opacidad original).
+const dangerBg = (dark: boolean, alpha: number) => (dark ? mix(DARK.danger, DARK.surf, alpha) : mix(LIGHT.danger, LIGHT.surf, alpha))
 
 describe('tokens de diseño', () => {
   it('el documento y la hoja que compila declaran los mismos tokens de W6', () => {
@@ -76,6 +83,7 @@ describe('tokens de diseño', () => {
       '--acc-line: color-mix(in srgb, var(--acc) 32%, var(--line))',
       '--acc-soft-2: color-mix(in srgb, var(--acc) 20%, var(--surf))',
       '--warn-ink: color-mix(in srgb, var(--warn) 65%, #0A2118)',
+      '--danger-ink: color-mix(in srgb, var(--danger) 72%, #0A2118)',
       '--surf-sunken: var(--surf-2)',
       '--line-2: color-mix(in srgb, var(--line) 55%, var(--surf))',
       '--fs-title: 1.875rem',
@@ -98,7 +106,7 @@ describe('tokens de diseño', () => {
     // La media query y el [data-theme="dark"] explícito: el patrón que ya usan
     // todos los tokens de tema desde W0. Contar ocurrencias evita el fallo
     // clásico de arreglar solo una de las dos ramas.
-    for (const token of ['--warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1)', '--line-2: var(--line)', '--acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf))']) {
+    for (const token of ['--warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1)', '--danger-ink: color-mix(in srgb, var(--danger) 88%, #F1EBE1)', '--line-2: var(--line)', '--acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf))']) {
       expect(COMPILED.split(token).length - 1, token).toBe(2)
     }
   })
@@ -143,6 +151,46 @@ describe('tokens de diseño', () => {
       }
     }
     expect(failures).toEqual([])
+  })
+
+  // Auditoría W7, hallazgo 1.2. Igual que warn-ink, más los fondos reales de
+  // `destructive` (button.tsx/badge.tsx) en sus dos estados: si alguien vuelve
+  // a subir la opacidad oscura a /20-/30 sin revisar este test, aquí revienta.
+  it('--danger-ink cumple AA sobre superficie, fondo, hundido y los fondos de destructive en los dos temas', () => {
+    const failures: string[] = []
+    for (const dark of [false, true]) {
+      const theme = dark ? DARK : LIGHT
+      const ink = dangerInk(dark)
+      const pairs = {
+        surf: hex(theme.surf),
+        bg: hex(theme.bg),
+        'surf-2': hex(theme.surf2),
+        'destructive-reposo': dangerBg(dark, dark ? 0.12 : 0.1),
+        'destructive-hover': dangerBg(dark, dark ? 0.16 : 0.2),
+      }
+      for (const [where, bgColor] of Object.entries(pairs)) {
+        const r = ratio(ink, bgColor)
+        if (r < 4.5) failures.push(`${dark ? 'oscuro' : 'claro'} danger-ink sobre ${where}: ${r.toFixed(2)}:1`)
+      }
+    }
+    expect(failures).toEqual([])
+  })
+
+  // Auditoría W7, hallazgo 1.3: el borde del campo (--input) es su única
+  // frontera visible (no tiene fondo propio) y WCAG 1.4.11 exige 3:1 para el
+  // límite de un control. `--input` no está en design-tokens.css (es mapeo
+  // shadcn, solo vive en app/globals.css), así que este test lee directamente
+  // COMPILED en vez de comparar contra DOC.
+  it('--input cumple 3:1 sobre --surf en los dos temas', () => {
+    const inputColor = (dark: boolean) => (dark ? mix(DARK.text2, DARK.surf, 0.65) : mix(LIGHT.text2, LIGHT.surf, 0.65))
+    expect(COMPILED, '--input debe mezclar --text-2 sobre --surf').toContain(
+      '--input: color-mix(in srgb, var(--text-2) 65%, var(--surf))'
+    )
+    for (const dark of [false, true]) {
+      const theme = dark ? DARK : LIGHT
+      const r = ratio(inputColor(dark), hex(theme.surf))
+      expect(r, `${dark ? 'oscuro' : 'claro'} --input sobre --surf`).toBeGreaterThanOrEqual(3)
+    }
   })
 
   it('el texto corriente sigue siendo legible sobre el acento suave del hero', () => {

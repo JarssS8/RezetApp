@@ -224,9 +224,15 @@ export function BarcodeScanner({ lookup = lookupBarcodeAction }: BarcodeScannerP
       {showManual ? (
         <div className="flex items-center gap-2">
           <Input
+            // Auditoría W7, hallazgo 8.3: sin nombre accesible (ni placeholder
+            // siquiera). "scan.manual" es lo que dice el botón que abre este
+            // campo ("Introducir a mano"), así que sigue siendo cierto aquí.
+            aria-label={t('scan.manual')}
             inputMode="numeric"
             pattern="[0-9]*"
             value={manualValue}
+            aria-invalid={manualError}
+            aria-describedby={manualError ? 'barcode-manual-error' : undefined}
             onChange={(e) => {
               setManualValue(e.target.value)
               setManualError(false)
@@ -243,7 +249,11 @@ export function BarcodeScanner({ lookup = lookupBarcodeAction }: BarcodeScannerP
           </Button>
         </div>
       ) : null}
-      {showManual && manualError ? <p role="alert" className="text-xs text-warn-ink">{te('generic')}</p> : null}
+      {showManual && manualError ? (
+        <p id="barcode-manual-error" role="alert" className="text-xs text-danger-ink">
+          {te('generic')}
+        </p>
+      ) : null}
       <FoodCorrectionDialog
         food={null}
         open={createOpen}

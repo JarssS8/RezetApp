@@ -98,7 +98,7 @@ function TokenCard({ token, isOwner, revokeAction }: { token: ApiTokenRow; isOwn
           {token.lastUsedAt ? t('tokens.lastUsed', { date: format.dateTime(new Date(token.lastUsedAt), { dateStyle: 'medium', timeStyle: 'short' }) }) : t('tokens.never')}
         </p>
         {error && (
-          <p role="alert" className="text-sm text-warn-ink">
+          <p role="alert" className="text-sm text-danger-ink">
             {error}
           </p>
         )}
@@ -222,13 +222,17 @@ function CreateTokenDialog({ createAction }: { createAction: CreateApiTokenFn })
               </NativeSelect>
             </div>
             {error && (
-              <p role="alert" className="text-sm text-warn-ink">
+              <p id="token-create-error" role="alert" className="text-sm text-danger-ink">
                 {error}
               </p>
             )}
             <DialogFooter>
               <DialogClose render={<Button type="button" variant="outline" />}>{c('actions.cancel')}</DialogClose>
-              <Button type="submit" aria-busy={pending} disabled={pending || !name.trim()}>
+              {/* Auditoría W7, hallazgo 8.1: el error es genérico (puede venir del
+                  nombre, del límite de tokens…), así que se enlaza desde el botón
+                  que dispara la acción, no de un campo concreto que sería una
+                  atribución falsa. */}
+              <Button type="submit" aria-busy={pending} aria-describedby={error ? 'token-create-error' : undefined} disabled={pending || !name.trim()}>
                 {t('tokens.create')}
               </Button>
             </DialogFooter>

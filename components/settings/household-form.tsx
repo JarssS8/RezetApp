@@ -97,7 +97,7 @@ export function HouseholdForm({ initial, isOwner, updateAction }: { initial: Hou
           </p>
         )}
         {error && (
-          <p role="alert" className="text-sm text-warn-ink">
+          <p role="alert" className="text-sm text-danger-ink">
             {t('household.error')}
           </p>
         )}
@@ -152,7 +152,7 @@ export function HouseholdSwitcher({ households, currentId, switchAction }: { hou
         ))}
       </ul>
       {error && (
-        <p role="alert" className="text-sm text-warn-ink">
+        <p role="alert" className="text-sm text-danger-ink">
           {t('household.error')}
         </p>
       )}

@@ -316,7 +316,7 @@ export function FoodCorrectionDialog({ food, open, onOpenChange, onSaved, locale
           })}
         </div>
         {error ? (
-          <p role="alert" className="text-xs text-warn-ink">
+          <p role="alert" className="text-xs text-danger-ink">
             {error}
           </p>
         ) : null}

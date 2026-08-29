@@ -90,7 +90,7 @@ export function ImportButton() {
         </p>
       ) : null}
       {errorMessage ? (
-        <p role="alert" className="text-sm text-warn-ink">
+        <p role="alert" className="text-sm text-danger-ink">
           {errorMessage}
         </p>
       ) : null}

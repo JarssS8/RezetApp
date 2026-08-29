@@ -134,7 +134,7 @@ export function NotificationsPanel({ subscribedEndpoints }: NotificationsPanelPr
     <div className="flex flex-col gap-3">
       {!supported && <p className="text-sm text-text-2">{t('notifications.unsupported')}</p>}
       {supported && permission === 'denied' && (
-        <p role="alert" className="text-sm text-warn-ink">
+        <p role="alert" className="text-sm text-danger-ink">
           {t('notifications.denied')}
         </p>
       )}
@@ -148,7 +148,7 @@ export function NotificationsPanel({ subscribedEndpoints }: NotificationsPanelPr
         </div>
       )}
       {error && (
-        <p role="alert" className="text-sm text-warn-ink">
+        <p role="alert" className="text-sm text-danger-ink">
           {t('notifications.error')}
         </p>
       )}

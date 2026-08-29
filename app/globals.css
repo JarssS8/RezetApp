@@ -132,6 +132,12 @@
      sobre --warn-soft: sirve para bordes, iconos y fondos, no para leer. Al 65%
      da 5,44:1 sobre --surf, 4,95:1 sobre --surf-2 y 4,74:1 sobre --warn-soft. */
   --warn-ink: color-mix(in srgb, var(--warn) 65%, #0A2118);
+  /* Tinta de peligro para TEXTO (auditoría W7, hallazgo 1.2). --danger crudo
+     (#C0392B) suspende AA en varios estados de `destructive` (button/badge):
+     3,83:1 en reposo oscuro, 3,25:1 en hover oscuro. Espejo exacto de
+     --warn-ink, mismo texto oscuro de mezcla (#0A2118) y mismo criterio: NO
+     tocar sin volver a pasar tests/contracts/design-tokens.test.ts. */
+  --danger-ink: color-mix(in srgb, var(--danger) 72%, #0A2118);
   /* Fondo semántico del agrupador hundido (hueco vacío del plan, caja de
      vacío). Hasta W6 --surf-2 hacía tres trabajos distintos; este alias separa
      uno para que se pueda mover sin arrastrar los otros dos. */
@@ -185,6 +191,7 @@
     --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
     --acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf));
     --warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1);
+    --danger-ink: color-mix(in srgb, var(--danger) 88%, #F1EBE1);
     --surf-sunken: var(--surf-2);
     /* En "Noche suave" la sombra apenas se lee: el borde entero se queda, y el
        escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */
@@ -204,6 +211,7 @@
   --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
   --acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf));
   --warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1);
+  --danger-ink: color-mix(in srgb, var(--danger) 88%, #F1EBE1);
   --surf-sunken: var(--surf-2);
   /* En "Noche suave" la sombra apenas se lee: el borde entero se queda, y el
      escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */
@@ -253,7 +261,15 @@
   --accent-foreground: var(--acc-ink);
   --destructive: var(--danger);
   --border: var(--line);
-  --input: var(--line);
+  /* Auditoría W7, hallazgo 1.3: el campo de formulario no tiene fondo propio,
+     así que su única frontera visible es este borde. `var(--line)` daba
+     1,17:1 sobre --surf (invisible); WCAG 1.4.11 exige 3:1 para el límite de
+     un control. Mezclado con --text-2 en vez de un color nuevo: sigue siendo
+     "solo tokens" y se adapta solo a los dos temas porque --text-2 y --surf ya
+     lo hacen. El informe sugería 40%, pero esa mezcla mide 1,95:1 en claro
+     (medido en tests/contracts/design-tokens.test.ts); hace falta 65% para
+     llegar a 3:1 en claro (3,27:1) y de sobra en oscuro (4,16:1). */
+  --input: color-mix(in srgb, var(--text-2) 65%, var(--surf));
   --ring: var(--acc);
 }
 
@@ -283,6 +299,7 @@
   --color-acc-soft-2: var(--acc-soft-2);
   --color-acc-line: var(--acc-line);
   --color-warn-ink: var(--warn-ink);
+  --color-danger-ink: var(--danger-ink);
   --color-surface-sunken: var(--surf-sunken);
   --color-line-2: var(--line-2);
   --color-text-2: var(--text-2);

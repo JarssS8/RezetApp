@@ -98,6 +98,8 @@ function PasskeyCard({
                   maxLength={60}
                   required
                   autoFocus
+                  aria-invalid={renameError}
+                  aria-describedby={renameError ? `passkey-rename-error-${passkey.credentialId}` : undefined}
                 />
               </div>
               <Button type="submit" size="sm" aria-busy={renamePending} disabled={renamePending || !name.trim()}>
@@ -121,7 +123,7 @@ function PasskeyCard({
           {passkey.lastUsedAt ? t('passkeys.lastUsed', { date: format.dateTime(new Date(passkey.lastUsedAt), { dateStyle: 'medium', timeStyle: 'short' }) }) : t('passkeys.never')}
         </p>
         {renameError && (
-          <p role="alert" className="text-sm text-warn-ink">
+          <p id={`passkey-rename-error-${passkey.credentialId}`} role="alert" className="text-sm text-danger-ink">
             {t('passkeys.error')}
           </p>
         )}
@@ -142,7 +144,7 @@ function PasskeyCard({
                 </DialogHeader>
                 <p className="text-sm text-text-2">{t('passkeys.removeConfirm')}</p>
                 {removeError && (
-                  <p role="alert" className="text-sm text-warn-ink">
+                  <p role="alert" className="text-sm text-danger-ink">
                     {t('passkeys.error')}
                   </p>
                 )}

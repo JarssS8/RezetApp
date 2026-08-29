@@ -22,9 +22,12 @@ export function NativeSelect({ className, children, ...props }: NativeSelectProp
     <span className="relative inline-flex items-center">
       <select
         data-slot="native-select"
+        // Foco: SIN outline-none (auditoría W7, hallazgo 1.1) — razón completa
+        // en components/ui/button.tsx. Se retira también el ring-3/ring-ring
+        // de foco por el mismo motivo (doble aro); se conserva border-ring.
         className={cn(
-          'min-h-11 appearance-none rounded-sm border border-input bg-transparent py-1 pr-8 pl-2.5 text-base text-foreground transition-colors outline-none',
-          'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+          'min-h-11 appearance-none rounded-sm border border-input bg-transparent py-1 pr-8 pl-2.5 text-base text-foreground transition-colors',
+          'focus-visible:border-ring',
           'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
           'md:text-sm dark:bg-input/30',
           className,

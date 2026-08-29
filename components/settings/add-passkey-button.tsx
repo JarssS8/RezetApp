@@ -50,7 +50,7 @@ export function AddPasskeyButton() {
       </Button>
       {added && <p className="text-sm text-text-2">{t('passkeys.added')}</p>}
       {error && (
-        <p role="alert" className="text-sm text-warn-ink">
+        <p role="alert" className="text-sm text-danger-ink">
           {error}
         </p>
       )}
