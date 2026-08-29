@@ -32,7 +32,7 @@ export default async function EditRecipePage({ params }: { params: Promise<{ id:
   })
 
   return (
-    <main className="pb-6">
+    <main className="view-enter pb-6">
       <Link href={`/recipes/${id}`} aria-label={tc('actions.back')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
         <ChevronLeftIcon />
       </Link>

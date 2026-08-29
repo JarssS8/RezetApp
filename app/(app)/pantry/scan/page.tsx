@@ -7,7 +7,7 @@ export default async function ScanBarcodePage() {
   await requireHousehold()
 
   return (
-    <main>
+    <main className="view-enter">
       <h1 className="title-screen">{t('scan.title')}</h1>
       <div className="mt-4">
         <BarcodeScanner />

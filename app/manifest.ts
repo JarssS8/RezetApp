@@ -17,7 +17,10 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/today',
     scope: '/',
     display: 'standalone',
-    orientation: 'portrait',
+    // Auditoría W7, hallazgo 5.5: cook-session.tsx tiene un modo pared
+    // explícito para tablet en horizontal (spec fase 5); `orientation:
+    // 'portrait'` se lo bloquearía en la PWA instalada. Sin la clave, el
+    // sistema no fuerza ninguna orientación.
     background_color: '#FBFBFC',
     // Un solo valor, sin variante oscura (el manifiesto no admite media
     // queries como el <meta name="theme-color"> de layout.tsx): se usa el

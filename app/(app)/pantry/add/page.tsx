@@ -22,7 +22,7 @@ export default async function AddPantryItemPage({ searchParams }: AddPantryItemP
   const initialQuery = !initialFood && sp.name ? sp.name : undefined
 
   return (
-    <main>
+    <main className="view-enter">
       <h1 className="title-screen">{t('add')}</h1>
       <div className="mt-4">
         <PantryItemForm initialFood={initialFood} {...(initialQuery ? { initialQuery } : {})} />

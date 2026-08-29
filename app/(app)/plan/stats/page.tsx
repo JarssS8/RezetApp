@@ -28,7 +28,7 @@ export default async function PlanStatsPage({ searchParams }: PlanStatsPageProps
   const stats = await planStats(ctx, { from, to: days[days.length - 1] as string })
 
   return (
-    <main className="flex flex-col gap-3 pb-4">
+    <main className="view-enter flex flex-col gap-3 pb-4">
       <h1 className="title-screen">{t('stats.title')}</h1>
       <PlanStatsPanel stats={stats} />
     </main>

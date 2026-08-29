@@ -152,7 +152,7 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
   // callejón sin salida.
   if (steps.length === 0) {
     return (
-      <section className="flex min-h-[70dvh] flex-col items-center justify-center">
+      <section className="view-enter flex min-h-[70dvh] flex-col items-center justify-center">
         <EmptyState icon={CookIcon} title={t('noSteps')} />
       </section>
     )
@@ -167,7 +167,9 @@ export function CookSession({ recipeId, entryId, title, servingsBase, initialSer
       // layout paralelo. El modo pared cambia además el lienzo, no solo el
       // cuerpo de letra: fondo hundido y más aire para leer a dos metros.
       className={cn(
-        'flex min-h-dvh flex-col gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]',
+        // Auditoría W7, hallazgo 7.2: cook/[entryId] y cook/recipe/[id] eran
+        // dos de las 13 rutas sin view-enter.
+        'view-enter flex min-h-dvh flex-col gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]',
         wall ? 'bg-surface-sunken gap-6 px-8' : 'mx-auto w-full max-w-xl',
       )}
       // Teclado (portátil apoyado en la encimera) y deslizamiento con el dedo:

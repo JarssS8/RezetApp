@@ -46,7 +46,7 @@ export default async function PlanShoppingPage({ searchParams }: PlanShoppingPag
   const rangeText = t('shopping.range', { from: dateFormat.format(new Date(`${range.from}T00:00:00`)), to: dateFormat.format(new Date(`${range.to}T00:00:00`)) })
 
   return (
-    <main className="flex flex-col gap-3 pb-4">
+    <main className="view-enter flex flex-col gap-3 pb-4">
       <PlanLiveRefresh types={['plan.changed', 'pantry.changed']} />
       <div>
         <h1 className="title-screen">{t('shopping.title')}</h1>

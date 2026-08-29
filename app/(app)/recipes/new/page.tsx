@@ -13,7 +13,7 @@ export default async function NewRecipePage({ searchParams }: { searchParams: Pr
   const useDraft = sp.draft === '1'
 
   return (
-    <main className="pb-6">
+    <main className="view-enter pb-6">
       <Link href="/recipes" aria-label={tc('actions.back')} className="inline-flex min-h-11 min-w-11 items-center justify-center">
         <ChevronLeftIcon />
       </Link>

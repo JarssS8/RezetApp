@@ -7,7 +7,7 @@ export default async function MergePantryFoodsPage() {
   await requireHousehold()
 
   return (
-    <main>
+    <main className="view-enter">
       <h1 className="title-screen">{t('merge.title')}</h1>
       <p className="mt-2 text-sm text-text-2">{t('merge.hint')}</p>
       <div className="mt-4">

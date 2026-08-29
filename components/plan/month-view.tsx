@@ -64,10 +64,16 @@ export function MonthView({ weeks, todayIso, prevMonth, nextMonth }: MonthViewPr
                 key={cell.date}
                 data-testid={`day-${cell.date}`}
                 href={`/plan?week=${monday}`}
+                // Auditoría W7, hallazgo 4.1: pill-selected en vez de
+                // border-primary/bg-accent sueltos (mismo tratamiento que
+                // bottom-bar.tsx, day-column.tsx, entry-chip.tsx y
+                // recipe-filters.tsx). aria-current="date" es el valor
+                // correcto para "hoy" en un calendario (no "page").
+                aria-current={cell.date === todayIso ? 'date' : undefined}
                 className={cn(
                   'flex min-h-[4.5rem] flex-col gap-1 rounded-sm border border-border p-1.5',
                   !cell.inMonth && 'opacity-40',
-                  cell.date === todayIso && 'border-primary bg-accent',
+                  cell.date === todayIso && 'pill-selected',
                 )}
               >
                 <span className="text-sm font-medium tabular">{cell.day}</span>
@@ -78,7 +84,10 @@ export function MonthView({ weeks, todayIso, prevMonth, nextMonth }: MonthViewPr
                     ))}
                   </span>
                 ) : null}
-                {cell.kcal !== null ? <span className="text-xs tabular text-text-2">{t('kcalDay', { kcal: cell.kcal })}</span> : null}
+                {/* Auditoría W7, hallazgo 5.2: a 375px la celda deja ~32px de
+                    contenido; "820 kcal" no cabe. Se oculta por debajo de sm
+                    y vuelve donde sí hay sitio. */}
+                {cell.kcal !== null ? <span className="hidden text-xs tabular text-text-2 sm:block">{t('kcalDay', { kcal: cell.kcal })}</span> : null}
               </Link>
             )
           }),

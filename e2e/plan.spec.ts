@@ -38,10 +38,11 @@ test.describe('plan', () => {
     await page.goto('/plan/proposals')
     await expect(page.getByText(/no hay propuestas|no proposals yet/i)).toBeVisible()
 
-    // La vista mensual marca el día de hoy con `border-primary` (month-view.tsx)
-    // y pinta un punto por hueco ocupado, saltado o no.
+    // La vista mensual marca el día de hoy con `pill-selected` (month-view.tsx,
+    // auditoría W7 hallazgo 4.1 — antes border-primary/bg-accent sueltos) y
+    // pinta un punto por hueco ocupado, saltado o no.
     await page.goto('/plan/month')
-    const todayCell = page.locator('a.border-primary')
+    const todayCell = page.locator('a.pill-selected')
     await expect(todayCell).toBeVisible()
     await expect(todayCell.getByTestId('meal-dot')).toHaveCount(1)
 

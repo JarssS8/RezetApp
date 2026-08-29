@@ -29,9 +29,16 @@ export function SettingsNav() {
             <Link
               href={href}
               aria-current={active ? 'page' : undefined}
+              // Auditoría W7, hallazgo 4.1: pill-selected en vez de
+              // border-primary/bg-accent/text-accent-foreground sueltos —
+              // settings-nav era el único sitio de la app que no la usaba,
+              // pese a que el comentario de origen de la clase (globals.css)
+              // dice que nació precisamente de aquí. Hallazgo 9.3: min-h-10
+              // (40px) era la única navegación por debajo del objetivo
+              // táctil de 44px.
               className={cn(
-                'inline-flex min-h-10 items-center rounded-pill border px-3.5 text-sm font-medium',
-                active ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card text-text-2',
+                'inline-flex min-h-11 items-center rounded-pill border px-3.5 text-sm font-medium',
+                active ? 'pill-selected' : 'border-border bg-card text-text-2',
               )}
             >
               {t(`sections.${labelKey}`)}

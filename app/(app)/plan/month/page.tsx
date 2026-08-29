@@ -76,7 +76,7 @@ export default async function PlanMonthPage({ searchParams }: PlanMonthPageProps
   }
 
   return (
-    <main className="flex flex-col gap-3 pb-4">
+    <main className="view-enter flex flex-col gap-3 pb-4">
       <PlanLiveRefresh />
       <h1 className="title-screen">{t('month')}</h1>
       <MonthView month={month} weeks={weeks} todayIso={today} prevMonth={shiftMonth(month, -1)} nextMonth={shiftMonth(month, 1)} />

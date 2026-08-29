@@ -29,7 +29,7 @@ export default async function PlanProposalsPage() {
   }))
 
   return (
-    <main className="flex flex-col gap-3 pb-4">
+    <main className="view-enter flex flex-col gap-3 pb-4">
       <h1 className="title-screen">{t('proposals.title')}</h1>
       {proposalsClient.length === 0 ? <EmptyState icon={SparklesIcon} title={t('proposals.empty')} /> : null}
       <ProposalsList proposals={proposalsClient} />
