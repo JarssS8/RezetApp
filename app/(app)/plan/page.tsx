@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { WeekView } from '@/components/plan/week-view'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
 import { todayIso, weekRange } from '@/lib/plan-dates'
 import { listEntries, listProposals, rangeNutrition } from '@/lib/services/plan'
@@ -59,7 +60,10 @@ export default async function PlanPage({ searchParams }: PlanPageProps) {
     // de app/(app)/layout.tsx pasa de max-w-xl a max-w-5xl vía `:has()`. El
     // resto de rutas de /plan (month, proposals, shopping, stats) no lo llevan.
     <main data-wide="true" className="view-enter flex flex-col gap-3 pb-4">
-      <h1 className="title-screen">{t('title')}</h1>
+      {/* W8: patrón único de cabecera. El resto de la barra (hoy/mes/
+          propuestas/estadísticas/compra) es navegación de contenido, no
+          acciones de cabecera: se queda en WeekView, debajo. */}
+      <ScreenHeader title={t('title')} />
       <WeekView
         monday={monday}
         days={days}

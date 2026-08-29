@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { CookIcon } from '@/components/icons'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
 import { listEntries } from '@/lib/services/plan'
 import { todayIso } from '@/lib/plan-dates'
@@ -18,7 +19,8 @@ export default async function CookPage() {
 
   return (
     <main className="view-enter">
-      <h1 className="title-screen">{t('title')}</h1>
+      {/* W8: patrón único de cabecera; Cocinar no tiene acción primaria ni menú. */}
+      <ScreenHeader title={t('title')} />
       {cookable.length === 0 ? (
         <div className="mt-4">
           <EmptyState icon={CookIcon} title={t('empty')} />

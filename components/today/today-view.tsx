@@ -4,9 +4,10 @@ import { useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { CookIcon, PlanIcon, SettingsIcon } from '@/components/icons'
+import { CookIcon, PlanIcon } from '@/components/icons'
 import type { PlanEntryClient } from '@/components/plan/types'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { WarnPanel } from '@/components/ui/warn-panel'
 import { useHouseholdEvents } from '@/lib/events/use-household-events'
 import { MEAL_SLOTS } from '@/lib/domain'
@@ -46,20 +47,9 @@ export function TodayView({ date, entries, progress, expiring, aiEnabled }: Toda
 
   return (
     <main className="view-enter flex flex-col gap-5 pb-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="title-screen">{t('title')}</h1>
-        {/* Auditoría W7, hallazgo 9.2: Ajustes solo se podía alcanzar desde
-            Recetas. Se añade aquí, dentro de la pantalla (sin sexta pestaña,
-            AGENTS.md), con la misma clave y el mismo tratamiento que ya usa
-            recipes/page.tsx. */}
-        <Link
-          href="/settings"
-          aria-label={c('settings')}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2 transition-colors duration-(--dur-1) ease-(--ease-out) hover:text-text"
-        >
-          <SettingsIcon />
-        </Link>
-      </div>
+      {/* W8: patrón único de cabecera. Hoy no tiene acción primaria ni menú:
+          solo título y Ajustes (Auditoría W7, hallazgo 9.2, ahora vía ScreenHeader). */}
+      <ScreenHeader title={t('title')} />
 
       <KcalRing
         plannedKcal={progress.plannedKcal}

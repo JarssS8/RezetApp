@@ -1,9 +1,9 @@
-import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { BarcodeIcon, MergeIcon, PlusIcon } from '@/components/icons'
 import { ExpiringPanel } from '@/components/pantry/expiring-panel'
 import { PantryList } from '@/components/pantry/pantry-list'
 import { Input } from '@/components/ui/input'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
 import { getHouseholdOverview } from '@/lib/services/households'
 import { expiringPantry, listPantry } from '@/lib/services/pantry'
@@ -24,21 +24,15 @@ export default async function PantryPage({ searchParams }: PantryPageProps) {
 
   return (
     <main className="view-enter">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="title-screen">{t('title')}</h1>
-        {/* Auditoría W7, hallazgo 2.1: 4px entre objetivos táctiles de 44px. */}
-        <div className="flex items-center gap-2">
-          <Link href="/pantry/merge" aria-label={t('merge.title')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2 transition-colors duration-(--dur-1) ease-(--ease-out) hover:text-text">
-            <MergeIcon />
-          </Link>
-          <Link href="/pantry/scan" aria-label={t('scan.title')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-text-2 transition-colors duration-(--dur-1) ease-(--ease-out) hover:text-text">
-            <BarcodeIcon />
-          </Link>
-          <Link href="/pantry/add" aria-label={t('add')} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-pill bg-primary text-primary-foreground">
-            <PlusIcon />
-          </Link>
-        </div>
-      </div>
+      {/* W8: patrón único de cabecera; menú desbordado con escanear/fusionar. */}
+      <ScreenHeader
+        title={t('title')}
+        primaryAction={{ ariaLabel: t('add'), icon: <PlusIcon />, href: '/pantry/add' }}
+        menuItems={[
+          { key: 'scan', label: t('scan.title'), icon: <BarcodeIcon size={18} />, href: '/pantry/scan' },
+          { key: 'merge', label: t('merge.title'), icon: <MergeIcon size={18} />, href: '/pantry/merge' },
+        ]}
+      />
       <ExpiringPanel items={expiring} />
       <form method="get" className="mt-4">
         {query.location ? <input type="hidden" name="location" value={query.location} /> : null}
