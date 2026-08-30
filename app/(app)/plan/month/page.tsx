@@ -3,9 +3,9 @@ import { MonthView, type MonthDayCell } from '@/components/plan/month-view'
 import { PlanLiveRefresh } from '@/components/plan/plan-live-refresh'
 import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
+import { getPlanEntries, getRangeNutrition } from '@/lib/cache/plan'
 import { MEAL_SLOTS } from '@/lib/domain'
 import { addDays, monthRange, todayIso, weekRange } from '@/lib/plan-dates'
-import { listEntries, rangeNutrition } from '@/lib/services/plan'
 import type { MealSlot } from '@/lib/validation/plan'
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -49,7 +49,10 @@ export default async function PlanMonthPage({ searchParams }: PlanMonthPageProps
   const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i))
 
   const monthRangeQuery = { from: firstOfMonth, to: lastOfMonth }
-  const [entries, nutrition] = await Promise.all([listEntries(ctx, monthRangeQuery), rangeNutrition(ctx, monthRangeQuery)])
+  const [entries, nutrition] = await Promise.all([
+    getPlanEntries(ctx.householdId, ctx.locale, monthRangeQuery.from, monthRangeQuery.to),
+    getRangeNutrition(ctx.householdId, ctx.locale, monthRangeQuery.from, monthRangeQuery.to),
+  ])
 
   const slotsByDate = new Map<string, Set<MealSlot>>()
   for (const e of entries) {

@@ -2,8 +2,8 @@ import { getTranslations } from 'next-intl/server'
 import { PlanStatsPanel } from '@/components/plan/plan-stats-panel'
 import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
+import { getPlanStats } from '@/lib/cache/plan'
 import { todayIso, weekRange } from '@/lib/plan-dates'
-import { planStats } from '@/lib/services/plan'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -26,7 +26,7 @@ export default async function PlanStatsPage({ searchParams }: PlanStatsPageProps
   const weekParam = firstParam(sp.week)
   const week = weekParam && ISO_DATE.test(weekParam) ? weekParam : todayIso()
   const { from, days } = weekRange(week)
-  const stats = await planStats(ctx, { from, to: days[days.length - 1] as string })
+  const stats = await getPlanStats(ctx.householdId, ctx.locale, from, days[days.length - 1] as string)
 
   return (
     <main className="view-enter flex flex-col gap-3 pb-4">

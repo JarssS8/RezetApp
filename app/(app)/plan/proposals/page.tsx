@@ -5,7 +5,8 @@ import type { ProposalClient } from '@/components/plan/types'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
-import { listProposals, type ProposalView } from '@/lib/services/plan'
+import { getProposals } from '@/lib/cache/plan'
+import type { ProposalView } from '@/lib/services/plan'
 
 // Pendientes primero, y dentro de cada grupo por fecha de creación
 // descendente (regla de controlador; el servicio no impone este orden).
@@ -20,7 +21,7 @@ function sortProposals(proposals: ProposalView[]): ProposalView[] {
 export default async function PlanProposalsPage() {
   const ctx = await requireHousehold()
   const t = await getTranslations('plan')
-  const proposals = sortProposals(await listProposals(ctx))
+  const proposals = sortProposals(await getProposals(ctx.householdId, ctx.locale, false))
   const proposalsClient: ProposalClient[] = proposals.map((p) => ({
     id: p.id,
     source: p.source,
