@@ -5,8 +5,9 @@ import { PantryList } from '@/components/pantry/pantry-list'
 import { Input } from '@/components/ui/input'
 import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
-import { getHouseholdOverview } from '@/lib/services/households'
-import { expiringPantry, listPantry } from '@/lib/services/pantry'
+import { utcDayIso } from '@/lib/cache/ctx'
+import { getHouseholdOverviewCached } from '@/lib/cache/household'
+import { getExpiringPantry, getPantryList } from '@/lib/cache/pantry'
 import { PantryQuerySchema } from '@/lib/validation/pantry'
 
 interface PantryPageProps {
@@ -19,8 +20,12 @@ export default async function PantryPage({ searchParams }: PantryPageProps) {
   const sp = await searchParams
   const parsedQuery = PantryQuerySchema.safeParse({ location: sp.location, q: sp.q })
   const query = parsedQuery.success ? parsedQuery.data : {}
-  const [items, household] = await Promise.all([listPantry(ctx, query), getHouseholdOverview(ctx)])
-  const expiring = await expiringPantry(ctx, household.expiryAlertDays)
+  const today = utcDayIso()
+  const [items, household] = await Promise.all([
+    getPantryList(ctx.householdId, ctx.locale, today, query),
+    getHouseholdOverviewCached(ctx.householdId, ctx.locale),
+  ])
+  const expiring = await getExpiringPantry(ctx.householdId, ctx.locale, today, household.expiryAlertDays)
 
   return (
     <main className="view-enter">

@@ -88,8 +88,12 @@ async function loadRowsForHousehold(ctx: Ctx): Promise<{ item: schema.PantryItem
 }
 
 // Orden: ubicación, caducidad ascendente con los sin fecha al final, nombre.
-export async function listPantry(ctx: Ctx, query: PantryQuery): Promise<PantryRow[]> {
-  const today = new Date()
+//
+// `today` explícito (mismo patrón y mismo valor por defecto que
+// expiringPantry, justo debajo): daysToExpiry depende del día, y una lectura
+// cacheada tiene que ser determinista. Los llamadores que no lo pasan -REST,
+// MCP, tests- se comportan exactamente igual que antes.
+export async function listPantry(ctx: Ctx, query: PantryQuery, today: Date = new Date()): Promise<PantryRow[]> {
   const conditions = [eq(schema.pantryItems.householdId, ctx.householdId)]
   if (query.location) conditions.push(eq(schema.pantryItems.location, query.location))
   if (query.expiresBefore) conditions.push(lte(schema.pantryItems.expiresAt, query.expiresBefore))

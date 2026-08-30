@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import { PantryItemForm } from '@/components/pantry/pantry-item-form'
 import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
-import { getFood } from '@/lib/services/foods'
+import { getFoodCached } from '@/lib/cache/foods'
 import { IdSchema } from '@/lib/validation/common'
 
 interface AddPantryItemPageProps {
@@ -17,7 +17,7 @@ export default async function AddPantryItemPage({ searchParams }: AddPantryItemP
   const ctx = await requireHousehold()
   const sp = await searchParams
   const parsedFoodId = IdSchema.safeParse(sp.foodId)
-  const initialFood = parsedFoodId.success ? await getFood(ctx, parsedFoodId.data) : null
+  const initialFood = parsedFoodId.success ? await getFoodCached(ctx.householdId, ctx.locale, parsedFoodId.data) : null
   // Sin alimento resuelto, el nombre sugerido por el escáner precarga el
   // buscador en vez de perderse.
   const initialQuery = !initialFood && sp.name ? sp.name : undefined
