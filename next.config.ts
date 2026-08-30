@@ -6,11 +6,22 @@ const withNextIntl = createNextIntlPlugin('./lib/i18n/request.ts')
 const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
-  // Caché de cliente del enrutador: sin esto, cada cambio de pestaña vuelve a
-  // pedir la pantalla entera al servidor y enseña su loading.tsx aunque no
-  // haya cambiado nada. 30s es seguro aquí: los cambios de datos en vivo ya
-  // llegan por SSE (useHouseholdEvents → router.refresh, que ignora la caché).
-  experimental: { staleTimes: { dynamic: 30, static: 180 } },
+  // W10: la caché deja de ser un temporizador y pasa a ser un grafo de
+  // etiquetas. `cacheComponents` habilita "use cache" + cacheTag/cacheLife
+  // (y PPR por defecto). Sustituye al temporizador global de tiempo de
+  // frescura de 0f8757d, que cacheaba cualquier segmento 30 s sin mirar si
+  // los datos habían cambiado: ahora quien decide que una entrada caducó es
+  // la escritura (lib/cache/tags.ts::invalidateHousehold), no el reloj.
+  cacheComponents: true,
+  // Un único perfil, con nombre propio en vez de redefinir un preset
+  // (cacheLife.md desaconseja redefinir `days` y compañía: sorprende a quien
+  // lee la llamada). stale 30 s reproduce el tiempo de frescura dinámico que
+  // se retira -y es el mínimo que Next respeta para el prefetch-; revalidate
+  // y expire son largos a propósito, porque la caducidad de verdad la manda
+  // la etiqueta.
+  cacheLife: {
+    household: { stale: 30, revalidate: 60 * 60 * 24 * 30, expire: 60 * 60 * 24 * 365 },
+  },
   // Sin telemetría de Next en la imagen: se fija también NEXT_TELEMETRY_DISABLED=1 en el Dockerfile.
   // Evita que Turbopack empaquete el binario nativo de sharp.
   serverExternalPackages: ['sharp'],

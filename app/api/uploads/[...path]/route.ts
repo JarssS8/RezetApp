@@ -1,8 +1,6 @@
 import { getCurrentSession } from '@/lib/auth/guards'
 import { readImage, readPdf } from '@/lib/uploads/store'
 
-export const dynamic = 'force-dynamic'
-
 export async function GET(_req: Request, ctx: { params: Promise<{ path: string[] }> }): Promise<Response> {
   const session = await getCurrentSession()
   if (!session) return new Response('Unauthorized', { status: 401 })

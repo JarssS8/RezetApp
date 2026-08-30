@@ -1,7 +1,6 @@
 import { getCurrentSession } from '@/lib/auth/guards'
 import { subscribeHousehold } from '@/lib/events/bus'
 
-export const dynamic = 'force-dynamic'
 const HEARTBEAT_MS = 25_000
 
 export async function GET(request: Request): Promise<Response> {

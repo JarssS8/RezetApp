@@ -1,5 +1,3 @@
-export const runtime = 'nodejs'
-
 // Página mínima de Swagger UI, servida entera desde este origen. `dom_id` y la
 // URL del documento son toda la configuración que hace falta.
 const HTML = `<!doctype html>

@@ -1,8 +1,6 @@
 import { createRequire } from 'node:module'
 import { readFile } from 'node:fs/promises'
 
-export const runtime = 'nodejs'
-
 // Lista blanca explícita: sin ella, un parámetro con ".." serviría cualquier
 // fichero del contenedor. Son los únicos tres que necesita la página.
 const ASSETS = {

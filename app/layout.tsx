@@ -12,6 +12,16 @@ const outfit = Outfit({ subsets: ['latin'], weight: ['600', '700'], variable: '-
 const dmSans = DM_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-dm-sans', display: 'swap' })
 const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-jetbrains-mono', display: 'swap' })
 
+// El layout raíz lee la cookie de preferencias para pintar data-theme y
+// data-accent en el <html>: 08-caching.md dice que cuando una cookie decide
+// un atributo del elemento raíz "no hay hijo que envolver en <Suspense>", y
+// el arreglo documentado es un <script> en línea antes del pintado. Eso es
+// una oleada propia (tema sin parpadeo). Hasta entonces, este segmento
+// declara que se le permite bloquear: `instant = false` desactiva la
+// validación de armazón estático del árbol, no convierte nada en dinámico
+// que no lo fuera ya.
+export const instant = false
+
 export const metadata: Metadata = { title: 'RezetApp', applicationName: 'RezetApp', icons: { apple: '/apple-touch-icon.png' } }
 export const viewport: Viewport = {
   width: 'device-width',
