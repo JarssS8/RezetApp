@@ -5,8 +5,8 @@ import { ShoppingSummary } from '@/components/plan/shopping-summary'
 import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
 import { getShopListLinkAction } from '@/lib/actions/shopping'
+import { getShoppingLines } from '@/lib/cache/shopping'
 import { todayIso, weekRange } from '@/lib/plan-dates'
-import { generateShopping } from '@/lib/services/shopping'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -39,7 +39,7 @@ export default async function PlanShoppingPage({ searchParams }: PlanShoppingPag
   const t = await getTranslations('plan')
 
   const range = resolveRange(sp)
-  const [{ lines }, linkResult] = await Promise.all([generateShopping(ctx, range), getShopListLinkAction()])
+  const [{ lines }, linkResult] = await Promise.all([getShoppingLines(ctx.householdId, ctx.locale, range.from, range.to), getShopListLinkAction()])
   const deepLink = linkResult.ok ? linkResult.data.deepLink : null
 
   const locale = (await getLocale()) === 'en' ? 'en' : 'es'

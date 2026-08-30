@@ -4,7 +4,7 @@ import { CookIcon } from '@/components/icons'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
-import { listEntries } from '@/lib/services/plan'
+import { getPlanEntries } from '@/lib/cache/plan'
 import { todayIso } from '@/lib/plan-dates'
 
 // La pestaña "Cocinar" de la barra: lo planificado para hoy que se puede
@@ -14,7 +14,7 @@ export default async function CookPage() {
   const t = await getTranslations('cook')
   const ctx = await requireHousehold()
   const today = todayIso()
-  const entries = await listEntries(ctx, { from: today, to: today })
+  const entries = await getPlanEntries(ctx.householdId, ctx.locale, today, today)
   const cookable = entries.filter((e) => e.recipeId !== null && e.leftoverOfEntryId === null && e.status === 'planned')
 
   return (

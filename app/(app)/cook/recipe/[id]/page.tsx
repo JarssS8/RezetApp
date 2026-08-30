@@ -2,9 +2,9 @@ import { notFound } from 'next/navigation'
 import { CookSession } from '@/components/cook/cook-session'
 import { toSerializableRecipe } from '@/components/cook/serialize'
 import { requireHousehold } from '@/lib/auth/guards'
+import { getRecipeCached } from '@/lib/cache/recipes'
 import { slotForHour } from '@/lib/domain'
 import { hourInHouseholdTz } from '@/lib/services/cooking'
-import { getRecipe } from '@/lib/services/recipes'
 import { IdSchema } from '@/lib/validation/common'
 import { RecipeGetQuerySchema } from '@/lib/validation/recipes'
 
@@ -23,7 +23,7 @@ export default async function CookRecipePage({
   const sp = await searchParams
   const raw = typeof sp.servings === 'string' ? sp.servings : undefined
   const parsed = RecipeGetQuerySchema.safeParse({ servings: raw })
-  const detail = await getRecipe(ctx, id)
+  const detail = await getRecipeCached(ctx.householdId, ctx.locale, id)
   if (!detail) notFound()
   const serializable = toSerializableRecipe(detail)
   return (

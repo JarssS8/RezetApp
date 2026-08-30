@@ -2,19 +2,19 @@ import { notFound } from 'next/navigation'
 import { CookSession } from '@/components/cook/cook-session'
 import { toSerializableRecipe } from '@/components/cook/serialize'
 import { requireHousehold } from '@/lib/auth/guards'
-import { getEntry } from '@/lib/services/plan'
-import { getRecipe } from '@/lib/services/recipes'
+import { getPlanEntry } from '@/lib/cache/plan'
+import { getRecipeCached } from '@/lib/cache/recipes'
 import { IdSchema } from '@/lib/validation/common'
 
 export default async function CookEntryPage({ params }: { params: Promise<{ entryId: string }> }) {
   const { entryId } = await params
   if (!IdSchema.safeParse(entryId).success) notFound()
   const ctx = await requireHousehold()
-  const entry = await getEntry(ctx, entryId)
+  const entry = await getPlanEntry(ctx.householdId, ctx.locale, entryId)
   // Sin receta (comida libre) o sobra (la despensa ya se descontó el día que
   // se cocinó, docs/03-DOMINIO): no son cocinables desde aquí.
   if (!entry || !entry.recipeId || entry.leftoverOfEntryId) notFound()
-  const detail = await getRecipe(ctx, entry.recipeId)
+  const detail = await getRecipeCached(ctx.householdId, ctx.locale, entry.recipeId)
   if (!detail) notFound()
   const serializable = toSerializableRecipe(detail)
   return (

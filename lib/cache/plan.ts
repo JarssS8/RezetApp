@@ -1,7 +1,7 @@
 import 'server-only'
 import { cacheLife, cacheTag } from 'next/cache'
 import type { Locale } from '@/lib/auth/ctx'
-import { dayProgress, listEntries, listProposals, planStats, rangeNutrition, type DayProgress, type PlanEntryView, type PlanStats, type ProposalView } from '@/lib/services/plan'
+import { dayProgress, getEntry, listEntries, listProposals, planStats, rangeNutrition, type DayProgress, type PlanEntryView, type PlanStats, type ProposalView } from '@/lib/services/plan'
 import { cacheCtx } from './ctx'
 import { householdTag } from './tags'
 
@@ -13,6 +13,15 @@ export async function getPlanEntries(householdId: string, locale: Locale, from: 
   cacheLife('household')
   cacheTag(householdTag(householdId, 'plan'), householdTag(householdId, 'recipes'))
   return listEntries(cacheCtx(householdId, locale), { from, to })
+}
+
+// Igual que getPlanEntries pero para una sola entrada: la sesión de cocina la
+// lee al abrir la pantalla, y logCooked caduca 'plan' y 'recipes' al cerrarla.
+export async function getPlanEntry(householdId: string, locale: Locale, entryId: string): Promise<PlanEntryView | null> {
+  'use cache'
+  cacheLife('household')
+  cacheTag(householdTag(householdId, 'plan'), householdTag(householdId, 'recipes'))
+  return getEntry(cacheCtx(householdId, locale), entryId)
 }
 
 export async function getDayProgress(householdId: string, locale: Locale, date: string): Promise<DayProgress> {
