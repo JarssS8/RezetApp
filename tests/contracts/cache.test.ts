@@ -211,3 +211,85 @@ describe('invalidación', () => {
     }
   })
 })
+
+// Las pantallas que leen datos del hogar tienen que leerlos por la capa de
+// caché. Las excepciones son estas y no hay más:
+const UNCACHED_PAGES: Record<string, string> = {
+  // Ajustes: tráfico bajo y datos por usuario mezclados con los del hogar
+  // (passkeys, tokens, apariencia). Cachearlos daría una clave por usuario
+  // dentro de un ámbito de hogar, que es justo lo que este contrato prohíbe.
+  'app/(app)/settings/household/page.tsx': 'ajustes: no se cachea (ver plan W10, "Fuera de alcance")',
+  'app/(app)/settings/members/page.tsx': 'ajustes: no se cachea',
+  'app/(app)/settings/ai/page.tsx': 'ajustes: el gasto del mes se agrega con now() en Postgres',
+  'app/(app)/settings/shoplist/page.tsx': 'ajustes: no se cachea',
+  'app/(app)/settings/tokens/page.tsx': 'por usuario, no por hogar',
+  'app/(app)/settings/passkeys/page.tsx': 'por usuario, no por hogar',
+  'app/(app)/settings/appearance/page.tsx': 'por usuario: sale de ctx.session, sin consulta',
+  'app/(app)/settings/notifications/page.tsx': 'por usuario, no por hogar',
+  // La invitación se resuelve por token y sin sesión: no hay hogar del que
+  // extraer una clave, y el destinatario aún no es miembro de ninguno.
+  'app/(auth)/invite/[token]/page.tsx': 'sin sesión: la clave sería el token, no el hogar',
+  // Igual que la invitación: todavía no hay sesión ni hogar. registrationOpen
+  // agrega si el registro está abierto en general (env/config), no un dato de hogar.
+  'app/(auth)/register/page.tsx': 'sin sesión: registrationOpen es un ajuste global, no de hogar',
+  // Estas tres importan de lib/services, pero no para leer datos del hogar:
+  // el detalle de receta ya llega cacheado (getRecipeCached / getProposals) y
+  // lo que se trae de services es una función pura o un tipo, sin consulta.
+  'app/(app)/cook/recipe/[id]/page.tsx': 'solo importa hourInHouseholdTz (función pura Date+huso); la receta llega de getRecipeCached',
+  'app/(app)/recipes/[id]/edit/page.tsx': 'solo importa detailToInput (mapeo puro, sin consulta); la receta llega de getRecipeCached',
+  'app/(app)/plan/proposals/page.tsx': 'solo importa el tipo ProposalView (import type, sin huella en tiempo de ejecución)',
+}
+
+describe('cobertura de la caché', () => {
+  it('ninguna pantalla llama a un servicio de lectura por su cuenta', () => {
+    const pages = walk('app').filter((f) => f.endsWith('page.tsx'))
+    for (const page of pages) {
+      if (page in UNCACHED_PAGES) continue
+      const source = read(page)
+      // Los servicios se importan desde lib/cache; una página que los importe
+      // directamente se está saltando la caché (y con ella la invalidación).
+      expect(source, `${page}: si es a propósito, añádelo a UNCACHED_PAGES con el motivo`).not.toMatch(/from '@\/lib\/services\//)
+    }
+  })
+
+  it('cada excepción tiene su motivo escrito', () => {
+    for (const [page, reason] of Object.entries(UNCACHED_PAGES)) {
+      expect(reason.length, page).toBeGreaterThan(20)
+    }
+  })
+
+  it('las funciones cacheadas son exportadas de módulo, nunca anidadas', () => {
+    // Una función cacheada declarada dentro de otra captura el ámbito exterior,
+    // y lo capturado entra en la clave (use-cache.md, "Cache keys"): un `ctx`
+    // capturado sin querer intentaría serializar la conexión a Postgres.
+    for (const file of cacheFiles()) {
+      const source = read(`${CACHE_DIR}/${file}`)
+      for (const line of source.split('\n')) {
+        if (!line.includes("'use cache'")) continue
+        expect(line, `${file}: "use cache" con más de dos niveles de sangría`).toMatch(/^ {2}'use cache'$/)
+      }
+    }
+  })
+
+  it('la capa de caché no escribe', () => {
+    for (const file of cacheFiles()) {
+      if (file === 'tags.ts') continue
+      const source = read(`${CACHE_DIR}/${file}`)
+      // revalidate dentro de un "use cache" lanza (E181). Y un servicio de
+      // escritura dentro de una lectura cacheada sería peor todavía.
+      expect(source, file).not.toContain('invalidateHousehold')
+      expect(source, file).not.toMatch(/\b(upsert|update|create|delete|remove|log)[A-Z]\w*\(cacheCtx/)
+    }
+  })
+
+  it('todos los ámbitos declarados tienen al menos un lector y un escritor', () => {
+    // Un ámbito sin lector es una etiqueta que no invalida nada; uno sin
+    // escritor es una entrada que no caduca nunca. Los dos son bugs callados.
+    const readers = cacheFiles().map((f) => read(`${CACHE_DIR}/${f}`)).join('\n')
+    const writers = WRITES.map(([file]) => file).filter((f, i, a) => a.indexOf(f) === i).map(read).join('\n')
+    for (const scope of ['recipes', 'plan', 'pantry', 'foods', 'settings']) {
+      expect(readers, `ámbito ${scope} sin lector`).toContain(`'${scope}')`)
+      expect(writers, `ámbito ${scope} sin escritor`).toContain(`'${scope}'`)
+    }
+  })
+})
