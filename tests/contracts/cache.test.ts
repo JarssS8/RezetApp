@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -7,6 +7,76 @@ import { describe, expect, it } from 'vitest'
 // como por lo que prohíbe (el temporizador ciego que sustituye).
 const ROOT = join(import.meta.dirname, '..', '..')
 const read = (f: string) => readFileSync(join(ROOT, f), 'utf8')
+
+// Recorre `dir` recursivamente y devuelve rutas relativas a ROOT de los
+// .ts/.tsx que no sean tests.
+function walk(dir: string): string[] {
+  return readdirSync(join(ROOT, dir), { recursive: true })
+    .filter((f): f is string => typeof f === 'string')
+    .filter((f) => (f.endsWith('.ts') || f.endsWith('.tsx')) && !f.endsWith('.test.ts') && !f.endsWith('.test.tsx'))
+    .map((f) => join(dir, f))
+}
+
+const CACHE_DIR = 'lib/cache'
+const cacheFiles = () => readdirSync(join(ROOT, CACHE_DIR)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
+
+// Toda función que abre un ámbito de caché, con su firma.
+function cachedFunctions(source: string): { name: string; signature: string; body: string }[] {
+  const out: { name: string; signature: string; body: string }[] = []
+  const re = /export async function (\w+)\(([^)]*)\)[^{]*\{\s*'use cache'([\s\S]*?)(?=\nexport |\n$)/g
+  for (const m of source.matchAll(re)) out.push({ name: m[1] as string, signature: m[2] as string, body: m[3] as string })
+  return out
+}
+
+describe('forma de las funciones cacheadas', () => {
+  it('"use cache" solo existe bajo lib/cache', () => {
+    // Cachear interfaz (una página, un componente) mezclaría datos del hogar
+    // con datos del usuario -units, displayName, role- en la misma entrada:
+    // es exactamente la fuga que esta oleada existe para impedir.
+    const offenders = [...walk('app'), ...walk('components'), ...walk('lib')]
+      .filter((f) => !f.startsWith('lib/cache/'))
+      .filter((f) => read(f).includes("'use cache'"))
+    expect(offenders).toEqual([])
+  })
+
+  it('cada función cacheada lleva el hogar y el idioma en la clave', () => {
+    for (const file of cacheFiles()) {
+      for (const fn of cachedFunctions(read(`${CACHE_DIR}/${file}`))) {
+        // Sin excepciones: dos entradas por hogar (es/en) cuestan menos que
+        // discutir caso por caso si una salida está localizada.
+        expect(fn.signature.replace(/\s+/g, ' '), `${file}::${fn.name}`).toMatch(/^householdId: string, locale: Locale\b/)
+        // Un Ctx no es clave de caché: lleva `db` (un Proxy) y la sesión.
+        expect(fn.signature, `${file}::${fn.name}`).not.toContain('Ctx')
+      }
+    }
+  })
+
+  it('cada función cacheada declara vida y etiquetas construidas, no literales', () => {
+    for (const file of cacheFiles()) {
+      for (const fn of cachedFunctions(read(`${CACHE_DIR}/${file}`))) {
+        expect(fn.body, `${file}::${fn.name}`).toContain("cacheLife('household')")
+        expect(fn.body, `${file}::${fn.name}`).toContain('cacheTag(householdTag(householdId,')
+        expect(fn.body, `${file}::${fn.name}`).not.toMatch(/cacheTag\(\s*['"`]/)
+      }
+    }
+  })
+
+  it('la capa de caché no lee la petición', () => {
+    // cookies()/headers() dentro de "use cache" lanzan (next-request-in-use-cache),
+    // y en una ruta dinámica el fallo no aparece hasta que se ejecuta: pasaría
+    // el build y se caería en producción. Mejor que no entre nunca.
+    for (const file of cacheFiles()) {
+      const source = read(`${CACHE_DIR}/${file}`)
+      expect(source, file).not.toContain('next/headers')
+      expect(source, file).not.toContain('requireHousehold')
+      expect(source, file).not.toContain('getCurrentSession')
+    }
+  })
+
+  it('tags.ts no importa de services: la frontera cache <-> services no es un ciclo real', () => {
+    expect(read('lib/cache/tags.ts')).not.toContain('@/lib/services')
+  })
+})
 
 describe('configuración de caché', () => {
   it('Cache Components está activado y staleTimes retirado', () => {
