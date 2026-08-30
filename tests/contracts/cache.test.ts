@@ -224,8 +224,7 @@ const UNCACHED_PAGES: Record<string, string> = {
   'app/(app)/settings/shoplist/page.tsx': 'ajustes: no se cachea',
   'app/(app)/settings/tokens/page.tsx': 'por usuario, no por hogar',
   'app/(app)/settings/passkeys/page.tsx': 'por usuario, no por hogar',
-  'app/(app)/settings/appearance/page.tsx': 'por usuario: sale de ctx.session, sin consulta',
-  'app/(app)/settings/notifications/page.tsx': 'por usuario, no por hogar',
+  'app/(app)/settings/notifications/page.tsx': 'listPushSubscriptions es por userId, no por hogar',
   // La invitación se resuelve por token y sin sesión: no hay hogar del que
   // extraer una clave, y el destinatario aún no es miembro de ninguno.
   'app/(auth)/invite/[token]/page.tsx': 'sin sesión: la clave sería el token, no el hogar',
@@ -255,6 +254,15 @@ describe('cobertura de la caché', () => {
   it('cada excepción tiene su motivo escrito', () => {
     for (const [page, reason] of Object.entries(UNCACHED_PAGES)) {
       expect(reason.length, page).toBeGreaterThan(20)
+    }
+  })
+
+  it('ninguna excepción se queda obsoleta', () => {
+    // Si una página de la lista deja de importar lib/services, su entrada
+    // sobra: documentaría una exención que ya no existe (revisión T9, F1).
+    for (const page of Object.keys(UNCACHED_PAGES)) {
+      const source = read(page)
+      expect(source, `${page}: ya no importa lib/services — quita su entrada de UNCACHED_PAGES`).toMatch(/from '@\/lib\/services\//)
     }
   })
 
