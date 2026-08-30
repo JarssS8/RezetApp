@@ -1,7 +1,7 @@
 'use client'
 
 import type { FormEvent, KeyboardEvent } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -189,6 +189,28 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft, initialFoodN
   const t = useTranslations('recipes')
   const te = useTranslations('errors')
   const router = useRouter()
+
+  // W10-T7b: con `cacheComponents` Next conserva hasta tres rutas montadas y
+  // esconde las inactivas con `display: none` (React <Activity>; ver la guía
+  // "Preserving UI state" de Next). /recipes/new y /recipes/[id]/edit pintan
+  // este mismo formulario, así que al abrir el editor desde la ficha quedaban
+  // DOS <form> en el documento con los mismos id fijos (recipe-title,
+  // recipe-ingredients...). Como `label[for]` y `getElementById` resuelven
+  // siempre al primero del documento, la etiqueta "Título" del editor visible
+  // podía quedar apuntando al campo invisible de la pantalla anterior -y el
+  // usuario, o un test, escribía en un formulario que ya no se ve-.
+  // React destruye los efectos de la rama que Activity esconde, así que la
+  // limpieza de este useLayoutEffect es el aviso de "ya no estoy en pantalla"
+  // (el mismo gancho que la guía usa para cerrar desplegables al navegar);
+  // volver a montarlos es el de "he vuelto". De ahí el setState en el cuerpo:
+  // no hay otra forma de leer ese estado del árbol, y no encadena renders
+  // porque el valor solo cambia al esconder o al revelar la ruta.
+  const [onScreen, setOnScreen] = useState(true)
+  useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ver arriba
+    setOnScreen(true)
+    return () => setOnScreen(false)
+  }, [])
 
   // `initial` (editar) manda; si no hay y se pidió ?draft=1, se usa el
   // borrador de sessionStorage; si tampoco hay, la pantalla arranca en blanco.
@@ -379,6 +401,11 @@ export function RecipeEditor({ initial, recipeId, locale, useDraft, initialFoodN
   // señalan un campo concreto y se quedan en el aviso general.
   const titleError = error === t('editor.titleRequired') ? error : null
   const bannerError = titleError ? null : error
+
+  // Escondido por Activity: sin DOM, para no duplicar los id del formulario
+  // con el otro editor. El estado vive en React, no en el DOM, así que el
+  // borrador sigue intacto y vuelve tal cual al navegar hacia atrás.
+  if (!onScreen) return null
 
   return (
     <form onSubmit={(e) => void handleSubmit(e)} aria-busy={saving} className="flex flex-col gap-6 pb-24">
