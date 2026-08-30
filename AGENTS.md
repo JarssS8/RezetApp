@@ -40,7 +40,25 @@ pantalla completa con `data-fullscreen`, puerta de entrada con marca, `--warn-in
 para el ámbar pequeño y las cinco animaciones aprobadas. Todo en `main` con
 `pnpm check`, `pnpm build` y `pnpm e2e` verdes, y axe limpio en las cinco
 pantallas más login y registro, en los dos temas. El proyecto está completo.
-Siguiente: mantenimiento. El spec
+**W10 (caché) hecha el 2026-08-30**: el temporizador ciego de frescura de
+0 s se sustituye por caché por componentes (`cacheComponents`) con etiquetas
+por hogar — cada lectura pasa por una función `"use cache"` de `lib/cache`
+con `(householdId, locale, …)` al principio de la firma, y cada escritura
+la caduca desde `lib/services` con `invalidateHousehold`, junto a la línea
+que emite el evento SSE, así que las tres puertas (acciones, REST, MCP) la
+heredan por construcción. `household_id` llega ahora también a cada clave de
+caché (regla 4). El armazón estático de las cinco pantallas —imprescindible
+para que la ventana de cliente exista— se guarda con `pnpm check:shell`
+(`tests/contracts/prerender-shell.test.ts` contra un `pnpm build` real), una
+puerta aparte de `pnpm check` porque necesita el árbol de build compilado.
+Trampa pendiente si algún día se añade una Content-Security-Policy: el
+`<script>` inline de `PREFS_BOOT_SCRIPT` (`lib/prefs.ts`, pinta tema/acento/idioma
+antes del primer pintado) dejaría de ejecutarse bajo un CSP sin
+`'unsafe-inline'`; el arreglo es un nonce por petición leído con `headers()`
+en `app/layout.tsx` — pero eso vuelve dinámico al layout raíz y se lleva por
+delante el armazón estático que esta misma oleada acaba de conseguir, así que
+tocaría regenerar `pnpm check:shell` a la vez que se active el CSP, no antes
+ni después. Siguiente: mantenimiento. El spec
 (`docs/superpowers/specs/2026-08-26-rezetapp-design.md`) manda sobre estos docs
 cuando difieren; los planes están en `docs/superpowers/plans/`.
 
@@ -52,6 +70,7 @@ cuando difieren; los planes están en `docs/superpowers/plans/`.
 - `pnpm typecheck` · `pnpm lint` · `pnpm i18n:check` — cada pata por separado
 - `pnpm test` · `pnpm test -- lib/domain/scaling.test.ts` — todos / uno
 - `pnpm test:domain-coverage` — cobertura de `lib/domain` (umbral: 100 % de líneas)
+- `pnpm check:shell` — construye y comprueba que el armazón estático de las cinco pantallas sigue prerenderizado (`tests/contracts/prerender-shell.test.ts`); aparte de `pnpm check` porque exige un `pnpm build` real
 - `pnpm e2e` — Playwright (levanta `pnpm dev` si no hay `E2E_BASE_URL`; ver `e2e/README.md`)
 - `pnpm db:generate` — genera migración desde `db/schema/`
 - `pnpm db:migrate` · `pnpm db:seed` — aplicar migraciones / sembrar (idempotente)
@@ -70,7 +89,12 @@ No lo cambies sin decirlo explícitamente y explicar por qué.
 - **PostgreSQL 17** + **Drizzle ORM** (no Prisma: migraciones más transparentes,
   imagen más ligera)
 - **Passkeys** con `@simplewebauthn/server` + `/browser`. OIDC opcional después
-- **Server-Sent Events** para tiempo real (no WebSockets: no hacen falta)
+- **Server-Sent Events** para tiempo real (no WebSockets: no hacen falta) y
+  **Cache Components** para la caché de pantalla: cada lectura pasa por una
+  función `"use cache"` con el hogar en la clave y etiquetada `h:<id>:<ámbito>`,
+  y cada escritura la caduca desde `lib/services` con `invalidateHousehold`,
+  junto a la línea que emite el evento. Las dos son lo mismo dicho a dos
+  públicos: el evento avisa a las pantallas abiertas, la etiqueta a la caché.
 - **MCP** con el SDK oficial de TypeScript, sobre una route handler en `/mcp`
 - **Docker Compose**: una imagen de la app + Postgres
 - **Capacitor** más adelante para el APK de Android. iPhone se queda en PWA
