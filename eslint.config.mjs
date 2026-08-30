@@ -28,6 +28,12 @@ const config = [
         { type: 'integrations', pattern: 'lib/integrations/**' },
         { type: 'auth', pattern: 'lib/auth/**' },
         { type: 'events', pattern: 'lib/events/**' },
+        // W10: la capa de caché. Va antes que los patrones genéricos de 'lib'
+        // porque es más específica. lib/cache/tags.ts no importa de services
+        // (lo fija tests/contracts/cache.test.ts): así 'services -> cache' y
+        // 'cache -> services' conviven en las políticas sin que exista un
+        // ciclo real entre módulos.
+        { type: 'cache', pattern: 'lib/cache/**' },
         { type: 'actions', pattern: 'lib/actions/**' },
         // Patrón fijado en la Tarea 13 (W3): las rutas de app/api/v1 no están
         // en DB_TEST_GLOBS, así que sus tests viven en lib/services/api-*.test.ts
@@ -73,6 +79,14 @@ const config = [
             },
             { from: { element: { type: 'events' } }, allow: { to: { element: { type: 'events' } } } },
             {
+              // Los lectores cacheados llaman a los servicios de siempre con un
+              // Ctx fabricado (cacheCtx): necesitan 'services' y 'auth' (el tipo
+              // Ctx), 'db' (la conexión de módulo) y 'validation' (los tipos de
+              // consulta que reciben como argumento).
+              from: { element: { type: 'cache' } },
+              allow: { to: { element: { types: { anyOf: ['cache', 'services', 'auth', 'db', 'validation', 'domain', 'lib'] } } } },
+            },
+            {
               from: { element: { type: 'ai' } },
               allow: { to: { element: { types: { anyOf: ['ai', 'domain', 'validation', 'db', 'lib'] } } } },
             },
@@ -97,7 +111,7 @@ const config = [
                 to: {
                   element: {
                     types: {
-                      anyOf: ['services', 'domain', 'validation', 'db', 'ai', 'integrations', 'auth', 'events', 'lib', 'uploads'],
+                      anyOf: ['services', 'domain', 'validation', 'db', 'ai', 'integrations', 'auth', 'events', 'lib', 'uploads', 'cache'],
                     },
                   },
                 },
@@ -153,7 +167,7 @@ const config = [
                     // 'openapi' incluido: app/api/openapi.json/route.ts sirve el
                     // documento de lib/openapi/document.ts (Tarea 18, W3).
                     types: {
-                      anyOf: ['app', 'api-lib', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads', 'ai', 'mcp', 'openapi'],
+                      anyOf: ['app', 'api-lib', 'components', 'services', 'domain', 'validation', 'auth', 'events', 'lib', 'actions', 'uploads', 'ai', 'mcp', 'openapi', 'cache'],
                     },
                   },
                 },
