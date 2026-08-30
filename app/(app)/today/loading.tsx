@@ -1,16 +1,9 @@
-import { RouteLoading, Skeleton } from '@/components/ui/route-loading'
+import { TodaySkeleton } from '@/components/ui/screen-skeletons'
 
 // Hoy: título, anillo de kcal y una lista corta de comidas del día.
+// El mismo esqueleto que la página usa como fallback de su <Suspense>: este
+// cubre la navegación entera al segmento, aquel el contenido dentro de una
+// pantalla ya montada.
 export default function Loading() {
-  return (
-    <RouteLoading>
-      <Skeleton className="h-9 w-32" />
-      <Skeleton className="mx-auto size-48 rounded-full" />
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-14 w-full rounded-md" />
-        <Skeleton className="h-14 w-full rounded-md" />
-        <Skeleton className="h-14 w-full rounded-md" />
-      </div>
-    </RouteLoading>
-  )
+  return <TodaySkeleton />
 }

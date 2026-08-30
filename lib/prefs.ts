@@ -34,3 +34,19 @@ export function readPrefs(cookieValue: string | undefined): Prefs {
 export function serializePrefs(p: Prefs): string {
   return JSON.stringify(p)
 }
+
+// Script en línea que estampa tema, acento e idioma en <html> antes del
+// primer pintado. Hace falta porque el layout raíz ya no puede leer la cookie
+// en el servidor: si lo hiciera, ninguna ruta tendría armazón estático
+// (08-caching.md dice justo esto para un atributo del elemento raíz — "no hay
+// hijo que envolver en <Suspense>" — y receta un script antes del pintado).
+// El HTML servido lleva los valores por defecto de DEFAULT_PREFS; este script
+// los corrige con los de quien mira, sin parpadeo y sin meter nada de la
+// sesión en el armazón compartido.
+export const PREFS_BOOT_SCRIPT = `(function(){try{
+var m=document.cookie.match(/(?:^|;\\s*)${PREFS_COOKIE}=([^;]*)/);if(!m)return;
+var p=JSON.parse(decodeURIComponent(m[1]));var e=document.documentElement;
+if(${JSON.stringify(LOCALES)}.indexOf(p.locale)>=0)e.lang=p.locale;
+if(${JSON.stringify(ACCENTS)}.indexOf(p.accent)>=0)e.setAttribute('data-accent',p.accent);
+if(p.theme==='light'||p.theme==='dark')e.setAttribute('data-theme',p.theme);else e.removeAttribute('data-theme');
+}catch(_){}})()`

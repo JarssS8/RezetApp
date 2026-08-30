@@ -1,9 +1,11 @@
 import { getTranslations } from 'next-intl/server'
+import { Suspense } from 'react'
 import { BarcodeIcon, MergeIcon, PlusIcon } from '@/components/icons'
 import { ExpiringPanel } from '@/components/pantry/expiring-panel'
 import { PantryList } from '@/components/pantry/pantry-list'
 import { Input } from '@/components/ui/input'
 import { ScreenHeader } from '@/components/ui/screen-header'
+import { PantrySkeleton } from '@/components/ui/screen-skeletons'
 import { requireHousehold } from '@/lib/auth/guards'
 import { utcDayIso } from '@/lib/cache/ctx'
 import { getHouseholdOverviewCached } from '@/lib/cache/household'
@@ -14,7 +16,19 @@ interface PantryPageProps {
   searchParams: Promise<{ location?: string; q?: string }>
 }
 
-export default async function PantryPage({ searchParams }: PantryPageProps) {
+// W10/T11b: cascarón síncrono + <Suspense>. La promesa de searchParams se
+// pasa hacia dentro sin esperarla, igual que la sesión y las traducciones
+// ("Push dynamic access down"): esperar cualquiera de las tres aquí deja la
+// ruta sin armazón estático y sin ventana de cliente.
+export default function PantryPage({ searchParams }: PantryPageProps) {
+  return (
+    <Suspense fallback={<PantrySkeleton />}>
+      <PantryContent searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+async function PantryContent({ searchParams }: PantryPageProps) {
   const t = await getTranslations('pantry')
   const ctx = await requireHousehold()
   const sp = await searchParams

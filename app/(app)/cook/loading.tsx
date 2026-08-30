@@ -1,14 +1,9 @@
-import { RouteLoading, Skeleton } from '@/components/ui/route-loading'
+import { CookSkeleton } from '@/components/ui/screen-skeletons'
 
 // Cocinar: título y la lista de lo cocinable hoy (una fila por entrada).
+// El mismo esqueleto que la página usa como fallback de su <Suspense>: este
+// cubre la navegación entera al segmento, aquel el contenido dentro de una
+// pantalla ya montada.
 export default function Loading() {
-  return (
-    <RouteLoading>
-      <Skeleton className="h-9 w-28" />
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-14 w-full rounded-md" />
-        <Skeleton className="h-14 w-full rounded-md" />
-      </div>
-    </RouteLoading>
-  )
+  return <CookSkeleton />
 }

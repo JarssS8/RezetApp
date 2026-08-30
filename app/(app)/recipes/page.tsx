@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import type { CSSProperties } from 'react'
+import { type CSSProperties, Suspense } from 'react'
 import { PlusIcon, RecipesIcon, UploadIcon } from '@/components/icons'
 import { CollectionBar } from '@/components/recipes/collection-bar'
 import { RecipeCard } from '@/components/recipes/recipe-card'
@@ -10,6 +10,7 @@ import { TagFilter } from '@/components/recipes/tag-filter'
 import { buttonVariants } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ScreenHeader } from '@/components/ui/screen-header'
+import { RecipesSkeleton } from '@/components/ui/screen-skeletons'
 import { requireHousehold } from '@/lib/auth/guards'
 import { getCollectionsCached, getTagsCached, searchRecipesCached } from '@/lib/cache/recipes'
 import { cn } from '@/lib/utils'
@@ -18,7 +19,21 @@ import { RecipeSearchSchema } from '@/lib/validation/recipes'
 
 const PAGE_SIZE = 20
 
-export default async function RecipesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+type RecipesPageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> }
+
+// W10/T11b: cascarón síncrono + <Suspense>. La promesa de searchParams se
+// pasa hacia dentro sin esperarla, igual que la sesión y las traducciones
+// ("Push dynamic access down"): esperar cualquiera de las tres aquí deja la
+// ruta sin armazón estático y sin ventana de cliente.
+export default function RecipesPage({ searchParams }: RecipesPageProps) {
+  return (
+    <Suspense fallback={<RecipesSkeleton />}>
+      <RecipesContent searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+async function RecipesContent({ searchParams }: RecipesPageProps) {
   const ctx = await requireHousehold()
   const t = await getTranslations('recipes')
   const c = await getTranslations('common')

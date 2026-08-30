@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
+import { Suspense } from 'react'
 import { WeekView } from '@/components/plan/week-view'
 import { ScreenHeader } from '@/components/ui/screen-header'
+import { PlanSkeleton } from '@/components/ui/screen-skeletons'
 import { requireHousehold } from '@/lib/auth/guards'
 import { getPlanEntries, getProposals, getRangeNutrition } from '@/lib/cache/plan'
 import { todayIso, weekRange } from '@/lib/plan-dates'
@@ -22,7 +24,21 @@ function firstParam(v: string | string[] | undefined): string | undefined {
 // de controlador); si el parámetro no es exactamente ese lunes (falta, es
 // otro día de la semana, o no tiene formato válido) se normaliza con un
 // redirect, conservando ?add y ?servings si venían del enlace de una receta.
-export default async function PlanPage({ searchParams }: PlanPageProps) {
+//
+// W10/T11b: cascarón síncrono + <Suspense>. La promesa de searchParams se
+// pasa hacia dentro sin esperarla, igual que la sesión y las traducciones
+// ("Push dynamic access down"): esperar cualquiera de las tres aquí deja la
+// ruta sin armazón estático y sin ventana de cliente. El redirect de
+// normalización de ?week sigue viviendo dentro, con el resto del contenido.
+export default function PlanPage({ searchParams }: PlanPageProps) {
+  return (
+    <Suspense fallback={<PlanSkeleton />}>
+      <PlanContent searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+async function PlanContent({ searchParams }: PlanPageProps) {
   const ctx = await requireHousehold()
   const sp = await searchParams
   const t = await getTranslations('plan')

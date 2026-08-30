@@ -1,4 +1,6 @@
+import { Suspense } from 'react'
 import { TodayView } from '@/components/today/today-view'
+import { TodaySkeleton } from '@/components/ui/screen-skeletons'
 import { requireHousehold } from '@/lib/auth/guards'
 import { utcDayIso } from '@/lib/cache/ctx'
 import { getAiEnabled, getHouseholdOverviewCached } from '@/lib/cache/household'
@@ -6,7 +8,20 @@ import { getExpiringPantry } from '@/lib/cache/pantry'
 import { getDayProgress, getPlanEntries } from '@/lib/cache/plan'
 import { todayIso } from '@/lib/plan-dates'
 
-export default async function TodayPage() {
+// W10/T11b: la página es síncrona y no toca la sesión. Todo lo que depende de
+// la petición vive en TodayContent, detrás de un <Suspense> cuyo fallback sí
+// se prerenderiza. Es lo que hace que la ruta salga `◐` en el build y llegue
+// con `x-nextjs-stale-time`: sin ventana de cliente, cambiar de pestaña
+// volvería a pedir la pantalla entera.
+export default function TodayPage() {
+  return (
+    <Suspense fallback={<TodaySkeleton />}>
+      <TodayContent />
+    </Suspense>
+  )
+}
+
+async function TodayContent() {
   // La sesión se lee aquí, en tiempo de petición, y de ella salen los dos
   // únicos valores que cruzan a la caché: el hogar y el idioma (patrón
   // "extraer el valor y pasarlo a una función cacheada compartida").

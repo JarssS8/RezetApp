@@ -21,6 +21,12 @@ const nextConfig: NextConfig = {
   // la etiqueta.
   cacheLife: {
     household: { stale: 30, revalidate: 60 * 60 * 24 * 30, expire: 60 * 60 * 24 * 365 },
+    // El marco por sesión (idioma, mensajes, sesión) en `use cache: private`.
+    // stale 5 min es el umbral que pide cacheLife.md (§Prerendering behavior)
+    // para que el contenido entre en el App Shell que el router prefetchea;
+    // por debajo de 30 s se caería incluso del prefetch. Solo vive en la
+    // memoria del navegador de cada quien, nunca en el servidor.
+    session: { stale: 60 * 5, revalidate: 60 * 5, expire: 60 * 60 },
   },
   // Sin telemetría de Next en la imagen: se fija también NEXT_TELEMETRY_DISABLED=1 en el Dockerfile.
   // Evita que Turbopack empaquete el binario nativo de sharp.

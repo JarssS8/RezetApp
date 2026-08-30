@@ -1,25 +1,28 @@
 import type { Metadata, Viewport } from 'next'
 import { DM_Sans, JetBrains_Mono, Outfit } from 'next/font/google'
-import { cookies } from 'next/headers'
-import { NextIntlClientProvider } from 'next-intl'
-import { getLocale, getMessages } from 'next-intl/server'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
+import { Suspense } from 'react'
+import { IntlShell } from '@/components/i18n/intl-shell'
 import { RegisterServiceWorker } from '@/components/pwa/register-sw'
-import { PREFS_COOKIE, readPrefs } from '@/lib/prefs'
+import { DEFAULT_PREFS, PREFS_BOOT_SCRIPT } from '@/lib/prefs'
 import './globals.css'
 
 const outfit = Outfit({ subsets: ['latin'], weight: ['600', '700'], variable: '--font-outfit', display: 'swap' })
 const dmSans = DM_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-dm-sans', display: 'swap' })
 const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-jetbrains-mono', display: 'swap' })
 
-// El layout raíz lee la cookie de preferencias para pintar data-theme y
-// data-accent en el <html>: 08-caching.md dice que cuando una cookie decide
-// un atributo del elemento raíz "no hay hijo que envolver en <Suspense>", y
-// el arreglo documentado es un <script> en línea antes del pintado. Eso es
-// una oleada propia (tema sin parpadeo). Hasta entonces, este segmento
-// declara que se le permite bloquear: `instant = false` desactiva la
-// validación de armazón estático del árbol, no convierte nada en dinámico
-// que no lo fuera ya.
+// El layout raíz es síncrono a propósito: no lee cookies ni mensajes. Es la
+// pieza que decide si la app tiene armazón estático — mientras esperaba aquí
+// la cookie de preferencias, `today.html` salía de 0 bytes y las cinco
+// pantallas se marcaban `ƒ` en el build pasara lo que pasara dentro de cada
+// página. Ahora el <html> se prerenderiza con los valores por defecto y
+// PREFS_BOOT_SCRIPT los corrige antes del pintado; el idioma y los mensajes
+// entran por IntlShell, en un ámbito privado por sesión.
+//
+// W10 sigue permitiendo rutas que bloquean (settings, subpantallas, /login…):
+// `instant = false` aquí desactiva la validación de armazón para todo el
+// árbol. No convierte nada en dinámico que no lo fuera ya — lo dice
+// instant.md — y las cinco pantallas de la barra sí lo producen.
 export const instant = false
 
 export const metadata: Metadata = { title: 'RezetApp', applicationName: 'RezetApp', icons: { apple: '/apple-touch-icon.png' } }
@@ -35,27 +38,41 @@ export const viewport: Viewport = {
   ],
 }
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const prefs = readPrefs((await cookies()).get(PREFS_COOKIE)?.value)
-  const locale = await getLocale()
-  const messages = await getMessages()
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
+    // suppressHydrationWarning: PREFS_BOOT_SCRIPT cambia lang/data-* antes de
+    // que React hidrate, así que el HTML servido y el DOM real difieren a
+    // propósito en este elemento (y solo en este).
     <html
-      lang={locale}
-      data-accent={prefs.accent}
-      {...(prefs.theme === 'system' ? {} : { 'data-theme': prefs.theme })}
+      lang={DEFAULT_PREFS.locale}
+      data-accent={DEFAULT_PREFS.accent}
       className={`${outfit.variable} ${dmSans.variable} ${mono.variable}`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Contenido generado en lib/prefs.ts, sin ninguna entrada del usuario. */}
+        <script dangerouslySetInnerHTML={{ __html: PREFS_BOOT_SCRIPT }} />
+      </head>
       <body className="min-h-dvh antialiased">
         {/* URL como estado (nuqs, W9): los filtros de /recipes leen y escriben
             la query con useQueryState(s) en vez de construir URLSearchParams
             a mano; el adaptador de App Router es quien sabe hablar con
             next/navigation por debajo. */}
         <NuqsAdapter>
-          <NextIntlClientProvider locale={locale} messages={messages}>
-            <RegisterServiceWorker />
-            {children}
-          </NextIntlClientProvider>
+          {/* El proveedor de idioma es un ámbito privado por sesión: no corre
+              durante la generación del armazón estático, así que necesita su
+              propio <Suspense> (si no, el prerender falla en cada ruta). El
+              fallback va vacío a propósito: en el armazón compartido no puede
+              entrar nada traducido — sería el idioma de quien construyó el
+              build para todo el mundo. Los esqueletos con texto viven en los
+              <Suspense> de cada pantalla, ya dentro del proveedor, y llegan
+              en el App Shell por sesión. */}
+          <Suspense fallback={null}>
+            <IntlShell>
+              <RegisterServiceWorker />
+              {children}
+            </IntlShell>
+          </Suspense>
         </NuqsAdapter>
       </body>
     </html>

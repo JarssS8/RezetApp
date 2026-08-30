@@ -29,6 +29,19 @@ export type UpdatePrefsFn = (input: PrefsPatch) => Promise<ActionResult<null>>
 // Cada control guarda su propio campo al vuelo (sin botón "Guardar" salvo
 // para el nombre, que se escribe letra a letra): así el cambio de tema o
 // acento se ve al instante y no hace falta un formulario con submit único.
+// El <html> ya no lo pinta el servidor: el armazón estático se prerenderiza
+// con DEFAULT_PREFS y PREFS_BOOT_SCRIPT lo corrige antes del pintado con lo
+// que diga la cookie (ver app/layout.tsx). Al cambiar tema, acento o idioma
+// aquí hay que estampar el documento a mano y con el mismo criterio que ese
+// script, o el cambio no se vería hasta la siguiente carga completa.
+function applyToDocument({ theme, accent, locale }: Pick<AppearancePrefs, 'theme' | 'accent' | 'locale'>) {
+  const el = document.documentElement
+  el.lang = locale
+  el.setAttribute('data-accent', accent)
+  if (theme === 'system') el.removeAttribute('data-theme')
+  else el.setAttribute('data-theme', theme)
+}
+
 export function AppearanceForm({ initial, updateAction }: { initial: AppearancePrefs; updateAction: UpdatePrefsFn }) {
   const t = useTranslations('settings')
   const c = useTranslations('common')
@@ -43,6 +56,7 @@ export function AppearanceForm({ initial, updateAction }: { initial: AppearanceP
   function save(next: AppearancePrefs, patch: PrefsPatch) {
     const previous = prefs
     setPrefs(next)
+    applyToDocument(next)
     setError(false)
     setSaved(false)
     startTransition(async () => {
@@ -52,6 +66,7 @@ export function AppearanceForm({ initial, updateAction }: { initial: AppearanceP
       } else {
         setError(true)
         setPrefs(previous)
+        applyToDocument(previous)
         if ('displayName' in patch) setDisplayName(previous.displayName)
       }
     })

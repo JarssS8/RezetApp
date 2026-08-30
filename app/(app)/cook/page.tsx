@@ -1,8 +1,10 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
+import { Suspense } from 'react'
 import { CookIcon } from '@/components/icons'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ScreenHeader } from '@/components/ui/screen-header'
+import { CookSkeleton } from '@/components/ui/screen-skeletons'
 import { requireHousehold } from '@/lib/auth/guards'
 import { getPlanEntries } from '@/lib/cache/plan'
 import { todayIso } from '@/lib/plan-dates'
@@ -10,7 +12,18 @@ import { todayIso } from '@/lib/plan-dates'
 // La pestaña "Cocinar" de la barra: lo planificado para hoy que se puede
 // cocinar (tiene receta y no está cocinado ni saltado). Un toque para entrar
 // en el modo cocina; el resto de la pantalla lo cubre esa sesión.
-export default async function CookPage() {
+// W10/T11b: cascarón síncrono + <Suspense>. Ni la sesión ni las traducciones
+// (que leen la cookie de idioma) pueden esperarse en el cuerpo de la página:
+// dejarían la ruta sin armazón estático y sin ventana de cliente.
+export default function CookPage() {
+  return (
+    <Suspense fallback={<CookSkeleton />}>
+      <CookContent />
+    </Suspense>
+  )
+}
+
+async function CookContent() {
   const t = await getTranslations('cook')
   const ctx = await requireHousehold()
   const today = todayIso()

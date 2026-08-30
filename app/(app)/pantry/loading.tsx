@@ -1,20 +1,9 @@
-import { RouteLoading, Skeleton } from '@/components/ui/route-loading'
+import { PantrySkeleton } from '@/components/ui/screen-skeletons'
 
 // Despensa: título con acciones, buscador y una lista de filas.
+// El mismo esqueleto que la página usa como fallback de su <Suspense>: este
+// cubre la navegación entera al segmento, aquel el contenido dentro de una
+// pantalla ya montada.
 export default function Loading() {
-  return (
-    <RouteLoading>
-      <div className="flex items-center justify-between gap-2">
-        <Skeleton className="h-9 w-28" />
-        <Skeleton className="h-11 w-32 rounded-pill" />
-      </div>
-      <Skeleton className="h-11 w-full rounded-sm" />
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-14 w-full rounded-md" />
-        <Skeleton className="h-14 w-full rounded-md" />
-        <Skeleton className="h-14 w-full rounded-md" />
-        <Skeleton className="h-14 w-full rounded-md" />
-      </div>
-    </RouteLoading>
-  )
+  return <PantrySkeleton />
 }
