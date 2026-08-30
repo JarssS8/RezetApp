@@ -66,12 +66,53 @@ test.describe('caché por hogar', () => {
     await registerHousehold(page, 'Dani')
     await page.goto('/today')
 
-    // El encabezado es el mecanismo, no un síntoma: el router del cliente lo
-    // lee para saber cuánto puede reutilizar la respuesta sin volver a pedirla.
-    const res = await page.request.get('/today', { headers: { RSC: '1' } })
+    for (const path of ['/today', '/plan', '/recipes', '/pantry', '/cook']) {
+      // x-nextjs-prerender dice que la respuesta salió de un armazón y no de
+      // un renderizado entero en caliente: es el equivalente en tiempo de
+      // ejecución de la `◐` del build. Sin armazón no hay nada que reutilizar
+      // y el resto de la comprobación no significaría nada.
+      const doc = await page.request.get(path)
+      expect(doc.ok()).toBeTruthy()
+      expect(doc.headers()['x-nextjs-prerender'], `${path}: la respuesta no viene de un armazón prerenderizado`).toBe('1')
+
+      // El encabezado es el mecanismo, no un síntoma: el router del cliente lo
+      // lee para saber cuánto puede reutilizar la respuesta sin volver a
+      // pedirla. Lo lee justo en esta petición — la del App Shell por sesión
+      // que dispara al pintar los enlaces de la barra inferior (RSC +
+      // Next-Router-Prefetch: 3). Una petición RSC de navegación normal no lo
+      // lleva nunca por diseño: ahí la ventana viaja dentro de la propia carga
+      // útil (segment-cache/cache.ts, getStaleAtFromHeader solo mira el
+      // encabezado en respuestas de prefetch).
+      const shell = await page.request.get(path, { headers: { RSC: '1', 'Next-Router-Prefetch': '3' } })
+      expect(shell.ok()).toBeTruthy()
+      const staleTime = shell.headers()['x-nextjs-stale-time']
+      expect(staleTime, `${path}: sin ventana de cliente, cambiar de pestaña volvería a pedir la pantalla entera`).toBeDefined()
+      expect(Number(staleTime)).toBeGreaterThanOrEqual(30)
+    }
+  })
+
+  test('el armazón compartido no lleva nada de ningún hogar', async ({ browser }) => {
+    // El armazón de una ruta `◐` se genera en el build y se sirve igual a todo
+    // el mundo: es el sitio donde una fuga sería peor: no una entrada de caché
+    // que caduca, sino HTML en disco. Este canario lo mira desde fuera —
+    // contexto limpio, sin cookies — sobre una pantalla que otro hogar acaba
+    // de calentar.
+    const a = await browser.newPage()
+    await registerHousehold(a, 'Eva')
+    const title = uniqueName('Fabada')
+    const created = await a.request.post('/api/v1/recipes', {
+      data: { title, servingsBase: 2, ingredients: [], steps: [] },
+    })
+    expect(created.ok()).toBeTruthy()
+    await a.goto('/recipes')
+    await expect(a.getByText(title)).toBeVisible()
+
+    const anon = await browser.newContext()
+    const res = await anon.request.get('/recipes')
     expect(res.ok()).toBeTruthy()
-    const staleTime = res.headers()['x-nextjs-stale-time']
-    expect(staleTime, 'sin ventana de cliente: cambiar de pestaña volvería a pedir la pantalla entera').toBeDefined()
-    expect(Number(staleTime)).toBeGreaterThanOrEqual(30)
+    const html = await res.text()
+    expect(html, 'la receta de un hogar ha llegado al armazón compartido').not.toContain(title)
+    expect(html, 'el nombre de quien la creó ha llegado al armazón compartido').not.toContain('Eva')
+    await anon.close()
   })
 })
