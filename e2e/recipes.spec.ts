@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { registerHousehold } from './helpers/session'
+import { registerHousehold, uniqueName } from './helpers/session'
 
 test.describe('recetas', () => {
   test('crear receta, ver escalado y nutrición, editar y borrar', async ({ page }) => {
@@ -52,5 +52,23 @@ test.describe('recetas', () => {
     await page.getByRole('button', { name: /^importar$|^import$/i }).click()
     await expect(page).toHaveURL(/\/recipes\/new\?draft=1$/)
     await expect(page.getByLabel(/^título|^title/i)).toHaveValue('Lentejas e2e importadas')
+  })
+
+  test('el borrador del editor sobrevive a cambiar de pestaña y volver', async ({ page }) => {
+    // registro
+    await registerHousehold(page, 'Edi')
+
+    const title = uniqueName('Borrador')
+    await page.goto('/recipes/new')
+    await page.getByLabel(/^título|^title/i).fill(title)
+    // Con cacheComponents, Next conserva /recipes/new montada y escondida
+    // (Activity) en vez de destruirla al navegar a otra pestaña: el borrador
+    // es estado de React y debe seguir ahí a la vuelta (véanse
+    // components/recipes/recipe-editor.tsx y el informe de la tarea 7b).
+    await page.getByRole('link', { name: /^hoy$|^today$/i }).click()
+    await expect(page).toHaveURL(/\/today$/)
+    await page.goBack()
+    await expect(page).toHaveURL(/\/recipes\/new$/)
+    await expect(page.getByLabel(/^título|^title/i)).toHaveValue(title)
   })
 })
