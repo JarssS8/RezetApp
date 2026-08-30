@@ -50,8 +50,9 @@ export async function revokeApiTokenAction(id: string): Promise<ActionResult<nul
   }
 }
 
-// Tras guardar, espeja users.* en la cookie rz_prefs y revalida el layout
-// raíz para que <html data-theme data-accent lang> cambie sin recargar.
+// Tras guardar, espeja users.* en la cookie rz_prefs. El <html> ya no lo pinta
+// el servidor (T11b): de tema y acento se encarga AppearanceForm sobre el
+// documento. Lo que sigue haciendo falta es el revalidatePath de abajo.
 export async function updateUserPrefsAction(input: UserPrefs): Promise<ActionResult<null>> {
   try {
     const ctx = await requireHousehold()
@@ -60,9 +61,11 @@ export async function updateUserPrefsAction(input: UserPrefs): Promise<ActionRes
     const user = await updateUserPrefs(ctx, parsed.data)
     const jar = await cookies()
     jar.set(PREFS_COOKIE, prefsCookieValue(user), prefsCookieOptions(process.env.APP_URL ?? 'http://localhost:3000'))
-    // No es un dato de hogar: refresca el marco que app/layout.tsx deriva de
-    // la cookie de preferencias (tema, acento, idioma). Por eso sobrevive a
-    // W10, donde todo lo demás pasó a etiquetas.
+    // No es un dato de hogar y por eso sobrevive a W10, donde todo lo demás
+    // pasó a etiquetas: lo que hay que tirar aquí es la entrada privada de
+    // IntlShell, que guarda idioma y mensajes en la memoria del navegador
+    // durante 5 minutos. Sin esto, cambiar de idioma no se vería hasta que
+    // caducara. Una revalidación vacía además la caché de cliente entera.
     revalidatePath('/', 'layout')
     return ok(null)
   } catch (e) {

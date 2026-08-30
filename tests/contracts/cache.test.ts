@@ -118,8 +118,11 @@ describe('configuración de caché', () => {
   it('la validación de armazón estático se desactiva en un solo sitio y con motivo', () => {
     const rootLayout = read('app/layout.tsx')
     expect(rootLayout).toContain('export const instant = false')
-    // No en cinco layouts: en el raíz, que es el que de verdad bloquea (lee la
-    // cookie de preferencias para pintar data-theme en el <html>).
+    // No en cinco layouts: en el raíz, que es el más alto y por tanto el que
+    // manda (instant.md). Desde T11b el raíz ya no bloquea —se prerenderiza—;
+    // lo que sigue tapando son las rutas que aún esperan la sesión en el
+    // cuerpo de su página (/settings/*, /login, /plan/month…). Quitarlo exige
+    // partirlas como las cinco de la barra.
     for (const file of ['app/(app)/layout.tsx', 'app/(auth)/layout.tsx', 'app/(app)/settings/layout.tsx']) {
       expect(read(file), file).not.toContain('instant')
     }

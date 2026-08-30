@@ -10,9 +10,9 @@ import { todayIso } from '@/lib/plan-dates'
 
 // W10/T11b: la página es síncrona y no toca la sesión. Todo lo que depende de
 // la petición vive en TodayContent, detrás de un <Suspense> cuyo fallback sí
-// se prerenderiza. Es lo que hace que la ruta salga `◐` en el build y llegue
-// con `x-nextjs-stale-time`: sin ventana de cliente, cambiar de pestaña
-// volvería a pedir la pantalla entera.
+// se prerenderiza. Es lo que hace que la ruta salga `◐` en el build y que su
+// esqueleto entre en la carga útil del prefetch del segmento, en vez de que
+// cambiar de pestaña vuelva a pedir la pantalla entera.
 export default function TodayPage() {
   return (
     <Suspense fallback={<TodaySkeleton />}>

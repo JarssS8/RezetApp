@@ -98,7 +98,7 @@ test.describe('caché por hogar', () => {
     // contexto limpio, sin cookies — sobre una pantalla que otro hogar acaba
     // de calentar.
     const a = await browser.newPage()
-    await registerHousehold(a, 'Eva')
+    const owner = await registerHousehold(a, 'Eva')
     const title = uniqueName('Fabada')
     const created = await a.request.post('/api/v1/recipes', {
       data: { title, servingsBase: 2, ingredients: [], steps: [] },
@@ -112,7 +112,9 @@ test.describe('caché por hogar', () => {
     expect(res.ok()).toBeTruthy()
     const html = await res.text()
     expect(html, 'la receta de un hogar ha llegado al armazón compartido').not.toContain(title)
-    expect(html, 'el nombre de quien la creó ha llegado al armazón compartido').not.toContain('Eva')
+    // El nombre real, con su sufijo único: 'Eva' a secas también aparecería en
+    // el armazón de una ejecución anterior y el canario cantaría en falso.
+    expect(html, 'el nombre de quien la creó ha llegado al armazón compartido').not.toContain(owner)
     await anon.close()
   })
 })

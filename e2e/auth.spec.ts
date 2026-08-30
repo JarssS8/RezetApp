@@ -18,6 +18,22 @@ test.describe('passkeys', () => {
     expect(credentials.length).toBe(1)
   })
 
+  // Desde T11b la guardia del marco vive detrás de un <Suspense>: el armazón
+  // sale antes que la sesión, así que hay que comprobar que la redirección
+  // sigue llegando. /settings/data va en la lista a propósito — es la que se
+  // quedó sin guardia propia cuando el layout dejó de bloquear.
+  test('sin sesión, las pantallas de dentro llevan a /login', async ({ browser }) => {
+    const anon = await browser.newPage()
+    for (const path of ['/today', '/plan', '/recipes', '/pantry', '/cook', '/settings/data']) {
+      await anon.goto(path)
+      await expect(anon, `${path} no ha redirigido`).toHaveURL(/\/login$/)
+      // Ancla positiva: la página de login pintada de verdad, no un armazón
+      // vacío que casualmente esté en esa URL.
+      await expect(anon.getByTestId('login-button')).toBeVisible()
+    }
+    await anon.close()
+  })
+
   test('invitación: segunda persona entra como miembro', async ({ browser }) => {
     const owner = await browser.newPage()
     const ownerName = await registerHousehold(owner, 'Ana')

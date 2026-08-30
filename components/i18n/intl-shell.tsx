@@ -1,5 +1,7 @@
 import { cacheLife } from 'next/cache'
 import { NextIntlClientProvider } from 'next-intl'
+import { getLocale } from 'next-intl/server'
+import { HtmlLang } from './html-lang'
 
 // El proveedor de next-intl resuelve idioma, mensajes, zona y formatos desde
 // lib/i18n/request.ts, que lee la cookie rz_prefs y Accept-Language. Eso es
@@ -17,5 +19,14 @@ import { NextIntlClientProvider } from 'next-intl'
 export async function IntlShell({ children }: { children: React.ReactNode }) {
   'use cache: private'
   cacheLife('session')
-  return <NextIntlClientProvider>{children}</NextIntlClientProvider>
+  // El idioma se resuelve aquí una vez y se usa dos veces: para el proveedor y
+  // para corregir el `lang` del <html>, que el armazón compartido no puede
+  // saber (ver components/i18n/html-lang.tsx).
+  const locale = await getLocale()
+  return (
+    <NextIntlClientProvider locale={locale}>
+      <HtmlLang locale={locale} />
+      {children}
+    </NextIntlClientProvider>
+  )
 }

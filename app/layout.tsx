@@ -64,9 +64,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               propio <Suspense> (si no, el prerender falla en cada ruta). El
               fallback va vacío a propósito: en el armazón compartido no puede
               entrar nada traducido — sería el idioma de quien construyó el
-              build para todo el mundo. Los esqueletos con texto viven en los
-              <Suspense> de cada pantalla, ya dentro del proveedor, y llegan
-              en el App Shell por sesión. */}
+              build para todo el mundo.
+              Ojo con lo que se mete en los esqueletos de cada pantalla: sí
+              entran en el armazón compartido de su ruta (`_full.segment.rsc`,
+              artefacto del build, una copia por ruta y para todo el mundo). Se
+              libran de traducir texto porque el único que lleva —el aviso para
+              lector de pantalla— vive en LoadingStatus, un componente de
+              cliente: en el armazón va la referencia, no la cadena. Cualquier
+              `getTranslations` que se cuele ahí sí sería una fuga de idioma. */}
           <Suspense fallback={null}>
             <IntlShell>
               <RegisterServiceWorker />
