@@ -1,6 +1,5 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
 import { requireHousehold } from '@/lib/auth/guards'
 import type { PlanRule } from '@/lib/domain/plan-rules'
 import { proposeWeekFromRules, updatePlanRules } from '@/lib/services/plan-rules'
@@ -16,7 +15,6 @@ export async function updatePlanRulesAction(input: unknown): Promise<ActionResul
     const parsed = PlanRulesSchema.safeParse(input)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     const saved = await updatePlanRules(ctx, parsed.data)
-    revalidatePath('/settings/household')
     return ok(saved)
   } catch (e) {
     return fromError(e)
@@ -29,8 +27,6 @@ export async function proposeWeekFromRulesAction(input: unknown): Promise<Action
     const parsed = DateRangeSchema.safeParse(input)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Rango de fechas inválido')
     const view = await proposeWeekFromRules(ctx, parsed.data)
-    revalidatePath('/plan')
-    revalidatePath('/plan/proposals')
     return ok({ proposalId: view.id })
   } catch (e) {
     return fromError(e)

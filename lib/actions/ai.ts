@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireHousehold } from '@/lib/auth/guards'
 import type { ParsedIngredient } from '@/lib/domain/types'
@@ -64,10 +63,6 @@ export async function aiEstimateFoodAction(foodName: string): Promise<ActionResu
     const parsed = EstimateFoodInputSchema.safeParse(foodName)
     if (!parsed.success) return fail('validation', 'Nombre de alimento inválido')
     const result = await aiEstimateFood(ctx, parsed.data)
-    if (result.ok) {
-      revalidatePath('/recipes')
-      revalidatePath('/pantry')
-    }
     return fromAiResult(result)
   } catch (e) {
     return fromError(e)
@@ -85,10 +80,6 @@ export async function aiProposeWeekAction(input: { from: string; to: string; not
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Rango de fechas inválido')
     const { from, to, notes } = parsed.data
     const result = await aiProposeWeek(ctx, notes !== undefined ? { from, to, notes } : { from, to })
-    if (result.ok) {
-      revalidatePath('/plan')
-      revalidatePath('/plan/proposals')
-    }
     return fromAiResult(result)
   } catch (e) {
     return fromError(e)
@@ -110,7 +101,6 @@ export async function updateAiSettingsAction(input: unknown): Promise<ActionResu
     const parsed = AiSettingsSchema.safeParse(input)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     await updateAiSettings(ctx, parsed.data)
-    revalidatePath('/settings/ai')
     return ok(await getAiSettings(ctx))
   } catch (e) {
     return fromError(e)

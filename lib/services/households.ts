@@ -5,6 +5,7 @@ import * as schema from '@/db/schema'
 import { saveCredential, type VerifiedCredential } from '@/lib/auth/webauthn'
 import type { Locale } from '@/lib/domain/types'
 import type { HouseholdUpdateSchema } from '@/lib/validation/household'
+import { invalidateHousehold } from '@/lib/cache/tags'
 import { type Ctx, type Db, ServiceError } from './ctx'
 
 const INVITE_HOURS = 24
@@ -54,6 +55,7 @@ export async function createInvite(ctx: Ctx): Promise<{ token: string; url: stri
   const token = randomBytes(24).toString('base64url')
   const expiresAt = new Date(Date.now() + INVITE_HOURS * 3_600_000)
   await ctx.db.insert(schema.householdInvites).values({ token, householdId: ctx.householdId, createdBy, expiresAt })
+  invalidateHousehold(ctx.householdId, ['settings'])
   const base = process.env.APP_URL ?? 'http://localhost:3000'
   return { token, url: `${base}/invite/${token}`, expiresAt }
 }
@@ -101,7 +103,9 @@ async function consumeInvite(tx: Db, token: string, userId: string): Promise<str
 }
 
 export async function acceptInvite(db: Db, input: { token: string; userId: string }): Promise<{ householdId: string }> {
-  return db.transaction(async (tx) => ({ householdId: await consumeInvite(tx, input.token, input.userId) }))
+  const result = await db.transaction(async (tx) => ({ householdId: await consumeInvite(tx, input.token, input.userId) }))
+  invalidateHousehold(result.householdId, ['settings'])
+  return result
 }
 
 // Registro desde un enlace de invitación: el usuario entra como member y NO recibe hogar propio
@@ -126,6 +130,7 @@ export async function leaveHousehold(ctx: Ctx): Promise<void> {
     // tener acceso también por REST/MCP (authenticateApiToken ya exige membresía).
     await tx.delete(schema.apiTokens).where(and(eq(schema.apiTokens.householdId, ctx.householdId), eq(schema.apiTokens.userId, ctx.userId ?? '')))
   })
+  invalidateHousehold(ctx.householdId, ['settings'])
 }
 
 // Borrado explícito y confirmado. Sin CASCADE en el esquema: el orden de aquí es el contrato.
@@ -157,6 +162,7 @@ export async function deleteHousehold(ctx: Ctx, confirmName: string): Promise<vo
     await tx.delete(schema.householdMembers).where(eq(schema.householdMembers.householdId, hid))
     await tx.delete(schema.households).where(eq(schema.households.id, hid))
   })
+  invalidateHousehold(ctx.householdId, ['settings'])
 }
 
 export type HouseholdUpdate = z.infer<typeof HouseholdUpdateSchema>
@@ -190,5 +196,6 @@ export async function updateHousehold(ctx: Ctx, input: HouseholdUpdate): Promise
   }
   const [updated] = await ctx.db.update(schema.households).set(patch).where(eq(schema.households.id, ctx.householdId)).returning(HOUSEHOLD_SUMMARY_COLUMNS)
   if (!updated) throw new ServiceError('not_found', 'Hogar no encontrado')
+  invalidateHousehold(ctx.householdId, ['settings'])
   return updated
 }

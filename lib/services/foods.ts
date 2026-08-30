@@ -3,6 +3,7 @@ import * as schema from '@/db/schema'
 import { normalizeSearchName } from '@/lib/domain/quantities'
 import type { BaseUnit, FoodNutrition, Locale } from '@/lib/domain/types'
 import { emitHouseholdEvent } from '@/lib/events/bus'
+import { invalidateHousehold } from '@/lib/cache/tags'
 import { fetchOffProduct, offToFoodInput, type OffProduct } from '@/lib/integrations/open-food-facts'
 import { BarcodeSchema, type FoodCorrection, type FoodInput } from '@/lib/validation/foods'
 import { ALLERGENS } from '@/lib/validation/household'
@@ -235,6 +236,7 @@ export async function createFood(ctx: Ctx, input: FoodInput, source: schema.Food
     .values(toInsert(input, ctx.householdId, source, source === 'ai'))
     .returning()
   if (!f) throw new ServiceError('conflict', 'No se pudo crear el alimento')
+  invalidateHousehold(ctx.householdId, ['foods'])
   return toSummary(f, ctx.locale)
 }
 
@@ -291,6 +293,7 @@ export async function correctFood(ctx: Ctx, foodId: string, patch: FoodCorrectio
         .where(eq(schema.foods.id, existingCopy.id))
         .returning()
       if (!updated) throw new ServiceError('conflict', 'No se pudo actualizar la copia del alimento')
+      invalidateHousehold(ctx.householdId, ['foods', 'recipes', 'pantry'])
       return toSummary(updated, ctx.locale)
     }
     const [copy] = await ctx.db
@@ -298,6 +301,7 @@ export async function correctFood(ctx: Ctx, foodId: string, patch: FoodCorrectio
       .values(toInsert(merged, ctx.householdId, 'manual', false))
       .returning()
     if (!copy) throw new ServiceError('conflict', 'No se pudo copiar el alimento')
+    invalidateHousehold(ctx.householdId, ['foods', 'recipes', 'pantry'])
     return toSummary(copy, ctx.locale)
   }
 
@@ -307,6 +311,7 @@ export async function correctFood(ctx: Ctx, foodId: string, patch: FoodCorrectio
     .where(and(eq(schema.foods.id, f.id), eq(schema.foods.householdId, ctx.householdId)))
     .returning()
   if (!updated) throw new ServiceError('not_found', 'Alimento no encontrado')
+  invalidateHousehold(ctx.householdId, ['foods', 'recipes', 'pantry'])
   return toSummary(updated, ctx.locale)
 }
 
@@ -347,7 +352,9 @@ export async function lookupBarcode(ctx: Ctx, barcode: string, fetcher: BarcodeF
   const off = await fetcher(parsed.data)
   if (!off) return null
 
-  return createFood(ctx, offToFoodInput(off), 'off')
+  const created = await createFood(ctx, offToFoodInput(off), 'off')
+  invalidateHousehold(ctx.householdId, ['foods'])
+  return created
 }
 
 export interface MergeFoodsResult {
@@ -424,5 +431,6 @@ export async function mergeFoods(ctx: Ctx, fromId: string, intoId: string): Prom
   })
 
   emitHouseholdEvent(ctx.householdId, { type: 'pantry.changed', payload: { foodIds: [fromId, intoId] } })
+  invalidateHousehold(ctx.householdId, ['foods', 'recipes', 'pantry'])
   return result
 }

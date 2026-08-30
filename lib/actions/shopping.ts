@@ -1,6 +1,5 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
 import { requireHousehold } from '@/lib/auth/guards'
 import type { ShoppingLine } from '@/lib/domain'
 import { generateShopping, pushShopping, ShopListError } from '@/lib/services/shopping'
@@ -8,8 +7,6 @@ import { getShopListDeepLink, getShoplistSettings, updateShoplistSettings, type 
 import { ShoplistSettingsSchema } from '@/lib/validation/household'
 import { ShoppingGenerateSchema, ShoppingPushSchema } from '@/lib/validation/shopping'
 import { type ActionResult, fail, fromError, ok } from './result'
-
-const SHOPPING_PATH = '/plan/shopping'
 
 export async function generateShoppingAction(range: unknown): Promise<ActionResult<{ lines: ShoppingLine[]; from: string; to: string }>> {
   try {
@@ -28,7 +25,6 @@ export async function pushShoppingAction(lines: unknown): Promise<ActionResult<{
     const parsed = ShoppingPushSchema.safeParse({ lines })
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Líneas de compra inválidas')
     const result = await pushShopping(ctx, parsed.data.lines)
-    revalidatePath(SHOPPING_PATH)
     return ok(result)
   } catch (e) {
     // El status HTTP va dentro del mensaje de ShopListError; nunca se expone el secreto.

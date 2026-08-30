@@ -32,7 +32,6 @@ export async function createApiTokenAction(input: unknown): Promise<ActionResult
     const parsed = ApiTokenCreateSchema.safeParse(input)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     const created = await createApiToken(ctx, parsed.data)
-    revalidatePath('/settings/tokens')
     return ok(created)
   } catch (e) {
     return fromError(e)
@@ -45,7 +44,6 @@ export async function revokeApiTokenAction(id: string): Promise<ActionResult<nul
     const parsed = IdSchema.safeParse(id)
     if (!parsed.success) return fail('validation', 'Identificador inválido')
     await revokeApiToken(ctx, parsed.data)
-    revalidatePath('/settings/tokens')
     return ok(null)
   } catch (e) {
     return fromError(e)
@@ -62,6 +60,9 @@ export async function updateUserPrefsAction(input: UserPrefs): Promise<ActionRes
     const user = await updateUserPrefs(ctx, parsed.data)
     const jar = await cookies()
     jar.set(PREFS_COOKIE, prefsCookieValue(user), prefsCookieOptions(process.env.APP_URL ?? 'http://localhost:3000'))
+    // No es un dato de hogar: refresca el marco que app/layout.tsx deriva de
+    // la cookie de preferencias (tema, acento, idioma). Por eso sobrevive a
+    // W10, donde todo lo demás pasó a etiquetas.
     revalidatePath('/', 'layout')
     return ok(null)
   } catch (e) {
@@ -87,7 +88,6 @@ export async function updateMemberAction(input: MemberUpdate): Promise<ActionRes
     const parsed = MemberUpdateSchema.safeParse(input)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     await updateMember(ctx, parsed.data)
-    revalidatePath('/settings/members')
     return ok(null)
   } catch (e) {
     return fromError(e)
@@ -100,7 +100,6 @@ export async function removeMemberAction(userId: string): Promise<ActionResult<n
     const parsed = IdSchema.safeParse(userId)
     if (!parsed.success) return fail('validation', 'Identificador inválido')
     await removeMember(ctx, parsed.data)
-    revalidatePath('/settings/members')
     return ok(null)
   } catch (e) {
     return fromError(e)
@@ -113,7 +112,6 @@ export async function updateHouseholdAction(input: HouseholdUpdate): Promise<Act
     const parsed = HouseholdUpdateSchema.safeParse(input)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     const updated = await updateHousehold(ctx, parsed.data)
-    revalidatePath('/settings/household')
     return ok(updated)
   } catch (e) {
     return fromError(e)
@@ -154,6 +152,9 @@ export async function switchHouseholdAction(householdId: string): Promise<Action
     const parsed = IdSchema.safeParse(householdId)
     if (!parsed.success) return fail('validation', 'Identificador inválido')
     await switchHousehold(ctx.db, ctx.session.session.id, parsed.data)
+    // No es un dato de hogar: refresca el marco que app/layout.tsx deriva de
+    // la cookie de preferencias (tema, acento, idioma). Por eso sobrevive a
+    // W10, donde todo lo demás pasó a etiquetas.
     revalidatePath('/', 'layout')
     return ok(null)
   } catch (e) {
@@ -167,7 +168,6 @@ export async function renamePasskeyAction(credentialId: string, name: string): P
     const parsed = PasskeyRenameSchema.safeParse({ credentialId, name })
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     await renamePasskey(ctx, parsed.data.credentialId, parsed.data.name)
-    revalidatePath('/settings/passkeys')
     return ok(null)
   } catch (e) {
     return fromError(e)
@@ -180,7 +180,6 @@ export async function removePasskeyAction(credentialId: string): Promise<ActionR
     const parsed = PasskeyIdSchema.safeParse(credentialId)
     if (!parsed.success) return fail('validation', 'Identificador inválido')
     await removePasskey(ctx, parsed.data)
-    revalidatePath('/settings/passkeys')
     return ok(null)
   } catch (e) {
     return fromError(e)

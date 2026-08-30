@@ -24,7 +24,15 @@ const DB_TEST_GLOBS = [
 
 export default defineConfig({
   plugins: [react()],
-  resolve: { alias: { '@': path.resolve(import.meta.dirname) } },
+  resolve: {
+    alias: {
+      '@': path.resolve(import.meta.dirname),
+      // Ver db/test/server-only-stub.ts: fuera de webpack, "server-only" lanza
+      // siempre. Desde la Tarea 3 de W10, lib/services/** lo arrastra a través
+      // de lib/cache/tags.ts, así que hace falta en los tres proyectos.
+      'server-only': path.resolve(import.meta.dirname, 'db/test/server-only-stub.ts'),
+    },
+  },
   test: {
     exclude: ['**/node_modules/**', 'e2e/**', '.next/**', 'dist/**', '.worktrees/**'],
     coverage: { include: ['lib/domain/**'], thresholds: { lines: 100 } },

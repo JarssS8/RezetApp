@@ -5,6 +5,7 @@ import { and, eq, sql } from 'drizzle-orm'
 import { generateText } from 'ai'
 import type { z } from 'zod'
 import * as schema from '@/db/schema'
+import { invalidateHousehold } from '@/lib/cache/tags'
 import { encryptSecret, getKeys } from '@/lib/crypto'
 import { resolvePrices } from '@/lib/ai/budget'
 import { languageModel, resolveAiConfig } from '@/lib/ai/provider'
@@ -78,6 +79,7 @@ export async function updateAiSettings(ctx: Ctx, input: AiSettings): Promise<voi
   if (input.priceInCentsPerMtok !== undefined) patch.aiPriceInCentsPerMtok = input.priceInCentsPerMtok
   if (input.priceOutCentsPerMtok !== undefined) patch.aiPriceOutCentsPerMtok = input.priceOutCentsPerMtok
   await ctx.db.update(schema.households).set(patch).where(eq(schema.households.id, ctx.householdId))
+  invalidateHousehold(ctx.householdId, ['settings'])
 }
 
 export type AiConnectionErrorCode = 'not_configured' | 'provider' | 'timeout'

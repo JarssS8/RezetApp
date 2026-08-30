@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import { requireHousehold } from '@/lib/auth/guards'
 import { importRecipe, type RecipeDraft } from '@/lib/services/recipe-import'
 import {
@@ -31,7 +30,6 @@ export async function createRecipeAction(input: unknown): Promise<ActionResult<{
     const parsed = RecipeInputSchema.safeParse(input)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     const d = await createRecipe(ctx, parsed.data)
-    revalidatePath('/recipes')
     return ok({ id: d.recipe.id })
   } catch (e) {
     return fromError(e)
@@ -45,8 +43,6 @@ export async function updateRecipeAction(id: string, input: unknown): Promise<Ac
     const parsed = RecipeInputSchema.safeParse(input)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     const d: RecipeDetail = await updateRecipe(ctx, id, parsed.data)
-    revalidatePath('/recipes')
-    revalidatePath(`/recipes/${id}`)
     return ok({ id: d.recipe.id })
   } catch (e) {
     return fromError(e)
@@ -58,7 +54,6 @@ export async function deleteRecipeAction(id: string): Promise<ActionResult<null>
     if (!IdSchema.safeParse(id).success) return fail('validation', 'Id inválido')
     const ctx = await requireHousehold()
     await softDeleteRecipe(ctx, id)
-    revalidatePath('/recipes')
     return ok(null)
   } catch (e) {
     return fromError(e)
@@ -154,7 +149,6 @@ export async function importRecipesAction(json: unknown): Promise<ActionResult<{
     const parsed = RecipeExportSchema.safeParse(json)
     if (!parsed.success) return fail('validation', 'El fichero no es una exportación de RezetApp')
     const result = await importAll(ctx, parsed.data)
-    revalidatePath('/recipes')
     return ok(result)
   } catch (e) {
     return fromError(e)

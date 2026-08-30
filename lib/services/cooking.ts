@@ -5,6 +5,7 @@ import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { aggregateNeeds, allocateDeductions, convertBase, scaleRecipe, slotForHour } from '@/lib/domain'
 import type { Allocation, BaseUnit, FoodConversion, MealSlot, Need, NeedInput, PantryItem as DomainPantryItem } from '@/lib/domain'
+import { invalidateHousehold } from '@/lib/cache/tags'
 import { emitHouseholdEvent } from '@/lib/events/bus'
 import { DEFAULT_TZ, todayIso } from '@/lib/plan-dates'
 import type { LogCookedInput } from '@/lib/validation/cooking'
@@ -418,9 +419,14 @@ export async function logCooked(ctx: Ctx, input: LogCookedInput, now: Date = new
     // Los eventos se emiten FUERA de la transacción: si esta se revierte, nadie
     // ha recibido un "la despensa cambió" que no ocurrió.
     emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: outcome.dates } })
-    if (outcome.foodIds.length > 0) emitHouseholdEvent(ctx.householdId, { type: 'pantry.changed', payload: { foodIds: outcome.foodIds } })
+    invalidateHousehold(ctx.householdId, ['plan'])
+    if (outcome.foodIds.length > 0) {
+      emitHouseholdEvent(ctx.householdId, { type: 'pantry.changed', payload: { foodIds: outcome.foodIds } })
+      invalidateHousehold(ctx.householdId, ['pantry'])
+    }
     // Ruling W3-R2: times_cooked/last_cooked_at cambiaron, así que la receta también avisa.
     emitHouseholdEvent(ctx.householdId, { type: 'recipe.changed', payload: { recipeId: outcome.result.recipeId } })
+    invalidateHousehold(ctx.householdId, ['recipes'])
   }
   return outcome.result
 }

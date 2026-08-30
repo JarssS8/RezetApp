@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import type { z } from 'zod'
 import * as schema from '@/db/schema'
 import type { MemberUpdateSchema } from '@/lib/validation/household'
+import { invalidateHousehold } from '@/lib/cache/tags'
 import { type Ctx, ServiceError } from './ctx'
 import { getHouseholdOverview } from './households'
 
@@ -55,6 +56,7 @@ export async function updateMember(ctx: Ctx, input: MemberUpdate): Promise<void>
     .update(schema.householdMembers)
     .set(patch)
     .where(and(eq(schema.householdMembers.householdId, ctx.householdId), eq(schema.householdMembers.userId, input.userId)))
+  invalidateHousehold(ctx.householdId, ['settings'])
 }
 
 // Expulsa a un miembro del hogar: en una sola transacción se borra su
@@ -86,4 +88,5 @@ export async function removeMember(ctx: Ctx, userId: string): Promise<void> {
     await tx.delete(schema.sessions).where(and(eq(schema.sessions.householdId, ctx.householdId), eq(schema.sessions.userId, userId)))
     await tx.delete(schema.apiTokens).where(and(eq(schema.apiTokens.householdId, ctx.householdId), eq(schema.apiTokens.userId, userId)))
   })
+  invalidateHousehold(ctx.householdId, ['settings'])
 }

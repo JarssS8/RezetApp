@@ -1,6 +1,7 @@
 import { and, eq, gte, inArray, isNull, lte, type SQL } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { emitHouseholdEvent } from '@/lib/events/bus'
+import { invalidateHousehold } from '@/lib/cache/tags'
 import { aggregateNutrition, EMPTY_MACROS, entryStatus, planAdherence, planStatsByDay } from '@/lib/domain'
 import type { FoodConversion, Nutrition, PlanAdherence, PlanDayStat, PlannedEntry, ShoppingIngredient } from '@/lib/domain'
 import { addDays } from '@/lib/plan-dates'
@@ -167,6 +168,7 @@ export async function applyBatch(ctx: Ctx, batch: PlanBatch): Promise<{ added: P
   const byId = new Map(views.map((v) => [v.id, v]))
   const added = addedIds.map((id) => byId.get(id)).filter((v): v is PlanEntryView => v !== undefined)
   if (dates.size > 0) emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: Array.from(dates) } })
+  invalidateHousehold(ctx.householdId, ['plan'])
   return { added, removed }
 }
 
@@ -237,6 +239,7 @@ export async function createProposal(ctx: Ctx, input: { source: 'ai' | 'rules' |
   if (!row) throw new ServiceError('conflict', 'No se pudo crear la propuesta')
   const view = await toProposalView(ctx, row)
   emitHouseholdEvent(ctx.householdId, { type: 'proposal.created', payload: { proposalId: row.id } })
+  invalidateHousehold(ctx.householdId, ['plan'])
   return view
 }
 
@@ -286,6 +289,7 @@ export async function decideProposal(ctx: Ctx, id: string, decision: 'approve' |
     return { updated, applied }
   })
   if (result.applied.dates.size > 0) emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: Array.from(result.applied.dates) } })
+  invalidateHousehold(ctx.householdId, ['plan'])
   return toProposalView(ctx, result.updated)
 }
 
@@ -304,6 +308,7 @@ export async function moveEntry(ctx: Ctx, input: PlanEntryMove): Promise<PlanEnt
   const view = await requireEntryView(ctx.db, ctx.householdId, input.entryId)
   const dates = existing.date === input.date ? [input.date] : [existing.date, input.date]
   emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates } })
+  invalidateHousehold(ctx.householdId, ['plan'])
   return view
 }
 
@@ -324,6 +329,7 @@ export async function patchEntry(ctx: Ctx, id: string, patch: PlanEntryPatch): P
   }
   const view = await requireEntryView(ctx.db, ctx.householdId, id)
   emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: [existing.date] } })
+  invalidateHousehold(ctx.householdId, ['plan'])
   return view
 }
 
@@ -353,6 +359,7 @@ export async function createLeftover(ctx: Ctx, input: { ofEntryId: string; date:
   if (!row) throw new ServiceError('conflict', 'No se pudo crear la sobra')
   const view = await requireEntryView(ctx.db, ctx.householdId, row.id)
   emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: [input.date] } })
+  invalidateHousehold(ctx.householdId, ['plan'])
   return view
 }
 

@@ -4,6 +4,7 @@
 // llama al cliente HTTP de la integración.
 import { eq } from 'drizzle-orm'
 import * as schema from '@/db/schema'
+import { invalidateHousehold } from '@/lib/cache/tags'
 import { consolidateNeeds } from '@/lib/domain'
 import type { ShoppingLine } from '@/lib/domain'
 import { pushToShopList, shopListDeepLink, ShopListError } from '@/lib/integrations/shoplist'
@@ -36,5 +37,6 @@ export async function pushShopping(ctx: Ctx, lines: ShoppingLine[]): Promise<{ i
   if (!cfg) throw new ServiceError('validation', 'ShopList no está configurado')
   const { inserted } = await pushToShopList(cfg, lines)
   await ctx.db.update(schema.households).set({ shoplistLastPushedAt: new Date() }).where(eq(schema.households.id, ctx.householdId))
+  invalidateHousehold(ctx.householdId, ['settings'])
   return { inserted, deepLink: shopListDeepLink(cfg.listToken) }
 }

@@ -1,6 +1,7 @@
 import { and, eq, lte, or, sql } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 import { emitHouseholdEvent } from '@/lib/events/bus'
+import { invalidateHousehold } from '@/lib/cache/tags'
 import { expiringSoon } from '@/lib/domain/pantry'
 import { normalizeSearchName } from '@/lib/domain/quantities'
 import type { BaseUnit, Locale, PantryItem as DomainPantryItem } from '@/lib/domain/types'
@@ -145,6 +146,7 @@ export async function upsertPantryItem(ctx: Ctx, input: PantryItemInput & { id?:
   }
 
   emitHouseholdEvent(ctx.householdId, { type: 'pantry.changed', payload: { foodIds: [row.foodId] } })
+  invalidateHousehold(ctx.householdId, ['pantry'])
   return toPantryRow(row, food, new Date())
 }
 
@@ -158,6 +160,7 @@ export async function adjustPantryItem(ctx: Ctx, input: PantryAdjust): Promise<P
     .returning()
   if (!row) throw new ServiceError('not_found', 'Artículo no encontrado')
   emitHouseholdEvent(ctx.householdId, { type: 'pantry.changed', payload: { foodIds: [row.foodId] } })
+  invalidateHousehold(ctx.householdId, ['pantry'])
 
   const foodsMap = await getFoodsNutrition(ctx, [row.foodId])
   const food = foodsMap.get(row.foodId)
@@ -172,6 +175,7 @@ export async function removePantryItem(ctx: Ctx, id: string): Promise<void> {
     .returning()
   if (!row) throw new ServiceError('not_found', 'Artículo no encontrado')
   emitHouseholdEvent(ctx.householdId, { type: 'pantry.changed', payload: { foodIds: [row.foodId] } })
+  invalidateHousehold(ctx.householdId, ['pantry'])
 }
 
 // Una sola consulta a pantry_items (más el lote de nutrición) para todo el hogar,

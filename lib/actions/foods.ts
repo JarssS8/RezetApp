@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import { requireHousehold } from '@/lib/auth/guards'
 import {
   correctFood,
@@ -60,8 +59,6 @@ export async function createFoodAction(input: unknown): Promise<ActionResult<Foo
     const parsed = FoodInputSchema.safeParse(input)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     const f = await createFood(ctx, parsed.data)
-    revalidatePath('/recipes')
-    revalidatePath('/pantry')
     return ok(f)
   } catch (e) {
     return fromError(e)
@@ -74,8 +71,6 @@ export async function correctFoodAction(foodId: string, patch: unknown): Promise
     const parsed = FoodCorrectionSchema.safeParse(patch)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     const f = await correctFood(ctx, foodId, parsed.data)
-    revalidatePath('/recipes')
-    revalidatePath('/pantry')
     return ok(f)
   } catch (e) {
     return fromError(e)
@@ -89,13 +84,10 @@ export async function mergeFoodsAction(fromId: string, intoId: string): Promise<
     const into = IdSchema.safeParse(intoId)
     if (!from.success || !into.success) return fail('validation', 'Identificador inválido')
     const result = await mergeFoods(ctx, from.data, into.data)
-    revalidatePath('/pantry')
-    revalidatePath('/recipes')
     // Una fusión puede sumar un alérgeno al alimento que se queda (fix 1 de
     // la revisión final): una propuesta pendiente que lo usara pasaría a
     // chocar con un alérgeno del hogar, así que la lista de propuestas
     // también tiene que refrescarse.
-    revalidatePath('/plan/proposals')
     return ok(result)
   } catch (e) {
     return fromError(e)

@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import { requireHousehold } from '@/lib/auth/guards'
 import { adjustPantryItem, removePantryItem, upsertPantryItem, type PantryRow } from '@/lib/services/pantry'
 import { IdSchema } from '@/lib/validation/common'
@@ -21,7 +20,6 @@ export async function upsertPantryItemAction(input: unknown): Promise<ActionResu
     // servicio distingue creación de actualización por la presencia de la clave.
     const { id, ...rest } = parsed.data
     const row = await upsertPantryItem(ctx, id ? { ...rest, id } : rest)
-    revalidatePath('/pantry')
     return ok(row)
   } catch (e) {
     return fromError(e)
@@ -34,7 +32,6 @@ export async function adjustPantryItemAction(itemId: string, delta: number): Pro
     const parsed = PantryAdjustSchema.safeParse({ itemId, delta })
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     const row = await adjustPantryItem(ctx, parsed.data)
-    revalidatePath('/pantry')
     return ok(row)
   } catch (e) {
     return fromError(e)
@@ -47,7 +44,6 @@ export async function removePantryItemAction(id: string): Promise<ActionResult<v
     const parsed = IdSchema.safeParse(id)
     if (!parsed.success) return fail('validation', 'Id inválido')
     await removePantryItem(ctx, parsed.data)
-    revalidatePath('/pantry')
     return ok(undefined)
   } catch (e) {
     return fromError(e)

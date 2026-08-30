@@ -1,7 +1,6 @@
 'use server'
 
 import { z } from 'zod'
-import { revalidatePath } from 'next/cache'
 import { requireHousehold } from '@/lib/auth/guards'
 import { IdSchema } from '@/lib/validation/common'
 import { CreateLeftoverInputSchema, PlanBatchSchema, PlanEntryMoveSchema, PlanEntryPatchSchema, ProposalDecisionSchema } from '@/lib/validation/plan'
@@ -10,15 +9,12 @@ import { applyBatch, createLeftover, decideProposal, moveEntry, patchEntry, type
 import { searchRecipes } from '@/lib/services/recipes'
 import { type ActionResult, fail, fromError, ok } from './result'
 
-const PLAN_PATH = '/plan'
-
 export async function applyPlanBatchAction(batch: PlanBatch): Promise<ActionResult<{ added: PlanEntryView[]; removed: string[] }>> {
   try {
     const ctx = await requireHousehold()
     const parsed = PlanBatchSchema.safeParse(batch)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     const result = await applyBatch(ctx, parsed.data)
-    revalidatePath(PLAN_PATH)
     return ok(result)
   } catch (e) {
     return fromError(e)
@@ -31,7 +27,6 @@ export async function movePlanEntryAction(input: PlanEntryMove): Promise<ActionR
     const parsed = PlanEntryMoveSchema.safeParse(input)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     const view = await moveEntry(ctx, parsed.data)
-    revalidatePath(PLAN_PATH)
     return ok(view)
   } catch (e) {
     return fromError(e)
@@ -46,7 +41,6 @@ export async function patchPlanEntryAction(id: string, patch: PlanEntryPatch): P
     const patchParsed = PlanEntryPatchSchema.safeParse(patch)
     if (!patchParsed.success) return fail('validation', patchParsed.error.issues[0]?.message ?? 'Datos inválidos')
     const view = await patchEntry(ctx, idParsed.data, patchParsed.data)
-    revalidatePath(PLAN_PATH)
     return ok(view)
   } catch (e) {
     return fromError(e)
@@ -59,7 +53,6 @@ export async function createLeftoverAction(input: unknown): Promise<ActionResult
     const parsed = CreateLeftoverInputSchema.safeParse(input)
     if (!parsed.success) return fail('validation', parsed.error.issues[0]?.message ?? 'Datos inválidos')
     const view = await createLeftover(ctx, parsed.data)
-    revalidatePath(PLAN_PATH)
     return ok(view)
   } catch (e) {
     return fromError(e)
@@ -74,7 +67,6 @@ export async function decideProposalAction(id: string, decision: 'approve' | 're
     const decisionParsed = ProposalDecisionSchema.safeParse({ decision })
     if (!decisionParsed.success) return fail('validation', 'Decisión inválida')
     const view = await decideProposal(ctx, idParsed.data, decisionParsed.data.decision)
-    revalidatePath(PLAN_PATH)
     return ok(view)
   } catch (e) {
     return fromError(e)

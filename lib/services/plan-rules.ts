@@ -9,6 +9,7 @@ import {
   type PlanRule,
   type RecipeSummary,
 } from '@/lib/domain/plan-rules'
+import { invalidateHousehold } from '@/lib/cache/tags'
 import { PlanRulesSchema } from '@/lib/validation/plan-rules'
 import { conflictingRecipeIds } from './allergens'
 import { type Ctx, ServiceError } from './ctx'
@@ -41,6 +42,7 @@ export async function updatePlanRules(ctx: Ctx, rules: PlanRule[]): Promise<Plan
   if (ctx.role !== 'owner') throw new ServiceError('forbidden', 'Solo el propietario puede editar las reglas del plan')
   const parsed = PlanRulesSchema.parse(rules)
   await ctx.db.update(schema.households).set({ planRules: parsed }).where(eq(schema.households.id, ctx.householdId))
+  invalidateHousehold(ctx.householdId, ['settings'])
   return parsed
 }
 

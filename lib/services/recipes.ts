@@ -3,6 +3,7 @@ import * as schema from '@/db/schema'
 import { detectTimers, isNonLinearByDefault, normalizeSearchName, parseIngredientLine, recipeNutrition, scaleRecipe, toBaseUnit } from '@/lib/domain'
 import type { BaseUnit, IngredientWithFood, Locale, Nutrition, ScaledRecipe } from '@/lib/domain/types'
 import { emitHouseholdEvent } from '@/lib/events/bus'
+import { invalidateHousehold } from '@/lib/cache/tags'
 import type { RecipeExportInput } from '@/lib/validation/data'
 import { RecipeInputSchema, type RecipeInput, type RecipeSearch } from '@/lib/validation/recipes'
 import { isUniqueViolation, type Ctx, type Db, ServiceError } from './ctx'
@@ -311,6 +312,7 @@ export async function createRecipe(ctx: Ctx, input: RecipeInput): Promise<Recipe
     return r.id
   })
   emitHouseholdEvent(ctx.householdId, { type: 'recipe.changed', payload: { recipeId: id } })
+  invalidateHousehold(ctx.householdId, ['recipes', 'foods'])
   const d = await getRecipe(ctx, id)
   if (!d) throw new ServiceError('not_found', 'Receta no encontrada')
   return d
@@ -329,6 +331,7 @@ export async function updateRecipe(ctx: Ctx, id: string, input: RecipeInput): Pr
     await writeChildren(ctx, tx, id, input, prepared)
   })
   emitHouseholdEvent(ctx.householdId, { type: 'recipe.changed', payload: { recipeId: id } })
+  invalidateHousehold(ctx.householdId, ['recipes', 'foods', 'plan'])
   const d = await getRecipe(ctx, id)
   if (!d) throw new ServiceError('not_found', 'Receta no encontrada')
   return d
@@ -371,6 +374,7 @@ export async function softDeleteRecipe(ctx: Ctx, id: string): Promise<void> {
     .returning({ id: schema.recipes.id })
   if (!r) throw new ServiceError('not_found', 'Receta no encontrada')
   emitHouseholdEvent(ctx.householdId, { type: 'recipe.changed', payload: { recipeId: id } })
+  invalidateHousehold(ctx.householdId, ['recipes', 'plan'])
 }
 
 export interface RecipeSummary {
@@ -558,6 +562,10 @@ export async function importAll(ctx: Ctx, data: RecipeExportInput): Promise<{ cr
       failed.push(parsed.data.title)
     }
   }
+  // createRecipe ya invalida por cada receta creada; esta llamada cubre el
+  // caso de una importación vacía o completamente fallida, donde el bucle
+  // no invalida nada por sí mismo.
+  invalidateHousehold(ctx.householdId, ['recipes', 'foods'])
   return { created, failed }
 }
 

@@ -4,6 +4,7 @@
 // conexión hacia ShopList; mismo patrón de cifrado que lib/services/ai-settings.ts.
 import { eq } from 'drizzle-orm'
 import * as schema from '@/db/schema'
+import { invalidateHousehold } from '@/lib/cache/tags'
 import { decryptSecret, encryptSecret, getKeys } from '@/lib/crypto'
 import { shopListDeepLink, type ShopListConfig } from '@/lib/integrations/shoplist'
 import type { z } from 'zod'
@@ -68,6 +69,7 @@ export async function updateShoplistSettings(ctx: Ctx, input: ShoplistSettings):
     patch.shoplistSecretEnc = encryptSecret(input.secret, getKeys().secrets)
   }
   await ctx.db.update(schema.households).set(patch).where(eq(schema.households.id, ctx.householdId))
+  invalidateHousehold(ctx.householdId, ['settings'])
 }
 
 // Config lista para lib/integrations/shoplist.ts::pushToShopList: hogar

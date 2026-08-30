@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import * as schema from '@/db/schema'
+import { invalidateHousehold } from '@/lib/cache/tags'
 import { CollectionQuerySchema, type CollectionInput, type CollectionQuery } from '@/lib/validation/collections'
 import { type Ctx, ServiceError } from './ctx'
 
@@ -31,6 +32,7 @@ export async function createCollection(ctx: Ctx, input: CollectionInput): Promis
     .values({ householdId: ctx.householdId, name: input.name, query: input.query })
     .returning({ id: schema.collections.id, name: schema.collections.name, query: schema.collections.query })
   if (!row) throw new ServiceError('conflict', 'No se pudo crear la colección')
+  invalidateHousehold(ctx.householdId, ['recipes'])
   return toView(row)
 }
 
@@ -42,4 +44,5 @@ export async function deleteCollection(ctx: Ctx, id: string): Promise<void> {
     .where(and(eq(schema.collections.id, id), eq(schema.collections.householdId, ctx.householdId)))
     .returning({ id: schema.collections.id })
   if (deleted.length === 0) throw new ServiceError('not_found', 'Colección no encontrada')
+  invalidateHousehold(ctx.householdId, ['recipes'])
 }
