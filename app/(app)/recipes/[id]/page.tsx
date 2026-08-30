@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { RecipeDetailView, type SerializableDetail } from '@/components/recipes/recipe-detail'
 import { requireHousehold } from '@/lib/auth/guards'
-import { getRecipe } from '@/lib/services/recipes'
+import { getRecipeCached } from '@/lib/cache/recipes'
 import { IdSchema } from '@/lib/validation/common'
 import { RecipeGetQuerySchema } from '@/lib/validation/recipes'
 
@@ -25,7 +25,7 @@ export default async function RecipeDetailPage({
   // servingsBase real); no hace falta pedirle a getRecipe que escale, así
   // que aquí no se pasan las raciones pedidas — solo se guardan para el
   // valor inicial del stepper.
-  const detail = await getRecipe(ctx, id)
+  const detail = await getRecipeCached(ctx.householdId, ctx.locale, id)
   if (!detail) notFound()
 
   // JSON.parse(JSON.stringify(...)): getRecipe devuelve Date reales (createdAt,

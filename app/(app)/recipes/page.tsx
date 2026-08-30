@@ -11,9 +11,7 @@ import { buttonVariants } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ScreenHeader } from '@/components/ui/screen-header'
 import { requireHousehold } from '@/lib/auth/guards'
-import { listCollections } from '@/lib/services/collections'
-import { searchRecipes } from '@/lib/services/recipes'
-import { listTags } from '@/lib/services/tags'
+import { getCollectionsCached, getTagsCached, searchRecipesCached } from '@/lib/cache/recipes'
 import { cn } from '@/lib/utils'
 import { CollectionQuerySchema } from '@/lib/validation/collections'
 import { RecipeSearchSchema } from '@/lib/validation/recipes'
@@ -38,7 +36,11 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
     offset: (page - 1) * PAGE_SIZE,
   })
   const query = parsed.success ? parsed.data : RecipeSearchSchema.parse({})
-  const [{ items, total }, tags, collections] = await Promise.all([searchRecipes(ctx, query), listTags(ctx), listCollections(ctx)])
+  const [{ items, total }, tags, collections] = await Promise.all([
+    searchRecipesCached(ctx.householdId, ctx.locale, query),
+    getTagsCached(ctx.householdId, ctx.locale),
+    getCollectionsCached(ctx.householdId, ctx.locale),
+  ])
 
   const baseParams = Object.fromEntries(Object.entries(sp).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
 

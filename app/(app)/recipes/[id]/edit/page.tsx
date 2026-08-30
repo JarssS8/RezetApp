@@ -5,8 +5,8 @@ import { ChevronLeftIcon } from '@/components/icons'
 import { RecipeEditor } from '@/components/recipes/recipe-editor'
 import type { FoodWithNutrition } from '@/lib/actions/foods'
 import { requireHousehold } from '@/lib/auth/guards'
+import { getRecipeCached } from '@/lib/cache/recipes'
 import { detailToInput } from '@/lib/services/recipe-mapper'
-import { getRecipe } from '@/lib/services/recipes'
 import { IdSchema } from '@/lib/validation/common'
 
 export default async function EditRecipePage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,7 +15,7 @@ export default async function EditRecipePage({ params }: { params: Promise<{ id:
 
   const ctx = await requireHousehold()
   const tc = await getTranslations('common')
-  const detail = await getRecipe(ctx, id)
+  const detail = await getRecipeCached(ctx.householdId, ctx.locale, id)
   if (!detail) notFound()
 
   const initial = detailToInput(detail)
