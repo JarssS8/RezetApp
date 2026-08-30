@@ -24,6 +24,10 @@ test.describe('caché por hogar', () => {
     const b = await browser.newPage()
     await registerHousehold(b, 'Bo')
     await b.goto('/recipes')
+    // Ancla positiva antes de afirmar ausencia: sin esto, un fallo de carga
+    // (pantalla en blanco) también dejaría la receta de A en cero repeticiones
+    // y el test pasaría en falso.
+    await expect(b.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(b.getByText(title)).toHaveCount(0)
 
     // Y al revés: que B haya pedido la pantalla no le ha quitado la suya a A.
@@ -36,6 +40,9 @@ test.describe('caché por hogar', () => {
     // Primera visita: la lista queda cacheada, vacía.
     await page.goto('/recipes')
     const title = uniqueName('Sopa')
+    // Ancla positiva antes de afirmar ausencia: mismo motivo que en el test
+    // anterior (una carga fallida no debe leerse como "receta no cacheada").
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(page.getByText(title)).toHaveCount(0)
 
     // Escritura por la REST -el mismo camino que usa el MCP-: si la
@@ -49,5 +56,22 @@ test.describe('caché por hogar', () => {
 
     await page.reload()
     await expect(page.getByText(title)).toBeVisible()
+  })
+
+  test('la pantalla llega con ventana de cliente, como con staleTimes', async ({ page }) => {
+    // En desarrollo Next no hace prefetch y la caché de cliente no se comporta
+    // como en producción (instant.md): esta comprobación solo tiene sentido
+    // contra `next start`. Ver Ruling W10-R3 en el plan de W10.
+    test.skip(!process.env.E2E_BASE_URL, 'Requiere un build de producción (E2E_BASE_URL)')
+    await registerHousehold(page, 'Dani')
+    await page.goto('/today')
+
+    // El encabezado es el mecanismo, no un síntoma: el router del cliente lo
+    // lee para saber cuánto puede reutilizar la respuesta sin volver a pedirla.
+    const res = await page.request.get('/today', { headers: { RSC: '1' } })
+    expect(res.ok()).toBeTruthy()
+    const staleTime = res.headers()['x-nextjs-stale-time']
+    expect(staleTime, 'sin ventana de cliente: cambiar de pestaña volvería a pedir la pantalla entera').toBeDefined()
+    expect(Number(staleTime)).toBeGreaterThanOrEqual(30)
   })
 })
