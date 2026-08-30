@@ -279,6 +279,13 @@ export async function decideProposal(ctx: Ctx, id: string, decision: 'approve' |
 
   if (decision === 'reject') {
     const updated = await ctx.db.transaction((tx) => resolveProposalTx(tx, ctx.householdId, id, 'rejected', userId))
+    // Sin fechas que avisar (no se tocó el plan), pero la propia propuesta
+    // cambió de estado: proposal-card.tsx escucha 'plan.changed' para saber
+    // cuándo refrescar la lista, y la etiqueta 'plan' es la misma que lee
+    // getProposals (lib/cache/plan.ts) — sin esto una propuesta rechazada
+    // seguiría viéndose "pending" en cualquier pantalla ya cacheada.
+    emitHouseholdEvent(ctx.householdId, { type: 'plan.changed', payload: { dates: [] } })
+    invalidateHousehold(ctx.householdId, ['plan'])
     return toProposalView(ctx, updated)
   }
 

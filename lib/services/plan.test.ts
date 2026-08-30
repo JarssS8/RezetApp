@@ -469,6 +469,23 @@ describe('decideProposal', () => {
     expect(entries).toHaveLength(0)
   })
 
+  it('reject vuelve a salir como rejected al listar (no se queda "pending" tras la decisión)', async () => {
+    const a = await makeHousehold('Casa A')
+    const ownerA = await makeUser('Ana')
+    const recipeA = await makeRecipe(a, 'Lentejas')
+    const proposal = await createProposal(ctxOf(a, { userId: ownerA }), {
+      source: 'rules',
+      payload: { add: [{ date: '2026-09-02', slot: 'dinner', recipeId: recipeA, servings: 2 }], remove: [] },
+    })
+
+    await decideProposal(ctxOf(a, { userId: ownerA }), proposal.id, 'reject')
+
+    const all = await listProposals(ctxOf(a, { userId: ownerA }))
+    expect(all.find((p) => p.id === proposal.id)?.status).toBe('rejected')
+    const pending = await listProposals(ctxOf(a, { userId: ownerA }), 'pending')
+    expect(pending.map((p) => p.id)).not.toContain(proposal.id)
+  })
+
   it('un token no puede decidir (forbidden), ni aprobar ni rechazar; una propuesta de otro hogar da not_found en ambos', async () => {
     const a = await makeHousehold('Casa A')
     const b = await makeHousehold('Casa B')

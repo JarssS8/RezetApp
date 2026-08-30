@@ -108,15 +108,20 @@ export async function acceptInvite(db: Db, input: { token: string; userId: strin
   return result
 }
 
-// Registro desde un enlace de invitación: el usuario entra como member y NO recibe hogar propio
+// Registro desde un enlace de invitación: el usuario entra como member y NO recibe hogar propio.
+// A diferencia de createUserWithHousehold, el hogar aquí no es nuevo (la
+// invitación es de uno ya existente): quien lo invitó puede tener ya la
+// pantalla de miembros abierta, así que se invalida igual que acceptInvite.
 export async function registerViaInvite(db: Db, input: { token: string; displayName: string; credential: VerifiedCredential; locale: Locale }): Promise<{ userId: string; householdId: string }> {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [user] = await tx.insert(schema.users).values({ displayName: input.displayName, locale: input.locale }).returning()
     if (!user) throw new ServiceError('conflict', 'No se pudo crear el usuario')
     await saveCredential(tx, user.id, input.credential, null)
     const householdId = await consumeInvite(tx, input.token, user.id)
     return { userId: user.id, householdId }
   })
+  invalidateHousehold(result.householdId, ['settings'])
+  return result
 }
 
 export async function leaveHousehold(ctx: Ctx): Promise<void> {

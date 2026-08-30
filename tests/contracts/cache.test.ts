@@ -175,7 +175,7 @@ function bodyOf(source: string, fn: string): string {
 }
 
 describe('invalidación', () => {
-  it('cada escritura de hogar caduca exactamente sus ámbitos', () => {
+  it('cada escritura de hogar menciona sus ámbitos', () => {
     for (const [file, fn, scopes] of WRITES) {
       const body = bodyOf(read(file), fn)
       expect(body, `${file}::${fn}`).toContain('invalidateHousehold(')

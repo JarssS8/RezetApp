@@ -562,9 +562,9 @@ export async function importAll(ctx: Ctx, data: RecipeExportInput): Promise<{ cr
       failed.push(parsed.data.title)
     }
   }
-  // createRecipe ya invalida por cada receta creada; esta llamada cubre el
-  // caso de una importación vacía o completamente fallida, donde el bucle
-  // no invalida nada por sí mismo.
+  // createRecipe ya invalida por cada receta creada dentro del bucle; esta
+  // llamada de más es la red de seguridad para cuando el lote viene vacío o
+  // falla entero (el bucle no invalida nada por sí mismo en ese caso).
   invalidateHousehold(ctx.householdId, ['recipes', 'foods'])
   return { created, failed }
 }
