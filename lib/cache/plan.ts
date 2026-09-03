@@ -40,10 +40,16 @@ export async function getRangeNutrition(householdId: string, locale: Locale, fro
 
 // `onlyPending` en vez del `status?: 'pending'` del servicio: un booleano es
 // una clave de caché más pequeña y con menos formas posibles que un opcional.
+//
+// 'foods', 'settings' y 'recipes' además de 'plan': el diff de cada propuesta
+// arrastra el título vigente de la receta (renombrarla lo cambia) y
+// allergenConflicts sale de foods.allergens y de household_members.allergens
+// (ajuste de hogar) — fusionar alimentos o cambiar los alérgenos de un
+// miembro tiene que caducar esta lista tanto como el propio plan.
 export async function getProposals(householdId: string, locale: Locale, onlyPending: boolean): Promise<ProposalView[]> {
   'use cache'
   cacheLife('household')
-  cacheTag(householdTag(householdId, 'plan'))
+  cacheTag(householdTag(householdId, 'plan'), householdTag(householdId, 'foods'), householdTag(householdId, 'settings'), householdTag(householdId, 'recipes'))
   const ctx = cacheCtx(householdId, locale)
   return onlyPending ? listProposals(ctx, 'pending') : listProposals(ctx)
 }

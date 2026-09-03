@@ -91,6 +91,32 @@ test.describe('caché por hogar', () => {
     }
   })
 
+  test('una escritura por MCP invalida la caché igual que por REST', async ({ page, request, baseURL }) => {
+    // Tercer camino de escritura (además de la interfaz y la REST, arriba):
+    // un token de API con plan:write, igual que en e2e/mcp.spec.ts.
+    await registerHousehold(page, 'Fon')
+    await page.goto('/settings/tokens')
+    await page.getByRole('button', { name: /crear token|create token/i }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel(/^nombre$|^name$/i).fill('e2e cache mcp')
+    await dialog.getByLabel(/editar el plan|edit the plan/i).check()
+    await dialog.getByRole('button', { name: /crear token|create token/i }).click()
+    const token = (await dialog.getByTestId('new-token').innerText()).trim()
+
+    const title = uniqueName('Potaje')
+    const date = new Date().toISOString().slice(0, 10)
+    const call = await request.post(`${baseURL}/mcp`, {
+      headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${token}` },
+      data: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'set_meal_plan', arguments: { add: [{ date, slot: 'lunch', customTitle: title }], remove: [] } } },
+    })
+    expect(call.ok()).toBeTruthy()
+
+    // set_meal_plan crea una PROPUESTA (createProposal), no una entrada del
+    // plan: la caché que tiene que refrescarse en el acto es getProposals.
+    await page.goto('/plan/proposals')
+    await expect(page.getByText(title)).toBeVisible()
+  })
+
   test('el armazón compartido no lleva nada de ningún hogar', async ({ browser }) => {
     // El armazón de una ruta `◐` se genera en el build y se sirve igual a todo
     // el mundo: es el sitio donde una fuga sería peor: no una entrada de caché

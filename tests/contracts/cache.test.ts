@@ -20,23 +20,51 @@ function walk(dir: string): string[] {
 const CACHE_DIR = 'lib/cache'
 const cacheFiles = () => readdirSync(join(ROOT, CACHE_DIR)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
 
-// Toda función que abre un ámbito de caché, con su firma.
-function cachedFunctions(source: string): { name: string; signature: string; body: string }[] {
-  const out: { name: string; signature: string; body: string }[] = []
-  const re = /export async function (\w+)\(([^)]*)\)[^{]*\{\s*'use cache'([\s\S]*?)(?=\nexport |\n$)/g
-  for (const m of source.matchAll(re)) out.push({ name: m[1] as string, signature: m[2] as string, body: m[3] as string })
+// Los tres sabores de la directiva: 'use cache' (por defecto, ámbito de
+// hogar), 'use cache: private' (por sesión, puede leer cookies/headers) y
+// 'use cache: remote' (compartida entre despliegues). Los tres abren un
+// ámbito de caché y los tres le importan a este contrato por igual.
+const DIRECTIVE_SRC = "'use cache(?::\\s*(?:private|remote))?'"
+const hasCacheDirective = (source: string) => new RegExp(DIRECTIVE_SRC).test(source)
+
+// La única función cacheada fuera de lib/cache: IntlShell, en el armazón
+// raíz. app/layout.tsx es síncrono a propósito (no tiene un hijo propio que
+// envolver en <Suspense>, 08-caching.md "App Shell") y aun así necesita leer
+// la cookie de preferencias para el idioma — solo 'use cache: private' lo
+// permite. Es un ámbito de SESIÓN, no de hogar (ruling W10-R6): no lleva
+// householdId y las aserciones de forma de abajo no se le aplican tal cual,
+// tiene las suyas propias.
+const ALLOWED_CACHE_OUTSIDE: Record<string, string> = {
+  'components/i18n/intl-shell.tsx': 'IntlShell: ámbito privado por sesión del armazón raíz, sin householdId (ruling W10-R6)',
+}
+
+// Toda función que abre un ámbito de caché, con su firma, la directiva usada y el cuerpo.
+function cachedFunctions(source: string): { name: string; signature: string; directive: string; body: string }[] {
+  const out: { name: string; signature: string; directive: string; body: string }[] = []
+  const re = new RegExp(`export async function (\\w+)\\(([^)]*)\\)[^{]*\\{\\s*${DIRECTIVE_SRC}([\\s\\S]*?)(?=\\nexport |\\n$)`, 'g')
+  for (const m of source.matchAll(re)) {
+    const directive = (m[0].match(/'(use cache[^']*)'/) ?? ['', ''])[1] as string
+    out.push({ name: m[1] as string, signature: m[2] as string, directive, body: m[3] as string })
+  }
   return out
 }
 
 describe('forma de las funciones cacheadas', () => {
-  it('"use cache" solo existe bajo lib/cache', () => {
+  it('"use cache" (en sus tres sabores) solo existe bajo lib/cache o en la lista blanca', () => {
     // Cachear interfaz (una página, un componente) mezclaría datos del hogar
     // con datos del usuario -units, displayName, role- en la misma entrada:
     // es exactamente la fuga que esta oleada existe para impedir.
     const offenders = [...walk('app'), ...walk('components'), ...walk('lib')]
       .filter((f) => !f.startsWith('lib/cache/'))
-      .filter((f) => read(f).includes("'use cache'"))
-    expect(offenders).toEqual([])
+      .filter((f) => hasCacheDirective(read(f)))
+    expect(offenders.sort()).toEqual(Object.keys(ALLOWED_CACHE_OUTSIDE).sort())
+  })
+
+  it('la lista blanca de fuera de lib/cache tiene motivo escrito y sigue vigente', () => {
+    for (const [file, reason] of Object.entries(ALLOWED_CACHE_OUTSIDE)) {
+      expect(reason.length, file).toBeGreaterThan(20)
+      expect(hasCacheDirective(read(file)), `${file}: ya no usa una directiva de caché, quita su entrada de ALLOWED_CACHE_OUTSIDE`).toBe(true)
+    }
   })
 
   it('cada función cacheada lleva el hogar y el idioma en la clave', () => {
@@ -51,12 +79,34 @@ describe('forma de las funciones cacheadas', () => {
     }
   })
 
+  it('la excepción de la lista blanca es de sesión, no de hogar: sin householdId y en privado', () => {
+    // Exención explícita, no un "no aplica" silencioso: IntlShell no tiene
+    // hogar que meter en la clave (todavía no hay sesión resuelta cuando el
+    // armazón se prerenderiza) y por eso usa 'use cache: private' en vez de
+    // la firma (householdId, locale) del resto de lib/cache.
+    for (const file of Object.keys(ALLOWED_CACHE_OUTSIDE)) {
+      for (const fn of cachedFunctions(read(file))) {
+        expect(fn.directive, `${file}::${fn.name}`).toBe('use cache: private')
+        expect(fn.signature, `${file}::${fn.name}`).not.toContain('householdId')
+      }
+    }
+  })
+
   it('cada función cacheada declara vida y etiquetas construidas, no literales', () => {
     for (const file of cacheFiles()) {
       for (const fn of cachedFunctions(read(`${CACHE_DIR}/${file}`))) {
         expect(fn.body, `${file}::${fn.name}`).toContain("cacheLife('household')")
         expect(fn.body, `${file}::${fn.name}`).toContain('cacheTag(householdTag(householdId,')
         expect(fn.body, `${file}::${fn.name}`).not.toMatch(/cacheTag\(\s*['"`]/)
+      }
+    }
+  })
+
+  it('la excepción de la lista blanca declara su propia vida de sesión, sin etiqueta de hogar', () => {
+    for (const file of Object.keys(ALLOWED_CACHE_OUTSIDE)) {
+      for (const fn of cachedFunctions(read(file))) {
+        expect(fn.body, `${file}::${fn.name}`).toContain("cacheLife('session')")
+        expect(fn.body, `${file}::${fn.name}`).not.toContain('cacheTag(')
       }
     }
   })
@@ -165,6 +215,7 @@ const WRITES: [file: string, fn: string, scopes: string[]][] = [
   ['lib/services/ai-settings.ts', 'updateAiSettings', ['settings']],
   ['lib/services/shoplist-settings.ts', 'updateShoplistSettings', ['settings']],
   ['lib/services/shopping.ts', 'pushShopping', ['settings']],
+  ['lib/services/user-prefs.ts', 'updateUserPrefs', ['settings']],
 ]
 
 // Cuerpo de una función exportada: desde su cabecera hasta la siguiente
@@ -205,8 +256,9 @@ describe('invalidación', () => {
   })
 
   it('revalidatePath sobrevive solo en las dos líneas del marco', () => {
-    // Ninguna de las dos invalida datos de hogar: refrescan el layout que se
-    // deriva de la cookie de preferencias (tema, idioma) y del hogar activo.
+    // Ninguna de las dos invalida datos de hogar: vacían la caché de cliente
+    // que junta el idioma de IntlShell (ámbito privado por sesión) y el hogar
+    // activo de la sesión.
     const settings = read('lib/actions/settings.ts')
     expect(settings.split("revalidatePath('/', 'layout')").length - 1).toBe(2)
     for (const file of ['pantry', 'recipes', 'plan', 'plan-rules', 'cooking', 'foods', 'collections', 'shopping', 'ai']) {

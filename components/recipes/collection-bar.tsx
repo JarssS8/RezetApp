@@ -63,9 +63,10 @@ export function CollectionBar({ collections, currentQuery }: CollectionBarProps)
     e.preventDefault()
     setError(null)
     startTransition(async () => {
-      // No hace falta actualizar estado local: createCollectionAction hace
-      // revalidatePath('/recipes') y el Server Component padre nos vuelve a
-      // pasar `collections` con la fila nueva ya incluida.
+      // No hace falta actualizar estado local: createCollection invalida el
+      // ámbito 'recipes' (invalidateHousehold) y la acción de servidor
+      // refresca la ruta al terminar, así que el Server Component padre nos
+      // vuelve a pasar `collections` con la fila nueva ya incluida.
       const res = await createCollectionAction({ name, query: currentQuery })
       if (res.ok) {
         setOpen(false)

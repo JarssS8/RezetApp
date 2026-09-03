@@ -41,7 +41,7 @@ para el ámbar pequeño y las cinco animaciones aprobadas. Todo en `main` con
 `pnpm check`, `pnpm build` y `pnpm e2e` verdes, y axe limpio en las cinco
 pantallas más login y registro, en los dos temas. El proyecto está completo.
 **W10 (caché) hecha el 2026-08-30**: el temporizador ciego de frescura de
-0 s se sustituye por caché por componentes (`cacheComponents`) con etiquetas
+30 s se sustituye por caché por componentes (`cacheComponents`) con etiquetas
 por hogar — cada lectura pasa por una función `"use cache"` de `lib/cache`
 con `(householdId, locale, …)` al principio de la firma, y cada escritura
 la caduca desde `lib/services` con `invalidateHousehold`, junto a la línea

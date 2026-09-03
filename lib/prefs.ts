@@ -1,4 +1,6 @@
-// Preferencias visuales espejo de users.* — se leen en SSR para pintar <html> sin flash.
+// Preferencias visuales espejo de users.* — PREFS_BOOT_SCRIPT las pinta en el
+// cliente antes del primer pintado; desde T11b el servidor ya no las lee para
+// el <html> (ver el comentario de PREFS_BOOT_SCRIPT más abajo).
 export const ACCENTS = ['huerta', 'miel', 'tomate', 'pistacho', 'higo', 'berenjena', 'arandano', 'canela'] as const
 export const THEMES = ['system', 'light', 'dark'] as const
 export const LOCALES = ['es', 'en'] as const

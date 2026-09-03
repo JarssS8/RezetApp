@@ -155,9 +155,10 @@ export async function switchHouseholdAction(householdId: string): Promise<Action
     const parsed = IdSchema.safeParse(householdId)
     if (!parsed.success) return fail('validation', 'Identificador inválido')
     await switchHousehold(ctx.db, ctx.session.session.id, parsed.data)
-    // No es un dato de hogar: refresca el marco que app/layout.tsx deriva de
-    // la cookie de preferencias (tema, acento, idioma). Por eso sobrevive a
-    // W10, donde todo lo demás pasó a etiquetas.
+    // No es un dato de hogar (cambia CUÁL es el hogar activo, no sus datos,
+    // así que no hay etiqueta que caducar): vacía la caché de cliente entera
+    // para que el router deje de servir páginas prefetcheadas del hogar
+    // anterior. Por eso sobrevive a W10, donde todo lo demás pasó a etiquetas.
     revalidatePath('/', 'layout')
     return ok(null)
   } catch (e) {
