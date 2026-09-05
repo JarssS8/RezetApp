@@ -73,13 +73,15 @@ const DARK = { surf: '#1C201D', bg: '#101411', surf2: '#252925', text: '#EFF1EC'
 
 // Mezclas espejo de las del CSS. Cambiar una aquí sin cambiarla allí hace
 // fallar el test de paridad de abajo, que busca la cadena literal.
-const accSoft = (acc: string, dark: boolean) => (dark ? mix(acc, DARK.bg, 0.17) : mix(acc, LIGHT.surf, 0.11))
-// Anclas oscuras: la CSS real fija estos mixes a un `#F1EBE1` literal, no a
-// `var(--text)` — así que el espejo tiene que usar el literal, no `DARK.text`
-// (que ahora vale `#EFF1EC`, distinto). Antes de este rediseño ambos valores
-// coincidían por casualidad; `DARK.text` sigue siendo el correcto en todo lo
-// que sí lee `--text` de verdad (p. ej. "el texto corriente sigue siendo
-// legible").
+const accSoft = (acc: string, dark: boolean) => (dark ? mix(acc, '#16130F', 0.17) : mix(acc, LIGHT.surf, 0.11))
+// Anclas oscuras: la CSS real fija estos mixes a literales (#F1EBE1 para las
+// tintas, #16130F —el --bg oscuro de antes de este rediseño— para
+// --acc-soft), no a `var(--text)`/`var(--bg)` — así que el espejo tiene que
+// usar los literales, no `DARK.text`/`DARK.bg` (que ahora valen `#EFF1EC`/
+// `#101411`, distintos). Antes de este rediseño los valores coincidían por
+// casualidad; `DARK.text`/`DARK.bg` siguen siendo los correctos en todo lo
+// que sí lee `--text`/`--bg` de verdad (p. ej. "el texto corriente sigue
+// siendo legible").
 const accInk = (acc: string, dark: boolean) => (dark ? mix(acc, '#F1EBE1', 0.68) : mix(acc, '#0A2118', 0.6))
 const warnInk = (dark: boolean) => (dark ? mix(DARK.warn, '#F1EBE1', 0.85) : mix(LIGHT.warn, '#0A2118', 0.65))
 const warnSoft = (dark: boolean) => (dark ? mix(DARK.warn, DARK.surf, 0.14) : mix(LIGHT.warn, LIGHT.surf, 0.14))
