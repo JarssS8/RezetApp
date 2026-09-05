@@ -6,7 +6,7 @@ export type Difficulty = 'easy' | 'medium' | 'hard';
 
 export type Locale = 'es' | 'en';
 export type Theme = 'system' | 'light' | 'dark';
-export type Accent = 'green' | 'amber' | 'coral' | 'blue';
+export type Accent = 'green' | 'amber' | 'coral' | 'blue' | 'pink' | 'violet' | 'teal';
 export type UnitSystem = 'metric' | 'imperial';
 
 /** Texto bilingüe. En datos creados por el usuario ambos campos son iguales. */

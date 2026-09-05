@@ -74,7 +74,7 @@ export function SettingsSheet({
               <OptionChip key={id} label={label} active={theme === id} onClick={() => setTheme(id)} />
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 12, marginTop: 14 }}>
+          <div style={{ display: 'flex', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
             {(Object.keys(ACCENTS) as Accent[]).map((key) => (
               <Pressable
                 key={key}

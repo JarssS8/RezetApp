@@ -6,14 +6,19 @@ import type { Accent, Locale, Localized, Theme, UnitSystem } from '../types';
 import type { Dictionary } from '../i18n/es';
 
 /**
- * Los cuatro acentos están calibrados para que el blanco encima pase 4.5:1.
- * No los aclares: el texto de los botones dejaría de ser legible.
+ * Todos los acentos están calibrados para que el blanco encima pase 4.5:1
+ * (y de paso --accent-ink sobre --soft/--soft2/--surface, en los dos temas).
+ * No los aclares: el texto dejaría de ser legible. Añadir uno nuevo exige
+ * recalcular esos contrastes, no solo elegir un tono que "quede bien".
  */
 export const ACCENTS: Record<Accent, string> = {
   green: 'oklch(0.54 0.105 156)',
   amber: 'oklch(0.555 0.125 72)',
   coral: 'oklch(0.555 0.135 32)',
   blue: 'oklch(0.545 0.105 245)',
+  pink: 'oklch(0.566 0.15 348)',
+  violet: 'oklch(0.56 0.14 298)',
+  teal: 'oklch(0.53 0.105 203)',
 };
 
 interface Prefs {
