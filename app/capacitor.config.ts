@@ -5,7 +5,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * `webDir` apunta al resultado de `vite build`.
  */
 const config: CapacitorConfig = {
-  appId: 'com.rezet.app',
+  appId: 'com.jars.rezet',
   appName: 'Rezet',
   webDir: 'dist',
   ios: {
