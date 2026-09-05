@@ -8,6 +8,12 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
+      // injectManifest en vez de generateSW: necesitamos nuestro propio
+      // listener de `push` (src/sw.ts) para las notificaciones de M8b — con
+      // el service worker autogenerado no hay dónde colgarlo.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       manifest: {
         name: 'Rezet',
         short_name: 'Rezet',
@@ -24,18 +30,13 @@ export default defineConfig({
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
         ],
       },
-      workbox: {
-        // Shell de la app en caché; los datos de Supabase nunca (se sirven
-        // por red siempre — cachearlos aquí desincroniza pantry/plan entre
-        // pestañas y contradice el punto de tener tiempo real).
+      injectManifest: {
+        // Shell de la app en caché; los datos de Supabase nunca pasan por
+        // aquí (se sirven por red siempre — cachearlos desincroniza
+        // pantry/plan entre pestañas y contradice tener tiempo real).
         globPatterns: ['**/*.{js,css,html,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.origin.includes('supabase.co'),
-            handler: 'NetworkOnly',
-          },
-        ],
       },
+      devOptions: { enabled: false },
     }),
   ],
   build: {

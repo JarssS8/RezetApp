@@ -24,6 +24,11 @@ export const en: Dictionary = {
   orDivider: 'or',
 
   inviteSomeone: 'Invite someone',
+  enableNotifications: 'Enable notifications',
+  notificationsEnabled: 'Notifications enabled',
+  notificationsDenied: 'You blocked notification permission in the browser.',
+  notificationsUnsupported: 'This browser does not support push notifications.',
+  notificationsError: 'Could not enable it. Please try again.',
   inviteSheetTitle: 'Invite to your household',
   inviteSheetBody: 'Share this code. It expires in 7 days and works once.',
   copyCode: 'Copy code',

@@ -22,6 +22,11 @@ export const es = {
   orDivider: 'o',
 
   inviteSomeone: 'Invitar a alguien',
+  enableNotifications: 'Activar notificaciones',
+  notificationsEnabled: 'Notificaciones activadas',
+  notificationsDenied: 'Bloqueaste el permiso de notificaciones en el navegador.',
+  notificationsUnsupported: 'Este navegador no soporta notificaciones push.',
+  notificationsError: 'No se pudo activar. Inténtalo de nuevo.',
   inviteSheetTitle: 'Invita a tu hogar',
   inviteSheetBody:
     'Comparte este código. Caduca en 7 días y solo puede usarse una vez.',

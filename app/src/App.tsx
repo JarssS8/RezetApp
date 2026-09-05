@@ -19,6 +19,7 @@ import { Plan } from './screens/Plan';
 import { Pantry } from './screens/Pantry';
 import { Cook } from './screens/Cook';
 import { useCookSession } from './screens/useCookSession';
+import { useCookTimerSync } from './data/useCookTimerSync';
 import { SettingsSheet } from './sheets/SettingsSheet';
 import { ShoppingSheet } from './sheets/ShoppingSheet';
 import { PantryAddSheet } from './sheets/PantryAddSheet';
@@ -130,6 +131,7 @@ function MainApp({
 }) {
   const isWide = useIsWide();
   const { t } = usePrefs();
+  const { profile } = useAuth();
   const { recipeById, finishCook } = useData();
   const { message, show } = useToast();
 
@@ -142,6 +144,7 @@ function MainApp({
 
   const cook = useCookSession();
   const cookSession = cook.session;
+  useCookTimerSync(cookSession, demo, profile);
 
   const openRecipe = useCallback(
     (recipeId: string, servings: number) => setPush({ kind: 'recipe', recipeId, servings }),
@@ -256,6 +259,7 @@ function MainApp({
             onSignOut();
           }}
           onInvite={demo || !onInvite ? undefined : () => setSheet({ kind: 'invite' })}
+          onToast={show}
         />
       )}
 

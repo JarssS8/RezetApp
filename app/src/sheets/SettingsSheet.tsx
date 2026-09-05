@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { usePrefs, ACCENTS } from '../store/prefs';
+import { useAuth } from '../data/auth';
+import { subscribeToPush } from '../data/push';
 import { OptionChip } from '../ui/Chip';
 import { Eyebrow } from '../ui/Card';
 import { Pressable } from '../ui/Pressable';
@@ -11,14 +14,32 @@ export function SettingsSheet({
   onReplayTour,
   onSignOut,
   onInvite,
+  onToast,
 }: {
   onClose: () => void;
   onReplayTour: () => void;
   onSignOut: () => void;
   /** Solo en modo real, con hogar: ausente en el modo demo. */
   onInvite?: () => void;
+  onToast?: (msg: string) => void;
 }) {
   const { t, theme, accent, locale, units, setTheme, setAccent, setLocale, setUnits } = usePrefs();
+  const { profile } = useAuth();
+  const [notifBusy, setNotifBusy] = useState(false);
+
+  const enableNotifications = async () => {
+    if (!profile || notifBusy) return;
+    setNotifBusy(true);
+    const result = await subscribeToPush(profile.id);
+    setNotifBusy(false);
+    const messages = {
+      subscribed: t.notificationsEnabled,
+      denied: t.notificationsDenied,
+      unsupported: t.notificationsUnsupported,
+      error: t.notificationsError,
+    } as const;
+    onToast?.(messages[result]);
+  };
 
   const themes: Array<[Theme, string]> = [
     ['system', t.system],
@@ -82,6 +103,25 @@ export function SettingsSheet({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {profile && (
+            <Pressable
+              onClick={() => void enableNotifications()}
+              disabled={notifBusy}
+              scale={0.98}
+              style={{
+                height: 48,
+                borderRadius: radius.input,
+                background: 'var(--surface2)',
+                fontSize: 15.5,
+                fontWeight: 600,
+                textAlign: 'left',
+                padding: '0 16px',
+                opacity: notifBusy ? 0.6 : 1,
+              }}
+            >
+              {t.enableNotifications}
+            </Pressable>
+          )}
           {onInvite && (
             <Pressable
               onClick={onInvite}
