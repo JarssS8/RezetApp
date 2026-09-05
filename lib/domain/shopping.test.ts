@@ -57,7 +57,7 @@ describe('consolidateNeeds', () => {
   })
   it('no lineal se escala amortiguado', () => {
     const lines = consolidateNeeds([entry({ servings: 4 }, [ing({ foodId: 'sal', foodName: 'Sal', quantity: 10, scalesLinearly: false })])], [])
-    expect(lines[0]?.quantity).toBeCloseTo(15.69, 2)
+    expect(lines[0]?.quantity).toBeCloseTo(14.64, 2)
   })
   it('sin food_id: agrupa por nombre normalizado, suma y no resta despensa', () => {
     const lines = consolidateNeeds(

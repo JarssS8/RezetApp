@@ -9,19 +9,19 @@ const ing = (over: Partial<Ingredient>): Ingredient => ({
 
 describe('scaleQuantity', () => {
   it('lineal multiplica', () => expect(scaleQuantity(100, 2, true)).toBe(200))
-  it('no lineal amortigua con ratio^0.65', () => expect(scaleQuantity(10, 2, false)).toBeCloseTo(15.69, 2))
+  it('no lineal amortigua con ratio^0.55', () => expect(scaleQuantity(10, 2, false)).toBeCloseTo(14.64, 2))
   it('ratio 1 no cambia nada', () => {
     expect(scaleQuantity(7, 1, false)).toBe(7)
     expect(scaleQuantity(7, 1, true)).toBe(7)
   })
-  it('reducir también amortigua', () => expect(scaleQuantity(10, 0.5, false)).toBeCloseTo(6.37, 2))
+  it('reducir también amortigua', () => expect(scaleQuantity(10, 0.5, false)).toBeCloseTo(6.83, 2))
 })
 
 describe('scaleIngredient', () => {
   it('escala base y display con la misma regla', () => {
     const r = scaleIngredient(ing({ quantity: 15, unit: 'ml', displayQuantity: 1, displayUnit: 'tbsp', scalesLinearly: false }), 2)
-    expect(r.quantity).toBeCloseTo(23.54, 2)
-    expect(r.displayQuantity).toBeCloseTo(1.57, 2)
+    expect(r.quantity).toBeCloseTo(21.96, 2)
+    expect(r.displayQuantity).toBeCloseTo(1.46, 2)
   })
   it('null se queda null', () => {
     const r = scaleIngredient(ing({ quantity: null, unit: null, displayQuantity: null, displayUnit: 'pinch' }), 3)
@@ -36,7 +36,7 @@ describe('scaleRecipe', () => {
     expect(r.ratio).toBe(1.5)
     expect(r.servings).toBe(6)
     expect(r.ingredients[0]?.quantity).toBe(150)
-    expect(r.ingredients[1]?.quantity).toBeCloseTo(6.5, 1)
+    expect(r.ingredients[1]?.quantity).toBeCloseTo(6.25, 2)
     expect(r.nonLinearIds).toEqual(['b'])
   })
   it('rechaza raciones no positivas', () => {

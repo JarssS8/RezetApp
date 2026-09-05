@@ -12,7 +12,7 @@ la hace.
 Cada ingrediente de una receta lleva `scales_linearly: boolean`.
 
 ```ts
-const DAMP = 0.65
+const DAMP = 0.55
 
 export function escalar(cantidad: number, ratio: number, lineal: boolean) {
   return lineal ? cantidad * ratio : cantidad * Math.pow(ratio, DAMP)

@@ -163,7 +163,7 @@ Estas tres son las que diferencian a RezetApp. Están detalladas en
 `docs/03-DOMINIO.md` — no improvises sobre ellas.
 
 - **Escalado no lineal.** Los ingredientes tienen un flag `scales_linearly`. Sal,
-  especias, levadura y alcohol se ajustan con `ratio^0.65`, no se multiplican.
+  especias, levadura y alcohol se ajustan con `ratio^0.55`, no se multiplican.
   La UI lo marca en ámbar. Duplicar la sal arruina el plato.
 - **Kilocalorías siempre por ración.** Al escalar, el valor por ración *no cambia*;
   lo que cambia es el total. Nunca muestres "412 kcal" a secas.

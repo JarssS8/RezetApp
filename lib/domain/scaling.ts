@@ -1,8 +1,12 @@
 import { stripAccents } from './units-data'
 import type { Ingredient, Locale, RecipeForScaling, ScaledRecipe } from './types'
 
-// Exponente de amortiguación: duplicar la sal arruina el plato
-export const DAMP = 0.65
+// Exponente de amortiguación: duplicar la sal arruina el plato. 0.55, no 0.65
+// (handoff de rediseño 2026-09, design_handoff_rezet_redesign/README.md §5.1):
+// el prototipo lo fija en factor^0.55 y "los valores... son literales, no
+// aproximaciones" (README §0). Recalculado en scaling.test.ts y
+// shopping.test.ts.
+export const DAMP = 0.55
 
 export function scaleQuantity(qty: number, ratio: number, scalesLinearly: boolean): number {
   return scalesLinearly ? qty * ratio : qty * Math.pow(ratio, DAMP)
