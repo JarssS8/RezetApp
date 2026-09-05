@@ -267,7 +267,7 @@ async function applyAllocations(tx: Db, householdId: string, allocations: Alloca
 
 // Tolerancia de escritura: pantry_items.quantity es numeric(12,3), así que el
 // UPDATE redondea a 3 decimales. Una cantidad escalada de forma no lineal
-// (ratio^0.65) puede tener más decimales que eso: la diferencia entre lo pedido
+// (ratio^0.55) puede tener más decimales que eso: la diferencia entre lo pedido
 // (número JS sin redondear) y lo realmente restado (RETURNING redondeado) es
 // ruido de columna, no un faltante que avisar.
 const STORAGE_EPSILON = 1e-3

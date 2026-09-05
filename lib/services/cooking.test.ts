@@ -153,7 +153,7 @@ describe('logCooked', () => {
   })
 
   it('el redondeo de numeric(12,3) en un escalado no lineal no genera avisos falsos', async () => {
-    // Ingrediente que NO escala linealmente: al escalar con ratio^0.65 la cantidad
+    // Ingrediente que NO escala linealmente: al escalar con ratio^0.55 la cantidad
     // resultante tiene más de 3 decimales, pero pantry_items.quantity es numeric(12,3).
     // Con despensa de sobra, el UPDATE nunca deja el artículo a 0: no hay recorte real.
     const [salt] = await db

@@ -105,7 +105,7 @@ describe('getRecipe', () => {
     const g = await getRecipe(ctxA, d.recipe.id, { servings: 8 })
     expect(g?.scaled?.ratio).toBe(2)
     expect(g?.scaled?.ingredients[0]?.quantity).toBe(600)
-    expect(g?.scaled?.ingredients[1]?.quantity).toBeCloseTo(5 * Math.pow(2, 0.65), 3)
+    expect(g?.scaled?.ingredients[1]?.quantity).toBeCloseTo(5 * Math.pow(2, 0.55), 3)
     expect(g?.scaled?.nonLinearIds).toEqual([d.ingredients[1]?.id])
     expect(g?.nutrition?.perServing.kcal).toBeCloseTo(30, 0)
   })
