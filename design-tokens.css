@@ -227,3 +227,13 @@ body {
   from { transform: scale(0.9); }
   to { transform: scale(1); }
 }
+
+/* Animaciones de entrada — handoff de rediseño 2026-09 (README §6.2). Las
+   duraciones son literales por elemento, no tokens --dur-*: las fija quien
+   las usa cuando reconstruya cada pantalla (pushin .3s para vistas apiladas,
+   rise .34s/.5s para hojas y login, toastin .28s para el toast, fadein .22s
+   /.28s para scrim y cambio de pestaña — README §6.2). */
+@keyframes fadein  { from{opacity:0} to{opacity:1} }
+@keyframes rise    { from{opacity:0;transform:translateY(14px) scale(.985)} to{opacity:1;transform:none} }
+@keyframes pushin  { from{opacity:.4;transform:translateX(26px)} to{opacity:1;transform:none} }
+@keyframes toastin { from{opacity:0;transform:translateY(18px) scale(.96)} to{opacity:1;transform:none} }

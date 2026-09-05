@@ -103,6 +103,14 @@
   }
 }
 
+/* Los cuatro keyframes del handoff de rediseño 2026-09 (README §6.2). Sin
+   utilidad que los invoque todavía: las pantallas de fases posteriores los
+   consumen con la duración literal que les toque, no un token --dur-*. */
+@keyframes fadein  { from{opacity:0} to{opacity:1} }
+@keyframes rise    { from{opacity:0;transform:translateY(14px) scale(.985)} to{opacity:1;transform:none} }
+@keyframes pushin  { from{opacity:.4;transform:translateX(26px)} to{opacity:1;transform:none} }
+@keyframes toastin { from{opacity:0;transform:translateY(18px) scale(.96)} to{opacity:1;transform:none} }
+
 /* ---------- Tokens · dirección «Mercado» ---------- */
 :root {
   --acc: oklch(0.55 0.105 156);

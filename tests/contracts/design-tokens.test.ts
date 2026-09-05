@@ -110,6 +110,10 @@ describe('tokens de diseño', () => {
       '--ease-out: cubic-bezier(.23, 1, .32, 1)',
       '--ease-in: cubic-bezier(.4, 0, 1, 1)',
       '--grad-food: linear-gradient(var(--grad-food-angle, 135deg), var(--acc-soft), var(--surf-2))',
+      '@keyframes fadein  { from{opacity:0} to{opacity:1} }',
+      '@keyframes rise    { from{opacity:0;transform:translateY(14px) scale(.985)} to{opacity:1;transform:none} }',
+      '@keyframes pushin  { from{opacity:.4;transform:translateX(26px)} to{opacity:1;transform:none} }',
+      '@keyframes toastin { from{opacity:0;transform:translateY(18px) scale(.96)} to{opacity:1;transform:none} }',
     ]
     for (const token of shared) {
       expect(DOC, `design-tokens.css debe declarar ${token}`).toContain(token)
