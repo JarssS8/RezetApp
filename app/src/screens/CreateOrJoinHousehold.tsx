@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useAuth } from '../data/auth';
+import { consumePendingInvite } from '../data/pendingInvite';
 import { Button } from '../ui/Button';
 import { TextField } from '../ui/Fields';
 import { OptionChip } from '../ui/Chip';
@@ -14,10 +15,11 @@ import { radius } from '../ui/tokens';
 export function CreateOrJoinHousehold() {
   const { t } = usePrefs();
   const { createHousehold, redeemInvite, error, clearError } = useAuth();
-  const [mode, setMode] = useState<'create' | 'join'>('create');
+  const [pendingCode] = useState(() => consumePendingInvite());
+  const [mode, setMode] = useState<'create' | 'join'>(pendingCode ? 'join' : 'create');
   const [name, setName] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(pendingCode ?? '');
   const [busy, setBusy] = useState(false);
 
   const canSubmit =

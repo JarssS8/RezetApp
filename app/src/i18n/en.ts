@@ -36,7 +36,10 @@ export const en: Dictionary = {
   inviteSheetBody: 'Share this code. It expires in 7 days and works once.',
   copyCode: 'Copy code',
   copiedCode: 'Code copied',
+  copyLink: 'Copy link',
+  copiedLink: 'Link copied',
   generateInvite: 'Generate invite',
+  scanToJoin: 'Or scan to join',
 
   skip: 'Skip',
   next: 'Next',

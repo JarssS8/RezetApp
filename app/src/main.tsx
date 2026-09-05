@@ -4,7 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { PrefsProvider } from './store/prefs';
 import { AuthProvider } from './data/auth';
+import { capturePendingInviteFromUrl } from './data/pendingInvite';
 import './styles/tokens.css';
+
+capturePendingInviteFromUrl();
 
 const queryClient = new QueryClient();
 

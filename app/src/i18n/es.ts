@@ -35,7 +35,10 @@ export const es = {
     'Comparte este código. Caduca en 7 días y solo puede usarse una vez.',
   copyCode: 'Copiar código',
   copiedCode: 'Código copiado',
+  copyLink: 'Copiar enlace',
+  copiedLink: 'Enlace copiado',
   generateInvite: 'Generar invitación',
+  scanToJoin: 'O escanea para unirse',
 
   skip: 'Saltar',
   next: 'Siguiente',
