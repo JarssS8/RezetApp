@@ -73,12 +73,18 @@ const DARK = { surf: '#1C201D', bg: '#101411', surf2: '#252925', text: '#EFF1EC'
 
 // Mezclas espejo de las del CSS. Cambiar una aquí sin cambiarla allí hace
 // fallar el test de paridad de abajo, que busca la cadena literal.
-const accSoft = (acc: string, dark: boolean) => (dark ? mix(acc, DARK.bg, 0.17) : mix(acc, LIGHT.surf, 0.12))
-const accInk = (acc: string, dark: boolean) => (dark ? mix(acc, DARK.text, 0.68) : mix(acc, '#0A2118', 0.6))
-const warnInk = (dark: boolean) => (dark ? mix(DARK.warn, DARK.text, 0.85) : mix(LIGHT.warn, '#0A2118', 0.65))
+const accSoft = (acc: string, dark: boolean) => (dark ? mix(acc, DARK.bg, 0.17) : mix(acc, LIGHT.surf, 0.11))
+// Anclas oscuras: la CSS real fija estos mixes a un `#F1EBE1` literal, no a
+// `var(--text)` — así que el espejo tiene que usar el literal, no `DARK.text`
+// (que ahora vale `#EFF1EC`, distinto). Antes de este rediseño ambos valores
+// coincidían por casualidad; `DARK.text` sigue siendo el correcto en todo lo
+// que sí lee `--text` de verdad (p. ej. "el texto corriente sigue siendo
+// legible").
+const accInk = (acc: string, dark: boolean) => (dark ? mix(acc, '#F1EBE1', 0.68) : mix(acc, '#0A2118', 0.6))
+const warnInk = (dark: boolean) => (dark ? mix(DARK.warn, '#F1EBE1', 0.85) : mix(LIGHT.warn, '#0A2118', 0.65))
 const warnSoft = (dark: boolean) => (dark ? mix(DARK.warn, DARK.surf, 0.14) : mix(LIGHT.warn, LIGHT.surf, 0.14))
 // Auditoría W7, hallazgo 1.2: espejo de warnInk/warnSoft para --danger-ink.
-const dangerInk = (dark: boolean) => (dark ? mix(DARK.danger, DARK.text, 0.88) : mix(LIGHT.danger, '#0A2118', 0.72))
+const dangerInk = (dark: boolean) => (dark ? mix(DARK.danger, '#F1EBE1', 0.85) : mix(LIGHT.danger, '#0A2118', 0.72))
 // Fondos reales de `destructive` (button.tsx/badge.tsx): reposo y hover, con
 // las opacidades que quedaron tras el hallazgo 1.2 (oscuro bajado de /20-/30
 // a /12-/16 porque ninguna tinta de texto razonable llegaba a 4,5:1 con la
@@ -115,7 +121,7 @@ describe('tokens de diseño', () => {
     // La media query y el [data-theme="dark"] explícito: el patrón que ya usan
     // todos los tokens de tema desde W0. Contar ocurrencias evita el fallo
     // clásico de arreglar solo una de las dos ramas.
-    for (const token of ['--warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1)', '--danger-ink: color-mix(in srgb, var(--danger) 88%, #F1EBE1)', '--line-2: var(--line)', '--acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf))']) {
+    for (const token of ['--warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1)', '--danger-ink: color-mix(in srgb, var(--danger) 85%, #F1EBE1)', '--line-2: var(--line)', '--acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf))']) {
       expect(COMPILED.split(token).length - 1, token).toBe(2)
     }
   })
@@ -191,9 +197,9 @@ describe('tokens de diseño', () => {
   // shadcn, solo vive en app/globals.css), así que este test lee directamente
   // COMPILED en vez de comparar contra DOC.
   it('--input cumple 3:1 sobre --surf en los dos temas', () => {
-    const inputColor = (dark: boolean) => (dark ? mix(DARK.text2, DARK.surf, 0.65) : mix(LIGHT.text2, LIGHT.surf, 0.65))
+    const inputColor = (dark: boolean) => (dark ? mix(DARK.text2, DARK.surf, 0.75) : mix(LIGHT.text2, LIGHT.surf, 0.75))
     expect(COMPILED, '--input debe mezclar --text-2 sobre --surf').toContain(
-      '--input: color-mix(in srgb, var(--text-2) 65%, var(--surf))'
+      '--input: color-mix(in srgb, var(--text-2) 75%, var(--surf))'
     )
     for (const dark of [false, true]) {
       const theme = dark ? DARK : LIGHT

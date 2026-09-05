@@ -21,7 +21,7 @@
   --glass:   rgba(255, 255, 255, .72); /* cabeceras/barras translúcidas, Fase 2 */
 
   /* Derivados — nunca los escribas a ojo */
-  --acc-soft: color-mix(in srgb, var(--acc) 12%, #FFFFFF);
+  --acc-soft: color-mix(in srgb, var(--acc) 11%, #FFFFFF);
   /* Tinta de acento para TEXTO. Bajó del 78% al 60% en W6: al 78% el ratio
      sobre --surf era 3,60:1 con "miel" y 4,16:1 con "pistacho" (por debajo de
      AA), y sobre --acc-soft -el par que estrena la píldora de seleccionado-
@@ -113,7 +113,7 @@
     --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
     --acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf));
     --warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1);
-    --danger-ink: color-mix(in srgb, var(--danger) 88%, #F1EBE1);
+    --danger-ink: color-mix(in srgb, var(--danger) 85%, #F1EBE1);
     --surf-sunken: var(--surf-2);
     /* En "Noche suave" la sombra apenas se lee: el borde entero se queda, y
        el escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */
@@ -141,7 +141,7 @@
   --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
   --acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf));
   --warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1);
-  --danger-ink: color-mix(in srgb, var(--danger) 88%, #F1EBE1);
+  --danger-ink: color-mix(in srgb, var(--danger) 85%, #F1EBE1);
   --surf-sunken: var(--surf-2);
   /* En "Noche suave" la sombra apenas se lee: el borde entero se queda, y
      el escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */

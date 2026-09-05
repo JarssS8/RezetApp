@@ -121,7 +121,7 @@
   --warn:    oklch(0.60 0.12 68);
   --danger:  #C0392B;
   --glass:   rgba(255, 255, 255, .72); /* cabeceras/barras translúcidas, Fase 2 */
-  --acc-soft: color-mix(in srgb, var(--acc) 12%, #FFFFFF);
+  --acc-soft: color-mix(in srgb, var(--acc) 11%, #FFFFFF);
   /* Tinta de acento para TEXTO. Bajó del 78% al 60% en W6: al 78% el ratio
      sobre --surf era 3,60:1 con "miel" y 4,16:1 con "pistacho" (por debajo de
      AA), y sobre --acc-soft -el par que estrena la píldora de seleccionado-
@@ -213,7 +213,7 @@
     --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
     --acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf));
     --warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1);
-    --danger-ink: color-mix(in srgb, var(--danger) 88%, #F1EBE1);
+    --danger-ink: color-mix(in srgb, var(--danger) 85%, #F1EBE1);
     --surf-sunken: var(--surf-2);
     /* En "Noche suave" la sombra apenas se lee: el borde entero se queda, y el
        escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */
@@ -242,7 +242,7 @@
   --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
   --acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf));
   --warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1);
-  --danger-ink: color-mix(in srgb, var(--danger) 88%, #F1EBE1);
+  --danger-ink: color-mix(in srgb, var(--danger) 85%, #F1EBE1);
   --surf-sunken: var(--surf-2);
   /* En "Noche suave" la sombra apenas se lee: el borde entero se queda, y el
      escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */
@@ -298,9 +298,11 @@
      un control. Mezclado con --text-2 en vez de un color nuevo: sigue siendo
      "solo tokens" y se adapta solo a los dos temas porque --text-2 y --surf ya
      lo hacen. El informe sugería 40%, pero esa mezcla mide 1,95:1 en claro
-     (medido en tests/contracts/design-tokens.test.ts); hace falta 65% para
-     llegar a 3:1 en claro (3,27:1) y de sobra en oscuro (4,16:1). */
-  --input: color-mix(in srgb, var(--text-2) 65%, var(--surf));
+     (medido en tests/contracts/design-tokens.test.ts). La paleta del rediseño
+     2026-09 aclaró --text-2 en claro (#485450 → #676E68), así que el 65% que
+     bastaba antes se quedó en 2,63:1: hace falta subir a 75% para volver a
+     3:1 en claro (3,16:1) y de sobra en oscuro (4,10:1). */
+  --input: color-mix(in srgb, var(--text-2) 75%, var(--surf));
   --ring: var(--acc);
 }
 
