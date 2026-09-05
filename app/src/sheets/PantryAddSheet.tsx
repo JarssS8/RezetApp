@@ -8,6 +8,7 @@ import { TextField } from '../ui/Fields';
 import { Sheet } from '../ui/Sheet';
 import { radius } from '../ui/tokens';
 import { todayKey } from '../domain/dates';
+import { PantryBarcodeCapture } from './PantryBarcodeCapture';
 import type { PantryLoc, Unit } from '../types';
 
 export function PantryAddSheet({
@@ -24,6 +25,7 @@ export function PantryAddSheet({
   const [unit, setUnit] = useState<Unit>('g');
   const [location, setLocation] = useState<PantryLoc>('cupboard');
   const [expiresOn, setExpiresOn] = useState('');
+  const [mode, setMode] = useState<'manual' | 'barcode'>('manual');
 
   const unitOptions: Array<[Unit, string]> = [
     ['g', 'g'],
@@ -49,48 +51,64 @@ export function PantryAddSheet({
     onToast(t.savedPantry);
   };
 
+  const applyPrefill = (item: { name: string; quantity: number; unit: Unit }) => {
+    setName(item.name);
+    setQuantity(String(item.quantity));
+    setUnit(item.unit);
+    setMode('manual');
+  };
+
   return (
     <Sheet title={t.add} onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 6 }}>
-        <IngredientNameField
-          value={name}
-          onChange={setName}
-          onPick={(ing) => setUnit(ing.defaultUnit)}
-          placeholder={t.itemName}
-          ingredients={ingredients}
-          locale={locale}
-          loc={loc}
-        />
-        <div style={{ display: 'flex', gap: 10 }}>
-          <TextField
-            value={quantity}
-            onChange={setQuantity}
-            placeholder="500"
-            inputMode="decimal"
-            style={{ flex: 2, fontVariantNumeric: 'tabular-nums' }}
-          />
-          <div style={{ flex: 3, display: 'flex', gap: 6 }}>
-            {unitOptions.map(([id, label]) => (
-              <OptionChip key={id} label={label} height={50} active={unit === id} onClick={() => setUnit(id)} />
-            ))}
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.expiresOnLabel}</div>
-          <TextField type="date" min={todayKey()} value={expiresOn} onChange={setExpiresOn} />
-        </div>
-        <div>
-          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.location}</div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {locations.map(([id, label]) => (
-              <OptionChip key={id} label={label} active={location === id} onClick={() => setLocation(id)} />
-            ))}
-          </div>
-        </div>
-        <Button full size="primary" onClick={submit} style={{ borderRadius: radius.button }}>
-          {t.add}
-        </Button>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+        <OptionChip label={t.addManual} active={mode === 'manual'} onClick={() => setMode('manual')} />
+        <OptionChip label={t.addBarcode} active={mode === 'barcode'} onClick={() => setMode('barcode')} />
       </div>
+      {mode === 'manual' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 6 }}>
+          <IngredientNameField
+            value={name}
+            onChange={setName}
+            onPick={(ing) => setUnit(ing.defaultUnit)}
+            placeholder={t.itemName}
+            ingredients={ingredients}
+            locale={locale}
+            loc={loc}
+          />
+          <div style={{ display: 'flex', gap: 10 }}>
+            <TextField
+              value={quantity}
+              onChange={setQuantity}
+              placeholder="500"
+              inputMode="decimal"
+              style={{ flex: 2, fontVariantNumeric: 'tabular-nums' }}
+            />
+            <div style={{ flex: 3, display: 'flex', gap: 6 }}>
+              {unitOptions.map(([id, label]) => (
+                <OptionChip key={id} label={label} height={50} active={unit === id} onClick={() => setUnit(id)} />
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.expiresOnLabel}</div>
+            <TextField type="date" min={todayKey()} value={expiresOn} onChange={setExpiresOn} />
+          </div>
+          <div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.location}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {locations.map(([id, label]) => (
+                <OptionChip key={id} label={label} active={location === id} onClick={() => setLocation(id)} />
+              ))}
+            </div>
+          </div>
+          <Button full size="primary" onClick={submit} style={{ borderRadius: radius.button }}>
+            {t.add}
+          </Button>
+        </div>
+      )}
+      {mode === 'barcode' && (
+        <PantryBarcodeCapture onResult={applyPrefill} onCancel={() => setMode('manual')} />
+      )}
     </Sheet>
   );
 }
