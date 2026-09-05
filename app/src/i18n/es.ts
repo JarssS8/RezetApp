@@ -23,6 +23,9 @@ export const es = {
 
   inviteSomeone: 'Invitar a alguien',
   enableNotifications: 'Activar notificaciones',
+  registerPasskey: 'Añadir passkey a este dispositivo',
+  passkeyRegistered: 'Passkey añadida. Ya puedes entrar con ella la próxima vez.',
+  passkeyRegisterError: 'No se pudo registrar la passkey.',
   notificationsEnabled: 'Notificaciones activadas',
   notificationsDenied: 'Bloqueaste el permiso de notificaciones en el navegador.',
   notificationsUnsupported: 'Este navegador no soporta notificaciones push.',

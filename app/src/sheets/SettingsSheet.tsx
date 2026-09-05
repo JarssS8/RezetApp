@@ -24,8 +24,9 @@ export function SettingsSheet({
   onToast?: (msg: string) => void;
 }) {
   const { t, theme, accent, locale, units, setTheme, setAccent, setLocale, setUnits } = usePrefs();
-  const { profile } = useAuth();
+  const { profile, registerPasskey } = useAuth();
   const [notifBusy, setNotifBusy] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
 
   const enableNotifications = async () => {
     if (!profile || notifBusy) return;
@@ -39,6 +40,14 @@ export function SettingsSheet({
       error: t.notificationsError,
     } as const;
     onToast?.(messages[result]);
+  };
+
+  const addPasskey = async () => {
+    if (passkeyBusy) return;
+    setPasskeyBusy(true);
+    const result = await registerPasskey();
+    setPasskeyBusy(false);
+    onToast?.(result === 'ok' ? t.passkeyRegistered : t.passkeyRegisterError);
   };
 
   const themes: Array<[Theme, string]> = [
@@ -103,6 +112,25 @@ export function SettingsSheet({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {profile && (
+            <Pressable
+              onClick={() => void addPasskey()}
+              disabled={passkeyBusy}
+              scale={0.98}
+              style={{
+                height: 48,
+                borderRadius: radius.input,
+                background: 'var(--surface2)',
+                fontSize: 15.5,
+                fontWeight: 600,
+                textAlign: 'left',
+                padding: '0 16px',
+                opacity: passkeyBusy ? 0.6 : 1,
+              }}
+            >
+              {t.registerPasskey}
+            </Pressable>
+          )}
           {profile && (
             <Pressable
               onClick={() => void enableNotifications()}

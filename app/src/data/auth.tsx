@@ -25,6 +25,7 @@ interface AuthContextValue {
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
   signInWithPasskey: () => Promise<void>;
+  registerPasskey: () => Promise<'ok' | 'error'>;
   signOut: () => Promise<void>;
   createHousehold: (name: string, displayName: string) => Promise<void>;
   redeemInvite: (code: string, displayName: string) => Promise<void>;
@@ -116,6 +117,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (err) setError(err.message);
   }, []);
 
+  /** Requiere sesión ya iniciada (por Google/Apple, normalmente). */
+  const registerPasskey = useCallback(async (): Promise<'ok' | 'error'> => {
+    const { error: err } = await supabase.auth.registerPasskey();
+    return err ? 'error' : 'ok';
+  }, []);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
   }, []);
@@ -170,6 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithGoogle,
       signInWithApple,
       signInWithPasskey,
+      registerPasskey,
       signOut,
       createHousehold,
       redeemInvite,
@@ -184,6 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithGoogle,
       signInWithApple,
       signInWithPasskey,
+      registerPasskey,
       signOut,
       createHousehold,
       redeemInvite,

@@ -25,6 +25,9 @@ export const en: Dictionary = {
 
   inviteSomeone: 'Invite someone',
   enableNotifications: 'Enable notifications',
+  registerPasskey: 'Add a passkey to this device',
+  passkeyRegistered: "Passkey added. You can sign in with it next time.",
+  passkeyRegisterError: 'Could not register the passkey.',
   notificationsEnabled: 'Notifications enabled',
   notificationsDenied: 'You blocked notification permission in the browser.',
   notificationsUnsupported: 'This browser does not support push notifications.',
