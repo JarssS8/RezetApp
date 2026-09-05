@@ -11,7 +11,7 @@
     "dev": "next dev",
     "build": "next build",
     "build:icons": "tsx scripts/build-icons.ts",
-    "build:scripts": "esbuild scripts/migrate.ts scripts/seed.ts scripts/notify-expiring.ts --bundle --platform=node --format=esm --target=node24 --outdir=dist/scripts --out-extension:.js=.mjs --external:pg-native --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "build:scripts": "esbuild scripts/migrate.ts scripts/seed.ts scripts/notify-expiring.ts --bundle --platform=node --format=esm --target=node24 --outdir=dist/scripts --out-extension:.js=.mjs --external:pg-native --external:@opentelemetry/api --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
