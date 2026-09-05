@@ -204,11 +204,13 @@ db/
 docs/               estos documentos
 ```
 
-## Las cinco pantallas
+## Las cuatro pantallas
 
-Hoy · Cocinar · Plan · Despensa · Recetas. Barra inferior, nada más.
+Hoy · Recetas · Plan · Despensa. Barra inferior, nada más. **Cocinar no es una
+pestaña** (rediseño 2026-09): es un modo a pantalla completa que se lanza
+desde una comida de Hoy o desde "Cocinar ahora" en el detalle de receta.
 La nutrición, los ajustes y las tiendas **no tienen pestaña**: viven dentro de la
-pantalla donde importan. Si una funcionalidad nueva pide una sexta pestaña,
+pantalla donde importan. Si una funcionalidad nueva pide una quinta pestaña,
 probablemente esté mal ubicada. Ver `docs/01-PRODUCTO.md`.
 
 ## Diseño
@@ -237,7 +239,7 @@ parezcan plantilla. Aplica los tokens antes de dar nada por bueno.
 
 | Documento | Qué contiene |
 |---|---|
-| `docs/01-PRODUCTO.md` | Visión, las cinco pantallas, qué NO construir |
+| `docs/01-PRODUCTO.md` | Visión, las cuatro pantallas, qué NO construir |
 | `docs/02-DISENO.md` | Tokens, tipografía, componentes, iconos |
 | `docs/03-DOMINIO.md` | Escalado, kcal, unidades, despensa — las reglas duras |
 | `docs/04-DATOS.md` | Esquema de Drizzle propuesto |

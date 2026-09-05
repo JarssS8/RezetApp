@@ -2,15 +2,20 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { CookIcon, PantryIcon, PlanIcon, RecipesIcon, TodayIcon } from '@/components/icons'
+import { PantryIcon, PlanIcon, RecipesIcon, TodayIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
+// Cocinar sale de la barra (rediseño 2026-09, README §2): pasa a ser un modo
+// a pantalla completa que se lanza desde una comida de Hoy
+// (components/today/today-view.tsx) o desde "Cocinar ahora" en el detalle de
+// receta (components/recipes/recipe-detail.tsx) — las dos entradas ya
+// existían antes de este cambio, así que quitar la pestaña no rompe el
+// acceso. Orden Hoy·Recetas·Plan·Despensa, el del handoff.
 export const NAV_ITEMS = [
   { href: '/today', labelKey: 'today', Icon: TodayIcon },
-  { href: '/cook', labelKey: 'cook', Icon: CookIcon },
+  { href: '/recipes', labelKey: 'recipes', Icon: RecipesIcon },
   { href: '/plan', labelKey: 'plan', Icon: PlanIcon },
   { href: '/pantry', labelKey: 'pantry', Icon: PantryIcon },
-  { href: '/recipes', labelKey: 'recipes', Icon: RecipesIcon },
 ] as const
 
 export function BottomBar() {
@@ -21,7 +26,7 @@ export function BottomBar() {
       aria-label={t('navLabel')}
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line-2 bg-card/95 backdrop-blur pb-[env(safe-area-inset-bottom)]"
     >
-      <ul className="mx-auto grid max-w-xl grid-cols-5">
+      <ul className="mx-auto grid max-w-xl grid-cols-4">
         {NAV_ITEMS.map(({ href, labelKey, Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`)
           return (

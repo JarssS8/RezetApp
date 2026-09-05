@@ -15,23 +15,25 @@ lentejas el lunes, y que el miércoles solo hay veinte minutos.
 Lo segundo que nadie hace bien es el **escalado de cantidades honesto**. Todas
 multiplican por dos y se quedan tan anchas.
 
-## Las cinco pantallas
+## Las cuatro pantallas
 
-Regla heredada de openGym: *cinco pantallas, cero ruido*. Tiene 1.324 ejercicios
-y aun así se navega con cinco. La contención es la decisión de diseño.
+Regla heredada de openGym: *pocas pantallas, cero ruido*. Rediseño 2026-09:
+Cocinar deja de ser una pestaña de navegación (era un destino vacío hasta que
+elegías algo) y pasa a ser un modo a pantalla completa que se lanza desde
+Hoy o desde el detalle de receta.
 
 | Pantalla | Responde a | Contenido |
 |---|---|---|
-| **Hoy** | "¿Qué ceno?" sin tocar nada | Comida de hoy, anillo de calorías, lo que caduca, atajos |
-| **Cocinar** | Estoy con la sartén al fuego | Un paso por pantalla, raciones, temporizadores, wake lock |
-| **Plan** | La semana | Calendario arrastrar y soltar, sobras, propuestas de la IA |
-| **Despensa** | Qué hay en casa | Inventario por ubicación, caducidades, descuento automático |
+| **Hoy** | "¿Qué ceno?" sin tocar nada | Comida de hoy, anillo de calorías, lo que caduca, sugerencias cocinables |
 | **Recetas** | El archivo | Búsqueda, filtros, importación |
+| **Plan** | La semana | Calendario arrastrar y soltar, sobras, lista de la compra |
+| **Despensa** | Qué hay en casa | Inventario por ubicación, caducidades, descuento automático |
 
-**Sin pestaña propia** (viven dentro de donde importan): nutrición, ajustes,
-proveedores de IA, tiendas, miembros del hogar, importar y exportar.
+**Fuera de las cuatro pestañas**: Cocinar (pantalla completa, se lanza desde
+Hoy o receta), nutrición, ajustes, proveedores de IA, tiendas, miembros del
+hogar, importar y exportar.
 
-Si una funcionalidad nueva parece pedir una sexta pestaña, casi seguro está mal
+Si una funcionalidad nueva parece pedir una quinta pestaña, casi seguro está mal
 ubicada. Pregunta antes de añadirla.
 
 ## Qué NO construir

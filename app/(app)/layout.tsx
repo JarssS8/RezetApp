@@ -3,7 +3,7 @@ import { BottomBar } from '@/components/nav/bottom-bar'
 import { Toaster } from '@/components/ui/sonner'
 import { requireSession } from '@/lib/auth/guards'
 
-// El marco de las cinco pantallas: ancho de lectura, relleno seguro y barra
+// El marco de las cuatro pantallas: ancho de lectura, relleno seguro y barra
 // inferior. La sesión de cocina lo cede con un `data-fullscreen` en su propia
 // sección y `:has()` — no con un layout paralelo, que duplicaría la guardia de
 // sesión y partiría el árbol de rutas (informe de identidad, movimiento 5:
