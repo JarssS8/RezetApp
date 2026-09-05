@@ -451,7 +451,7 @@ export function SupabaseDataProvider({
   );
 
   const pantryAdd = useCallback(
-    (input: { name: string; quantity: number; unit: Unit; location: PantryLoc }) => {
+    (input: { name: string; quantity: number; unit: Unit; location: PantryLoc; expiresOn?: string }) => {
       void (async () => {
         const ingredientId = await resolveIngredientId(input.name, input.unit);
         const { error } = await supabase.from('pantry_item').insert({
@@ -460,7 +460,7 @@ export function SupabaseDataProvider({
           quantity: input.quantity,
           unit: input.unit,
           location: input.location,
-          expires_on: input.location === 'fridge' ? new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10) : null,
+          expires_on: input.expiresOn ?? null,
         });
         if (!error) {
           void queryClient.invalidateQueries({ queryKey: pantryKey });
