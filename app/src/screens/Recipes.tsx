@@ -8,8 +8,6 @@ import { Pressable } from '../ui/Pressable';
 import { ScreenBody, ScreenHeader, SearchField } from '../ui/Fields';
 import { maxW, radius, tabular, text as T } from '../ui/tokens';
 
-const TAGS = ['dieta', 'rápido', 'batch', 'tartera'];
-
 export function Recipes({
   onOpenRecipe,
   onNewRecipe,
@@ -18,7 +16,7 @@ export function Recipes({
   onNewRecipe: () => void;
 }) {
   const { t, loc } = usePrefs();
-  const { recipes, ingredientById, coverageOf } = useData();
+  const { recipes, ingredientById, coverageOf, knownTags } = useData();
 
   const [query, setQuery] = useState('');
   const [tag, setTag] = useState<string | null>(null);
@@ -71,7 +69,7 @@ export function Recipes({
       >
         <Chip label={t.allTags} active={!tag && !haveOnly} onClick={reset} />
         <Chip label={t.haveIngredients} active={haveOnly} onClick={() => setHaveOnly((v) => !v)} />
-        {TAGS.map((tg) => (
+        {knownTags.map((tg) => (
           <Chip
             key={tg}
             label={tg}

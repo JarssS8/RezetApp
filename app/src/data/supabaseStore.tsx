@@ -66,7 +66,7 @@ interface RecipeRow {
   kcal_per_serving: number;
   cooked_count: number;
   photo_path: string | null;
-  recipe_tag: Array<{ tag: string }>;
+  recipe_tag: Array<{ tag: { name: string } }>;
   recipe_ingredient: Array<{ id: string; ingredient_id: string; quantity: number; unit: Unit; position: number }>;
   recipe_step: Array<{
     id: string;
@@ -90,7 +90,7 @@ function mapRecipe(row: RecipeRow): Recipe {
     minutes: row.minutes,
     difficulty: row.difficulty,
     kcalPerServing: row.kcal_per_serving,
-    tags: row.recipe_tag.map((t) => t.tag),
+    tags: row.recipe_tag.map((t) => t.tag.name),
     cookedCount: row.cooked_count,
     ...(row.photo_path
       ? { photoUrl: supabase.storage.from('recipe-photos').getPublicUrl(row.photo_path).data.publicUrl }
@@ -151,7 +151,7 @@ function mapPlanEntry(row: {
 
 const RECIPE_SELECT = `
   id, name, description, base_servings, minutes, difficulty, kcal_per_serving, cooked_count, photo_path,
-  recipe_tag ( tag ),
+  recipe_tag ( tag ( name ) ),
   recipe_ingredient ( id, ingredient_id, quantity, unit, position ),
   recipe_step ( id, position, text, timer_minutes, recipe_step_ingredient ( recipe_ingredient_id ) )
 `;
@@ -293,6 +293,10 @@ export function SupabaseDataProvider({
   const ingredientById = useMemo(
     () => new Map((ingredientsQ.data ?? []).map((i) => [i.id, i])),
     [ingredientsQ.data],
+  );
+  const knownTags = useMemo(
+    () => Array.from(new Set((recipesQ.data ?? []).flatMap((r) => r.tags))),
+    [recipesQ.data],
   );
 
   const { stockOf, needOf, coverageOf, needsForWeek, shortagesFor } = useMemo(
@@ -555,6 +559,7 @@ export function SupabaseDataProvider({
       kcalTarget: householdQ.data ?? 2100,
       recipeById,
       ingredientById,
+      knownTags,
       stockOf,
       needOf,
       coverageOf,
@@ -579,6 +584,7 @@ export function SupabaseDataProvider({
       householdQ.data,
       recipeById,
       ingredientById,
+      knownTags,
       stockOf,
       needOf,
       coverageOf,

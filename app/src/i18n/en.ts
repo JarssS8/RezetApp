@@ -25,6 +25,10 @@ export const en: Dictionary = {
 
   inviteSomeone: 'Invite someone',
   enableNotifications: 'Enable notifications',
+  disableNotifications: 'Disable notifications',
+  notificationsDisabled: 'Notifications disabled',
+  settingsTabAppearance: 'Appearance',
+  settingsTabAccount: 'Account',
   registerPasskey: 'Add a passkey to this device',
   passkeyRegistered: "Passkey added. You can sign in with it next time.",
   passkeyRegisterError: 'Could not register the passkey.',

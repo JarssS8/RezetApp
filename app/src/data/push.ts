@@ -11,6 +11,32 @@ function urlBase64ToUint8Array(base64Url: string): Uint8Array<ArrayBuffer> {
 
 export type PushSubscribeResult = 'subscribed' | 'denied' | 'unsupported' | 'error';
 
+export async function isPushSubscribed(): Promise<boolean> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    return Boolean(await registration.pushManager.getSubscription());
+  } catch {
+    return false;
+  }
+}
+
+/** Desactiva a la vez en el navegador y en `push_subscription` — dejar solo lo primero revivía la suscripción sola en el próximo `subscribe()`. */
+export async function unsubscribeFromPush(): Promise<boolean> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return true;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) return true;
+    const endpoint = subscription.endpoint;
+    await subscription.unsubscribe();
+    await supabase.from('push_subscription').delete().eq('endpoint', endpoint);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Pide permiso, se suscribe al push del navegador y guarda la suscripción en
  * `push_subscription` (RLS: cada perfil solo ve/borra la suya). El servidor

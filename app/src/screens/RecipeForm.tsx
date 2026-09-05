@@ -67,7 +67,7 @@ export function RecipeForm({
   onSaved: (recipeId: string) => void;
 }) {
   const { t, locale, loc } = usePrefs();
-  const { saveRecipe, ingredients, ingredientById, recipes } = useData();
+  const { saveRecipe, ingredients, ingredientById, knownTags: allKnownTags } = useData();
   const { profile } = useAuth();
   const [draft, setDraft] = useState<RecipeDraft>(() =>
     recipe ? draftFromRecipe(recipe, ingredientById, locale) : EMPTY,
@@ -104,11 +104,13 @@ export function RecipeForm({
       return { ...d, steps };
     });
 
+  // El catálogo real de etiquetas ya viene deduplicado por nombre desde el
+  // servidor (tabla `tag`); aquí solo añadimos un puñado de arranque para
+  // hogares sin recetas todavía y quitamos las ya elegidas en este borrador.
   const knownTags = useMemo(() => {
-    const fromRecipes = recipes.flatMap((r) => r.tags);
-    const defaults = ['dieta', 'rápido', 'batch', 'tartera'];
-    return Array.from(new Set([...defaults, ...fromRecipes])).filter((tg) => !draft.tags.includes(tg));
-  }, [recipes, draft.tags]);
+    const starters = ['dieta', 'rápido', 'batch', 'tartera'];
+    return Array.from(new Set([...starters, ...allKnownTags])).filter((tg) => !draft.tags.includes(tg));
+  }, [allKnownTags, draft.tags]);
 
   const addTag = (tg: string) => {
     const clean = tg.trim();

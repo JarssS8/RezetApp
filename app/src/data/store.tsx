@@ -62,6 +62,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     () => new Map(data.ingredients.map((i) => [i.id, i])),
     [data.ingredients],
   );
+  const knownTags = useMemo(
+    () => Array.from(new Set(data.recipes.flatMap((r) => r.tags))),
+    [data.recipes],
+  );
 
   const { stockOf, needOf, coverageOf, needsForWeek, shortagesFor } = useMemo(
     () =>
@@ -303,6 +307,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ...data,
       recipeById,
       ingredientById,
+      knownTags,
       stockOf,
       needOf,
       coverageOf,
@@ -322,6 +327,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       data,
       recipeById,
       ingredientById,
+      knownTags,
       stockOf,
       needOf,
       coverageOf,

@@ -23,6 +23,10 @@ export const es = {
 
   inviteSomeone: 'Invitar a alguien',
   enableNotifications: 'Activar notificaciones',
+  disableNotifications: 'Desactivar notificaciones',
+  notificationsDisabled: 'Notificaciones desactivadas',
+  settingsTabAppearance: 'Aspecto',
+  settingsTabAccount: 'Cuenta',
   registerPasskey: 'Añadir passkey a este dispositivo',
   passkeyRegistered: 'Passkey añadida. Ya puedes entrar con ella la próxima vez.',
   passkeyRegisterError: 'No se pudo registrar la passkey.',

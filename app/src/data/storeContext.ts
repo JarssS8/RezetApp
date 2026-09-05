@@ -56,6 +56,8 @@ export interface Coverage {
 export interface Store {
   ingredients: Ingredient[];
   recipes: Recipe[];
+  /** Etiquetas realmente en uso en el hogar, para filtrar y para sugerir al crear. */
+  knownTags: string[];
   pantry: PantryItem[];
   plan: PlanEntry[];
   shoppingChecked: Record<string, boolean>;
