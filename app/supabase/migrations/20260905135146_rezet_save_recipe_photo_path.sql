@@ -1,0 +1,107 @@
+-- M6 (cont.): save_recipe ahora acepta photo_path opcional del payload
+-- (la ruta ya subida a Storage por el cliente, bucket recipe-photos).
+create or replace function public.save_recipe(payload jsonb)
+returns uuid
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_household_id uuid := private.current_household();
+  v_recipe_id uuid;
+  v_ingredient jsonb;
+  v_step jsonb;
+  v_tag text;
+  v_ingredient_id uuid;
+  v_position int;
+begin
+  if v_household_id is null then
+    raise exception 'not authenticated or no household';
+  end if;
+
+  v_recipe_id := nullif(payload->>'id', '')::uuid;
+
+  if v_recipe_id is not null then
+    update public.recipe set
+      name = payload->>'name',
+      description = coalesce(payload->>'description', ''),
+      base_servings = coalesce((payload->>'base_servings')::int, 2),
+      minutes = coalesce((payload->>'minutes')::int, 20),
+      difficulty = coalesce((payload->>'difficulty')::public.difficulty, 'easy'),
+      kcal_per_serving = coalesce((payload->>'kcal_per_serving')::int, 450),
+      photo_path = coalesce(nullif(payload->>'photo_path', ''), photo_path)
+    where id = v_recipe_id and household_id = v_household_id;
+
+    if not found then
+      raise exception 'recipe not found in this household';
+    end if;
+
+    delete from public.recipe_tag where recipe_id = v_recipe_id;
+    delete from public.recipe_ingredient where recipe_id = v_recipe_id;
+    delete from public.recipe_step where recipe_id = v_recipe_id;
+  else
+    insert into public.recipe (
+      household_id, name, description, base_servings, minutes, difficulty, kcal_per_serving,
+      photo_path, created_by
+    ) values (
+      v_household_id,
+      payload->>'name',
+      coalesce(payload->>'description', ''),
+      coalesce((payload->>'base_servings')::int, 2),
+      coalesce((payload->>'minutes')::int, 20),
+      coalesce((payload->>'difficulty')::public.difficulty, 'easy'),
+      coalesce((payload->>'kcal_per_serving')::int, 450),
+      nullif(payload->>'photo_path', ''),
+      (select auth.uid())
+    )
+    returning id into v_recipe_id;
+  end if;
+
+  for v_tag in select jsonb_array_elements_text(coalesce(payload->'tags', '[]'::jsonb))
+  loop
+    insert into public.recipe_tag (recipe_id, tag) values (v_recipe_id, v_tag)
+    on conflict do nothing;
+  end loop;
+
+  v_position := 0;
+  for v_ingredient in select jsonb_array_elements(coalesce(payload->'ingredients', '[]'::jsonb))
+  loop
+    select id into v_ingredient_id
+    from public.ingredient
+    where (household_id = v_household_id or household_id is null)
+      and lower(name_es) = lower(v_ingredient->>'name')
+    order by household_id nulls last
+    limit 1;
+
+    if v_ingredient_id is null then
+      insert into public.ingredient (household_id, name_es, name_en, default_unit, is_sensitive)
+      values (
+        v_household_id,
+        v_ingredient->>'name',
+        v_ingredient->>'name',
+        (v_ingredient->>'unit')::public.unit,
+        coalesce((v_ingredient->>'sensitive')::boolean, false)
+      )
+      returning id into v_ingredient_id;
+    end if;
+
+    insert into public.recipe_ingredient (recipe_id, ingredient_id, quantity, unit, position)
+    values (
+      v_recipe_id, v_ingredient_id,
+      (v_ingredient->>'quantity')::numeric, (v_ingredient->>'unit')::public.unit, v_position
+    );
+
+    v_position := v_position + 1;
+  end loop;
+
+  v_position := 0;
+  for v_step in select jsonb_array_elements(coalesce(payload->'steps', '[]'::jsonb))
+  loop
+    insert into public.recipe_step (recipe_id, position, text, timer_minutes)
+    values (v_recipe_id, v_position, v_step->>'text', nullif(v_step->>'timer_minutes', '')::int);
+    v_position := v_position + 1;
+  end loop;
+
+  return v_recipe_id;
+end;
+$$;

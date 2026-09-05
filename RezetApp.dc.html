@@ -1,0 +1,2024 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+:root{
+  --bg: oklch(0.982 0.005 120);
+  --bg2: oklch(0.955 0.007 120);
+  --surface: #ffffff;
+  --surface2: oklch(0.968 0.006 120);
+  --text: oklch(0.235 0.012 150);
+  --muted: oklch(0.53 0.012 150);
+  --line: oklch(0.905 0.008 150);
+  --accent: oklch(0.54 0.105 156);
+  --warn: oklch(0.545 0.13 62);
+  --glass: rgba(255,255,255,.72);
+  --shadow-s: 0 1px 2px rgba(30,40,30,.05);
+  --shadow-m: 0 1px 2px rgba(30,40,30,.05), 0 8px 24px rgba(25,40,25,.07);
+  --shadow-l: 0 2px 6px rgba(20,35,20,.08), 0 24px 60px rgba(20,35,20,.14);
+  color-scheme: light;
+}
+:root[data-theme="dark"]{
+  --bg: oklch(0.185 0.008 150);
+  --bg2: oklch(0.16 0.008 150);
+  --surface: oklch(0.238 0.009 150);
+  --surface2: oklch(0.275 0.009 150);
+  --text: oklch(0.955 0.006 120);
+  --muted: oklch(0.70 0.011 140);
+  --line: oklch(0.325 0.010 150);
+  --glass: rgba(30,34,30,.68);
+  --shadow-s: 0 1px 2px rgba(0,0,0,.28);
+  --shadow-m: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.34);
+  --shadow-l: 0 2px 8px rgba(0,0,0,.36), 0 28px 64px rgba(0,0,0,.5);
+  color-scheme: dark;
+}
+:root{
+  --soft: color-mix(in oklab, var(--accent) 15%, var(--bg));
+  --soft2: color-mix(in oklab, var(--accent) 26%, var(--bg));
+  --onaccent: #ffffff;
+  --accent-ink: color-mix(in oklab, var(--accent) 85%, black);
+  --warn-ink: color-mix(in oklab, var(--warn) 90%, black);
+  --warnsoft: color-mix(in oklab, var(--warn) 16%, var(--bg));
+}
+:root[data-theme="dark"]{
+  --accent-ink: color-mix(in oklab, var(--accent) 70%, white);
+  --warn-ink: color-mix(in oklab, var(--warn) 70%, white);
+}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Helvetica Neue",Helvetica,sans-serif;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  overscroll-behavior:none;
+}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+input,textarea,select{font:inherit;color:inherit}
+a{color:var(--accent-ink);text-decoration:none}
+a:hover{color:color-mix(in oklab, var(--accent-ink) 75%, var(--text))}
+::placeholder{color:var(--muted);opacity:.8}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes rise{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes pushin{from{opacity:.4;transform:translateX(26px)}to{opacity:1;transform:none}}
+@keyframes matter{from{opacity:0;transform:scale(.94);backdrop-filter:blur(0px)}to{opacity:1;transform:none;backdrop-filter:blur(20px)}}
+@keyframes toastin{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.01ms !important;transition-duration:.12s !important}
+}
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column;background:var(--bg)">
+
+<sc-if value="{{ showLogin }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Login" style="min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(120% 90% at 50% -10%, var(--soft) 0%, var(--bg) 62%)">
+  <div style="width:100%;max-width:400px;animation:rise .5s cubic-bezier(.2,.7,.2,1) both">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:34px">
+      <div style="width:64px;height:64px;border-radius:20px;background:var(--accent);display:grid;place-items:center;box-shadow:var(--shadow-m)">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--onaccent)" stroke-width="1.9" stroke-linecap="round"><path d="M4 14h16a8 8 0 0 1-8 6 8 8 0 0 1-8-6Z"></path><path d="M12 4v3"></path><circle cx="12" cy="10" r="1.6"></circle></svg>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:34px;font-weight:700;letter-spacing:-.028em;line-height:1.05">Rezet</div>
+        <div style="margin-top:8px;font-size:16px;color:var(--muted);letter-spacing:-.005em;max-width:280px;text-wrap:pretty">{{ t.loginTag }}</div>
+      </div>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:var(--shadow-m);display:flex;flex-direction:column;gap:12px">
+      <button onClick="{{ onSignIn }}" style="height:52px;border-radius:15px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;justify-content:center;gap:9px;transition:transform .12s ease-out" style-active="transform:scale(.975)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="9" r="4"></circle><path d="M9 13v7l2-2 2 2"></path><path d="M15 7h5M15 11h3"></path></svg>
+        {{ t.passkey }}
+      </button>
+      <button onClick="{{ onSignInDemo }}" style="height:48px;border-radius:15px;background:var(--surface2);font-size:15px;font-weight:550;letter-spacing:-.01em;transition:transform .12s ease-out" style-active="transform:scale(.975)">{{ t.demo }}</button>
+      <div style="height:1px;background:var(--line);margin:4px 0"></div>
+      <div style="font-size:13.5px;color:var(--muted);text-align:center;line-height:1.5">{{ t.inviteOnly }}</div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showOnboard }}">
+<div data-screen-label="Primeros pasos" style="min-height:100vh;display:flex;flex-direction:column;background:var(--bg);animation:fadein .3s both">
+  <div style="display:flex;justify-content:flex-end;padding:18px 20px">
+    <button onClick="{{ onSkipOnboard }}" style="font-size:15px;font-weight:550;color:var(--muted);padding:8px 12px;border-radius:10px">{{ t.skip }}</button>
+  </div>
+  <div style="flex:1;display:grid;place-items:center;padding:8px 24px 0">
+    <div style="width:100%;max-width:420px;text-align:center">
+      <div style="height:210px;border-radius:26px;background:var(--soft);border:1px solid var(--line);display:grid;place-items:center;overflow:hidden;box-shadow:var(--shadow-s)">
+        <div style="display:flex;gap:10px;align-items:flex-end">
+          <div style="width:34px;height:64px;border-radius:9px;background:var(--accent);opacity:.35"></div>
+          <div style="width:34px;height:104px;border-radius:9px;background:var(--accent);opacity:.6"></div>
+          <div style="width:34px;height:82px;border-radius:9px;background:var(--accent)"></div>
+          <div style="width:34px;height:52px;border-radius:9px;background:var(--accent);opacity:.45"></div>
+        </div>
+      </div>
+      <div style="margin-top:30px;font-size:27px;font-weight:700;letter-spacing:-.025em;line-height:1.15">{{ onboardTitle }}</div>
+      <div style="margin-top:12px;font-size:16.5px;line-height:1.5;color:var(--muted);text-wrap:pretty">{{ onboardBody }}</div>
+    </div>
+  </div>
+  <div style="padding:24px;display:flex;flex-direction:column;align-items:center;gap:20px">
+    <div style="display:flex;gap:7px">
+      <sc-for list="{{ onboardDots }}" as="dot" hint-placeholder-count="3">
+        <div style="width:7px;height:7px;border-radius:99px;background:var(--accent);transition:opacity .25s ease,width .25s ease"><span style="display:none">{{ dot.on }}</span></div>
+      </sc-for>
+    </div>
+    <button onClick="{{ onNextOnboard }}" style="width:100%;max-width:420px;height:52px;border-radius:15px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:600;letter-spacing:-.01em;transition:transform .12s ease-out" style-active="transform:scale(.98)">{{ onboardCta }}</button>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showApp }}">
+<div style="min-height:100vh;display:flex;background:var(--bg)">
+
+  <sc-if value="{{ isWide }}">
+  <nav style="width:232px;flex:0 0 232px;border-right:1px solid var(--line);padding:26px 16px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;background:var(--bg2)">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 10px 22px">
+      <div style="width:30px;height:30px;border-radius:9px;background:var(--accent);display:grid;place-items:center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--onaccent)" stroke-width="2" stroke-linecap="round"><path d="M4 14h16a8 8 0 0 1-8 6 8 8 0 0 1-8-6Z"></path><path d="M12 5v2"></path></svg>
+      </div>
+      <div style="font-size:18px;font-weight:650;letter-spacing:-.02em">Rezet</div>
+    </div>
+    <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="4">
+      <button onClick="{{ tab.onTap }}" style="display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border-radius:12px;font-size:15.5px;font-weight:550;letter-spacing:-.012em;transition:background .18s ease;background:{{ tab.bg }};color:{{ tab.fg }}" style-hover="background:var(--surface2)">
+        <span style="display:grid;place-items:center;width:20px">{{ tab.icon }}</span>
+        {{ tab.label }}
+      </button>
+    </sc-for>
+    <div style="flex:1"></div>
+    <button onClick="{{ openSettings }}" style="display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border-radius:12px;font-size:15.5px;font-weight:550;color:var(--muted)" style-hover="background:var(--surface2)">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.04.04a2 2 0 1 1-2.83 2.83l-.04-.04a1.7 1.7 0 0 0-2.87 1.2v.12a2 2 0 1 1-4 0v-.06a1.7 1.7 0 0 0-2.9-1.2l-.03.04A2 2 0 1 1 4.28 17l.04-.04A1.7 1.7 0 0 0 3.12 14H3a2 2 0 1 1 0-4h.12a1.7 1.7 0 0 0 1.2-2.9l-.04-.03A2 2 0 1 1 7.11 4.2l.04.04a1.7 1.7 0 0 0 2.87-1.2V3a2 2 0 1 1 4 0v.12a1.7 1.7 0 0 0 2.9 1.2l.03-.04A2 2 0 1 1 19.8 7.1l-.04.04A1.7 1.7 0 0 0 21 10.1h.12a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6.9Z"></path></svg>
+      {{ t.settings }}
+    </button>
+  </nav>
+  </sc-if>
+
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+    <sc-if value="{{ isHoy }}">
+    <div data-screen-label="Hoy" style="flex:1;padding:0 20px 120px;animation:fadein .28s both">
+      <div style="max-width:600px;margin:0 auto">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:34px 0 20px">
+          <div>
+            <div style="font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink)">{{ todayWeekday }}</div>
+            <h1 style="margin:6px 0 0;font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1">{{ t.today }}</h1>
+          </div>
+          <sc-if value="{{ isNarrow }}">
+          <button onClick="{{ openSettings }}" style="width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--muted);background:var(--surface2)" style-active="transform:scale(.94)">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2M12 19v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M3 12h2M19 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+          </button>
+          </sc-if>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:20px;box-shadow:var(--shadow-s);display:flex;align-items:center;gap:20px">
+          <div style="position:relative;width:92px;height:92px;flex:0 0 92px">
+            <svg width="92" height="92" viewBox="0 0 100 100" style="transform:rotate(-90deg)">
+              <circle cx="50" cy="50" r="42" fill="none" stroke="var(--soft)" stroke-width="9"></circle>
+              <circle cx="50" cy="50" r="42" fill="none" stroke="var(--accent)" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="{{ ringOffset }}" style="transition:stroke-dashoffset .7s cubic-bezier(.2,.7,.2,1)"></circle>
+            </svg>
+            <div style="position:absolute;inset:0;display:grid;place-items:center">
+              <div style="font-size:15px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums">{{ ringPct }}</div>
+            </div>
+          </div>
+          <div style="min-width:0">
+            <div style="font-size:30px;font-weight:700;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums">{{ kcalDone }}</div>
+            <div style="margin-top:7px;font-size:14.5px;color:var(--muted);letter-spacing:-.005em">{{ kcalLine }}</div>
+            <div style="margin-top:10px;font-size:13.5px;color:var(--accent-ink);font-weight:600">{{ kcalHint }}</div>
+          </div>
+        </div>
+
+        <sc-if value="{{ hasMealsToday }}">
+        <div style="margin-top:26px;display:flex;flex-direction:column;gap:22px">
+          <sc-for list="{{ todayGroups }}" as="g" hint-placeholder-count="2">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin:0 4px 10px">
+                <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">{{ g.label }}</div>
+                <div style="flex:1;height:1px;background:var(--line)"></div>
+                <div style="font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums">{{ g.kcal }}</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <sc-for list="{{ g.items }}" as="m" hint-placeholder-count="1">
+                  <div style="background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 14px 14px 16px;box-shadow:var(--shadow-s);display:flex;align-items:center;gap:14px">
+                    <button onClick="{{ m.onOpen }}" style="flex:1;min-width:0;text-align:left" style-active="opacity:.6">
+                      <div style="font-size:16.5px;font-weight:600;letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.name }}</div>
+                      <div style="margin-top:4px;font-size:13.5px;color:var(--muted);font-variant-numeric:tabular-nums">{{ m.meta }}</div>
+                    </button>
+                    <sc-if value="{{ m.cooked }}">
+                      <div style="display:flex;align-items:center;gap:6px;padding:6px 11px;border-radius:99px;background:var(--soft);color:var(--accent-ink);font-size:13px;font-weight:600">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+                        {{ t.cooked }}
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ m.pending }}">
+                      <button onClick="{{ m.onCook }}" style="height:40px;padding:0 16px;border-radius:13px;background:var(--accent);color:var(--onaccent);font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:7px;transition:transform .12s ease-out" style-active="transform:scale(.95)">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 13h16a8 8 0 0 1-16 0Z"></path><path d="M12 4v3"></path></svg>
+                        {{ t.cook }}
+                      </button>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ noMealsToday }}">
+        <div style="margin-top:20px;background:var(--surface);border:1px dashed var(--line);border-radius:22px;padding:36px 24px;text-align:center">
+          <div style="font-size:18px;font-weight:650;letter-spacing:-.02em">{{ t.emptyToday }}</div>
+          <div style="margin-top:8px;font-size:14.5px;color:var(--muted);line-height:1.5;max-width:280px;margin-left:auto;margin-right:auto;text-wrap:pretty">{{ t.emptyTodayBody }}</div>
+          <button onClick="{{ goPlan }}" style="margin-top:18px;height:44px;padding:0 20px;border-radius:14px;background:var(--accent);color:var(--onaccent);font-size:15px;font-weight:600" style-active="transform:scale(.97)">{{ t.planWeek }}</button>
+        </div>
+        </sc-if>
+
+        <div style="margin-top:26px">
+          <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 4px 12px">{{ t.cookableNow }}</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+            <sc-for list="{{ cookableNow }}" as="r" hint-placeholder-count="3">
+              <button onClick="{{ r.onOpen }}" style="text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:var(--shadow-s);transition:transform .14s ease-out" style-active="transform:scale(.98)">
+                <div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;line-height:1.25">{{ r.name }}</div>
+                <div style="margin-top:6px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums">{{ r.meta }}</div>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ isRecetas }}">
+    <div data-screen-label="Recetas" style="flex:1;padding:0 20px 120px;animation:fadein .28s both">
+      <div style="max-width:1080px;margin:0 auto">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:34px 0 18px;gap:12px">
+          <h1 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1">{{ t.recipes }}</h1>
+          <button onClick="{{ openNewRecipe }}" style="height:42px;padding:0 16px;border-radius:13px;background:var(--accent);color:var(--onaccent);font-size:15px;font-weight:600;display:flex;align-items:center;gap:7px;transition:transform .12s ease-out" style-active="transform:scale(.96)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+            {{ t.newRecipe }}
+          </button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;height:46px;padding:0 14px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-s)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg>
+          <input value="{{ query }}" onInput="{{ onQuery }}" placeholder="{{ t.searchRecipes }}" style="flex:1;min-width:0;border:0;outline:none;background:none;font-size:16px;letter-spacing:-.01em" />
+          <sc-if value="{{ hasQuery }}">
+            <button onClick="{{ clearQuery }}" style="width:24px;height:24px;border-radius:99px;display:grid;place-items:center;background:var(--surface2);color:var(--muted)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+            </button>
+          </sc-if>
+        </div>
+
+        <div style="display:flex;gap:8px;overflow-x:auto;padding:14px 0 4px;scrollbar-width:none">
+          <sc-for list="{{ filterChips }}" as="c" hint-placeholder-count="5">
+            <button onClick="{{ c.onTap }}" style="flex:0 0 auto;height:34px;padding:0 14px;border-radius:99px;font-size:14px;font-weight:550;letter-spacing:-.01em;transition:transform .12s ease-out;border:1px solid {{ c.line }};background:{{ c.bg }};color:{{ c.fg }}" style-active="transform:scale(.95)">{{ c.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="margin:8px 0 18px;font-size:13.5px;color:var(--muted)">{{ resultLine }}</div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
+          <sc-for list="{{ visibleRecipes }}" as="r" hint-placeholder-count="6">
+            <button onClick="{{ r.onOpen }}" style="text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--shadow-s);transition:transform .16s cubic-bezier(.2,.7,.2,1),box-shadow .16s ease" style-hover="box-shadow:var(--shadow-m)" style-active="transform:scale(.985)">
+              <div style="height:104px;background:var(--soft);display:flex;align-items:flex-end;justify-content:space-between;padding:12px">
+                <div style="font-size:32px;font-weight:700;color:var(--accent-ink);opacity:.7;letter-spacing:-.04em;line-height:1">{{ r.initial }}</div>
+                <div style="padding:5px 10px;border-radius:99px;background:var(--surface);font-size:12px;font-weight:600;color:var(--accent-ink);font-variant-numeric:tabular-nums">{{ r.have }}</div>
+              </div>
+              <div style="padding:14px">
+                <div style="font-size:16.5px;font-weight:600;letter-spacing:-.018em;line-height:1.25">{{ r.name }}</div>
+                <div style="margin-top:6px;font-size:13.5px;color:var(--muted);line-height:1.4;height:38px;overflow:hidden;text-wrap:pretty">{{ r.desc }}</div>
+                <div style="margin-top:10px;display:flex;gap:12px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums">
+                  <span>{{ r.time }}</span>
+                  <span>{{ r.kcal }}</span>
+                  <span>{{ r.diff }}</span>
+                </div>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ noResults }}">
+        <div style="padding:60px 20px;text-align:center">
+          <div style="font-size:17px;font-weight:600;letter-spacing:-.02em">{{ t.noResults }}</div>
+          <button onClick="{{ resetFilters }}" style="margin-top:14px;height:42px;padding:0 18px;border-radius:13px;background:var(--surface2);font-size:15px;font-weight:600">{{ t.resetFilters }}</button>
+        </div>
+        </sc-if>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ isPlan }}">
+    <div data-screen-label="Plan" style="flex:1;padding:0 20px 120px;animation:fadein .28s both">
+      <div style="max-width:1180px;margin:0 auto">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:34px 0 18px;gap:12px;flex-wrap:wrap">
+          <div>
+            <h1 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1">{{ t.plan }}</h1>
+            <div style="margin-top:8px;font-size:14.5px;color:var(--muted)">{{ weekLabel }}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button onClick="{{ prevWeek }}" style="width:40px;height:40px;border-radius:12px;background:var(--surface2);display:grid;place-items:center" style-active="transform:scale(.94)">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 6l-6 6 6 6"></path></svg>
+            </button>
+            <button onClick="{{ thisWeek }}" style="height:40px;padding:0 14px;border-radius:12px;background:var(--surface2);font-size:14.5px;font-weight:600" style-active="transform:scale(.96)">{{ t.thisWeek }}</button>
+            <button onClick="{{ nextWeek }}" style="width:40px;height:40px;border-radius:12px;background:var(--surface2);display:grid;place-items:center" style-active="transform:scale(.94)">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 6l6 6-6 6"></path></svg>
+            </button>
+            <button onClick="{{ openShop }}" style="height:40px;padding:0 16px;border-radius:12px;background:var(--accent);color:var(--onaccent);font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:7px" style-active="transform:scale(.96)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14l-1.3 11a2 2 0 0 1-2 1.8H8.3a2 2 0 0 1-2-1.8Z"></path><path d="M9 7V5.5a3 3 0 0 1 6 0V7"></path></svg>
+              {{ t.shoppingList }}
+            </button>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:12px 14px;box-shadow:var(--shadow-s);margin-bottom:16px">
+          <div style="font-size:12.5px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">{{ t.dragHint }}</div>
+          <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none">
+            <sc-for list="{{ dragChips }}" as="c" hint-placeholder-count="6">
+              <div onPointerDown="{{ c.onDown }}" onClick="{{ c.onTap }}" style="flex:0 0 auto;height:36px;padding:0 14px;border-radius:99px;background:var(--soft);color:var(--accent-ink);font-size:14px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;cursor:grab;touch-action:none;user-select:none;transition:transform .12s ease-out" style-active="transform:scale(.95)">{{ c.name }}</div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-auto-flow:column;grid-auto-columns:minmax(168px,1fr);gap:10px;overflow-x:auto;padding-bottom:8px">
+          <sc-for list="{{ week }}" as="d" hint-placeholder-count="7">
+            <div style="min-width:0">
+              <div style="display:flex;align-items:baseline;gap:7px;padding:0 4px 10px">
+                <div style="font-size:15px;font-weight:650;letter-spacing:-.015em">{{ d.label }}</div>
+                <div style="font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums">{{ d.kcal }}</div>
+                <sc-if value="{{ d.isToday }}">
+                  <div style="margin-left:auto;width:7px;height:7px;border-radius:99px;background:var(--accent)"></div>
+                </sc-if>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <sc-for list="{{ d.slots }}" as="s" hint-placeholder-count="4">
+                  <div data-slot="{{ s.key }}" style="position:relative;border-radius:15px;border:1px solid var(--line);background:var(--surface);min-height:66px;padding:9px;box-shadow:var(--shadow-s)">
+                    <sc-if value="{{ s.hot }}">
+                      <div style="position:absolute;inset:-2px;border-radius:17px;border:2px solid var(--accent);background:var(--soft);opacity:.55;pointer-events:none"></div>
+                    </sc-if>
+                    <div style="display:flex;align-items:center;justify-content:space-between;position:relative">
+                      <div style="font-size:11.5px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">{{ s.label }}</div>
+                      <button onClick="{{ s.onAdd }}" style="width:22px;height:22px;border-radius:7px;display:grid;place-items:center;color:var(--muted);background:var(--surface2)" style-active="transform:scale(.9)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+                      </button>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;margin-top:7px;position:relative">
+                      <sc-for list="{{ s.items }}" as="m" hint-placeholder-count="0">
+                        <div style="background:var(--soft);border-radius:11px;padding:8px 9px;display:flex;align-items:center;gap:6px">
+                          <button onClick="{{ m.onOpen }}" style="flex:1;min-width:0;text-align:left">
+                            <div style="font-size:13.5px;font-weight:600;letter-spacing:-.012em;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.name }}</div>
+                            <div style="margin-top:3px;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums">{{ m.meta }}</div>
+                          </button>
+                          <button onClick="{{ m.onRemove }}" style="width:20px;height:20px;border-radius:6px;display:grid;place-items:center;color:var(--muted)" style-hover="color:var(--text)">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+                          </button>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ isDespensa }}">
+    <div data-screen-label="Despensa" style="flex:1;padding:0 20px 120px;animation:fadein .28s both">
+      <div style="max-width:700px;margin:0 auto">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:34px 0 18px">
+          <h1 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1">{{ t.pantry }}</h1>
+          <button onClick="{{ openPantryAdd }}" style="height:42px;padding:0 16px;border-radius:13px;background:var(--accent);color:var(--onaccent);font-size:15px;font-weight:600;display:flex;align-items:center;gap:7px" style-active="transform:scale(.96)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+            {{ t.add }}
+          </button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;height:46px;padding:0 14px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-s);margin-bottom:20px">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg>
+          <input value="{{ pantryQuery }}" onInput="{{ onPantryQuery }}" placeholder="{{ t.searchPantry }}" style="flex:1;min-width:0;border:0;outline:none;background:none;font-size:16px;letter-spacing:-.01em" />
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:22px">
+          <sc-for list="{{ pantryGroups }}" as="g" hint-placeholder-count="3">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin:0 4px 10px">
+                <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">{{ g.label }}</div>
+                <div style="flex:1;height:1px;background:var(--line)"></div>
+                <div style="font-size:12.5px;color:var(--muted)">{{ g.count }}</div>
+              </div>
+              <div style="background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow-s)">
+                <sc-for list="{{ g.items }}" as="i" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line)">
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:15.5px;font-weight:550;letter-spacing:-.012em">{{ i.name }}</div>
+                      <div style="margin-top:3px;font-size:12.5px;color:{{ i.expfg }}">{{ i.sub }}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:2px;background:var(--surface2);border-radius:11px;padding:3px">
+                      <button onClick="{{ i.onMinus }}" style="width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--muted)" style-active="transform:scale(.9);background:var(--line)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14"></path></svg>
+                      </button>
+                      <div style="min-width:64px;text-align:center;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums">{{ i.qty }}</div>
+                      <button onClick="{{ i.onPlus }}" style="width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--muted)" style-active="transform:scale(.9);background:var(--line)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+                      </button>
+                    </div>
+                    <button onClick="{{ i.onDelete }}" style="width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--muted)" style-hover="color:var(--warn-ink)">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 7h14M9 7V5.5h6V7M7 7l1 12.5h8L17 7"></path></svg>
+                    </button>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ pantryEmpty }}">
+        <div style="background:var(--surface);border:1px dashed var(--line);border-radius:22px;padding:44px 24px;text-align:center">
+          <div style="font-size:18px;font-weight:650;letter-spacing:-.02em">{{ t.pantryEmpty }}</div>
+          <div style="margin-top:8px;font-size:14.5px;color:var(--muted);max-width:280px;margin-left:auto;margin-right:auto;line-height:1.5;text-wrap:pretty">{{ t.pantryEmptyBody }}</div>
+          <button onClick="{{ openPantryAdd }}" style="margin-top:18px;height:44px;padding:0 20px;border-radius:14px;background:var(--accent);color:var(--onaccent);font-size:15px;font-weight:600">{{ t.add }}</button>
+        </div>
+        </sc-if>
+      </div>
+    </div>
+    </sc-if>
+
+  </main>
+
+  <sc-if value="{{ isNarrow }}">
+  <nav style="position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--glass);backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom));display:flex;justify-content:space-around">
+    <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="4">
+      <button onClick="{{ tab.onTap }}" style="flex:1;min-height:52px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:background .18s ease,transform .12s ease-out;color:{{ tab.fg }};background:{{ tab.bg }}" style-active="transform:scale(.94)">
+        {{ tab.icon }}
+        <span style="font-size:11.5px;font-weight:600;letter-spacing:-.005em">{{ tab.label }}</span>
+      </button>
+    </sc-for>
+  </nav>
+  </sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ showDetail }}">
+<div data-screen-label="Detalle de receta" style="position:fixed;inset:0;z-index:60;background:var(--bg);overflow-y:auto;animation:pushin .3s cubic-bezier(.2,.7,.2,1) both">
+  <div style="position:sticky;top:0;z-index:2;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:10px">
+    <button onClick="{{ closePush }}" style="width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface2)" style-active="transform:scale(.93)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 6l-6 6 6 6"></path></svg>
+    </button>
+    <div style="flex:1;min-width:0;font-size:16px;font-weight:600;letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ detail.name }}</div>
+  </div>
+
+  <div style="max-width:620px;margin:0 auto;padding:18px 20px 40px">
+    <div style="height:170px;border-radius:22px;background:var(--soft);display:grid;place-items:center;margin-bottom:20px">
+      <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--accent-ink);letter-spacing:.04em">{{ t.photoSlot }}</div>
+    </div>
+
+    <h1 style="margin:0;font-size:29px;font-weight:700;letter-spacing:-.03em;line-height:1.1">{{ detail.name }}</h1>
+    <div style="margin-top:10px;font-size:16px;color:var(--muted);line-height:1.5;text-wrap:pretty">{{ detail.desc }}</div>
+    <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:10px;font-size:13.5px;color:var(--muted);font-variant-numeric:tabular-nums">
+      <span>{{ detail.time }}</span><span>·</span><span>{{ detail.diff }}</span><span>·</span><span>{{ detail.cookedTimes }}</span>
+    </div>
+
+    <div style="margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--shadow-s)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:14px">
+        <div style="font-size:15px;font-weight:600;letter-spacing:-.015em">{{ t.servings }}</div>
+        <div style="display:flex;align-items:center;gap:2px;background:var(--surface2);border-radius:12px;padding:3px">
+          <button onClick="{{ detail.onMinus }}" style="width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--muted)" style-active="transform:scale(.9);background:var(--line)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14"></path></svg>
+          </button>
+          <div style="min-width:34px;text-align:center;font-size:17px;font-weight:650;font-variant-numeric:tabular-nums">{{ detail.servings }}</div>
+          <button onClick="{{ detail.onPlus }}" style="width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--muted)" style-active="transform:scale(.9);background:var(--line)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+          </button>
+        </div>
+      </div>
+      <div style="margin-top:14px;display:flex;align-items:baseline;gap:10px">
+        <div style="font-size:30px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums">{{ detail.kcalServing }}</div>
+        <div style="font-size:14px;color:var(--muted)">{{ detail.kcalLine }}</div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:0 4px 10px">
+        <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">{{ t.ingredients }}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--accent-ink)">{{ detail.haveLine }}</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--shadow-s)">
+        <sc-for list="{{ detail.ingredients }}" as="ing" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--line);background:{{ ing.rowbg }}">
+            <div style="width:8px;height:8px;border-radius:99px;flex:0 0 8px;background:{{ ing.dot }}"></div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:15.5px;font-weight:550;letter-spacing:-.012em">{{ ing.name }}</div>
+              <div style="margin-top:3px;font-size:12.5px;color:var(--muted)">{{ ing.note }}</div>
+            </div>
+            <div style="font-size:15px;font-weight:600;font-variant-numeric:tabular-nums">{{ ing.qty }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ detail.hasSensitive }}">
+        <div style="margin-top:10px;padding:12px 14px;border-radius:14px;background:var(--warnsoft);color:var(--warn-ink);font-size:13px;line-height:1.5;text-wrap:pretty">{{ t.sensitiveNote }}</div>
+      </sc-if>
+    </div>
+
+    <div style="margin-top:22px">
+      <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 4px 10px">{{ t.steps }}</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <sc-for list="{{ detail.steps }}" as="s" hint-placeholder-count="3">
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;gap:13px;box-shadow:var(--shadow-s)">
+            <div style="flex:0 0 24px;height:24px;border-radius:99px;background:var(--soft);color:var(--accent-ink);display:grid;place-items:center;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums">{{ s.n }}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:15.5px;line-height:1.5;letter-spacing:-.01em;text-wrap:pretty">{{ s.text }}</div>
+              <sc-if value="{{ s.hasTimer }}">
+                <div style="margin-top:6px;font-size:12.5px;color:var(--accent-ink);font-weight:600;font-variant-numeric:tabular-nums">{{ s.timerLabel }}</div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="margin-top:26px;display:flex;gap:10px;flex-wrap:wrap">
+      <button onClick="{{ detail.onCook }}" style="flex:1 1 180px;height:52px;border-radius:16px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:650;letter-spacing:-.015em;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:var(--shadow-m);transition:transform .12s ease-out" style-active="transform:scale(.98)">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 13h16a8 8 0 0 1-16 0Z"></path><path d="M12 4v3"></path></svg>
+        {{ t.cookNow }}
+      </button>
+      <button onClick="{{ detail.onPlanIt }}" style="flex:1 1 140px;height:52px;border-radius:16px;background:var(--surface2);font-size:16px;font-weight:600;letter-spacing:-.015em;transition:transform .12s ease-out" style-active="transform:scale(.98)">{{ t.addToPlan }}</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showNew }}">
+<div data-screen-label="Nueva receta" style="position:fixed;inset:0;z-index:60;background:var(--bg);overflow-y:auto;animation:pushin .3s cubic-bezier(.2,.7,.2,1) both">
+  <div style="position:sticky;top:0;z-index:2;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:10px">
+    <button onClick="{{ closePush }}" style="height:40px;padding:0 12px;border-radius:12px;background:var(--surface2);font-size:15px;font-weight:550" style-active="transform:scale(.95)">{{ t.cancel }}</button>
+    <div style="flex:1;text-align:center;font-size:16px;font-weight:600;letter-spacing:-.015em">{{ t.newRecipe }}</div>
+    <button onClick="{{ saveRecipe }}" style="height:40px;padding:0 16px;border-radius:12px;font-size:15px;font-weight:650;background:{{ saveBg }};color:{{ saveFg }}" style-active="transform:scale(.95)">{{ t.save }}</button>
+  </div>
+
+  <div style="max-width:560px;margin:0 auto;padding:22px 20px 60px;display:flex;flex-direction:column;gap:22px">
+    <div>
+      <input value="{{ form.title }}" onInput="{{ onFormTitle }}" placeholder="{{ t.recipeName }}" style="width:100%;border:0;outline:none;background:none;font-size:27px;font-weight:700;letter-spacing:-.03em;padding:0 2px" />
+      <div style="height:1px;background:var(--line);margin-top:12px"></div>
+      <input value="{{ form.desc }}" onInput="{{ onFormDesc }}" placeholder="{{ t.oneLine }}" style="width:100%;border:0;outline:none;background:none;font-size:16px;color:var(--text);padding:12px 2px 0" />
+    </div>
+
+    <div>
+      <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 2px 10px">{{ t.ingredients }}</div>
+      <textarea value="{{ form.ings }}" onInput="{{ onFormIngs }}" placeholder="{{ t.ingsPlaceholder }}" rows="6" style="width:100%;border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:14px;font-size:15.5px;line-height:1.7;outline:none;resize:vertical;box-shadow:var(--shadow-s)"></textarea>
+      <div style="margin-top:8px;font-size:13px;color:var(--muted);padding:0 2px">{{ ingsParsed }}</div>
+    </div>
+
+    <div>
+      <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 2px 10px">{{ t.steps }}</div>
+      <textarea value="{{ form.steps }}" onInput="{{ onFormSteps }}" placeholder="{{ t.stepsPlaceholder }}" rows="6" style="width:100%;border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:14px;font-size:15.5px;line-height:1.7;outline:none;resize:vertical;box-shadow:var(--shadow-s)"></textarea>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-s);overflow:hidden">
+      <button onClick="{{ toggleAdvanced }}" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:15px 16px;font-size:15.5px;font-weight:600;letter-spacing:-.015em">
+        <span>{{ t.moreDetails }}</span>
+        <span style="color:var(--muted);font-size:13px">{{ advLabel }}</span>
+      </button>
+      <sc-if value="{{ form.advanced }}">
+      <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:16px;border-top:1px solid var(--line);padding-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:15px;font-weight:550">{{ t.baseServings }}</div>
+          <div style="display:flex;align-items:center;gap:2px;background:var(--surface2);border-radius:11px;padding:3px">
+            <button onClick="{{ onFormServMinus }}" style="width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--muted)" style-active="transform:scale(.9)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14"></path></svg>
+            </button>
+            <div style="min-width:32px;text-align:center;font-size:15.5px;font-weight:650;font-variant-numeric:tabular-nums">{{ form.servings }}</div>
+            <button onClick="{{ onFormServPlus }}" style="width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--muted)" style-active="transform:scale(.9)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+            </button>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <label style="flex:1;display:block">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:6px">{{ t.minutes }}</div>
+            <input value="{{ form.minutes }}" onInput="{{ onFormMinutes }}" inputmode="numeric" placeholder="25" style="width:100%;height:44px;border:1px solid var(--line);background:var(--surface2);border-radius:12px;padding:0 12px;font-size:15.5px;outline:none;font-variant-numeric:tabular-nums" />
+          </label>
+          <label style="flex:1;display:block">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:6px">{{ t.kcalServingLabel }}</div>
+            <input value="{{ form.kcal }}" onInput="{{ onFormKcal }}" inputmode="numeric" placeholder="450" style="width:100%;height:44px;border:1px solid var(--line);background:var(--surface2);border-radius:12px;padding:0 12px;font-size:15.5px;outline:none;font-variant-numeric:tabular-nums" />
+          </label>
+        </div>
+        <div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:8px">{{ t.difficulty }}</div>
+          <div style="display:flex;gap:8px">
+            <sc-for list="{{ diffChips }}" as="d" hint-placeholder-count="3">
+              <button onClick="{{ d.onTap }}" style="flex:1;height:40px;border-radius:12px;font-size:14.5px;font-weight:600;border:1px solid {{ d.line }};background:{{ d.bg }};color:{{ d.fg }}">{{ d.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:8px">{{ t.tags }}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <sc-for list="{{ tagChips }}" as="tg" hint-placeholder-count="4">
+              <button onClick="{{ tg.onTap }}" style="height:34px;padding:0 13px;border-radius:99px;font-size:13.5px;font-weight:550;border:1px solid {{ tg.line }};background:{{ tg.bg }};color:{{ tg.fg }}">{{ tg.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showCook }}">
+<div data-screen-label="Cocinar" style="position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;animation:fadein .26s both">
+  <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)">
+    <button onClick="{{ cook.onAskExit }}" aria-label="{{ t.exitTitle }}" style="width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface2)" style-active="transform:scale(.93)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+    </button>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:16px;font-weight:650;letter-spacing:-.018em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ cook.name }}</div>
+      <div style="margin-top:2px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums">{{ cook.stepLabel }}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:2px;background:var(--surface2);border-radius:11px;padding:3px">
+      <button onClick="{{ cook.onMinus }}" aria-label="{{ t.servings }}" style="width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--muted)" style-active="transform:scale(.9)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14"></path></svg>
+      </button>
+      <div style="min-width:28px;text-align:center;font-size:15px;font-weight:650;font-variant-numeric:tabular-nums">{{ cook.servings }}</div>
+      <button onClick="{{ cook.onPlus }}" aria-label="{{ t.servings }}" style="width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--muted)" style-active="transform:scale(.9)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+      </button>
+    </div>
+  </div>
+
+  <div style="height:3px;background:var(--line)">
+    <div style="height:3px;background:var(--accent);width:{{ cook.progress }};transition:width .45s cubic-bezier(.2,.7,.2,1)"></div>
+  </div>
+
+  <sc-if value="{{ cook.hasLiveTimers }}">
+  <div style="padding:10px 14px;border-bottom:1px solid var(--line);background:var(--bg2);display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;align-items:center">
+    <div style="flex:0 0 auto;font-size:11.5px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">{{ t.running }}</div>
+    <sc-for list="{{ cook.liveTimers }}" as="lt" hint-placeholder-count="1">
+      <button onClick="{{ lt.onTap }}" style="flex:0 0 auto;height:36px;padding:0 6px 0 12px;border-radius:99px;display:flex;align-items:center;gap:8px;border:1px solid {{ lt.line }};background:{{ lt.bg }};transition:transform .12s ease-out" style-active="transform:scale(.95)">
+        <span style="font-size:12.5px;font-weight:650;color:{{ lt.fg }}">{{ lt.label }}</span>
+        <span style="font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ lt.fg }}">{{ lt.time }}</span>
+        <span style="width:24px;height:24px;border-radius:99px;display:grid;place-items:center;background:{{ lt.dotbg }};color:{{ lt.doticon }}">{{ lt.glyph }}</span>
+      </button>
+    </sc-for>
+  </div>
+  </sc-if>
+
+  <div style="flex:1;overflow-y:auto;padding:26px 20px 140px">
+    <div style="max-width:620px;margin:0 auto">
+
+      <sc-if value="{{ cook.isMise }}">
+      <div>
+        <div style="font-size:27px;font-weight:700;letter-spacing:-.026em;line-height:1.15">{{ t.misePlace }}</div>
+        <div style="margin-top:10px;font-size:16px;line-height:1.5;color:var(--muted);text-wrap:pretty">{{ t.miseBody }}</div>
+
+        <div style="margin-top:18px;padding:14px 16px;border-radius:16px;background:{{ cook.miseBannerBg }};color:{{ cook.miseBannerFg }};font-size:14.5px;font-weight:600;line-height:1.5;text-wrap:pretty">{{ cook.miseBanner }}</div>
+
+        <div style="margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow-s)">
+          <sc-for list="{{ cook.allIngredients }}" as="ing" hint-placeholder-count="4">
+            <button onClick="{{ ing.onToggle }}" style="width:100%;display:flex;align-items:center;gap:13px;padding:14px 15px;border-bottom:1px solid var(--line);text-align:left;background:{{ ing.rowbg }}" style-active="opacity:.7">
+              <div style="width:22px;height:22px;border-radius:7px;display:grid;place-items:center;flex:0 0 22px;border:2px solid {{ ing.boxline }};background:{{ ing.boxbg }}">
+                <sc-if value="{{ ing.checked }}">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--onaccent)" stroke-width="3.4" stroke-linecap="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+                </sc-if>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:15.5px;font-weight:550;letter-spacing:-.012em;color:{{ ing.rowfg }};text-decoration:{{ ing.strike }}">{{ ing.name }}</div>
+                <div style="margin-top:3px;font-size:12.5px;color:{{ ing.notefg }}">{{ ing.note }}</div>
+              </div>
+              <div style="font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:{{ ing.rowfg }}">{{ ing.qty }}</div>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="margin-top:22px">
+          <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 2px 10px">{{ cook.planLabel }}</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ cook.outline }}" as="o" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--surface2)">
+                <div style="flex:0 0 22px;height:22px;border-radius:99px;background:var(--soft);color:var(--accent-ink);display:grid;place-items:center;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums">{{ o.n }}</div>
+                <div style="flex:1;min-width:0;font-size:14.5px;line-height:1.45;letter-spacing:-.01em;text-wrap:pretty">{{ o.text }}</div>
+                <sc-if value="{{ o.hasTimer }}">
+                  <div style="flex:0 0 auto;font-size:12.5px;font-weight:650;color:var(--accent-ink);font-variant-numeric:tabular-nums">{{ o.timerLabel }}</div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ cook.isSteps }}">
+      <div>
+        <sc-if value="{{ cook.isPassive }}">
+          <div style="display:inline-flex;align-items:center;gap:7px;margin-bottom:14px;height:30px;padding:0 12px;border-radius:99px;background:var(--soft);color:var(--accent-ink);font-size:12.5px;font-weight:650;letter-spacing:.02em">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9.5V13l2.5 1.5"></path></svg>
+            {{ t.unattended }}
+          </div>
+        </sc-if>
+
+        <div style="font-size:26px;font-weight:650;letter-spacing:-.026em;line-height:1.28;text-wrap:pretty">{{ cook.stepText }}</div>
+
+        <sc-if value="{{ cook.hasTimer }}">
+        <div style="margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:var(--shadow-s);display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="flex:1 1 120px;min-width:110px;font-size:38px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:{{ cook.timerColor }}">{{ cook.timerText }}</div>
+          <button onClick="{{ cook.onTimerToggle }}" style="height:46px;padding:0 20px;border-radius:14px;background:var(--accent);color:var(--onaccent);font-size:15px;font-weight:650;transition:transform .12s ease-out" style-active="transform:scale(.96)">{{ cook.timerCta }}</button>
+          <button onClick="{{ cook.onTimerReset }}" style="height:46px;padding:0 16px;border-radius:14px;background:var(--surface2);font-size:15px;font-weight:600;transition:transform .12s ease-out" style-active="transform:scale(.96)">{{ t.reset }}</button>
+        </div>
+        <div style="margin-top:8px;font-size:12.5px;color:var(--muted);padding:0 2px;line-height:1.45;text-wrap:pretty">{{ t.timerKeepsRunning }}</div>
+        </sc-if>
+
+        <sc-if value="{{ cook.hasMeanwhile }}">
+        <div style="margin-top:24px;border-radius:20px;border:1px solid var(--soft2);background:var(--soft);padding:16px">
+          <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:12px">{{ t.meanwhile }}</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ cook.meanwhile }}" as="m" hint-placeholder-count="1">
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;border-radius:14px;background:var(--surface)">
+                <div style="flex:0 0 22px;height:22px;border-radius:99px;background:var(--soft);color:var(--accent-ink);display:grid;place-items:center;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums">{{ m.n }}</div>
+                <div style="flex:1;min-width:0;font-size:14.5px;line-height:1.45;letter-spacing:-.01em;text-wrap:pretty">{{ m.text }}</div>
+                <button onClick="{{ m.onGo }}" style="flex:0 0 auto;min-width:56px;height:44px;padding:0 18px;border-radius:13px;background:var(--accent);color:var(--onaccent);font-size:14.5px;font-weight:650;transition:transform .12s ease-out" style-active="transform:scale(.95)">{{ t.goStep }}</button>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <div style="margin-top:26px">
+          <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 2px 10px">{{ t.forThisStep }}</div>
+          <sc-if value="{{ cook.hasStepIngs }}">
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow-s)">
+            <sc-for list="{{ cook.stepIngredients }}" as="ing" hint-placeholder-count="2">
+              <button onClick="{{ ing.onToggle }}" style="width:100%;display:flex;align-items:center;gap:13px;padding:14px 15px;border-bottom:1px solid var(--line);text-align:left;background:{{ ing.rowbg }}" style-active="opacity:.7">
+                <div style="width:22px;height:22px;border-radius:7px;display:grid;place-items:center;flex:0 0 22px;border:2px solid {{ ing.boxline }};background:{{ ing.boxbg }}">
+                  <sc-if value="{{ ing.checked }}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--onaccent)" stroke-width="3.4" stroke-linecap="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+                  </sc-if>
+                </div>
+                <div style="flex:1;min-width:0;font-size:15.5px;font-weight:550;letter-spacing:-.012em;color:{{ ing.rowfg }};text-decoration:{{ ing.strike }}">{{ ing.name }}</div>
+                <div style="font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:{{ ing.rowfg }}">{{ ing.qty }}</div>
+              </button>
+            </sc-for>
+          </div>
+          </sc-if>
+          <sc-if value="{{ cook.noStepIngs }}">
+            <div style="padding:16px;border-radius:16px;border:1px dashed var(--line);font-size:14.5px;color:var(--muted);line-height:1.45;text-wrap:pretty">{{ t.noStepIngs }}</div>
+          </sc-if>
+        </div>
+
+        <div style="margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-s);overflow:hidden">
+          <button onClick="{{ cook.onToggleUpcoming }}" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;text-align:left" style-active="opacity:.7">
+            <span style="font-size:15.5px;font-weight:600;letter-spacing:-.015em">{{ cook.upcomingLabel }}</span>
+            <span style="font-size:13px;color:var(--muted)">{{ cook.upcomingGlyph }}</span>
+          </button>
+          <sc-if value="{{ cook.showUpcoming }}">
+          <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:14px">
+            <sc-for list="{{ cook.upcoming }}" as="u" hint-placeholder-count="2">
+              <button onClick="{{ u.onGo }}" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--surface2);text-align:left" style-active="transform:scale(.985)">
+                <div style="flex:0 0 22px;height:22px;border-radius:99px;background:var(--soft);color:var(--accent-ink);display:grid;place-items:center;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums">{{ u.n }}</div>
+                <div style="flex:1;min-width:0;font-size:14.5px;line-height:1.45;letter-spacing:-.01em;text-wrap:pretty">{{ u.text }}</div>
+                <sc-if value="{{ u.hasTimer }}">
+                  <div style="flex:0 0 auto;font-size:12.5px;font-weight:650;color:var(--accent-ink);font-variant-numeric:tabular-nums">{{ u.timerLabel }}</div>
+                </sc-if>
+              </button>
+            </sc-for>
+            <sc-if value="{{ cook.noUpcoming }}">
+              <div style="font-size:14.5px;color:var(--muted);padding:2px 2px 4px">{{ t.lastStepNote }}</div>
+            </sc-if>
+          </div>
+          </sc-if>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 20px calc(16px + env(safe-area-inset-bottom));background:var(--glass);backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);border-top:1px solid var(--line);display:flex;gap:10px;justify-content:center">
+    <div style="width:100%;max-width:620px;display:flex;gap:10px">
+      <sc-if value="{{ cook.showPrev }}">
+      <button onClick="{{ cook.onPrev }}" aria-label="{{ t.back }}" style="width:56px;height:54px;border-radius:16px;background:var(--surface2);display:grid;place-items:center" style-active="transform:scale(.95)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 6l-6 6 6 6"></path></svg>
+      </button>
+      </sc-if>
+      <button onClick="{{ cook.onNext }}" style="flex:1;height:54px;border-radius:16px;background:var(--accent);color:var(--onaccent);font-size:16.5px;font-weight:650;letter-spacing:-.015em;box-shadow:var(--shadow-m);transition:transform .12s ease-out" style-active="transform:scale(.985)">{{ cook.nextCta }}</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ cook.askExit }}">
+<div style="position:fixed;inset:0;z-index:78;display:grid;place-items:center;padding:24px">
+  <div onClick="{{ cook.onKeepCooking }}" style="position:absolute;inset:0;background:rgba(8,12,8,.5);animation:fadein .2s both"></div>
+  <div role="alertdialog" style="position:relative;width:100%;max-width:360px;background:var(--surface);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow-l);padding:24px;animation:rise .28s cubic-bezier(.2,.75,.2,1) both">
+    <div style="font-size:20px;font-weight:700;letter-spacing:-.024em;line-height:1.2">{{ t.exitTitle }}</div>
+    <div style="margin-top:10px;font-size:15px;line-height:1.5;color:var(--muted);text-wrap:pretty">{{ cook.exitBody }}</div>
+    <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px">
+      <button onClick="{{ cook.onKeepCooking }}" style="height:50px;border-radius:15px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:650;transition:transform .12s ease-out" style-active="transform:scale(.97)">{{ t.keepCooking }}</button>
+      <button onClick="{{ cook.onConfirmExit }}" style="height:50px;border-radius:15px;background:var(--warnsoft);color:var(--warn-ink);font-size:16px;font-weight:600;transition:transform .12s ease-out" style-active="transform:scale(.97)">{{ t.stopCooking }}</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sheetOpen }}">
+<div style="position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;justify-content:flex-end">
+  <div onClick="{{ closeSheet }}" style="position:absolute;inset:0;background:rgba(8,12,8,.42);animation:fadein .22s both"></div>
+  <div style="position:relative;background:var(--surface);border-top-left-radius:26px;border-top-right-radius:26px;box-shadow:var(--shadow-l);max-height:86vh;display:flex;flex-direction:column;transform:{{ sheetTransform }};animation:rise .34s cubic-bezier(.2,.75,.2,1) both;width:100%;max-width:620px;margin:0 auto;border:1px solid var(--line)">
+    <div onPointerDown="{{ onSheetGrab }}" style="padding:12px 0 6px;display:grid;place-items:center;touch-action:none;cursor:grab">
+      <div style="width:40px;height:5px;border-radius:99px;background:var(--line)"></div>
+    </div>
+    <div style="padding:6px 20px 14px;display:flex;align-items:center;gap:12px">
+      <div style="flex:1;font-size:20px;font-weight:700;letter-spacing:-.024em">{{ sheetTitle }}</div>
+      <button onClick="{{ closeSheet }}" style="width:34px;height:34px;border-radius:99px;background:var(--surface2);display:grid;place-items:center;color:var(--muted)" style-active="transform:scale(.9)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <div style="overflow-y:auto;padding:0 20px calc(24px + env(safe-area-inset-bottom))">
+
+      <sc-if value="{{ isSheetSettings }}">
+      <div style="display:flex;flex-direction:column;gap:22px;padding-bottom:6px">
+        <div>
+          <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:9px">{{ t.appearance }}</div>
+          <div style="display:flex;gap:8px">
+            <sc-for list="{{ themeChips }}" as="c" hint-placeholder-count="3">
+              <button onClick="{{ c.onTap }}" style="flex:1;height:44px;border-radius:13px;font-size:14.5px;font-weight:600;transition:transform .12s ease-out;border:1px solid {{ c.line }};background:{{ c.bg }};color:{{ c.fg }}" style-active="transform:scale(.96)">{{ c.label }}</button>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:12px;margin-top:14px">
+            <sc-for list="{{ accentChips }}" as="a" hint-placeholder-count="4">
+              <button onClick="{{ a.onTap }}" style="width:38px;height:38px;border-radius:99px;transition:transform .12s ease-out;background:{{ a.sw }};border:2px solid {{ a.swline }}" style-active="transform:scale(.9)"></button>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:9px">{{ t.language }}</div>
+          <div style="display:flex;gap:8px">
+            <sc-for list="{{ langChips }}" as="c" hint-placeholder-count="2">
+              <button onClick="{{ c.onTap }}" style="flex:1;height:44px;border-radius:13px;font-size:14.5px;font-weight:600;border:1px solid {{ c.line }};background:{{ c.bg }};color:{{ c.fg }}" style-active="transform:scale(.96)">{{ c.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:9px">{{ t.units }}</div>
+          <div style="display:flex;gap:8px">
+            <sc-for list="{{ unitChips }}" as="c" hint-placeholder-count="2">
+              <button onClick="{{ c.onTap }}" style="flex:1;height:44px;border-radius:13px;font-size:14.5px;font-weight:600;border:1px solid {{ c.line }};background:{{ c.bg }};color:{{ c.fg }}" style-active="transform:scale(.96)">{{ c.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button onClick="{{ replayOnboard }}" style="height:48px;border-radius:14px;background:var(--surface2);font-size:15.5px;font-weight:600;text-align:left;padding:0 16px" style-active="transform:scale(.98)">{{ t.replayTour }}</button>
+          <button onClick="{{ onSignOut }}" style="height:48px;border-radius:14px;background:var(--warnsoft);color:var(--warn-ink);font-size:15.5px;font-weight:600;text-align:left;padding:0 16px" style-active="transform:scale(.98)">{{ t.signOut }}</button>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isSheetShop }}">
+      <div style="padding-bottom:6px">
+        <div style="font-size:14px;color:var(--muted);line-height:1.5;margin-bottom:16px;text-wrap:pretty">{{ shopIntro }}</div>
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <sc-for list="{{ shopGroups }}" as="g" hint-placeholder-count="2">
+            <div>
+              <div style="font-size:12.5px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 2px 8px">{{ g.label }}</div>
+              <div style="background:var(--surface2);border-radius:16px;overflow:hidden">
+                <sc-for list="{{ g.items }}" as="i" hint-placeholder-count="3">
+                  <button onClick="{{ i.onToggle }}" style="width:100%;display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line);text-align:left" style-active="opacity:.7">
+                    <div style="width:21px;height:21px;border-radius:7px;display:grid;place-items:center;flex:0 0 21px;border:2px solid {{ i.boxline }};background:{{ i.boxbg }}">
+                      <sc-if value="{{ i.checked }}">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--onaccent)" stroke-width="3.4" stroke-linecap="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+                      </sc-if>
+                    </div>
+                    <div style="flex:1;min-width:0;font-size:15.5px;font-weight:550;color:{{ i.rowfg }};text-decoration:{{ i.strike }}">{{ i.name }}</div>
+                    <div style="font-size:14.5px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--muted)">{{ i.qty }}</div>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ shopEmpty }}">
+          <div style="padding:36px 10px;text-align:center">
+            <div style="font-size:17px;font-weight:650;letter-spacing:-.02em">{{ t.shopEmpty }}</div>
+            <div style="margin-top:8px;font-size:14px;color:var(--muted);text-wrap:pretty">{{ t.shopEmptyBody }}</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ shopHasItems }}">
+          <button onClick="{{ buyAll }}" style="margin-top:18px;width:100%;height:52px;border-radius:16px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:650" style-active="transform:scale(.98)">{{ t.moveToPantry }}</button>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isSheetPantryAdd }}">
+      <div style="display:flex;flex-direction:column;gap:16px;padding-bottom:6px">
+        <input value="{{ pform.name }}" onInput="{{ onPName }}" placeholder="{{ t.itemName }}" style="width:100%;height:50px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:16.5px;outline:none" />
+        <div style="display:flex;gap:10px">
+          <input value="{{ pform.qty }}" onInput="{{ onPQty }}" inputmode="decimal" placeholder="500" style="flex:2;height:50px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:16.5px;outline:none;font-variant-numeric:tabular-nums" />
+          <div style="flex:3;display:flex;gap:6px">
+            <sc-for list="{{ unitOpts }}" as="u" hint-placeholder-count="3">
+              <button onClick="{{ u.onTap }}" style="flex:1;height:50px;border-radius:14px;font-size:14.5px;font-weight:600;border:1px solid {{ u.line }};background:{{ u.bg }};color:{{ u.fg }}">{{ u.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:8px">{{ t.location }}</div>
+          <div style="display:flex;gap:8px">
+            <sc-for list="{{ locOpts }}" as="l" hint-placeholder-count="3">
+              <button onClick="{{ l.onTap }}" style="flex:1;height:44px;border-radius:13px;font-size:14.5px;font-weight:600;border:1px solid {{ l.line }};background:{{ l.bg }};color:{{ l.fg }}">{{ l.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <button onClick="{{ savePantry }}" style="height:52px;border-radius:16px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:650" style-active="transform:scale(.98)">{{ t.add }}</button>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isSheetPicker }}">
+      <div style="padding-bottom:6px">
+        <div style="font-size:14px;color:var(--muted);margin-bottom:14px">{{ pickerSub }}</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ pickerItems }}" as="p" hint-placeholder-count="5">
+            <button onClick="{{ p.onTap }}" style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:15px;background:var(--surface2);text-align:left" style-active="transform:scale(.985)">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em">{{ p.name }}</div>
+                <div style="margin-top:3px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums">{{ p.meta }}</div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.2" stroke-linecap="round"><path d="M10 6l6 6-6 6"></path></svg>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isSheetFinish }}">
+      <div style="padding-bottom:6px">
+        <div style="font-size:15px;color:var(--muted);line-height:1.5;margin-bottom:18px;text-wrap:pretty">{{ finishIntro }}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-radius:16px;background:var(--surface2);margin-bottom:12px">
+          <div style="font-size:15.5px;font-weight:600">{{ t.servingsMade }}</div>
+          <div style="display:flex;align-items:center;gap:2px;background:var(--surface);border-radius:12px;padding:3px;border:1px solid var(--line)">
+            <button onClick="{{ finishMinus }}" style="width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--muted)" style-active="transform:scale(.9)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14"></path></svg>
+            </button>
+            <div style="min-width:32px;text-align:center;font-size:16px;font-weight:650;font-variant-numeric:tabular-nums">{{ finishServings }}</div>
+            <button onClick="{{ finishPlus }}" style="width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--muted)" style-active="transform:scale(.9)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+            </button>
+          </div>
+        </div>
+        <sc-if value="{{ finishMissing }}">
+          <div style="padding:13px 15px;border-radius:14px;background:var(--warnsoft);color:var(--warn-ink);font-size:13.5px;line-height:1.55;margin-bottom:12px;text-wrap:pretty">{{ finishMissingText }}</div>
+        </sc-if>
+        <button onClick="{{ confirmFinish }}" style="width:100%;height:52px;border-radius:16px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:650" style-active="transform:scale(.98)">{{ t.saveCook }}</button>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ dragging }}">
+<div style="position:fixed;left:0;top:0;z-index:95;pointer-events:none;transform:{{ dragTransform }}">
+  <div style="height:38px;padding:0 15px;border-radius:99px;background:var(--accent);color:var(--onaccent);font-size:14.5px;font-weight:650;display:flex;align-items:center;box-shadow:var(--shadow-l)">{{ dragName }}</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ toast }}">
+<div style="position:fixed;left:0;right:0;bottom:96px;z-index:90;display:flex;justify-content:center;pointer-events:none;padding:0 20px">
+  <div style="max-width:420px;padding:13px 18px;border-radius:16px;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--line);box-shadow:var(--shadow-l);font-size:14.5px;font-weight:600;letter-spacing:-.01em;animation:toastin .28s cubic-bezier(.2,.75,.2,1) both;text-align:center">{{ toast }}</div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;startSignedIn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;language&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;es&quot;,&quot;en&quot;],&quot;default&quot;:&quot;es&quot;,&quot;tsType&quot;:&quot;\&quot;es\&quot; | \&quot;en\&quot;&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;system&quot;,&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;system&quot;,&quot;tsType&quot;:&quot;\&quot;system\&quot; | \&quot;light\&quot; | \&quot;dark\&quot;&quot;,&quot;section&quot;:&quot;Aspecto&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;green&quot;,&quot;amber&quot;,&quot;coral&quot;,&quot;blue&quot;],&quot;default&quot;:&quot;green&quot;,&quot;tsType&quot;:&quot;\&quot;green\&quot; | \&quot;amber\&quot; | \&quot;coral\&quot; | \&quot;blue\&quot;&quot;,&quot;section&quot;:&quot;Aspecto&quot;}}">
+class Component extends DCLogic {
+  L = {
+    es: {
+      loginTag:"Planifica, cocina y controla tu despensa sin esfuerzo.", passkey:"Entrar con passkey", demo:"Ver la demo",
+      inviteOnly:"Solo por invitación. Pídesela a alguien de tu casa.",
+      skip:"Saltar", next:"Siguiente", start:"Empezar",
+      today:"Hoy", recipes:"Recetas", plan:"Plan", pantry:"Despensa", settings:"Ajustes",
+      cook:"Cocinar", cookNow:"Cocinar ahora", cooked:"Hecho", addToPlan:"Añadir al plan",
+      breakfast:"Desayuno", lunch:"Comida", dinner:"Cena", snack:"Snack",
+      emptyToday:"Hoy no hay nada planificado", emptyTodayBody:"Elige una receta o deja que el plan de la semana lo resuelva.",
+      planWeek:"Planificar la semana", cookableNow:"Puedes cocinarlo ya",
+      kcalOf:"de", kcal:"kcal", kcalLeft:"Te quedan", kcalDoneAll:"Objetivo del día completado",
+      searchRecipes:"Buscar recetas", newRecipe:"Nueva receta", noResults:"Sin resultados", resetFilters:"Quitar filtros",
+      allTags:"Todas", haveIngredients:"Las tengo", quick:"Rápidas", results:"recetas",
+      servings:"Raciones", ingredients:"Ingredientes", steps:"Pasos", perServing:"por ración",
+      have:"tengo", photoSlot:"foto del plato", sensitiveNote:"La sal y las especias no se duplican al subir raciones: se ajustan poco a poco.",
+      cookedTimes:"veces cocinada", minutes:"Minutos", difficulty:"Dificultad", easy:"Fácil", medium:"Media", hard:"Difícil",
+      tags:"Etiquetas", baseServings:"Raciones base", kcalServingLabel:"kcal / ración",
+      recipeName:"Nombre de la receta", oneLine:"Una línea que la describa",
+      ingsPlaceholder:"300 g lentejas\n1 cebolla\n2 g sal", stepsPlaceholder:"Un paso por línea.\nSofríe la cebolla 5 min.",
+      moreDetails:"Más detalles", optional:"opcional", save:"Guardar", cancel:"Cancelar",
+      thisWeek:"Esta semana", shoppingList:"Lista de la compra", dragHint:"Arrastra una receta a un hueco",
+      searchPantry:"Buscar en la despensa", add:"Añadir", pantryEmpty:"La despensa está vacía",
+      pantryEmptyBody:"Añade lo que tengas en casa y Rezet te dirá qué puedes cocinar.",
+      itemName:"Qué es", location:"Dónde está", cupboard:"Armario", fridge:"Nevera", freezer:"Congelador",
+      appearance:"Aspecto", language:"Idioma", units:"Unidades", metric:"Métrico", imperial:"Imperial",
+      light:"Claro", dark:"Oscuro", system:"Sistema", replayTour:"Ver la guía otra vez", signOut:"Cerrar sesión",
+      reset:"Reiniciar", startTimer:"Empezar", pauseTimer:"Pausa", finishCook:"He terminado", back:"Atrás",
+      misePlace:"Antes de empezar", miseBody:"Comprueba que tienes todo a mano. Marca lo que ya esté en la mesa.",
+      startCooking:"Empezar a cocinar", miseAllOk:"Tienes todo lo que hace falta.",
+      miseShort:"Te falta algo. Puedes cocinar igual y ajustarlo al terminar.",
+      miseChecked:"Marcados", cookPlan:"La receta de un vistazo", forThisStep:"Para este paso",
+      noStepIngs:"Este paso no necesita ingredientes nuevos.",
+      meanwhile:"Mientras se hace, puedes", goStep:"Ir", unattended:"Puedes dejarlo solo",
+      timerKeepsRunning:"El temporizador sigue corriendo si te mueves a otro paso.",
+      running:"En marcha", upcoming:"Siguientes pasos", lastStepNote:"Es el último paso.",
+      exitTitle:"¿Dejar de cocinar?", exitBody:"Se pierden los temporizadores y las marcas de este cocinado. No se guardará nada.",
+      exitBodyTimers:"Tienes temporizadores en marcha. Si sales, se pierden junto con las marcas de este cocinado.",
+      keepCooking:"Seguir cocinando", stopCooking:"Dejar de cocinar", mise:"Ingredientes",
+      howDidItGo:"¿Cómo ha salido?", servingsMade:"Raciones que has hecho", saveCook:"Guardar",
+      shopEmpty:"No falta nada", shopEmptyBody:"Tienes en la despensa todo lo del plan de esta semana.",
+      moveToPantry:"Pasar lo marcado a la despensa", stepOf:"Paso",
+      pickRecipe:"Elegir receta", added:"Añadido al plan", removed:"Quitado del plan",
+      savedRecipe:"Receta guardada", savedPantry:"Añadido a la despensa", cookSaved:"Cocinado. Despensa actualizada.",
+      needTitle:"Ponle un nombre a la receta", boughtOk:"Pasado a la despensa",
+      missingWarn:"No tenías todo:", expiresIn:"caduca en", days:"días", noDate:"sin fecha",
+      onb:[["Tu semana, decidida en un minuto","Arrastra recetas a los huecos del plan. Rezet calcula calorías y la compra por ti."],["Tu despensa, siempre al día","Al cocinar se descuenta lo que has usado. Verás al instante qué puedes preparar sin comprar nada."],["Cocina sin perder el hilo","Un paso a la vez, con temporizador y la lista de ingredientes delante."]]
+    },
+    en: {
+      loginTag:"Plan, cook and keep your pantry straight, effortlessly.", passkey:"Sign in with passkey", demo:"See the demo",
+      inviteOnly:"Invite only. Ask someone in your household.",
+      skip:"Skip", next:"Next", start:"Get started",
+      today:"Today", recipes:"Recipes", plan:"Plan", pantry:"Pantry", settings:"Settings",
+      cook:"Cook", cookNow:"Cook now", cooked:"Done", addToPlan:"Add to plan",
+      breakfast:"Breakfast", lunch:"Lunch", dinner:"Dinner", snack:"Snack",
+      emptyToday:"Nothing planned for today", emptyTodayBody:"Pick a recipe, or let the week plan handle it.",
+      planWeek:"Plan the week", cookableNow:"You can cook this now",
+      kcalOf:"of", kcal:"kcal", kcalLeft:"Left today", kcalDoneAll:"Daily target reached",
+      searchRecipes:"Search recipes", newRecipe:"New recipe", noResults:"No results", resetFilters:"Clear filters",
+      allTags:"All", haveIngredients:"I have these", quick:"Quick", results:"recipes",
+      servings:"Servings", ingredients:"Ingredients", steps:"Steps", perServing:"per serving",
+      have:"have", photoSlot:"dish photo", sensitiveNote:"Salt and spices don't double when you scale up: they adjust gently.",
+      cookedTimes:"times cooked", minutes:"Minutes", difficulty:"Difficulty", easy:"Easy", medium:"Medium", hard:"Hard",
+      tags:"Tags", baseServings:"Base servings", kcalServingLabel:"kcal / serving",
+      recipeName:"Recipe name", oneLine:"One line about it",
+      ingsPlaceholder:"300 g lentils\n1 onion\n2 g salt", stepsPlaceholder:"One step per line.\nFry the onion for 5 min.",
+      moreDetails:"More details", optional:"optional", save:"Save", cancel:"Cancel",
+      thisWeek:"This week", shoppingList:"Shopping list", dragHint:"Drag a recipe onto a slot",
+      searchPantry:"Search the pantry", add:"Add", pantryEmpty:"The pantry is empty",
+      pantryEmptyBody:"Add what you have at home and Rezet will tell you what you can cook.",
+      itemName:"What is it", location:"Where", cupboard:"Cupboard", fridge:"Fridge", freezer:"Freezer",
+      appearance:"Appearance", language:"Language", units:"Units", metric:"Metric", imperial:"Imperial",
+      light:"Light", dark:"Dark", system:"System", replayTour:"Replay the tour", signOut:"Sign out",
+      reset:"Reset", startTimer:"Start", pauseTimer:"Pause", finishCook:"I'm done", back:"Back",
+      misePlace:"Before you start", miseBody:"Check you have everything to hand. Tick what's already on the counter.",
+      startCooking:"Start cooking", miseAllOk:"You have everything you need.",
+      miseShort:"Something's short. You can cook anyway and adjust at the end.",
+      miseChecked:"Ticked", cookPlan:"The recipe at a glance", forThisStep:"For this step",
+      noStepIngs:"This step needs no new ingredients.",
+      meanwhile:"While that cooks, you can", goStep:"Go", unattended:"You can leave it",
+      timerKeepsRunning:"The timer keeps running if you move to another step.",
+      running:"Running", upcoming:"Upcoming steps", lastStepNote:"This is the last step.",
+      exitTitle:"Stop cooking?", exitBody:"You'll lose the timers and the ticks from this cook. Nothing will be saved.",
+      exitBodyTimers:"You have timers running. Leaving loses them, along with the ticks from this cook.",
+      keepCooking:"Keep cooking", stopCooking:"Stop cooking", mise:"Ingredients",
+      howDidItGo:"How did it go?", servingsMade:"Servings you made", saveCook:"Save",
+      shopEmpty:"Nothing missing", shopEmptyBody:"Your pantry covers everything in this week's plan.",
+      moveToPantry:"Move checked to pantry", stepOf:"Step",
+      pickRecipe:"Pick a recipe", added:"Added to the plan", removed:"Removed from the plan",
+      savedRecipe:"Recipe saved", savedPantry:"Added to the pantry", cookSaved:"Cooked. Pantry updated.",
+      needTitle:"Give the recipe a name", boughtOk:"Moved to the pantry",
+      missingWarn:"You were short on:", expiresIn:"expires in", days:"days", noDate:"no date",
+      onb:[["Your week, decided in a minute","Drag recipes onto plan slots. Rezet works out calories and the shopping for you."],["Your pantry, always current","Cooking subtracts what you used, so you instantly see what needs no shopping."],["Cook without losing your place","One step at a time, with a timer and the ingredients right there."]]
+    }
+  };
+
+  ACCENTS = {
+    green:"oklch(0.54 0.105 156)", amber:"oklch(0.555 0.125 72)",
+    coral:"oklch(0.555 0.135 32)", blue:"oklch(0.545 0.105 245)"
+  };
+
+  SEEDS = [
+    {id:"r1",name:{es:"Lentejas con verduras",en:"Lentils with vegetables"},desc:{es:"Guiso sencillo que aguanta toda la semana.",en:"A simple stew that keeps all week."},serv:2,min:35,diff:"easy",kcal:552,tags:["dieta","batch"],
+      ings:[{n:{es:"Lentejas",en:"Lentils"},q:300,u:"g",g:"seco"},{n:{es:"Cebolla",en:"Onion"},q:1,u:"ud",g:"fresco"},{n:{es:"Zanahoria",en:"Carrot"},q:2,u:"ud",g:"fresco"},{n:{es:"Sal",en:"Salt"},q:2,u:"g",g:"seco",s:1}],
+      steps:[{t:{es:"Sofríe la cebolla y la zanahoria a fuego medio.",en:"Fry the onion and carrot over medium heat."},m:6},{t:{es:"Añade las lentejas y cubre con agua.",en:"Add the lentils and cover with water."}},{t:{es:"Cuece 25 minutos hasta que estén tiernas.",en:"Simmer 25 minutes until tender."},m:25}]},
+    {id:"r2",name:{es:"Pollo al limón con arroz",en:"Lemon chicken with rice"},desc:{es:"Cena rápida de sartén, lista en 25 minutos.",en:"Quick pan dinner, ready in 25 minutes."},serv:2,min:25,diff:"easy",kcal:610,tags:["rápido"],
+      ings:[{n:{es:"Pechuga de pollo",en:"Chicken breast"},q:400,u:"g",g:"fresco"},{n:{es:"Arroz",en:"Rice"},q:200,u:"g",g:"seco"},{n:{es:"Limón",en:"Lemon"},q:1,u:"ud",g:"fresco"},{n:{es:"Sal",en:"Salt"},q:3,u:"g",g:"seco",s:1}],
+      steps:[{t:{es:"Cuece el arroz con sal.",en:"Cook the rice with salt."},m:15},{t:{es:"Dora el pollo troceado 8 minutos.",en:"Brown the diced chicken for 8 minutes."},m:8},{t:{es:"Añade el zumo de limón y mezcla con el arroz.",en:"Add the lemon juice and toss with the rice."}}]},
+    {id:"r3",name:{es:"Ensalada de garbanzos",en:"Chickpea salad"},desc:{es:"Fría, para llevar en tartera.",en:"Cold, good for a lunchbox."},serv:2,min:10,diff:"easy",kcal:430,tags:["rápido","tartera"],
+      ings:[{n:{es:"Garbanzos cocidos",en:"Cooked chickpeas"},q:400,u:"g",g:"conserva"},{n:{es:"Tomate",en:"Tomato"},q:2,u:"ud",g:"fresco"},{n:{es:"Aceite de oliva",en:"Olive oil"},q:20,u:"ml",g:"seco"},{n:{es:"Sal",en:"Salt"},q:2,u:"g",g:"seco",s:1}],
+      steps:[{t:{es:"Enjuaga los garbanzos y escúrrelos bien.",en:"Rinse and drain the chickpeas well."}},{t:{es:"Trocea el tomate y mezcla todo con el aceite.",en:"Dice the tomato and toss everything with the oil."}}]},
+    {id:"r4",name:{es:"Salmón al horno",en:"Baked salmon"},desc:{es:"Bandeja única con verduras de temporada.",en:"One tray with seasonal vegetables."},serv:2,min:30,diff:"medium",kcal:580,tags:["dieta"],
+      ings:[{n:{es:"Salmón",en:"Salmon"},q:400,u:"g",g:"fresco"},{n:{es:"Calabacín",en:"Courgette"},q:1,u:"ud",g:"fresco"},{n:{es:"Patata",en:"Potato"},q:3,u:"ud",g:"fresco"},{n:{es:"Sal",en:"Salt"},q:3,u:"g",g:"seco",s:1}],
+      steps:[{t:{es:"Precalienta el horno a 200°.",en:"Preheat the oven to 200°C."},m:10},{t:{es:"Corta las verduras y ponlas en la bandeja.",en:"Cut the vegetables and spread them on the tray."}},{t:{es:"Hornea el salmón sobre las verduras 18 minutos.",en:"Bake the salmon over the vegetables for 18 minutes."},m:18}]},
+    {id:"r5",name:{es:"Tortilla de patatas",en:"Potato omelette"},desc:{es:"La de siempre, con cebolla.",en:"The classic one, with onion."},serv:4,min:40,diff:"medium",kcal:495,tags:["batch"],
+      ings:[{n:{es:"Patata",en:"Potato"},q:800,u:"g",g:"fresco"},{n:{es:"Huevo",en:"Egg"},q:6,u:"ud",g:"fresco"},{n:{es:"Cebolla",en:"Onion"},q:1,u:"ud",g:"fresco"},{n:{es:"Aceite de oliva",en:"Olive oil"},q:80,u:"ml",g:"seco"},{n:{es:"Sal",en:"Salt"},q:5,u:"g",g:"seco",s:1}],
+      steps:[{t:{es:"Fríe la patata en láminas a fuego suave.",en:"Fry the sliced potato over low heat."},m:20},{t:{es:"Bate los huevos y mézclalos con la patata.",en:"Beat the eggs and mix them with the potato."}},{t:{es:"Cuaja la tortilla 4 minutos por cada lado.",en:"Set the omelette 4 minutes per side."},m:8}]},
+    {id:"r6",name:{es:"Curry de garbanzos y espinacas",en:"Chickpea and spinach curry"},desc:{es:"Especiado, de una sola olla.",en:"Spiced, one pot."},serv:3,min:28,diff:"easy",kcal:520,tags:["dieta","batch"],
+      ings:[{n:{es:"Garbanzos cocidos",en:"Cooked chickpeas"},q:500,u:"g",g:"conserva"},{n:{es:"Espinacas",en:"Spinach"},q:200,u:"g",g:"fresco"},{n:{es:"Leche de coco",en:"Coconut milk"},q:200,u:"ml",g:"conserva"},{n:{es:"Curry en polvo",en:"Curry powder"},q:8,u:"g",g:"seco",s:1}],
+      steps:[{t:{es:"Tuesta el curry 30 segundos en la olla.",en:"Toast the curry powder for 30 seconds in the pot."}},{t:{es:"Añade garbanzos y leche de coco, y cuece 15 minutos.",en:"Add chickpeas and coconut milk, simmer 15 minutes."},m:15},{t:{es:"Incorpora las espinacas al final.",en:"Stir in the spinach at the end."},m:3}]},
+    {id:"r7",name:{es:"Pasta al pesto",en:"Pesto pasta"},desc:{es:"Quince minutos de principio a fin.",en:"Fifteen minutes start to finish."},serv:2,min:15,diff:"easy",kcal:640,tags:["rápido"],
+      ings:[{n:{es:"Pasta",en:"Pasta"},q:200,u:"g",g:"seco"},{n:{es:"Pesto",en:"Pesto"},q:80,u:"g",g:"conserva"},{n:{es:"Tomate",en:"Tomato"},q:1,u:"ud",g:"fresco"},{n:{es:"Sal",en:"Salt"},q:6,u:"g",g:"seco",s:1}],
+      steps:[{t:{es:"Cuece la pasta en agua con sal.",en:"Boil the pasta in salted water."},m:10},{t:{es:"Mezcla con el pesto y el tomate troceado.",en:"Toss with the pesto and diced tomato."}}]},
+    {id:"r8",name:{es:"Yogur con avena y frutos rojos",en:"Yogurt with oats and berries"},desc:{es:"Desayuno de dos minutos.",en:"A two minute breakfast."},serv:1,min:5,diff:"easy",kcal:320,tags:["rápido"],
+      ings:[{n:{es:"Yogur natural",en:"Plain yogurt"},q:200,u:"g",g:"fresco"},{n:{es:"Avena",en:"Oats"},q:40,u:"g",g:"seco"},{n:{es:"Frutos rojos",en:"Berries"},q:80,u:"g",g:"fresco"}],
+      steps:[{t:{es:"Mezcla el yogur con la avena.",en:"Mix the yogurt with the oats."}},{t:{es:"Corona con los frutos rojos.",en:"Top with the berries."}}]}
+  ];
+
+  state = this.boot();
+
+  boot() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem("rezet.redesign.v1") || "null"); } catch (e) {}
+    const p = this.props || {};
+    const base = {
+      lang: p.language || "es", theme: p.theme || "system", accent: p.accent || "green", units: "metric",
+      authed: p.startSignedIn === true, onboard: null, tab: "hoy",
+      push: null, sheet: null, cookState: null, drag: null, toast: null,
+      query: "", tag: null, haveOnly: false, pantryQuery: "",
+      weekOffset: 0, detailServings: null, detailId: null,
+      form: { title:"", desc:"", ings:"", steps:"", servings:2, minutes:"", kcal:"", diff:"easy", tags:[], advanced:false },
+      pform: { name:"", qty:"", unit:"g", loc:"cupboard" },
+      shopChecked: {}, cookChecked: {}, finishServings: 2, finishMissing: null,
+      pickerTarget: null, sheetY: 0,
+      isWide: typeof window !== "undefined" ? window.innerWidth >= 900 : true,
+      recipes: this.SEEDS.map(r => ({ ...r, count: 0 })),
+      pantry: [
+        { id:"p1", n:{es:"Lentejas",en:"Lentils"}, q:1000, u:"g", loc:"cupboard", exp:null },
+        { id:"p2", n:{es:"Arroz",en:"Rice"}, q:2000, u:"g", loc:"cupboard", exp:null },
+        { id:"p3", n:{es:"Cebolla",en:"Onion"}, q:4, u:"ud", loc:"cupboard", exp:null },
+        { id:"p4", n:{es:"Zanahoria",en:"Carrot"}, q:6, u:"ud", loc:"fridge", exp:5 },
+        { id:"p5", n:{es:"Sal",en:"Salt"}, q:500, u:"g", loc:"cupboard", exp:null },
+        { id:"p6", n:{es:"Aceite de oliva",en:"Olive oil"}, q:750, u:"ml", loc:"cupboard", exp:null },
+        { id:"p7", n:{es:"Huevo",en:"Egg"}, q:12, u:"ud", loc:"fridge", exp:9 },
+        { id:"p8", n:{es:"Patata",en:"Potato"}, q:2000, u:"g", loc:"cupboard", exp:null },
+        { id:"p9", n:{es:"Garbanzos cocidos",en:"Cooked chickpeas"}, q:800, u:"g", loc:"cupboard", exp:null },
+        { id:"p10", n:{es:"Tomate",en:"Tomato"}, q:4, u:"ud", loc:"fridge", exp:3 },
+        { id:"p11", n:{es:"Yogur natural",en:"Plain yogurt"}, q:500, u:"g", loc:"fridge", exp:2 },
+        { id:"p12", n:{es:"Avena",en:"Oats"}, q:900, u:"g", loc:"cupboard", exp:null },
+        { id:"p13", n:{es:"Pasta",en:"Pasta"}, q:500, u:"g", loc:"cupboard", exp:null }
+      ],
+      plan: this.seedPlan(), target: 2100
+    };
+    if (saved) return { ...base, ...saved, drag:null, toast:null, cookState:null, push:null, sheet:null, isWide:base.isWide };
+    return base;
+  }
+
+  seedPlan() {
+    const p = {};
+    const set = (off, slot, id, serv, cooked) => {
+      const k = this.dayKey(off);
+      p[k] = p[k] || {};
+      p[k][slot] = p[k][slot] || [];
+      p[k][slot].push({ uid: "m" + Math.random().toString(36).slice(2, 8), id, serv, cooked: !!cooked });
+    };
+    set(0,"breakfast","r8",1,true); set(0,"lunch","r1",4,false); set(0,"dinner","r7",2,false);
+    set(1,"lunch","r2",2,false); set(1,"dinner","r3",2,false);
+    set(2,"lunch","r6",3,false); set(2,"dinner","r5",4,false);
+    set(3,"lunch","r1",2,false); set(4,"dinner","r4",2,false);
+    set(-1,"lunch","r5",4,true); set(-1,"dinner","r3",2,true);
+    return p;
+  }
+
+  componentDidMount() {
+    this.applyTheme();
+    this._wideMq = window.matchMedia("(min-width: 900px)");
+    this._onResize = () => {
+      const w = this._wideMq.matches;
+      if (w !== this.state.isWide) this.setState({ isWide: w });
+    };
+    this._onResize();
+    this._wideMq.addEventListener("change", this._onResize);
+    window.addEventListener("resize", this._onResize);
+    if (typeof ResizeObserver !== "undefined") {
+      this._ro = new ResizeObserver(() => this._onResize());
+      this._ro.observe(document.documentElement);
+      if (document.body) this._ro.observe(document.body);
+    }
+    this._mq = window.matchMedia("(prefers-color-scheme: dark)");
+    this._mqL = () => this.applyTheme();
+    this._mq.addEventListener("change", this._mqL);
+    this._tick = setInterval(() => {
+      const c = this.state.cookState;
+      if (!c) return;
+      let changed = false, fired = false;
+      const timers = {};
+      Object.keys(c.timers || {}).forEach(k => {
+        const tm = c.timers[k];
+        if (tm.running && tm.remaining > 0) {
+          const rem = tm.remaining - 1;
+          timers[k] = { ...tm, remaining: rem, running: rem > 0, done: rem === 0 };
+          changed = true;
+          if (rem === 0) fired = true;
+        } else timers[k] = tm;
+      });
+      if (changed) {
+        this.setState({ cookState: { ...c, timers } });
+        if (fired && navigator.vibrate) navigator.vibrate([40, 60, 40]);
+      }
+    }, 1000);
+  }
+  componentWillUnmount() {
+    window.removeEventListener("resize", this._onResize);
+    if (this._wideMq) this._wideMq.removeEventListener("change", this._onResize);
+    if (this._ro) this._ro.disconnect();
+    if (this._mq) this._mq.removeEventListener("change", this._mqL);
+    clearInterval(this._tick);
+  }
+  componentDidUpdate() { this.applyTheme(); this.persist(); }
+
+  applyTheme() {
+    const t = this.state.theme;
+    const dark = t === "dark" || (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    document.documentElement.style.setProperty("--accent", this.ACCENTS[this.state.accent] || this.ACCENTS.green);
+  }
+  persist() {
+    const s = this.state;
+    try {
+      localStorage.setItem("rezet.redesign.v1", JSON.stringify({
+        lang:s.lang, theme:s.theme, accent:s.accent, units:s.units,
+        recipes:s.recipes, pantry:s.pantry, plan:s.plan, shopChecked:s.shopChecked, target:s.target
+      }));
+    } catch (e) {}
+  }
+
+  /* ---------- helpers ---------- */
+  tr() { return this.L[this.state.lang]; }
+  loc(o) { return o && typeof o === "object" ? (o[this.state.lang] || o.es) : o; }
+  dayKey(off) { const d = new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate() + off); return d.toISOString().slice(0,10); }
+  keyOf(d) { const x = new Date(d); x.setHours(12,0,0,0); return x.toISOString().slice(0,10); }
+  num(n) { const r = Math.round(n * 10) / 10; return (Math.abs(r - Math.round(r)) < 0.05 ? Math.round(r) : r).toLocaleString(this.state.lang === "es" ? "es-ES" : "en-US"); }
+  fmtQty(q, u) {
+    if (this.state.units === "imperial") {
+      if (u === "g") return this.num(q / 28.35) + " oz";
+      if (u === "ml") return this.num(q / 29.57) + " fl oz";
+    }
+    if (u === "ud") return this.num(q) + (this.state.lang === "es" ? " uds" : " pcs");
+    return this.num(q) + " " + u;
+  }
+  scale(ing, servings, base) {
+    const f = servings / base;
+    return ing.s ? ing.q * Math.pow(f, 0.55) : ing.q * f;
+  }
+  recipe(id) { return this.state.recipes.find(r => r.id === id); }
+  pantryFor(ing) {
+    const name = this.loc(ing.n).toLowerCase();
+    return this.state.pantry.find(p => this.loc(p.n).toLowerCase() === name);
+  }
+  coverage(r, servings) {
+    let have = 0;
+    r.ings.forEach(i => {
+      const p = this.pantryFor(i);
+      if (p && p.q >= this.scale(i, servings, r.serv) * 0.999) have++;
+    });
+    return { have, total: r.ings.length };
+  }
+  slotOrder() { return ["breakfast","lunch","dinner","snack"]; }
+  planAt(key, slot) { return ((this.state.plan[key] || {})[slot]) || []; }
+  dayKcal(key) {
+    let sum = 0;
+    this.slotOrder().forEach(s => this.planAt(key, s).forEach(m => {
+      const r = this.recipe(m.id); if (r) sum += r.kcal * m.serv;
+    }));
+    return Math.round(sum);
+  }
+  toast(msg) {
+    this.setState({ toast: msg });
+    clearTimeout(this._tt);
+    this._tt = setTimeout(() => this.setState({ toast: null }), 2200);
+  }
+
+  /* ---------- mutations ---------- */
+  addToPlan(id, key, slot, serv) {
+    const r = this.recipe(id); if (!r) return;
+    const plan = { ...this.state.plan };
+    const day = { ...(plan[key] || {}) };
+    day[slot] = [ ...(day[slot] || []), { uid:"m"+Math.random().toString(36).slice(2,8), id, serv: serv || r.serv, cooked:false } ];
+    plan[key] = day;
+    this.setState({ plan });
+    if (navigator.vibrate) navigator.vibrate(12);
+    this.toast(this.tr().added);
+  }
+  removeFromPlan(key, slot, uid) {
+    const plan = { ...this.state.plan };
+    const day = { ...(plan[key] || {}) };
+    day[slot] = (day[slot] || []).filter(m => m.uid !== uid);
+    plan[key] = day;
+    this.setState({ plan });
+    this.toast(this.tr().removed);
+  }
+  startCook(id, servings, ref) {
+    const r = this.recipe(id); if (!r) return;
+    const s = servings || r.serv;
+    const timers = {};
+    r.steps.forEach((st, ix) => { if (st.m) timers[ix] = { total:st.m * 60, remaining:st.m * 60, running:false, done:false }; });
+    this.setState({
+      cookState: { id, serv:s, phase:"mise", step:0, checked:{}, timers, ref: ref || null, showUpcoming:false, askExit:false },
+      push: null, sheet: null
+    });
+  }
+
+  /* Ingredientes que pide un paso. Usa `ing` explícito si la receta lo trae;
+     si no, los deduce del texto (también funciona en recetas del usuario). */
+  stepIngs(r, ix) {
+    const map = this.stepIngMap(r);
+    return map[ix] || [];
+  }
+
+  /* Reparto de ingredientes por paso. Los que ningún paso menciona (la sal
+     suele quedar huérfana) se cuelgan del primer paso: nada se pierde. */
+  stepIngMap(r) {
+    const key = r.id + "|" + this.state.lang + "|" + r.steps.length + "|" + r.ings.length;
+    if (this._sim && this._sim.key === key) return this._sim.map;
+    const map = r.steps.map((_, ix) => this.matchStepIngs(r, ix));
+    const claimed = new Set();
+    map.forEach(list => list.forEach(k => claimed.add(k)));
+    const orphans = r.ings.map((_, k) => k).filter(k => !claimed.has(k));
+    if (orphans.length) map[0] = map[0].concat(orphans).sort((a, b) => a - b);
+    this._sim = { key, map };
+    return map;
+  }
+
+  matchStepIngs(r, ix) {
+    const st = r.steps[ix];
+    if (Array.isArray(st.ing)) return st.ing.slice();
+    const text = (this.loc(st.t) || "").toLowerCase();
+    const esc = w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const out = [];
+    r.ings.forEach((i, k) => {
+      const name = (this.loc(i.n) || "").toLowerCase().trim();
+      if (!name) return;
+      const cands = [name].concat(name.split(/\s+/).filter(w => w.length >= 4));
+      const hit = cands.some(w => {
+        const re = w.length >= 4
+          ? new RegExp("\\b" + esc(w.replace(/(es|s)$/, "")) + "\\w{0,3}\\b")
+          : new RegExp("\\b" + esc(w) + "\\b");
+        return re.test(text);
+      });
+      if (hit) out.push(k);
+    });
+    return out;
+  }
+
+  /* Un paso es "desatendido" si tiene temporizador largo: durante esa espera
+     tiene sentido adelantar otros pasos. */
+  isPassiveStep(r, ix) { return (r.steps[ix].m || 0) >= 8; }
+
+  setCook(patch) {
+    const c = this.state.cookState; if (!c) return;
+    this.setState({ cookState: { ...c, ...patch } });
+  }
+  finishCook() {
+    const c = this.state.cookState; if (!c) return;
+    const r = this.recipe(c.id);
+    const missing = [];
+    r.ings.forEach(i => {
+      const need = this.scale(i, c.serv, r.serv);
+      const p = this.pantryFor(i);
+      if (!p) missing.push(this.loc(i.n) + " · " + this.fmtQty(need, i.u));
+      else if (p.q < need) missing.push(this.loc(i.n) + " · " + this.fmtQty(need - p.q, i.u));
+    });
+    this.setState({ sheet:"finish", finishServings:c.serv, finishMissing: missing.length ? missing : null });
+  }
+  confirmCook() {
+    const c = this.state.cookState; if (!c) return;
+    const r = this.recipe(c.id);
+    const serv = this.state.finishServings;
+    const pantry = this.state.pantry.map(p => ({ ...p }));
+    r.ings.forEach(i => {
+      const need = this.scale(i, serv, r.serv);
+      const name = this.loc(i.n).toLowerCase();
+      const p = pantry.find(x => this.loc(x.n).toLowerCase() === name);
+      if (p) p.q = Math.max(0, p.q - need);
+    });
+    const recipes = this.state.recipes.map(x => x.id === r.id ? { ...x, count:(x.count||0)+1 } : x);
+    let plan = this.state.plan;
+    if (c.ref) {
+      plan = { ...plan };
+      const day = { ...(plan[c.ref.key] || {}) };
+      day[c.ref.slot] = (day[c.ref.slot] || []).map(m => m.uid === c.ref.uid ? { ...m, cooked:true, serv } : m);
+      plan[c.ref.key] = day;
+    } else {
+      plan = { ...plan };
+      const key = this.dayKey(0);
+      const day = { ...(plan[key] || {}) };
+      const slot = new Date().getHours() < 16 ? "lunch" : "dinner";
+      day[slot] = [ ...(day[slot] || []), { uid:"m"+Math.random().toString(36).slice(2,8), id:r.id, serv, cooked:true } ];
+      plan[key] = day;
+    }
+    this.setState({ pantry:pantry.filter(p => p.q > 0), recipes, plan, cookState:null, sheet:null });
+    if (navigator.vibrate) navigator.vibrate([18, 40, 26]);
+    this.toast(this.tr().cookSaved);
+  }
+  parseIngs(text) {
+    return text.split("\n").map(l => l.trim()).filter(Boolean).map(line => {
+      const m = line.match(/^([\d.,]+)\s*(g|kg|ml|l|ud|uds|pcs)?\s+(.*)$/i);
+      if (m) {
+        let q = parseFloat(m[1].replace(",", ".")), u = (m[2] || "ud").toLowerCase();
+        if (u === "kg") { q *= 1000; u = "g"; } if (u === "l") { q *= 1000; u = "ml"; }
+        if (u === "uds" || u === "pcs") u = "ud";
+        const nm = m[3];
+        return { n:{ es:nm, en:nm }, q, u, g:"seco", s: /sal|salt|especia|spice|pimienta|pepper|levadura|yeast|curry/i.test(nm) ? 1 : 0 };
+      }
+      return { n:{ es:line, en:line }, q:1, u:"ud", g:"seco", s:0 };
+    });
+  }
+  saveRecipeNow() {
+    const f = this.state.form;
+    if (!f.title.trim()) { this.toast(this.tr().needTitle); return; }
+    const ings = this.parseIngs(f.ings);
+    const steps = f.steps.split(/\n+/).map(s => s.trim()).filter(Boolean).map(s => {
+      const mm = s.match(/(\d+)\s*(min|minutos|minutes)/i);
+      return { t:{ es:s, en:s }, m: mm ? parseInt(mm[1], 10) : 0 };
+    });
+    const r = {
+      id:"u"+Math.random().toString(36).slice(2,7), name:{ es:f.title, en:f.title }, desc:{ es:f.desc, en:f.desc },
+      serv:f.servings, min:parseInt(f.minutes || "0", 10) || 20, diff:f.diff,
+      kcal:parseInt(f.kcal || "0", 10) || 450, tags:f.tags,
+      ings: ings.length ? ings : [{ n:{es:"Ingrediente",en:"Ingredient"}, q:1, u:"ud", g:"seco" }],
+      steps: steps.length ? steps : [{ t:{es:"—",en:"—"}, m:0 }], count:0
+    };
+    this.setState({
+      recipes:[r, ...this.state.recipes], push:null,
+      form:{ title:"", desc:"", ings:"", steps:"", servings:2, minutes:"", kcal:"", diff:"easy", tags:[], advanced:false }
+    });
+    this.toast(this.tr().savedRecipe);
+  }
+  shoppingNeeds() {
+    const need = {};
+    for (let i = 0; i < 7; i++) {
+      const key = this.keyOf(new Date(Date.now() + (i + this.state.weekOffset * 7) * 86400000));
+      this.slotOrder().forEach(slot => this.planAt(key, slot).forEach(m => {
+        if (m.cooked) return;
+        const r = this.recipe(m.id); if (!r) return;
+        r.ings.forEach(ing => {
+          const k = this.loc(ing.n) + "|" + ing.u;
+          need[k] = need[k] || { name:this.loc(ing.n), u:ing.u, q:0, g:ing.g };
+          need[k].q += this.scale(ing, m.serv, r.serv);
+        });
+      }));
+    }
+    const out = [];
+    Object.keys(need).forEach(k => {
+      const n = need[k];
+      const p = this.state.pantry.find(x => this.loc(x.n).toLowerCase() === n.name.toLowerCase());
+      const gap = n.q - (p ? p.q : 0);
+      if (gap > 0.5) out.push({ key:k, name:n.name, u:n.u, q:gap, g:n.g });
+    });
+    return out;
+  }
+
+  /* ---------- render ---------- */
+  renderVals() {
+    const s = this.state, t = this.tr();
+    const wide = typeof window !== "undefined" && window.matchMedia
+      ? window.matchMedia("(min-width: 900px)").matches
+      : s.isWide;
+    const v = {
+      t, isWide: wide, isNarrow: !wide,
+      showLogin: !s.authed, showOnboard: s.authed && s.onboard !== null, showApp: s.authed && s.onboard === null,
+      toast: s.toast,
+      onSignIn: () => this.setState({ authed:true, onboard:0 }),
+      onSignInDemo: () => this.setState({ authed:true, onboard:null }),
+      onSignOut: () => this.setState({ authed:false, sheet:null, onboard:null }),
+      closePush: () => this.setState({ push:null }),
+      closeSheet: () => this.setState({ sheet:null, sheetY:0 }),
+      openSettings: () => this.setState({ sheet:"settings" }),
+      openShop: () => this.setState({ sheet:"shop" }),
+      openPantryAdd: () => this.setState({ sheet:"pantryAdd", pform:{ name:"", qty:"", unit:"g", loc:"cupboard" } }),
+      openNewRecipe: () => this.setState({ push:{ type:"new" } }),
+      goPlan: () => this.setState({ tab:"plan" }),
+      replayOnboard: () => this.setState({ onboard:0, sheet:null })
+    };
+
+    /* onboarding */
+    const step = s.onboard || 0;
+    v.onboardTitle = t.onb[step] ? t.onb[step][0] : "";
+    v.onboardBody = t.onb[step] ? t.onb[step][1] : "";
+    v.onboardDots = [0,1,2].map(i => ({ on:"", key:i }));
+    v.onboardCta = step === 2 ? t.start : t.next;
+    v.onNextOnboard = () => this.setState({ onboard: step >= 2 ? null : step + 1 });
+    v.onSkipOnboard = () => this.setState({ onboard:null });
+
+    /* tabs */
+    const icon = (d) => React.createElement("svg", { width:21, height:21, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:1.9, strokeLinecap:"round", strokeLinejoin:"round" }, React.createElement("path", { d }));
+    const defs = [
+      ["hoy", t.today, "M4 14h16a8 8 0 0 1-16 0ZM12 4v3"],
+      ["recetas", t.recipes, "M4 5.5h7v13H4zM13 5.5h7v13h-7z"],
+      ["plan", t.plan, "M4 6.5h16v13H4zM4 10.5h16M9 4v3M15 4v3"],
+      ["despensa", t.pantry, "M4 5h16v14H4zM12 5v14M4 12h16"]
+    ];
+    v.tabs = defs.map(([id, label, d]) => ({
+      key:id, label, icon: icon(d),
+      bg: s.tab === id ? "var(--soft)" : "transparent",
+      fg: s.tab === id ? "var(--accent-ink)" : "var(--muted)",
+      onTap: () => this.setState({ tab:id })
+    }));
+    v.isHoy = s.tab === "hoy"; v.isRecetas = s.tab === "recetas"; v.isPlan = s.tab === "plan"; v.isDespensa = s.tab === "despensa";
+
+    /* today */
+    const tk = this.dayKey(0);
+    const dnow = new Date();
+    v.todayWeekday = dnow.toLocaleDateString(s.lang === "es" ? "es-ES" : "en-US", { weekday:"long", day:"numeric", month:"long" });
+    let done = 0, planned = 0;
+    this.slotOrder().forEach(sl => this.planAt(tk, sl).forEach(m => {
+      const r = this.recipe(m.id); if (!r) return;
+      planned += r.kcal * m.serv; if (m.cooked) done += r.kcal * m.serv;
+    }));
+    const target = s.target;
+    const pct = target ? Math.min(1, done / target) : 0;
+    v.ringOffset = 263.9 * (1 - pct);
+    v.ringPct = Math.round(pct * 100) + "%";
+    v.kcalDone = Math.round(done).toLocaleString(s.lang === "es" ? "es-ES" : "en-US");
+    v.kcalLine = t.kcalOf + " " + Math.round(target).toLocaleString(s.lang === "es" ? "es-ES" : "en-US") + " " + t.kcal;
+    if (planned) v.kcalLine += " · " + (s.lang === "es" ? "plan " : "planned ") + Math.round(planned).toLocaleString(s.lang === "es" ? "es-ES" : "en-US");
+    v.kcalHint = done >= target && target > 0 ? t.kcalDoneAll : t.kcalLeft + " " + Math.round(target - done).toLocaleString(s.lang === "es" ? "es-ES" : "en-US") + " " + t.kcal;
+
+    const groups = [];
+    this.slotOrder().forEach(sl => {
+      const items = this.planAt(tk, sl);
+      if (!items.length) return;
+      let kc = 0; items.forEach(m => { const r = this.recipe(m.id); if (r) kc += r.kcal * m.serv; });
+      groups.push({
+        key:sl, label:t[sl], kcal: Math.round(kc).toLocaleString(s.lang === "es" ? "es-ES" : "en-US") + " " + t.kcal,
+        items: items.map(m => {
+          const r = this.recipe(m.id);
+          return {
+            key:m.uid, name: r ? this.loc(r.name) : "—", cooked:m.cooked, pending:!m.cooked,
+            meta: m.serv + "× · " + (r ? Math.round(r.kcal * m.serv).toLocaleString(s.lang === "es" ? "es-ES" : "en-US") + " " + t.kcal : ""),
+            onOpen: () => this.setState({ push:{ type:"recipe" }, detailId:m.id, detailServings:m.serv }),
+            onCook: () => this.startCook(m.id, m.serv, { key:tk, slot:sl, uid:m.uid })
+          };
+        })
+      });
+    });
+    v.todayGroups = groups; v.hasMealsToday = groups.length > 0; v.noMealsToday = groups.length === 0;
+
+    v.cookableNow = s.recipes.map(r => {
+      const c = this.coverage(r, r.serv);
+      return { r, c, ratio: c.have / c.total };
+    }).filter(x => x.ratio === 1).slice(0, 3).map(({ r }) => ({
+      key:r.id, name:this.loc(r.name),
+      meta: r.min + " min · " + r.kcal + " " + t.kcal,
+      onOpen: () => this.setState({ push:{ type:"recipe" }, detailId:r.id, detailServings:r.serv })
+    }));
+
+    /* recipes */
+    v.query = s.query; v.hasQuery = !!s.query;
+    v.onQuery = e => this.setState({ query:e.target.value });
+    v.clearQuery = () => this.setState({ query:"" });
+    const tagList = ["dieta","rápido","batch","tartera"];
+    const chip = (active) => ({
+      bg: active ? "var(--soft)" : "var(--surface)",
+      fg: active ? "var(--accent-ink)" : "var(--text)",
+      line: active ? "var(--soft2)" : "var(--line)"
+    });
+    v.filterChips = [
+      { key:"all", label:t.allTags, ...chip(!s.tag && !s.haveOnly), onTap: () => this.setState({ tag:null, haveOnly:false }) },
+      { key:"have", label:t.haveIngredients, ...chip(s.haveOnly), onTap: () => this.setState({ haveOnly:!s.haveOnly }) },
+      ...tagList.map(tg => ({ key:tg, label:tg, ...chip(s.tag === tg), onTap: () => this.setState({ tag: s.tag === tg ? null : tg }) }))
+    ];
+    const q = s.query.trim().toLowerCase();
+    const vis = s.recipes.filter(r => {
+      if (q && !(this.loc(r.name).toLowerCase().includes(q) || r.ings.some(i => this.loc(i.n).toLowerCase().includes(q)))) return false;
+      if (s.tag && !(r.tags || []).includes(s.tag)) return false;
+      if (s.haveOnly) { const c = this.coverage(r, r.serv); if (c.have < c.total) return false; }
+      return true;
+    });
+    v.visibleRecipes = vis.map(r => {
+      const c = this.coverage(r, r.serv);
+      return {
+        key:r.id, initial:this.loc(r.name).slice(0,1).toUpperCase(), name:this.loc(r.name), desc:this.loc(r.desc),
+        have: c.have + "/" + c.total, time: r.min + " min", kcal: r.kcal + " " + t.kcal, diff: t[r.diff],
+        onOpen: () => this.setState({ push:{ type:"recipe" }, detailId:r.id, detailServings:r.serv })
+      };
+    });
+    v.resultLine = vis.length + " " + t.results;
+    v.noResults = vis.length === 0;
+    v.resetFilters = () => this.setState({ query:"", tag:null, haveOnly:false });
+
+    /* plan */
+    const monday = new Date(); monday.setHours(12,0,0,0);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7) + s.weekOffset * 7);
+    v.weekLabel = monday.toLocaleDateString(s.lang === "es" ? "es-ES" : "en-US", { day:"numeric", month:"long" }) + " – " +
+      new Date(monday.getTime() + 6 * 86400000).toLocaleDateString(s.lang === "es" ? "es-ES" : "en-US", { day:"numeric", month:"long" });
+    v.prevWeek = () => this.setState({ weekOffset: s.weekOffset - 1 });
+    v.nextWeek = () => this.setState({ weekOffset: s.weekOffset + 1 });
+    v.thisWeek = () => this.setState({ weekOffset: 0 });
+    v.week = Array.from({ length:7 }, (_, i) => {
+      const d = new Date(monday.getTime() + i * 86400000);
+      const key = this.keyOf(d);
+      const kc = this.dayKcal(key);
+      return {
+        key, isToday: key === tk,
+        label: d.toLocaleDateString(s.lang === "es" ? "es-ES" : "en-US", { weekday:"short", day:"numeric" }),
+        kcal: kc ? Math.round(kc / 100) / 10 + "k" : "",
+        slots: this.slotOrder().map(sl => ({
+          key: key + "|" + sl, label:t[sl], hot: s.drag && s.drag.over === key + "|" + sl,
+          onAdd: () => this.setState({ sheet:"picker", pickerTarget:{ key, slot:sl } }),
+          items: this.planAt(key, sl).map(m => {
+            const r = this.recipe(m.id);
+            return {
+              key:m.uid, name: r ? this.loc(r.name) : "—", meta: m.serv + "× " + (m.cooked ? "· " + t.cooked : ""),
+              onOpen: () => this.setState({ push:{ type:"recipe" }, detailId:m.id, detailServings:m.serv }),
+              onRemove: () => this.removeFromPlan(key, sl, m.uid)
+            };
+          })
+        }))
+      };
+    });
+    v.dragChips = s.recipes.slice(0, 8).map(r => ({
+      key:r.id, name:this.loc(r.name),
+      onTap: () => {},
+      onDown: (e) => this.beginDrag(e, r.id)
+    }));
+    v.dragging = !!s.drag;
+    v.dragName = s.drag ? this.loc(this.recipe(s.drag.id).name) : "";
+    v.dragTransform = s.drag ? "translate3d(" + (s.drag.x - 40) + "px," + (s.drag.y - 24) + "px,0) scale(1.04)" : "none";
+
+    /* pantry */
+    v.pantryQuery = s.pantryQuery;
+    v.onPantryQuery = e => this.setState({ pantryQuery:e.target.value });
+    const pq = s.pantryQuery.trim().toLowerCase();
+    const locs = [["cupboard", t.cupboard], ["fridge", t.fridge], ["freezer", t.freezer]];
+    const pitems = s.pantry.filter(p => !pq || this.loc(p.n).toLowerCase().includes(pq));
+    v.pantryGroups = locs.map(([id, label]) => {
+      const items = pitems.filter(p => p.loc === id);
+      return { key:id, label, count: items.length, items: items.map(p => ({
+        key:p.id, name:this.loc(p.n), qty:this.fmtQty(p.q, p.u),
+        sub: p.exp != null ? t.expiresIn + " " + p.exp + " " + t.days : t.noDate,
+        expfg: p.exp != null && p.exp <= 3 ? "var(--warn-ink)" : "var(--muted)",
+        onPlus: () => this.bump(p.id, 1), onMinus: () => this.bump(p.id, -1),
+        onDelete: () => this.setState({ pantry: s.pantry.filter(x => x.id !== p.id) })
+      })) };
+    }).filter(g => g.items.length);
+    v.pantryEmpty = v.pantryGroups.length === 0;
+
+    /* detail */
+    const dr = s.detailId ? this.recipe(s.detailId) : null;
+    v.showDetail = !!(s.push && s.push.type === "recipe" && dr);
+    if (dr) {
+      const serv = s.detailServings || dr.serv;
+      const cov = this.coverage(dr, serv);
+      v.detail = {
+        name:this.loc(dr.name), desc:this.loc(dr.desc), servings:serv,
+        time: dr.min + " min", diff: t[dr.diff], cookedTimes: (dr.count || 0) + " " + t.cookedTimes,
+        kcalServing: Math.round(dr.kcal).toLocaleString(s.lang === "es" ? "es-ES" : "en-US"),
+        kcalLine: t.kcal + " " + t.perServing + " · " + Math.round(dr.kcal * serv).toLocaleString(s.lang === "es" ? "es-ES" : "en-US") + " " + t.kcal + " total",
+        haveLine: cov.have + "/" + cov.total + " " + t.have,
+        hasSensitive: dr.ings.some(i => i.s),
+        onMinus: () => this.setState({ detailServings: Math.max(1, serv - 1) }),
+        onPlus: () => this.setState({ detailServings: Math.min(24, serv + 1) }),
+        onCook: () => this.startCook(dr.id, serv, null),
+        onPlanIt: () => this.setState({ sheet:"picker", pickerTarget:{ recipeId:dr.id } }),
+        ingredients: dr.ings.map((i, ix) => {
+          const need = this.scale(i, serv, dr.serv);
+          const p = this.pantryFor(i);
+          const ok = p && p.q >= need * 0.999;
+          return {
+            key:ix, name:this.loc(i.n), qty:this.fmtQty(need, i.u),
+            note: ok ? t.have + " " + this.fmtQty(p.q, p.u) : (p ? this.fmtQty(need - p.q, i.u) + " " + (s.lang === "es" ? "de menos" : "short") : (s.lang === "es" ? "no está en la despensa" : "not in the pantry")),
+            dot: ok ? "var(--accent)" : "var(--warn)",
+            rowbg: i.s ? "var(--warnsoft)" : "transparent"
+          };
+        }),
+        steps: dr.steps.map((st, ix) => ({
+          key:ix, n:ix + 1, text:this.loc(st.t), hasTimer: !!st.m, timerLabel: st.m ? st.m + " min" : ""
+        }))
+      };
+    } else v.detail = { ingredients:[], steps:[] };
+
+    /* new recipe form */
+    v.showNew = !!(s.push && s.push.type === "new");
+    v.form = s.form;
+    v.saveBg = s.form.title.trim() ? "var(--accent)" : "var(--surface2)";
+    v.saveFg = s.form.title.trim() ? "var(--onaccent)" : "var(--muted)";
+    const setF = (patch) => this.setState({ form: { ...this.state.form, ...patch } });
+    v.onFormTitle = e => setF({ title:e.target.value });
+    v.onFormDesc = e => setF({ desc:e.target.value });
+    v.onFormIngs = e => setF({ ings:e.target.value });
+    v.onFormSteps = e => setF({ steps:e.target.value });
+    v.onFormMinutes = e => setF({ minutes:e.target.value.replace(/\D/g, "") });
+    v.onFormKcal = e => setF({ kcal:e.target.value.replace(/\D/g, "") });
+    v.onFormServMinus = () => setF({ servings: Math.max(1, s.form.servings - 1) });
+    v.onFormServPlus = () => setF({ servings: Math.min(24, s.form.servings + 1) });
+    v.toggleAdvanced = () => setF({ advanced: !s.form.advanced });
+    v.advLabel = s.form.advanced ? "–" : "+";
+    v.diffChips = ["easy","medium","hard"].map(d => ({ key:d, label:t[d], ...chip(s.form.diff === d), onTap: () => setF({ diff:d }) }));
+    v.tagChips = tagList.map(tg => ({ key:tg, label:tg, ...chip(s.form.tags.includes(tg)), onTap: () => setF({ tags: s.form.tags.includes(tg) ? s.form.tags.filter(x => x !== tg) : [...s.form.tags, tg] }) }));
+    const parsed = this.parseIngs(s.form.ings);
+    v.ingsParsed = parsed.length ? parsed.length + (s.lang === "es" ? " ingredientes reconocidos" : " ingredients recognised") : (s.lang === "es" ? "Uno por línea: cantidad, unidad y nombre." : "One per line: amount, unit, name.");
+    v.saveRecipe = () => this.saveRecipeNow();
+
+    /* cook mode */
+    const cs = s.cookState;
+    v.showCook = !!cs;
+    if (cs) {
+      const r = this.recipe(cs.id);
+      const nSteps = r.steps.length;
+      const mise = cs.phase === "mise";
+      const fmtT = (sec) => Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
+
+      const row = (ix) => {
+        const i = r.ings[ix];
+        const checked = !!cs.checked[ix];
+        return {
+          key:ix, name:this.loc(i.n), qty:this.fmtQty(this.scale(i, cs.serv, r.serv), i.u), checked,
+          boxbg: checked ? "var(--accent)" : "transparent",
+          boxline: checked ? "var(--accent)" : "var(--line)",
+          rowfg: checked ? "var(--muted)" : "var(--text)",
+          strike: checked ? "line-through" : "none",
+          rowbg: i.s ? "var(--warnsoft)" : "transparent",
+          onToggle: () => this.setCook({ checked:{ ...cs.checked, [ix]: !checked } })
+        };
+      };
+
+      const goStep = (n) => this.setCook({ phase:"steps", step: Math.max(0, Math.min(nSteps - 1, n)) });
+      const live = Object.keys(cs.timers || {})
+        .filter(k => cs.timers[k].running || (cs.timers[k].remaining === 0 && cs.timers[k].done))
+        .map(k => parseInt(k, 10)).sort((a, b) => a - b);
+
+      v.cook = {
+        name:this.loc(r.name), servings:cs.serv,
+        isMise: mise, isSteps: !mise,
+        stepLabel: mise ? t.mise + " · " + r.ings.length : t.stepOf + " " + (cs.step + 1) + "/" + nSteps,
+        progress: mise ? "0%" : Math.round(((cs.step + 1) / nSteps) * 100) + "%",
+        askExit: !!cs.askExit,
+        exitBody: live.length ? t.exitBodyTimers : t.exitBody,
+        onAskExit: () => this.setCook({ askExit:true }),
+        onKeepCooking: () => this.setCook({ askExit:false }),
+        onConfirmExit: () => this.setState({ cookState:null, sheet:null }),
+        onMinus: () => this.setCook({ serv: Math.max(1, cs.serv - 1) }),
+        onPlus: () => this.setCook({ serv: Math.min(24, cs.serv + 1) }),
+
+        hasLiveTimers: live.length > 0,
+        liveTimers: live.map(ix => {
+          const tm = cs.timers[ix];
+          const done = tm.remaining === 0;
+          return {
+            key:ix, label: t.stepOf + " " + (ix + 1), time: fmtT(tm.remaining),
+            bg: done ? "var(--warnsoft)" : "var(--soft)",
+            line: done ? "var(--warn)" : "var(--soft2)",
+            fg: done ? "var(--warn-ink)" : "var(--accent-ink)",
+            dotbg: done ? "var(--warn)" : "var(--accent)",
+            doticon: "var(--onaccent)",
+            glyph: done ? "!" : (ix === cs.step ? "•" : "→"),
+            onTap: () => goStep(ix)
+          };
+        }),
+
+        allIngredients: r.ings.map((i, ix) => {
+          const base = row(ix);
+          const need = this.scale(i, cs.serv, r.serv);
+          const p = this.pantryFor(i);
+          const ok = p && p.q >= need * 0.999;
+          return { ...base,
+            note: ok ? t.have + " " + this.fmtQty(p.q, p.u)
+                     : (p ? this.fmtQty(need - p.q, i.u) + " " + (s.lang === "es" ? "de menos" : "short")
+                          : (s.lang === "es" ? "no está en la despensa" : "not in the pantry")),
+            notefg: ok ? "var(--muted)" : "var(--warn-ink)"
+          };
+        }),
+        planLabel: t.cookPlan,
+        outline: r.steps.map((st, ix) => ({
+          key:ix, n:ix + 1, text:this.loc(st.t), hasTimer: !!st.m, timerLabel: st.m ? st.m + " min" : ""
+        })),
+
+        onToggleUpcoming: () => this.setCook({ showUpcoming: !cs.showUpcoming }),
+        showUpcoming: !!cs.showUpcoming,
+        upcomingGlyph: cs.showUpcoming ? "–" : "+"
+      };
+
+      const cov = this.coverage(r, cs.serv);
+      const short = cov.total - cov.have;
+      const ticked = r.ings.filter((_, ix) => cs.checked[ix]).length;
+      v.cook.miseBanner = (short === 0 ? t.miseAllOk : t.miseShort) + "  ·  " + t.miseChecked + " " + ticked + "/" + r.ings.length;
+      v.cook.miseBannerBg = short === 0 ? "var(--soft)" : "var(--warnsoft)";
+      v.cook.miseBannerFg = short === 0 ? "var(--accent-ink)" : "var(--warn-ink)";
+
+      if (mise) {
+        v.cook.showPrev = false;
+        v.cook.nextCta = t.startCooking;
+        v.cook.onNext = () => goStep(0);
+        v.cook.onPrev = () => {};
+        v.cook.stepIngredients = []; v.cook.meanwhile = []; v.cook.upcoming = [];
+        v.cook.hasStepIngs = false; v.cook.noStepIngs = false;
+        v.cook.hasMeanwhile = false; v.cook.hasTimer = false;
+        v.cook.isPassive = false; v.cook.noUpcoming = false;
+        v.cook.upcomingLabel = t.upcoming;
+      } else {
+        const st = r.steps[cs.step];
+        const tm = cs.timers[cs.step];
+        const idxs = this.stepIngs(r, cs.step);
+
+        v.cook.stepText = this.loc(st.t);
+        v.cook.isPassive = this.isPassiveStep(r, cs.step);
+        v.cook.hasTimer = !!tm;
+        v.cook.timerText = tm ? fmtT(tm.remaining) : "";
+        v.cook.timerColor = tm && tm.remaining === 0 ? "var(--warn-ink)" : "var(--text)";
+        v.cook.timerCta = tm && tm.running ? t.pauseTimer : t.startTimer;
+        v.cook.onTimerToggle = () => {
+          if (!tm) return;
+          this.setCook({ timers:{ ...cs.timers, [cs.step]:{ ...tm, running: !tm.running, remaining: tm.remaining === 0 ? tm.total : tm.remaining, done:false } } });
+        };
+        v.cook.onTimerReset = () => {
+          if (!tm) return;
+          this.setCook({ timers:{ ...cs.timers, [cs.step]:{ ...tm, remaining:tm.total, running:false, done:false } } });
+        };
+
+        v.cook.stepIngredients = idxs.map(row);
+        v.cook.hasStepIngs = idxs.length > 0;
+        v.cook.noStepIngs = idxs.length === 0;
+
+        /* Pasos que se pueden adelantar mientras este espera: solo si este paso
+           es desatendido y su temporizador corre. */
+        const canParallel = v.cook.isPassive && tm && tm.running && tm.remaining > 0;
+        const mw = canParallel
+          ? r.steps.map((x, ix) => ({ x, ix })).filter(({ ix }) => ix > cs.step).slice(0, 2)
+          : [];
+        v.cook.meanwhile = mw.map(({ x, ix }) => ({
+          key:ix, n:ix + 1, text:this.loc(x.t), onGo: () => goStep(ix)
+        }));
+        v.cook.hasMeanwhile = mw.length > 0;
+
+        const up = r.steps.map((x, ix) => ({ x, ix })).filter(({ ix }) => ix > cs.step);
+        v.cook.upcoming = up.map(({ x, ix }) => ({
+          key:ix, n:ix + 1, text:this.loc(x.t), hasTimer: !!x.m, timerLabel: x.m ? x.m + " min" : "",
+          onGo: () => goStep(ix)
+        }));
+        v.cook.noUpcoming = up.length === 0;
+        v.cook.upcomingLabel = t.upcoming + (up.length ? " · " + up.length : "");
+
+        v.cook.showPrev = true;
+        v.cook.nextCta = cs.step === nSteps - 1 ? t.finishCook : t.next;
+        v.cook.onNext = () => { if (cs.step === nSteps - 1) this.finishCook(); else goStep(cs.step + 1); };
+        v.cook.onPrev = () => { if (cs.step === 0) this.setCook({ phase:"mise" }); else goStep(cs.step - 1); };
+      }
+    } else {
+      v.cook = { allIngredients:[], stepIngredients:[], meanwhile:[], upcoming:[], liveTimers:[], outline:[], showPrev:false };
+    }
+
+    /* sheets */
+    v.sheetOpen = !!s.sheet;
+    v.sheetTransform = s.sheetY ? "translateY(" + s.sheetY + "px)" : "none";
+    v.onSheetGrab = (e) => this.grabSheet(e);
+    v.isSheetSettings = s.sheet === "settings"; v.isSheetShop = s.sheet === "shop";
+    v.isSheetPantryAdd = s.sheet === "pantryAdd"; v.isSheetPicker = s.sheet === "picker"; v.isSheetFinish = s.sheet === "finish";
+    v.sheetTitle = s.sheet === "settings" ? t.settings : s.sheet === "shop" ? t.shoppingList : s.sheet === "pantryAdd" ? t.add : s.sheet === "picker" ? t.pickRecipe : s.sheet === "finish" ? t.howDidItGo : "";
+
+    v.themeChips = [["system", t.system], ["light", t.light], ["dark", t.dark]].map(([id, label]) => ({ key:id, label, ...chip(s.theme === id), onTap: () => this.setState({ theme:id }) }));
+    v.accentChips = Object.keys(this.ACCENTS).map(k => ({ key:k, sw: this.ACCENTS[k], swline: s.accent === k ? "var(--text)" : "transparent", onTap: () => this.setState({ accent:k }) }));
+    v.langChips = [["es","Español"], ["en","English"]].map(([id, label]) => ({ key:id, label, ...chip(s.lang === id), onTap: () => this.setState({ lang:id }) }));
+    v.unitChips = [["metric", t.metric], ["imperial", t.imperial]].map(([id, label]) => ({ key:id, label, ...chip(s.units === id), onTap: () => this.setState({ units:id }) }));
+
+    const needs = this.shoppingNeeds();
+    v.shopIntro = s.lang === "es" ? "Lo que falta para el plan de esta semana, comparado con tu despensa." : "What's missing for this week's plan, compared with your pantry.";
+    const gLabels = { seco: s.lang === "es" ? "Seco" : "Dry", fresco: s.lang === "es" ? "Fresco" : "Fresh", conserva: s.lang === "es" ? "Conserva" : "Tinned" };
+    v.shopGroups = ["fresco","seco","conserva"].map(g => ({
+      key:g, label:gLabels[g],
+      items: needs.filter(n => n.g === g).map(n => {
+        const checked = !!s.shopChecked[n.key];
+        return {
+          key:n.key, name:n.name, qty:this.fmtQty(n.q, n.u), checked,
+          boxbg: checked ? "var(--accent)" : "transparent",
+          boxline: checked ? "var(--accent)" : "var(--line)",
+          rowfg: checked ? "var(--muted)" : "var(--text)",
+          strike: checked ? "line-through" : "none",
+          onToggle: () => this.setState({ shopChecked:{ ...s.shopChecked, [n.key]: !checked } })
+        };
+      })
+    })).filter(g => g.items.length);
+    v.shopEmpty = needs.length === 0; v.shopHasItems = needs.length > 0;
+    v.buyAll = () => {
+      const pantry = s.pantry.map(p => ({ ...p }));
+      needs.forEach(n => {
+        if (!s.shopChecked[n.key]) return;
+        const p = pantry.find(x => this.loc(x.n).toLowerCase() === n.name.toLowerCase());
+        if (p) p.q += n.q;
+        else pantry.push({ id:"p"+Math.random().toString(36).slice(2,7), n:{ es:n.name, en:n.name }, q:n.q, u:n.u, loc: n.g === "fresco" ? "fridge" : "cupboard", exp: n.g === "fresco" ? 5 : null });
+      });
+      this.setState({ pantry, shopChecked:{}, sheet:null });
+      this.toast(t.boughtOk);
+    };
+
+    v.pform = s.pform;
+    v.onPName = e => this.setState({ pform:{ ...s.pform, name:e.target.value } });
+    v.onPQty = e => this.setState({ pform:{ ...s.pform, qty:e.target.value } });
+    v.unitOpts = [["g","g"], ["ml","ml"], ["ud", s.lang === "es" ? "uds" : "pcs"]].map(([id, label]) => ({ key:id, label, ...chip(s.pform.unit === id), onTap: () => this.setState({ pform:{ ...s.pform, unit:id } }) }));
+    v.locOpts = locs.map(([id, label]) => ({ key:id, label, ...chip(s.pform.loc === id), onTap: () => this.setState({ pform:{ ...s.pform, loc:id } }) }));
+    v.savePantry = () => {
+      const f = s.pform;
+      if (!f.name.trim()) return;
+      this.setState({
+        pantry:[...s.pantry, { id:"p"+Math.random().toString(36).slice(2,7), n:{ es:f.name, en:f.name }, q: parseFloat(f.qty.replace(",", ".")) || 1, u:f.unit, loc:f.loc, exp: f.loc === "fridge" ? 5 : null }],
+        sheet:null
+      });
+      this.toast(t.savedPantry);
+    };
+
+    const pt = s.pickerTarget;
+    v.pickerSub = pt && pt.recipeId ? (s.lang === "es" ? "Elige el día y la comida." : "Pick the day and the meal.") : (s.lang === "es" ? "Recetas que puedes poner en este hueco." : "Recipes you can drop in this slot.");
+    if (pt && pt.recipeId) {
+      const opts = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday.getTime() + i * 86400000);
+        const key = this.keyOf(d);
+        ["lunch","dinner"].forEach(sl => opts.push({
+          key: key + sl,
+          name: d.toLocaleDateString(s.lang === "es" ? "es-ES" : "en-US", { weekday:"long", day:"numeric" }),
+          meta: t[sl],
+          onTap: () => { this.addToPlan(pt.recipeId, key, sl); this.setState({ sheet:null, push:null }); }
+        }));
+      }
+      v.pickerItems = opts;
+    } else if (pt) {
+      v.pickerItems = s.recipes.map(r => ({
+        key:r.id, name:this.loc(r.name), meta: r.min + " min · " + r.kcal + " " + t.kcal + " · " + r.serv + "×",
+        onTap: () => { this.addToPlan(r.id, pt.key, pt.slot); this.setState({ sheet:null }); }
+      }));
+    } else v.pickerItems = [];
+
+    v.finishServings = s.finishServings;
+    v.finishMinus = () => this.setState({ finishServings: Math.max(1, s.finishServings - 1) });
+    v.finishPlus = () => this.setState({ finishServings: Math.min(24, s.finishServings + 1) });
+    v.finishIntro = s.lang === "es" ? "Guardamos lo cocinado y lo descontamos de la despensa." : "We'll log the cook and subtract it from your pantry.";
+    v.finishMissing = !!s.finishMissing;
+    v.finishMissingText = s.finishMissing ? t.missingWarn + " " + s.finishMissing.join(" · ") : "";
+    v.confirmFinish = () => this.confirmCook();
+
+    return v;
+  }
+
+  bump(id, dir) {
+    this.setState({
+      pantry: this.state.pantry.map(p => {
+        if (p.id !== id) return p;
+        const stepv = p.u === "ud" ? 1 : 100;
+        return { ...p, q: Math.max(0, p.q + dir * stepv) };
+      })
+    });
+  }
+
+  beginDrag(e, id) {
+    e.preventDefault();
+    this.setState({ drag:{ id, x:e.clientX, y:e.clientY, over:null } });
+    const move = (ev) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const slot = el && el.closest ? el.closest("[data-slot]") : null;
+      this.setState(st => st.drag ? { drag:{ ...st.drag, x:ev.clientX, y:ev.clientY, over: slot ? slot.getAttribute("data-slot") : null } } : {});
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      const d = this.state.drag;
+      if (d && d.over) { const parts = d.over.split("|"); this.addToPlan(d.id, parts[0], parts[1]); }
+      this.setState({ drag:null });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+
+  grabSheet(e) {
+    e.preventDefault();
+    cancelAnimationFrame(this._sraf);
+    const startY = e.clientY;
+    let last = startY, lastT = performance.now(), vel = 0;
+    const move = (ev) => {
+      const now = performance.now();
+      const dt = Math.max(8, now - lastT);
+      vel = (ev.clientY - last) / dt * 1000;
+      last = ev.clientY; lastT = now;
+      let dy = ev.clientY - startY;
+      if (dy < 0) dy = dy * 0.25;
+      this.setState({ sheetY: dy });
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      const y = this.state.sheetY;
+      const projected = y + (vel / 1000) * 0.998 / (1 - 0.998);
+      if (projected > 140) {
+        this.springTo(y, 620, vel, v => this.setState({ sheetY:v }), () => this.setState({ sheet:null, sheetY:0 }));
+      } else {
+        this.springTo(y, 0, vel, v => this.setState({ sheetY:v }));
+      }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+
+  springTo(from, to, v0, onUpdate, onDone) {
+    let x = from, v = v0 || 0, last = performance.now();
+    const k = 190, c = 27;
+    const step = (now) => {
+      const dt = Math.min(0.032, (now - last) / 1000); last = now;
+      v += (-k * (x - to) - c * v) * dt;
+      x += v * dt;
+      if (Math.abs(x - to) < 0.6 && Math.abs(v) < 14) { onUpdate(to); if (onDone) onDone(); return; }
+      onUpdate(x);
+      this._sraf = requestAnimationFrame(step);
+    };
+    this._sraf = requestAnimationFrame(step);
+  }
+}
+</script>
+</body>
+</html>

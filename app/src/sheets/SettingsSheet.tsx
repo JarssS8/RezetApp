@@ -1,0 +1,137 @@
+import { usePrefs, ACCENTS } from '../store/prefs';
+import { OptionChip } from '../ui/Chip';
+import { Eyebrow } from '../ui/Card';
+import { Pressable } from '../ui/Pressable';
+import { Sheet } from '../ui/Sheet';
+import { radius } from '../ui/tokens';
+import type { Accent, Locale, Theme, UnitSystem } from '../types';
+
+export function SettingsSheet({
+  onClose,
+  onReplayTour,
+  onSignOut,
+  onInvite,
+}: {
+  onClose: () => void;
+  onReplayTour: () => void;
+  onSignOut: () => void;
+  /** Solo en modo real, con hogar: ausente en el modo demo. */
+  onInvite?: () => void;
+}) {
+  const { t, theme, accent, locale, units, setTheme, setAccent, setLocale, setUnits } = usePrefs();
+
+  const themes: Array<[Theme, string]> = [
+    ['system', t.system],
+    ['light', t.light],
+    ['dark', t.dark],
+  ];
+  const locales: Array<[Locale, string]> = [
+    ['es', 'Español'],
+    ['en', 'English'],
+  ];
+  const unitOptions: Array<[UnitSystem, string]> = [
+    ['metric', t.metric],
+    ['imperial', t.imperial],
+  ];
+
+  return (
+    <Sheet title={t.settings} onClose={onClose}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22, paddingBottom: 6 }}>
+        <div>
+          <Eyebrow style={{ marginBottom: 9 }}>{t.appearance}</Eyebrow>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {themes.map(([id, label]) => (
+              <OptionChip key={id} label={label} active={theme === id} onClick={() => setTheme(id)} />
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 14 }}>
+            {(Object.keys(ACCENTS) as Accent[]).map((key) => (
+              <Pressable
+                key={key}
+                onClick={() => setAccent(key)}
+                ariaLabel={key}
+                scale={0.9}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: radius.pill,
+                  background: ACCENTS[key],
+                  border: `2px solid ${accent === key ? 'var(--text)' : 'transparent'}`,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <Eyebrow style={{ marginBottom: 9 }}>{t.language}</Eyebrow>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {locales.map(([id, label]) => (
+              <OptionChip key={id} label={label} active={locale === id} onClick={() => setLocale(id)} />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <Eyebrow style={{ marginBottom: 9 }}>{t.units}</Eyebrow>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {unitOptions.map(([id, label]) => (
+              <OptionChip key={id} label={label} active={units === id} onClick={() => setUnits(id)} />
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {onInvite && (
+            <Pressable
+              onClick={onInvite}
+              scale={0.98}
+              style={{
+                height: 48,
+                borderRadius: radius.input,
+                background: 'var(--surface2)',
+                fontSize: 15.5,
+                fontWeight: 600,
+                textAlign: 'left',
+                padding: '0 16px',
+              }}
+            >
+              {t.inviteSomeone}
+            </Pressable>
+          )}
+          <Pressable
+            onClick={onReplayTour}
+            scale={0.98}
+            style={{
+              height: 48,
+              borderRadius: radius.input,
+              background: 'var(--surface2)',
+              fontSize: 15.5,
+              fontWeight: 600,
+              textAlign: 'left',
+              padding: '0 16px',
+            }}
+          >
+            {t.replayTour}
+          </Pressable>
+          <Pressable
+            onClick={onSignOut}
+            scale={0.98}
+            style={{
+              height: 48,
+              borderRadius: radius.input,
+              background: 'var(--warnsoft)',
+              color: 'var(--warn-ink)',
+              fontSize: 15.5,
+              fontWeight: 600,
+              textAlign: 'left',
+              padding: '0 16px',
+            }}
+          >
+            {t.signOut}
+          </Pressable>
+        </div>
+      </div>
+    </Sheet>
+  );
+}

@@ -1,0 +1,252 @@
+import { useState } from 'react';
+import { usePrefs } from '../store/prefs';
+import { useData } from '../data/store';
+import { isCovered } from '../domain/coverage';
+import { formatKcal, formatQuantity } from '../domain/units';
+import { Button } from '../ui/Button';
+import { Card, Eyebrow, ListCard, Row, StepNumber } from '../ui/Card';
+import { Icon } from '../ui/Icon';
+import { PushHeader } from '../ui/Fields';
+import { Stepper } from '../ui/Stepper';
+import { maxW, radius, tabular, text as T } from '../ui/tokens';
+
+export function RecipeDetail({
+  recipeId,
+  initialServings,
+  onClose,
+  onCook,
+  onAddToPlan,
+}: {
+  recipeId: string;
+  initialServings: number;
+  onClose: () => void;
+  onCook: (recipeId: string, servings: number) => void;
+  onAddToPlan: (recipeId: string) => void;
+}) {
+  const { t, locale, units, loc } = usePrefs();
+  const { recipeById, ingredientById, needOf, stockOf, coverageOf } = useData();
+  const recipe = recipeById.get(recipeId);
+  const [servings, setServings] = useState(initialServings);
+
+  if (!recipe) return null;
+  const cov = coverageOf(recipe, servings);
+  const hasSensitive = recipe.ingredients.some(
+    (ri) => ingredientById.get(ri.ingredientId)?.sensitive,
+  );
+
+  return (
+    <div
+      data-screen-label="Detalle de receta"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 60,
+        background: 'var(--bg)',
+        overflowY: 'auto',
+        animation: 'pushin .3s cubic-bezier(.2,.7,.2,1) both',
+      }}
+    >
+      <PushHeader onBack={onClose} title={loc(recipe.name)} backLabel={t.back} />
+
+      <div style={{ maxWidth: maxW.detail, margin: '0 auto', padding: '18px 20px 40px' }}>
+        {recipe.photoUrl ? (
+          <img
+            src={recipe.photoUrl}
+            alt=""
+            style={{
+              width: '100%',
+              height: 170,
+              borderRadius: radius.hero,
+              objectFit: 'cover',
+              marginBottom: 20,
+            }}
+          />
+        ) : (
+          // Marcador de foto. Se sustituye solo en cuanto la receta tiene una real.
+          <div
+            style={{
+              height: 170,
+              borderRadius: radius.hero,
+              background: 'var(--soft)',
+              display: 'grid',
+              placeItems: 'center',
+              marginBottom: 20,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                fontSize: 12,
+                color: 'var(--accent-ink)',
+                letterSpacing: '.04em',
+              }}
+            >
+              {t.photoSlot}
+            </div>
+          </div>
+        )}
+
+        <h1 style={{ margin: 0, ...T.detailTitle }}>{loc(recipe.name)}</h1>
+        <div style={{ marginTop: 10, fontSize: 16, color: 'var(--muted)', lineHeight: 1.5, textWrap: 'pretty' }}>
+          {loc(recipe.description)}
+        </div>
+        <div
+          style={{
+            marginTop: 14,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 10,
+            fontSize: 13.5,
+            color: 'var(--muted)',
+            ...tabular,
+          }}
+        >
+          <span>{recipe.minutes} min</span>
+          <span>·</span>
+          <span>{t[recipe.difficulty]}</span>
+          <span>·</span>
+          <span>
+            {recipe.cookedCount} {t.cookedTimes}
+          </span>
+        </div>
+
+        <Card style={{ marginTop: 22, borderRadius: radius.card, padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-.015em' }}>{t.servings}</div>
+            <Stepper
+              value={servings}
+              label={t.servings}
+              onDecrement={() => setServings((s) => Math.max(1, s - 1))}
+              onIncrement={() => setServings((s) => Math.min(24, s + 1))}
+            />
+          </div>
+          <div style={{ marginTop: 14, display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <div style={{ ...T.bigNumber, ...tabular }}>{formatKcal(recipe.kcalPerServing, locale)}</div>
+            <div style={{ fontSize: 14, color: 'var(--muted)' }}>
+              {t.kcal} {t.perServing} · {formatKcal(recipe.kcalPerServing * servings, locale)} {t.kcal} total
+            </div>
+          </div>
+        </Card>
+
+        <div style={{ marginTop: 20 }}>
+          <div
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 4px 10px' }}
+          >
+            <Eyebrow>{t.ingredients}</Eyebrow>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent-ink)' }}>
+              {cov.have}/{cov.total} {t.have}
+            </div>
+          </div>
+          <ListCard style={{ borderRadius: radius.card }}>
+            {recipe.ingredients.map((ri, index) => {
+              const ing = ingredientById.get(ri.ingredientId);
+              const need = needOf(recipe, index, servings);
+              const have = stockOf(ri.ingredientId, ri.unit);
+              const ok = isCovered(need, have);
+              const note = ok
+                ? `${t.have} ${formatQuantity(have, ri.unit, units, locale)}`
+                : have > 0
+                  ? `${formatQuantity(need - have, ri.unit, units, locale)} ${t.short}`
+                  : t.notInPantry;
+              return (
+                <Row key={`${ri.ingredientId}-${index}`} warn={ing?.sensitive}>
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      flex: '0 0 8px',
+                      borderRadius: radius.pill,
+                      background: ok ? 'var(--accent)' : 'var(--warn)',
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={T.row}>{ing ? loc(ing.name) : '—'}</div>
+                    <div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--muted)' }}>{note}</div>
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 600, ...tabular }}>
+                    {formatQuantity(need, ri.unit, units, locale)}
+                  </div>
+                </Row>
+              );
+            })}
+          </ListCard>
+          {hasSensitive && (
+            <div
+              style={{
+                marginTop: 10,
+                padding: '12px 14px',
+                borderRadius: radius.input,
+                background: 'var(--warnsoft)',
+                color: 'var(--warn-ink)',
+                fontSize: 13,
+                lineHeight: 1.5,
+                textWrap: 'pretty',
+              }}
+            >
+              {t.sensitiveNote}
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <Eyebrow style={{ margin: '0 4px 10px' }}>{t.steps}</Eyebrow>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {recipe.steps.map((step, index) => (
+              <div
+                key={index}
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--line)',
+                  borderRadius: radius.button,
+                  padding: 14,
+                  display: 'flex',
+                  gap: 13,
+                  boxShadow: 'var(--shadow-s)',
+                }}
+              >
+                <StepNumber n={index + 1} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15.5, lineHeight: 1.5, letterSpacing: '-.01em', textWrap: 'pretty' }}>
+                    {loc(step.text)}
+                  </div>
+                  {step.timerMinutes != null && (
+                    <div
+                      style={{
+                        marginTop: 6,
+                        fontSize: 12.5,
+                        color: 'var(--accent-ink)',
+                        fontWeight: 600,
+                        ...tabular,
+                      }}
+                    >
+                      {step.timerMinutes} min
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginTop: 26, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Button
+            size="primary"
+            onClick={() => onCook(recipe.id, servings)}
+            icon={<Icon name="cook" size={17} />}
+            style={{ flex: '1 1 180px', boxShadow: 'var(--shadow-m)', borderRadius: radius.button }}
+          >
+            {t.cookNow}
+          </Button>
+          <Button
+            variant="secondary"
+            size="primary"
+            onClick={() => onAddToPlan(recipe.id)}
+            style={{ flex: '1 1 140px', borderRadius: radius.button }}
+          >
+            {t.addToPlan}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
