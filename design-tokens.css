@@ -22,6 +22,8 @@
 
   /* Derivados — nunca los escribas a ojo */
   --acc-soft: color-mix(in srgb, var(--acc) 11%, #FFFFFF);
+  /* Bajado de 12% a 11%: al 12% "higo" y "berenjena" no daban AA contra el
+     nuevo --text-2, más claro. NO subir sin repasar tests/contracts/design-tokens.test.ts. */
   /* Tinta de acento para TEXTO. Bajó del 78% al 60% en W6: al 78% el ratio
      sobre --surf era 3,60:1 con "miel" y 4,16:1 con "pistacho" (por debajo de
      AA), y sobre --acc-soft -el par que estrena la píldora de seleccionado-
@@ -114,10 +116,12 @@
     --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
     --acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf));
     --warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1);
+    /* Bajado de 88% a 85%: al 88% el nuevo --surf oscuro ya no daba AA en
+       destructive-hover. NO subir sin repasar tests/contracts/design-tokens.test.ts. */
     --danger-ink: color-mix(in srgb, var(--danger) 85%, #F1EBE1);
     --surf-sunken: var(--surf-2);
     /* En "Noche suave" la sombra apenas se lee: el borde entero se queda, y
-       el escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */
+       el escalón --surf (#1C201D) sobre --bg (#101411) hace el resto. */
     --line-2: var(--line);
     --on-acc:   #12261C;
     --sh-card:   0 1px 2px rgba(0, 0, 0, .28);
@@ -142,10 +146,12 @@
   --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
   --acc-soft-2: color-mix(in srgb, var(--acc) 24%, var(--surf));
   --warn-ink: color-mix(in srgb, var(--warn) 85%, #F1EBE1);
+  /* Bajado de 88% a 85%: al 88% el nuevo --surf oscuro ya no daba AA en
+     destructive-hover. NO subir sin repasar tests/contracts/design-tokens.test.ts. */
   --danger-ink: color-mix(in srgb, var(--danger) 85%, #F1EBE1);
   --surf-sunken: var(--surf-2);
   /* En "Noche suave" la sombra apenas se lee: el borde entero se queda, y
-     el escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */
+     el escalón --surf (#1C201D) sobre --bg (#101411) hace el resto. */
   --line-2: var(--line);
   --on-acc:   #12261C;
   --sh-card:   0 1px 2px rgba(0, 0, 0, .28);

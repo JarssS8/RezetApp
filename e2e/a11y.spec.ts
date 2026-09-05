@@ -2,7 +2,8 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 import { registerHousehold } from './helpers/session'
 
-// Las cinco pantallas de AGENTS.md ("Las cinco pantallas"), en los dos temas
+// Las cinco rutas de la app (AGENTS.md dice ahora "Las cuatro pantallas" —
+// Cocinar sigue siendo ruta propia aunque salió de la barra), en los dos temas
 // (spec §16). El tema oscuro se emula con prefers-color-scheme porque la
 // preferencia por defecto de un usuario recién registrado es `system` y
 // app/globals.css la resuelve por media query (`:root:not([data-theme="light"])`).

@@ -60,7 +60,7 @@ app/
   layout.tsx, globals.css (tokens + Tailwind)
   (auth)/login, register, invite/[token]
   (app)/
-    layout.tsx           barra inferior 5 pestañas
+    layout.tsx           barra inferior 4 pestañas
     today/               Hoy
     cook/[entryId]/      Cocinar (también cook/recipe/[id])
     plan/                Plan (semana | mes)
@@ -212,7 +212,7 @@ Tipos en `lib/domain/types.ts`. Firmas congeladas al final de W1:
 
 ```ts
 // scaling.ts
-scaleQuantity(qty: number, ratio: number, scalesLinearly: boolean): number   // DAMP = 0.65
+scaleQuantity(qty: number, ratio: number, scalesLinearly: boolean): number   // DAMP = 0.55
 scaleIngredient(i: Ingredient, ratio: number): Ingredient
    // escala quantity (base) y display_quantity con la misma regla; ambos pueden ser null
 scaleRecipe(recipe: RecipeForScaling, targetServings: number): ScaledRecipe

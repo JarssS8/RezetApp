@@ -9,9 +9,11 @@ import { requireHousehold } from '@/lib/auth/guards'
 import { getPlanEntries } from '@/lib/cache/plan'
 import { todayIso } from '@/lib/plan-dates'
 
-// La pestaña "Cocinar" de la barra: lo planificado para hoy que se puede
-// cocinar (tiene receta y no está cocinado ni saltado). Un toque para entrar
-// en el modo cocina; el resto de la pantalla lo cubre esa sesión.
+// Antes la pestaña "Cocinar" de la barra; ahora Cocinar se lanza desde Hoy o
+// desde el detalle de receta (rediseño 2026-09) y esta ruta ya no tiene enlace
+// de navegación propio. Lo planificado para hoy que se puede cocinar (tiene
+// receta y no está cocinado ni saltado). Un toque para entrar en el modo
+// cocina; el resto de la pantalla lo cubre esa sesión.
 // W10/T11b: cascarón síncrono + <Suspense>. Ni la sesión ni las traducciones
 // (que leen la cookie de idioma) pueden esperarse en el cuerpo de la página:
 // dejarían la ruta sin armazón estático y sin ventana de cliente.

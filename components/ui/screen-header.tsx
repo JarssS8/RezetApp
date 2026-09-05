@@ -32,7 +32,7 @@ export interface ScreenHeaderMenuItem {
 export interface ScreenHeaderProps {
   title: string
   // Flecha a la izquierda del título; sustituye la barra inferior como forma
-  // de volver en las subpantallas que no son una de las cinco pestañas.
+  // de volver en las subpantallas que no son una de las cuatro pestañas.
   backHref?: string
   // Como mucho una: siempre en la misma posición, antes del menú y del engranaje.
   primaryAction?: ScreenHeaderPrimaryAction
@@ -40,7 +40,7 @@ export interface ScreenHeaderProps {
   menuItems?: ScreenHeaderMenuItem[]
 }
 
-// W8: un único patrón de cabecera para las cinco pantallas y sus
+// W8: un único patrón de cabecera para las cuatro pantallas y sus
 // subpantallas con vuelta atrás, en vez de que cada una decida a mano qué
 // botones enseña (el usuario los veía aparecer/desaparecer sin ton ni son).
 // Orden fijo a la derecha: acción primaria → menú desbordado → Ajustes,

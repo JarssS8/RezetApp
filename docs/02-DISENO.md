@@ -183,7 +183,7 @@ fracción — sin el retraso, el texto se ve encajarse dentro de una caja que a�
 está creciendo. Es la única duración fuera de la tabla; no sienta precedente
 para añadir más sin pasar antes por el informe de animaciones.
 
-**Entrada de pantalla.** Cada una de las cinco pantallas, las páginas de
+**Entrada de pantalla.** Cada una de las cuatro pantallas, las páginas de
 ajustes y las tarjetas de la puerta de entrada (login, registro, invitación)
 llevan `view-enter` (`app/globals.css`, `@utility`): opacidad 0 → 1 y 6 px de
 ascenso, disparado por `@starting-style` en cuanto el contenedor se monta —

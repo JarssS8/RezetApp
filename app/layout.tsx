@@ -17,7 +17,7 @@ import './globals.css'
 // W10 sigue permitiendo rutas que bloquean (settings, subpantallas, /login…):
 // `instant = false` aquí desactiva la validación de armazón para todo el
 // árbol. No convierte nada en dinámico que no lo fuera ya — lo dice
-// instant.md — y las cinco pantallas de la barra sí lo producen.
+// instant.md — y las cuatro pantallas de la barra sí lo producen.
 export const instant = false
 
 export const metadata: Metadata = { title: 'RezetApp', applicationName: 'RezetApp', icons: { apple: '/apple-touch-icon.png' } }

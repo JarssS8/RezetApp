@@ -34,9 +34,9 @@ test.describe('cocinar', () => {
     // 3) Cocinar la receta directamente (sin hueco en el plan)
     await page.goto('/recipes')
     await page.getByRole('link', { name: title }).click()
-    // Acotado a <main>: la barra inferior tiene su propio enlace "Cocinar"
-    // (a /cook) con el mismo nombre accesible que el de la ficha (a
-    // /cook/recipe/[id]) — sin acotar, el locator es ambiguo.
+    // Acotado a <main> por prudencia: la barra inferior ya no tiene enlace
+    // "Cocinar" (4 pestañas, Cocinar salió de la barra), así que esa
+    // ambigüedad concreta con el enlace de la ficha ya no puede darse.
     await page.locator('main').getByRole('link', { name: /^(cocinar|cook)$/i }).click()
     await expect(page.getByText(/Pocha la cebolla/)).toBeVisible()
     await page.getByRole('button', { name: /he terminado|i'm done/i }).click()

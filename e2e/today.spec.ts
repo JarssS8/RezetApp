@@ -20,8 +20,9 @@ test.describe('hoy', () => {
     await page.goto('/today')
     await expect(page.getByText('Pizza', { exact: true })).toBeVisible()
     // Comida libre: no hay receta, así que no se ofrece cocinarla. Se acota a
-    // <main> porque la pestaña inferior "Cocinar" (bottom-bar.tsx) comparte
-    // el mismo nombre accesible y vive fuera de <main> en el layout de (app).
+    // <main> por si algún elemento fuera del contenido principal compartiera
+    // el mismo nombre accesible (ya no hay enlace "Cocinar" en la barra
+    // inferior, que ahora tiene 4 pestañas sin Cocinar — bottom-bar.tsx).
     await expect(page.locator('main').getByRole('link', { name: /^(cocinar|cook)$/i })).toHaveCount(0)
   })
 })

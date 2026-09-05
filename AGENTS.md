@@ -70,7 +70,7 @@ cuando difieren; los planes están en `docs/superpowers/plans/`.
 - `pnpm typecheck` · `pnpm lint` · `pnpm i18n:check` — cada pata por separado
 - `pnpm test` · `pnpm test -- lib/domain/scaling.test.ts` — todos / uno
 - `pnpm test:domain-coverage` — cobertura de `lib/domain` (umbral: 100 % de líneas)
-- `pnpm check:shell` — construye y comprueba que el armazón estático de las cinco pantallas sigue prerenderizado (`tests/contracts/prerender-shell.test.ts`); aparte de `pnpm check` porque exige un `pnpm build` real
+- `pnpm check:shell` — construye y comprueba que el armazón estático de las cinco rutas (las cuatro de la barra más Cocinar, que sigue siendo ruta propia aunque salió de la barra) sigue prerenderizado (`tests/contracts/prerender-shell.test.ts`); aparte de `pnpm check` porque exige un `pnpm build` real
 - `pnpm e2e` — Playwright (levanta `pnpm dev` si no hay `E2E_BASE_URL`; ver `e2e/README.md`)
 - `pnpm db:generate` — genera migración desde `db/schema/`
 - `pnpm db:migrate` · `pnpm db:seed` — aplicar migraciones / sembrar (idempotente)
