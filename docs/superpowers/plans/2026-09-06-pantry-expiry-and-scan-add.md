@@ -678,18 +678,20 @@ EOF
 - Modify: `app/src/i18n/en.ts`
 
 **Interfaces:**
-- Produces: `t.expired`, `t.expiresOnLabel`, `t.addManual`, `t.addBarcode`, `t.addPhoto`, `t.takePhoto`, `t.lookingUp`, `t.scanNotFound`, `t.scanDecodeFailed`, `t.enterBarcodeManually`, `t.photoRecognizeFailed` — consumed by Tasks 6, 7, 8, 10.
+- Produces: `t.expired`, `t.expiresOnLabel`, `t.addManual`, `t.addBarcode`, `t.addPhotoMode`, `t.takePhoto`, `t.lookingUp`, `t.scanNotFound`, `t.scanDecodeFailed`, `t.enterBarcodeManually`, `t.photoRecognizeFailed` — consumed by Tasks 6, 7, 8, 10.
+
+**Correction (post-Task-5-review):** `addPhoto` already exists in both files (`es.ts`: `'Añadir foto'`, `en.ts`: `'Add a photo'`) — it's the recipe dish-photo upload button in `screens/RecipeForm.tsx:581,601`. The pantry capture-mode chip needs its own key, `addPhotoMode`, so it never collides with or overwrites that existing string. Do not touch the existing `addPhoto` line in either file.
 
 - [ ] **Step 1: Add the keys to `es.ts`**
 
-In `app/src/i18n/es.ts`, right after the existing `noDate: 'sin fecha',` line, add:
+In `app/src/i18n/es.ts`, right after the existing `noDate: 'sin fecha',` line, add (note `addPhotoMode`, not `addPhoto` — that key already exists elsewhere in this file for the recipe-photo button and must be left alone):
 
 ```ts
   expired: 'Caducado',
   expiresOnLabel: 'Caduca el (opcional)',
   addManual: 'Manual',
   addBarcode: 'Código de barras',
-  addPhoto: 'Foto',
+  addPhotoMode: 'Foto',
   takePhoto: 'Tomar foto',
   lookingUp: 'Buscando…',
   scanNotFound: 'No se encontró el producto',
@@ -700,14 +702,14 @@ In `app/src/i18n/es.ts`, right after the existing `noDate: 'sin fecha',` line, a
 
 - [ ] **Step 2: Add the same keys to `en.ts`**
 
-In `app/src/i18n/en.ts`, right after the existing `noDate: 'no date',` line, add:
+In `app/src/i18n/en.ts`, right after the existing `noDate: 'no date',` line, add (same `addPhotoMode` note as Step 1):
 
 ```ts
   expired: 'Expired',
   expiresOnLabel: 'Expires on (optional)',
   addManual: 'Manual',
   addBarcode: 'Barcode',
-  addPhoto: 'Photo',
+  addPhotoMode: 'Photo',
   takePhoto: 'Take a photo',
   lookingUp: 'Looking up…',
   scanNotFound: 'Product not found',
@@ -973,7 +975,7 @@ EOF
 
 - [ ] **Step 1: Add the `@zxing/browser` dependency**
 
-Run: `cd app && npm install @zxing/browser@0.1.5`
+Run: `cd app && npm install @zxing/browser@0.2.1`
 Expected: `package.json`/`package-lock.json` gain the dependency.
 
 - [ ] **Step 2: Create the image-resize helper**
@@ -1389,7 +1391,7 @@ EOF
 - Modify: `app/src/App.tsx`
 
 **Interfaces:**
-- Consumes: `resizeImageFile`, `blobToBase64` from `../lib/imageCapture` (Task 8); `mapGeminiRecognition`, `RecognizedPantryItem` from `../domain/pantryImport` (Task 2); `supabase` from `../data/supabaseClient`; `t.addPhoto`/`t.takePhoto`/`t.lookingUp`/`t.photoRecognizeFailed` (Task 5).
+- Consumes: `resizeImageFile`, `blobToBase64` from `../lib/imageCapture` (Task 8); `mapGeminiRecognition`, `RecognizedPantryItem` from `../domain/pantryImport` (Task 2); `supabase` from `../data/supabaseClient`; `t.addPhotoMode`/`t.takePhoto`/`t.lookingUp`/`t.photoRecognizeFailed` (Task 5 — note `addPhotoMode`, not `addPhoto`, which is a pre-existing, unrelated key used by `RecipeForm.tsx`).
 - Produces: `PantryAddSheet`'s new `allowPhoto?: boolean` prop (default effectively `false` unless passed `true`), set by `App.tsx`.
 
 - [ ] **Step 1: Create `PantryPhotoCapture.tsx`**
@@ -1544,7 +1546,7 @@ Add the third chip, only when `allowPhoto` is true:
           <OptionChip label={t.addManual} active={mode === 'manual'} onClick={() => setMode('manual')} />
           <OptionChip label={t.addBarcode} active={mode === 'barcode'} onClick={() => setMode('barcode')} />
           {allowPhoto && (
-            <OptionChip label={t.addPhoto} active={mode === 'photo'} onClick={() => setMode('photo')} />
+            <OptionChip label={t.addPhotoMode} active={mode === 'photo'} onClick={() => setMode('photo')} />
           )}
         </div>
 ```
@@ -1653,7 +1655,7 @@ Replace with:
 
 ```
       itemName:"Qué es", location:"Dónde está", cupboard:"Armario", fridge:"Nevera", freezer:"Congelador",
-      expiresOnLabel:"Caduca el (opcional)", addManual:"Manual", addBarcode:"Código de barras", addPhoto:"Foto", takePhoto:"Tomar foto",
+      expiresOnLabel:"Caduca el (opcional)", addManual:"Manual", addBarcode:"Código de barras", addPhotoMode:"Foto", takePhoto:"Tomar foto",
 ```
 
 Find (English dictionary, currently):
@@ -1666,7 +1668,7 @@ Replace with:
 
 ```
       itemName:"What is it", location:"Where", cupboard:"Cupboard", fridge:"Fridge", freezer:"Freezer",
-      expiresOnLabel:"Expires on (optional)", addManual:"Manual", addBarcode:"Barcode", addPhoto:"Photo", takePhoto:"Take a photo",
+      expiresOnLabel:"Expires on (optional)", addManual:"Manual", addBarcode:"Barcode", addPhotoMode:"Photo", takePhoto:"Take a photo",
 ```
 
 - [ ] **Step 3: Update the pantry-add sheet's markup**
@@ -1795,7 +1797,7 @@ Replace with:
     v.onPExpiresOn = e => this.setState({ pform:{ ...s.pform, expiresOn:e.target.value } });
     v.unitOpts = [["g","g"], ["ml","ml"], ["ud", s.lang === "es" ? "uds" : "pcs"]].map(([id, label]) => ({ key:id, label, ...chip(s.pform.unit === id), onTap: () => this.setState({ pform:{ ...s.pform, unit:id } }) }));
     v.locOpts = locs.map(([id, label]) => ({ key:id, label, ...chip(s.pform.loc === id), onTap: () => this.setState({ pform:{ ...s.pform, loc:id } }) }));
-    v.pantryModeOpts = [["manual", t.addManual], ["barcode", t.addBarcode], ["photo", t.addPhoto]].map(([id, label]) => ({ key:id, label, ...chip((s.pform.mode || "manual") === id), onTap: () => this.setState({ pform:{ ...s.pform, mode:id } }) }));
+    v.pantryModeOpts = [["manual", t.addManual], ["barcode", t.addBarcode], ["photo", t.addPhotoMode]].map(([id, label]) => ({ key:id, label, ...chip((s.pform.mode || "manual") === id), onTap: () => this.setState({ pform:{ ...s.pform, mode:id } }) }));
     v.pantryIsManual = (s.pform.mode || "manual") === "manual";
     v.pantryIsBarcode = s.pform.mode === "barcode";
     v.pantryIsPhoto = s.pform.mode === "photo";
