@@ -7,6 +7,7 @@ import { IngredientNameField } from '../ui/IngredientNameField';
 import { TextField } from '../ui/Fields';
 import { Sheet } from '../ui/Sheet';
 import { radius } from '../ui/tokens';
+import { todayKey } from '../domain/dates';
 import type { PantryLoc, Unit } from '../types';
 
 export function PantryAddSheet({
@@ -22,6 +23,7 @@ export function PantryAddSheet({
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState<Unit>('g');
   const [location, setLocation] = useState<PantryLoc>('cupboard');
+  const [expiresOn, setExpiresOn] = useState('');
 
   const unitOptions: Array<[Unit, string]> = [
     ['g', 'g'],
@@ -41,6 +43,7 @@ export function PantryAddSheet({
       quantity: parseFloat(quantity.replace(',', '.')) || 1,
       unit,
       location,
+      expiresOn: expiresOn || undefined,
     });
     onClose();
     onToast(t.savedPantry);
@@ -71,6 +74,10 @@ export function PantryAddSheet({
               <OptionChip key={id} label={label} height={50} active={unit === id} onClick={() => setUnit(id)} />
             ))}
           </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.expiresOnLabel}</div>
+          <TextField type="date" min={todayKey()} value={expiresOn} onChange={setExpiresOn} />
         </div>
         <div>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.location}</div>
