@@ -67,9 +67,11 @@ export function Pantry({ onAdd }: { onAdd: () => void }) {
                             color: soon ? 'var(--warn-ink)' : 'var(--muted)',
                           }}
                         >
-                          {item.expiresInDays != null
-                            ? `${t.expiresIn} ${item.expiresInDays} ${t.days}`
-                            : t.noDate}
+                          {item.expiresInDays == null
+                            ? t.noDate
+                            : item.expiresInDays < 0
+                              ? t.expired
+                              : `${t.expiresIn} ${item.expiresInDays} ${t.days}`}
                         </div>
                       </div>
                       <Stepper

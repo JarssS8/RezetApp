@@ -114,6 +114,8 @@ export function TextField({
   onChange,
   placeholder,
   inputMode,
+  type = 'text',
+  min,
   style,
   onFocus,
   onBlur,
@@ -124,6 +126,8 @@ export function TextField({
   onChange: (v: string) => void;
   placeholder?: string;
   inputMode?: 'numeric' | 'decimal' | 'text';
+  type?: 'text' | 'date';
+  min?: string;
   style?: CSSProperties;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -132,10 +136,12 @@ export function TextField({
 }) {
   return (
     <input
+      type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       inputMode={inputMode}
+      min={min}
       onFocus={onFocus}
       onBlur={onBlur}
       onKeyDown={onKeyDown}
