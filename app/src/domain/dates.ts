@@ -14,6 +14,18 @@ export function todayKey(): string {
   return dateKey(new Date());
 }
 
+/** Diferencia de días (con signo) entre hoy y `dateStr`. Negativo = ya caducado. */
+export function daysUntil(dateStr: string): number {
+  const today = new Date(`${todayKey()}T00:00:00`).getTime();
+  const target = new Date(`${dateStr}T00:00:00`).getTime();
+  return Math.round((target - today) / 86_400_000);
+}
+
+/** `null` si no hay fecha; si no, `daysUntil`. Punto único para "fecha real → días relativos". */
+export function resolveExpiry(dateStr: string | null): number | null {
+  return dateStr ? daysUntil(dateStr) : null;
+}
+
 export function addDays(d: Date, n: number): Date {
   const x = new Date(d);
   x.setHours(12, 0, 0, 0);

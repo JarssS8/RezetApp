@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { createStoreDerivations } from '../domain/deriveStore';
-import { todayKey, slotForNow } from '../domain/dates';
+import { todayKey, slotForNow, resolveExpiry } from '../domain/dates';
 import { SENSITIVE_RE } from '../domain/recipeText';
 import { usePrefs } from '../store/prefs';
 import { StoreCtx, type RecipeDraft, type Store } from './storeContext';
@@ -32,12 +32,6 @@ import type {
  * Query ya hace por defecto) — es un recorte de alcance para esta primera
  * versión, no un bug.
  */
-
-function daysUntil(dateStr: string): number {
-  const today = new Date(`${todayKey()}T00:00:00`).getTime();
-  const target = new Date(`${dateStr}T00:00:00`).getTime();
-  return Math.round((target - today) / 86_400_000);
-}
 
 function mapIngredient(row: {
   id: string;
@@ -127,7 +121,7 @@ function mapPantryItem(row: {
     quantity: Number(row.quantity),
     unit: row.unit,
     location: row.location,
-    expiresInDays: row.expires_on ? daysUntil(row.expires_on) : null,
+    expiresInDays: resolveExpiry(row.expires_on),
   };
 }
 
