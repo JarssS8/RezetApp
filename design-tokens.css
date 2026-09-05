@@ -3,21 +3,25 @@
 
 :root {
   /* Acento — el usuario puede cambiarlo entre los ocho de abajo */
-  --acc: #2F9E6B;
+  --acc: oklch(0.55 0.105 156);
 
-  /* Superficies y texto */
-  --bg:      #FBFBFC;
+  /* Superficies y texto — paleta del rediseño 2026-09
+     (design_handoff_rezet_redesign/tokens.css §3), literal salvo --acc (ver
+     docs/superpowers/plans/2026-09-05-rezet-redesign-fundamentos.md, Decisión 1). */
+  --bg:      oklch(0.982 0.005 120);
+  --bg-2:    oklch(0.955 0.007 120); /* fondo de la barra lateral, Fase 2 */
   --surf:    #FFFFFF;
-  --surf-2:  #F2F5F3;
-  --line:    #EAEEEC;
-  --text:    #161C1A;
-  --text-2:  #485450;
+  --surf-2:  oklch(0.968 0.006 120);
+  --line:    oklch(0.905 0.008 150);
+  --text:    oklch(0.235 0.012 150);
+  --text-2:  oklch(0.53 0.012 150);
   --muted:   #8A9691;
-  --warn:    #D9803A;
+  --warn:    oklch(0.60 0.12 68);
   --danger:  #C0392B;
+  --glass:   rgba(255, 255, 255, .72); /* cabeceras/barras translúcidas, Fase 2 */
 
   /* Derivados — nunca los escribas a ojo */
-  --acc-soft: color-mix(in srgb, var(--acc) 13%, #FFFFFF);
+  --acc-soft: color-mix(in srgb, var(--acc) 12%, #FFFFFF);
   /* Tinta de acento para TEXTO. Bajó del 78% al 60% en W6: al 78% el ratio
      sobre --surf era 3,60:1 con "miel" y 4,16:1 con "pistacho" (por debajo de
      AA), y sobre --acc-soft -el par que estrena la píldora de seleccionado-
@@ -58,9 +62,9 @@
   /* Sombras — de dos capas: un filo corto que dibuja el canto y una difusa
      que apoya la pieza. De una sola capa (lo de W0) una tarjeta sobre un
      fondo que se separa un 2% de la superficie no se lee como tarjeta. */
-  --sh-card:   0 1px 2px -1px rgba(22, 28, 26, .10), 0 4px 12px -6px rgba(22, 28, 26, .18);
-  --sh-raised: 0 2px 4px -2px rgba(22, 28, 26, .12), 0 10px 24px -12px rgba(22, 28, 26, .22);
-  --sh-hero:   0 2px 6px -3px rgba(22, 28, 26, .12), 0 14px 32px -18px rgba(22, 28, 26, .26);
+  --sh-card:   0 1px 2px rgba(30, 40, 30, .05);
+  --sh-raised: 0 1px 2px rgba(30, 40, 30, .05), 0 8px 24px rgba(25, 40, 25, .07);
+  --sh-hero:   0 2px 6px rgba(20, 35, 20, .08), 0 24px 60px rgba(20, 35, 20, .14);
 
   /* Degradado del placeholder de receta. El ángulo lo fija quien lo pinta con
      --grad-food-angle (hash del id: recipe-placeholder.tsx); sin él, 135deg. */
@@ -93,15 +97,17 @@
 /* «Noche suave» — carbón cálido, no negro azulado */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg:     #16130F;
-    --surf:   #1F1B16;
-    --surf-2: #2A241D;
-    --line:   #2E271F;
-    --text:   #F1EBE1;
-    --text-2: #BBB0A1;
+    --bg:     oklch(0.185 0.008 150);
+    --bg-2:   oklch(0.16 0.008 150);
+    --surf:   oklch(0.238 0.009 150);
+    --surf-2: oklch(0.275 0.009 150);
+    --line:   oklch(0.325 0.010 150);
+    --text:   oklch(0.955 0.006 120);
+    --text-2: oklch(0.70 0.011 140);
     --muted:  #8B8175;
-    --warn:   #E8A33D;
+    --warn:   oklch(0.68 0.12 68); /* NO el mismo oklch que en claro, ver Decisión 4 del plan */
     --danger: #E06555;
+    --glass:  rgba(30, 34, 30, .68);
     --acc-soft: color-mix(in srgb, var(--acc) 17%, #16130F);
     --acc-ink:  color-mix(in srgb, var(--acc) 68%, #F1EBE1);
     --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
@@ -113,21 +119,23 @@
        el escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */
     --line-2: var(--line);
     --on-acc:   #12261C;
-    --sh-card:   0 1px 2px -1px rgba(0, 0, 0, .55), 0 4px 12px -6px rgba(0, 0, 0, .65);
-    --sh-raised: 0 2px 4px -2px rgba(0, 0, 0, .60), 0 10px 24px -12px rgba(0, 0, 0, .70);
-    --sh-hero:   0 2px 6px -3px rgba(0, 0, 0, .60), 0 14px 32px -18px rgba(0, 0, 0, .75);
+    --sh-card:   0 1px 2px rgba(0, 0, 0, .28);
+    --sh-raised: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 32px rgba(0, 0, 0, .34);
+    --sh-hero:   0 2px 8px rgba(0, 0, 0, .36), 0 28px 64px rgba(0, 0, 0, .5);
   }
 }
 :root[data-theme="dark"] {
-  --bg:     #16130F;
-  --surf:   #1F1B16;
-  --surf-2: #2A241D;
-  --line:   #2E271F;
-  --text:   #F1EBE1;
-  --text-2: #BBB0A1;
+  --bg:     oklch(0.185 0.008 150);
+  --bg-2:   oklch(0.16 0.008 150);
+  --surf:   oklch(0.238 0.009 150);
+  --surf-2: oklch(0.275 0.009 150);
+  --line:   oklch(0.325 0.010 150);
+  --text:   oklch(0.955 0.006 120);
+  --text-2: oklch(0.70 0.011 140);
   --muted:  #8B8175;
-  --warn:   #E8A33D;
+  --warn:   oklch(0.68 0.12 68); /* NO el mismo oklch que en claro, ver Decisión 4 del plan */
   --danger: #E06555;
+  --glass:  rgba(30, 34, 30, .68);
   --acc-soft: color-mix(in srgb, var(--acc) 17%, #16130F);
   --acc-ink:  color-mix(in srgb, var(--acc) 68%, #F1EBE1);
   --acc-line: color-mix(in srgb, var(--acc) 32%, var(--line));
@@ -139,9 +147,9 @@
      el escalón --surf (#1F1B16) sobre --bg (#16130F) hace el resto. */
   --line-2: var(--line);
   --on-acc:   #12261C;
-  --sh-card:   0 1px 2px -1px rgba(0, 0, 0, .55), 0 4px 12px -6px rgba(0, 0, 0, .65);
-  --sh-raised: 0 2px 4px -2px rgba(0, 0, 0, .60), 0 10px 24px -12px rgba(0, 0, 0, .70);
-  --sh-hero:   0 2px 6px -3px rgba(0, 0, 0, .60), 0 14px 32px -18px rgba(0, 0, 0, .75);
+  --sh-card:   0 1px 2px rgba(0, 0, 0, .28);
+  --sh-raised: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 32px rgba(0, 0, 0, .34);
+  --sh-hero:   0 2px 8px rgba(0, 0, 0, .36), 0 28px 64px rgba(0, 0, 0, .5);
 }
 
 /* Los ocho acentos, sacados de comida. Se aplican con data-accent en :root
@@ -151,7 +159,7 @@
    tema: se fija por acento al valor que cumple AA (≥4.5:1) sobre ese color.
    El selector duplicado (:root[...] y [...]) hace que gane también sobre el
    bloque :root[data-theme="dark"], que declara un --on-acc de reserva. */
-:root[data-accent="huerta"],    [data-accent="huerta"]    { --acc: #2F9E6B; --on-acc: #12261C; } /* 4.7:1 */
+:root[data-accent="huerta"],    [data-accent="huerta"]    { --acc: oklch(0.55 0.105 156); --on-acc: #FFFFFF; } /* 4.64:1 */
 :root[data-accent="miel"],      [data-accent="miel"]      { --acc: #D99A2B; --on-acc: #12261C; } /* 6.5:1 */
 :root[data-accent="tomate"],    [data-accent="tomate"]    { --acc: #CE5540; --on-acc: #0A100D; } /* 4.6:1 */
 :root[data-accent="pistacho"],  [data-accent="pistacho"]  { --acc: #7FA344; --on-acc: #12261C; } /* 5.5:1 */

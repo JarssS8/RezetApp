@@ -46,10 +46,11 @@ function ratio(a: Rgb, b: Rgb): number {
   return Math.max(x, y) / Math.min(x, y)
 }
 
-// Los ocho acentos de docs/02-DISENO.md. Duplicarlos aquí es deliberado: si
-// alguien cambia uno en el CSS sin actualizar esta lista, el primer test falla.
+// Los ocho acentos de docs/02-DISENO.md. `huerta` es el único que cambia en
+// esta fase (rediseño 2026-09): el resto sigue con su valor auditado en W6/W7,
+// sin tocar.
 const ACCENTS = {
-  huerta: '#2F9E6B',
+  huerta: '#348357',
   miel: '#D99A2B',
   tomate: '#CE5540',
   pistacho: '#7FA344',
@@ -59,12 +60,20 @@ const ACCENTS = {
   canela: '#A9764A',
 } as const
 
-const LIGHT = { surf: '#FFFFFF', bg: '#FBFBFC', surf2: '#F2F5F3', text: '#161C1A', text2: '#485450', warn: '#D9803A', danger: '#C0392B' }
-const DARK = { surf: '#1F1B16', bg: '#16130F', surf2: '#2A241D', text: '#F1EBE1', text2: '#BBB0A1', warn: '#E8A33D', danger: '#E06555' }
+// sRGB equivalente de los oklch() literales del handoff de rediseño
+// (design_handoff_rezet_redesign/tokens.css §3), calculado una vez con las
+// matrices estándar OKLab (Björn Ottosson) y fijado aquí a mano: color-mix
+// en la app opera en sRGB (`in srgb`), así que la aritmética de contraste
+// necesita el equivalente sRGB, no la cadena oklch() literal que sí lleva el
+// CSS. --warn oscuro NO es el mismo oklch que el claro (decisión documentada
+// en el plan de la Fase 1, Decisión 4): mismo croma/tono (0.12 68), L subido
+// de 0.60 a 0.68 para que --warn-ink siga dando AA en oscuro.
+const LIGHT = { surf: '#FFFFFF', bg: '#F8FAF6', surf2: '#F4F5F1', text: '#1A201B', text2: '#676E68', warn: '#AF711F', danger: '#C0392B' }
+const DARK = { surf: '#1C201D', bg: '#101411', surf2: '#252925', text: '#EFF1EC', text2: '#9BA09A', warn: '#C9893D', danger: '#E06555' }
 
 // Mezclas espejo de las del CSS. Cambiar una aquí sin cambiarla allí hace
 // fallar el test de paridad de abajo, que busca la cadena literal.
-const accSoft = (acc: string, dark: boolean) => (dark ? mix(acc, DARK.bg, 0.17) : mix(acc, LIGHT.surf, 0.13))
+const accSoft = (acc: string, dark: boolean) => (dark ? mix(acc, DARK.bg, 0.17) : mix(acc, LIGHT.surf, 0.12))
 const accInk = (acc: string, dark: boolean) => (dark ? mix(acc, DARK.text, 0.68) : mix(acc, '#0A2118', 0.6))
 const warnInk = (dark: boolean) => (dark ? mix(DARK.warn, DARK.text, 0.85) : mix(LIGHT.warn, '#0A2118', 0.65))
 const warnSoft = (dark: boolean) => (dark ? mix(DARK.warn, DARK.surf, 0.14) : mix(LIGHT.warn, LIGHT.surf, 0.14))
@@ -208,9 +217,9 @@ describe('tokens de diseño', () => {
     // Lista "NO tocar" del informe de identidad: --on-acc depende del acento,
     // no del tema, y su cascada es frágil. Este test es el seguro.
     for (const line of [
-      '[data-accent="huerta"]    { --acc: #2F9E6B; --on-acc: #12261C; }',
-      '[data-accent="higo"]      { --acc: #B4557A; --on-acc: #FFFFFF; }',
-      '[data-accent="canela"]    { --acc: #A9764A; --on-acc: #0A100D; }',
+      '[data-accent="huerta"]    { --acc: oklch(0.55 0.105 156); --on-acc: #FFFFFF; } /* 4.64:1 */',
+      '[data-accent="higo"]      { --acc: #B4557A; --on-acc: #FFFFFF; } /* 4.6:1 */',
+      '[data-accent="canela"]    { --acc: #A9764A; --on-acc: #0A100D; } /* 4.9:1 */',
     ]) {
       expect(DOC).toContain(line)
       expect(COMPILED).toContain(line)
