@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { scaleQuantity } from '../domain/scaling';
-import { slotForNow, todayKey } from '../domain/dates';
+import { addDays, dateKey, resolveExpiry, slotForNow, todayKey } from '../domain/dates';
 import { SENSITIVE_RE } from '../domain/recipeText';
 import { createStoreDerivations } from '../domain/deriveStore';
 import { INGREDIENTS, KCAL_TARGET, PANTRY, PLAN, RECIPES } from './seed';
@@ -27,10 +27,24 @@ import type {
  * los dos proveedores monta; las pantallas solo conocen `useData()`.
  */
 
+/**
+ * Forma interna persistida: guarda la fecha real (`expiresOn`), no el
+ * número de días derivado. `expiresInDays` se recalcula en cada lectura
+ * (ver `pantryExposed` más abajo) — igual que `mapPantryItem` ya hace para
+ * el backend real — para que no se quede congelado en localStorage.
+ */
+type StoredPantryItem = Omit<PantryItem, 'expiresInDays'> & { expiresOn: string | null };
+
+const toStoredPantry = (items: PantryItem[]): StoredPantryItem[] =>
+  items.map(({ expiresInDays, ...rest }) => ({
+    ...rest,
+    expiresOn: expiresInDays != null ? dateKey(addDays(new Date(), expiresInDays)) : null,
+  }));
+
 interface Data {
   ingredients: Ingredient[];
   recipes: Recipe[];
-  pantry: PantryItem[];
+  pantry: StoredPantryItem[];
   plan: PlanEntry[];
   shoppingChecked: Record<string, boolean>;
   kcalTarget: number;
@@ -39,7 +53,7 @@ interface Data {
 const INITIAL: Data = {
   ingredients: INGREDIENTS,
   recipes: RECIPES,
-  pantry: PANTRY,
+  pantry: toStoredPantry(PANTRY),
   plan: PLAN,
   shoppingChecked: {},
   kcalTarget: KCAL_TARGET,
@@ -53,6 +67,15 @@ const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = usePersistentState<Data>('rezet.data', INITIAL);
   const { locale } = usePrefs();
+
+  const pantryExposed = useMemo<PantryItem[]>(
+    () =>
+      data.pantry.map(({ expiresOn, ...rest }) => ({
+        ...rest,
+        expiresInDays: resolveExpiry(expiresOn),
+      })),
+    [data.pantry],
+  );
 
   const recipeById = useMemo(
     () => new Map(data.recipes.map((r) => [r.id, r])),
@@ -70,13 +93,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const { stockOf, needOf, coverageOf, needsForWeek, shortagesFor } = useMemo(
     () =>
       createStoreDerivations({
-        pantry: data.pantry,
+        pantry: pantryExposed,
         recipeById,
         ingredientById,
         plan: data.plan,
         locale,
       }),
-    [data.pantry, data.plan, recipeById, ingredientById, locale],
+    [pantryExposed, data.plan, recipeById, ingredientById, locale],
   );
 
   const addPlanEntry = useCallback(
@@ -196,16 +219,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   const pantryAdd = useCallback(
-    (input: { name: string; quantity: number; unit: Unit; location: PantryLoc }) =>
+    (input: { name: string; quantity: number; unit: Unit; location: PantryLoc; expiresOn?: string }) =>
       setData((d) => {
         const resolved = resolveIngredient(d.ingredients, input.name, input.unit);
-        const item: PantryItem = {
+        const item: StoredPantryItem = {
           id: uid('p'),
           ingredientId: resolved.id,
           quantity: input.quantity,
           unit: input.unit,
           location: input.location,
-          expiresInDays: input.location === 'fridge' ? 5 : null,
+          expiresOn: input.expiresOn ?? null,
         };
         return { ...d, ingredients: resolved.list, pantry: [...d.pantry, item] };
       }),
@@ -239,7 +262,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               quantity: need.quantity,
               unit: need.unit,
               location: need.group === 'fresco' ? 'fridge' : 'cupboard',
-              expiresInDays: need.group === 'fresco' ? 5 : null,
+              expiresOn: need.group === 'fresco' ? dateKey(addDays(new Date(), 5)) : null,
             });
         }
         return { ...d, pantry, shoppingChecked: {} };
@@ -305,6 +328,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<Store>(
     () => ({
       ...data,
+      pantry: pantryExposed,
       recipeById,
       ingredientById,
       knownTags,
@@ -325,6 +349,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       data,
+      pantryExposed,
       recipeById,
       ingredientById,
       knownTags,

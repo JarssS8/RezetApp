@@ -79,7 +79,13 @@ export interface Store {
   saveRecipe: (draft: RecipeDraft) => Promise<string>;
   pantryBump: (id: string, delta: number) => void;
   pantryDelete: (id: string) => void;
-  pantryAdd: (input: { name: string; quantity: number; unit: Unit; location: PantryLoc }) => void;
+  pantryAdd: (input: {
+    name: string;
+    quantity: number;
+    unit: Unit;
+    location: PantryLoc;
+    expiresOn?: string;
+  }) => void;
   toggleShoppingCheck: (key: string) => void;
   buyChecked: (needs: ShoppingNeed[]) => void;
   /**
