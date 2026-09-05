@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { createStoreDerivations } from '../domain/deriveStore';
 import { todayKey, slotForNow } from '../domain/dates';
-import { SENSITIVE_RE, parseIngredientLines, parseStepLines } from '../domain/recipeText';
+import { SENSITIVE_RE } from '../domain/recipeText';
 import { usePrefs } from '../store/prefs';
 import { StoreCtx, type RecipeDraft, type Store } from './storeContext';
 import type {
@@ -352,9 +352,10 @@ export function SupabaseDataProvider({
 
   const saveRecipeMut = useMutation({
     mutationFn: async (draft: RecipeDraft) => {
-      const parsedIngredients = parseIngredientLines(draft.ingredientsText);
-      const parsedSteps = parseStepLines(draft.stepsText);
+      const ingredients = draft.ingredients.filter((ri) => ri.name.trim());
+      const steps = draft.steps.filter((s) => s.text.trim());
       const payload = {
+        id: draft.id ?? null,
         name: draft.title,
         description: draft.description,
         base_servings: draft.baseServings,
@@ -362,16 +363,19 @@ export function SupabaseDataProvider({
         difficulty: draft.difficulty,
         kcal_per_serving: parseInt(draft.kcal, 10) || 450,
         tags: draft.tags,
-        ingredients: parsedIngredients.length
-          ? parsedIngredients.map((l) => ({
-              name: l.name,
-              quantity: l.quantity,
-              unit: l.unit,
-              sensitive: l.sensitive,
+        ingredients: ingredients.length
+          ? ingredients.map((ri) => ({
+              name: ri.name.trim(),
+              quantity: parseFloat(ri.quantity.replace(',', '.')) || 1,
+              unit: ri.unit,
+              sensitive: SENSITIVE_RE.test(ri.name),
             }))
           : [{ name: 'Sin especificar', quantity: 1, unit: 'ud', sensitive: false }],
-        steps: parsedSteps.length
-          ? parsedSteps.map((s) => ({ text: s.text, timer_minutes: s.timerMinutes ?? null }))
+        steps: steps.length
+          ? steps.map((s) => ({
+              text: s.text.trim(),
+              timer_minutes: parseInt(s.timerMinutes, 10) > 0 ? parseInt(s.timerMinutes, 10) : null,
+            }))
           : [{ text: '—', timer_minutes: null }],
         photo_path: draft.photoPath ?? null,
       };

@@ -9,6 +9,8 @@ const PATHS = {
   close: 'M6 6l12 12M18 6L6 18',
   chevronLeft: 'M14 6l-6 6 6 6',
   chevronRight: 'M10 6l6 6-6 6',
+  chevronUp: 'M6 14l6-6 6 6',
+  chevronDown: 'M6 10l6 6 6-6',
   check: 'M4 12.5 9.5 18 20 6.5',
   search: 'M16 16l4.5 4.5',
   bag: 'M5 7h14l-1.3 11a2 2 0 0 1-2 1.8H8.3a2 2 0 0 1-2-1.8ZM9 7V5.5a3 3 0 0 1 6 0V7',
@@ -16,6 +18,7 @@ const PATHS = {
   key: 'M9 13v7l2-2 2 2M15 7h5M15 11h3',
   sun: 'M12 3v2M12 19v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M3 12h2M19 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   clock: 'M12 9.5V13l2.5 1.5',
+  edit: 'M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z',
 } as const;
 
 export type IconName = keyof typeof PATHS;

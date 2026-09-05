@@ -19,11 +19,25 @@ import type {
  * montado.
  */
 
+export interface RecipeIngredientDraft {
+  name: string;
+  quantity: string;
+  unit: Unit;
+}
+
+export interface RecipeStepDraft {
+  text: string;
+  /** Cadena vacía = sin temporizador. */
+  timerMinutes: string;
+}
+
 export interface RecipeDraft {
+  /** Presente al editar una receta ya existente; ausente al crear una nueva. */
+  id?: string;
   title: string;
   description: string;
-  ingredientsText: string;
-  stepsText: string;
+  ingredients: RecipeIngredientDraft[];
+  steps: RecipeStepDraft[];
   baseServings: number;
   minutes: string;
   kcal: string;

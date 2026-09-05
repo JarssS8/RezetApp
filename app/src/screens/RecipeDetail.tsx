@@ -6,6 +6,7 @@ import { formatKcal, formatQuantity } from '../domain/units';
 import { Button } from '../ui/Button';
 import { Card, Eyebrow, ListCard, Row, StepNumber } from '../ui/Card';
 import { Icon } from '../ui/Icon';
+import { Pressable } from '../ui/Pressable';
 import { PushHeader } from '../ui/Fields';
 import { Stepper } from '../ui/Stepper';
 import { maxW, radius, tabular, text as T } from '../ui/tokens';
@@ -16,12 +17,14 @@ export function RecipeDetail({
   onClose,
   onCook,
   onAddToPlan,
+  onEdit,
 }: {
   recipeId: string;
   initialServings: number;
   onClose: () => void;
   onCook: (recipeId: string, servings: number) => void;
   onAddToPlan: (recipeId: string) => void;
+  onEdit: (recipeId: string) => void;
 }) {
   const { t, locale, units, loc } = usePrefs();
   const { recipeById, ingredientById, needOf, stockOf, coverageOf } = useData();
@@ -46,7 +49,29 @@ export function RecipeDetail({
         animation: 'pushin .3s cubic-bezier(.2,.7,.2,1) both',
       }}
     >
-      <PushHeader onBack={onClose} title={loc(recipe.name)} backLabel={t.back} />
+      <PushHeader
+        onBack={onClose}
+        title={loc(recipe.name)}
+        backLabel={t.back}
+        trailing={
+          <Pressable
+            onClick={() => onEdit(recipe.id)}
+            ariaLabel={t.editRecipe}
+            scale={0.9}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              display: 'grid',
+              placeItems: 'center',
+              background: 'var(--surface2)',
+              color: 'var(--text)',
+            }}
+          >
+            <Icon name="edit" size={17} strokeWidth={2} />
+          </Pressable>
+        }
+      />
 
       <div style={{ maxWidth: maxW.detail, margin: '0 auto', padding: '18px 20px 40px' }}>
         {recipe.photoUrl ? (

@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { scaleQuantity } from '../domain/scaling';
 import { slotForNow, todayKey } from '../domain/dates';
-import { SENSITIVE_RE, parseIngredientLines, parseStepLines } from '../domain/recipeText';
+import { SENSITIVE_RE } from '../domain/recipeText';
 import { createStoreDerivations } from '../domain/deriveStore';
 import { INGREDIENTS, KCAL_TARGET, PANTRY, PLAN, RECIPES } from './seed';
 import { usePrefs } from '../store/prefs';
@@ -124,22 +124,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const saveRecipe = useCallback(
     async (draft: RecipeDraft) => {
-      const id = uid('r');
+      const id = draft.id ?? uid('r');
       setData((d) => {
         let ingredients = d.ingredients;
-        const parsed = parseIngredientLines(draft.ingredientsText);
-        const recipeIngredients = parsed.map((line) => {
-          const resolved = resolveIngredient(ingredients, line.name, line.unit);
-          ingredients = resolved.list;
-          return { ingredientId: resolved.id, quantity: line.quantity, unit: line.unit };
-        });
-        const steps = parseStepLines(draft.stepsText).map((s) => ({
-          text: { es: s.text, en: s.text },
-          ...(s.timerMinutes ? { timerMinutes: s.timerMinutes } : {}),
-        }));
+        const recipeIngredients = draft.ingredients
+          .filter((ri) => ri.name.trim())
+          .map((ri) => {
+            const resolved = resolveIngredient(ingredients, ri.name.trim(), ri.unit);
+            ingredients = resolved.list;
+            return {
+              ingredientId: resolved.id,
+              quantity: parseFloat(ri.quantity.replace(',', '.')) || 1,
+              unit: ri.unit,
+            };
+          });
+        const steps = draft.steps
+          .filter((s) => s.text.trim())
+          .map((s) => {
+            const minutes = parseInt(s.timerMinutes, 10);
+            return {
+              text: { es: s.text.trim(), en: s.text.trim() },
+              ...(minutes > 0 ? { timerMinutes: minutes } : {}),
+            };
+          });
 
-        const recipe: Recipe = {
-          id,
+        const recipeFields = {
           name: { es: draft.title, en: draft.title },
           description: { es: draft.description, en: draft.description },
           baseServings: draft.baseServings,
@@ -147,12 +156,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           difficulty: draft.difficulty,
           kcalPerServing: parseInt(draft.kcal, 10) || 450,
           tags: draft.tags,
-          cookedCount: 0,
           ingredients: recipeIngredients.length
             ? recipeIngredients
-            : [{ ingredientId: ingredients[0]!.id, quantity: 1, unit: 'ud' }],
+            : [{ ingredientId: ingredients[0]!.id, quantity: 1, unit: 'ud' as Unit }],
           steps: steps.length ? steps : [{ text: { es: '—', en: '—' } }],
         };
+
+        if (draft.id) {
+          const recipes = d.recipes.map((r) => (r.id === draft.id ? { ...r, ...recipeFields } : r));
+          return { ...d, ingredients, recipes };
+        }
+
+        const recipe: Recipe = { id, ...recipeFields, cookedCount: 0 };
         return { ...d, ingredients, recipes: [recipe, ...d.recipes] };
       });
       return id;

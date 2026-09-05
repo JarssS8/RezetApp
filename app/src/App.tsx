@@ -29,7 +29,11 @@ import { InviteSheet } from './sheets/InviteSheet';
 import { Toast } from './ui/Fields';
 import type { MealSlot } from './types';
 
-type Push = { kind: 'recipe'; recipeId: string; servings: number } | { kind: 'new' } | null;
+type Push =
+  | { kind: 'recipe'; recipeId: string; servings: number }
+  | { kind: 'new' }
+  | { kind: 'edit'; recipeId: string }
+  | null;
 type SheetState =
   | { kind: 'settings' }
   | { kind: 'shopping' }
@@ -229,11 +233,13 @@ function MainApp({
           onAddToPlan={(recipeId) =>
             setSheet({ kind: 'picker', target: { kind: 'recipe', recipeId } })
           }
+          onEdit={(recipeId) => setPush({ kind: 'edit', recipeId })}
         />
       )}
 
-      {push?.kind === 'new' && (
+      {(push?.kind === 'new' || push?.kind === 'edit') && (
         <RecipeForm
+          recipe={push.kind === 'edit' ? recipeById.get(push.recipeId) : undefined}
           onClose={() => setPush(null)}
           onSaved={(recipeId) => {
             setPush({ kind: 'recipe', recipeId, servings: recipeById.get(recipeId)?.baseServings ?? 2 });

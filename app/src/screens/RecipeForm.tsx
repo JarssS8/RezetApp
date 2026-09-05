@@ -3,23 +3,28 @@ import { usePrefs } from '../store/prefs';
 import { useData, type RecipeDraft } from '../data/store';
 import { useAuth } from '../data/auth';
 import { supabase } from '../data/supabaseClient';
-import { parseIngredientLines } from '../domain/recipeText';
 import { Chip, OptionChip } from '../ui/Chip';
 import { Eyebrow } from '../ui/Card';
 import { Pressable } from '../ui/Pressable';
-import { PushHeader } from '../ui/Fields';
+import { PushHeader, TextField } from '../ui/Fields';
+import { IngredientNameField } from '../ui/IngredientNameField';
+import { Icon } from '../ui/Icon';
 import { Stepper } from '../ui/Stepper';
+import { StepNumber } from '../ui/Card';
 import { maxW, radius, tabular } from '../ui/tokens';
-import type { Difficulty } from '../types';
+import type { Difficulty, Ingredient, Localized, Recipe, Unit } from '../types';
 
-const TAGS = ['dieta', 'rápido', 'batch', 'tartera'];
 const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard'];
+const UNITS: Unit[] = ['g', 'ml', 'ud'];
+
+const emptyIngredient = () => ({ name: '', quantity: '', unit: 'g' as Unit });
+const emptyStep = () => ({ text: '', timerMinutes: '' });
 
 const EMPTY: RecipeDraft = {
   title: '',
   description: '',
-  ingredientsText: '',
-  stepsText: '',
+  ingredients: [emptyIngredient()],
+  steps: [emptyStep()],
   baseServings: 2,
   minutes: '',
   kcal: '',
@@ -27,26 +32,91 @@ const EMPTY: RecipeDraft = {
   tags: [],
 };
 
+function draftFromRecipe(recipe: Recipe, ingredientById: Map<string, Ingredient>, locale: 'es' | 'en'): RecipeDraft {
+  const nameOf = (l: Localized) => l[locale] || l.es;
+  return {
+    id: recipe.id,
+    title: nameOf(recipe.name),
+    description: nameOf(recipe.description),
+    ingredients: recipe.ingredients.map((ri) => ({
+      name: nameOf(ingredientById.get(ri.ingredientId)?.name ?? { es: '', en: '' }),
+      quantity: String(ri.quantity),
+      unit: ri.unit,
+    })),
+    steps: recipe.steps.map((s) => ({
+      text: nameOf(s.text),
+      timerMinutes: s.timerMinutes ? String(s.timerMinutes) : '',
+    })),
+    baseServings: recipe.baseServings,
+    minutes: String(recipe.minutes),
+    kcal: String(recipe.kcalPerServing),
+    difficulty: recipe.difficulty,
+    tags: recipe.tags,
+  };
+}
+
 /** Tres campos visibles. Todo lo demás, detrás de "Más detalles". */
 export function RecipeForm({
+  recipe,
   onClose,
   onSaved,
 }: {
+  /** Si viene, el formulario edita esta receta en vez de crear una nueva. */
+  recipe?: Recipe;
   onClose: () => void;
   onSaved: (recipeId: string) => void;
 }) {
-  const { t } = usePrefs();
-  const { saveRecipe } = useData();
+  const { t, locale, loc } = usePrefs();
+  const { saveRecipe, ingredients, ingredientById, recipes } = useData();
   const { profile } = useAuth();
-  const [draft, setDraft] = useState<RecipeDraft>(EMPTY);
+  const [draft, setDraft] = useState<RecipeDraft>(() =>
+    recipe ? draftFromRecipe(recipe, ingredientById, locale) : EMPTY,
+  );
   const [advanced, setAdvanced] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [newTag, setNewTag] = useState('');
+  const [photoPreview, setPhotoPreview] = useState<string | null>(recipe?.photoUrl ?? null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const patch = (next: Partial<RecipeDraft>) => setDraft((d) => ({ ...d, ...next }));
   const canSave = draft.title.trim().length > 0;
+
+  const patchIngredient = (index: number, next: Partial<RecipeDraft['ingredients'][number]>) =>
+    setDraft((d) => ({
+      ...d,
+      ingredients: d.ingredients.map((ri, i) => (i === index ? { ...ri, ...next } : ri)),
+    }));
+  const addIngredientRow = () => setDraft((d) => ({ ...d, ingredients: [...d.ingredients, emptyIngredient()] }));
+  const removeIngredientRow = (index: number) =>
+    setDraft((d) => ({ ...d, ingredients: d.ingredients.filter((_, i) => i !== index) }));
+
+  const patchStep = (index: number, next: Partial<RecipeDraft['steps'][number]>) =>
+    setDraft((d) => ({ ...d, steps: d.steps.map((s, i) => (i === index ? { ...s, ...next } : s)) }));
+  const addStepRow = () => setDraft((d) => ({ ...d, steps: [...d.steps, emptyStep()] }));
+  const removeStepRow = (index: number) => setDraft((d) => ({ ...d, steps: d.steps.filter((_, i) => i !== index) }));
+  const moveStep = (index: number, dir: -1 | 1) =>
+    setDraft((d) => {
+      const target = index + dir;
+      if (target < 0 || target >= d.steps.length) return d;
+      const steps = [...d.steps];
+      [steps[index], steps[target]] = [steps[target]!, steps[index]!];
+      return { ...d, steps };
+    });
+
+  const knownTags = useMemo(() => {
+    const fromRecipes = recipes.flatMap((r) => r.tags);
+    const defaults = ['dieta', 'rápido', 'batch', 'tartera'];
+    return Array.from(new Set([...defaults, ...fromRecipes])).filter((tg) => !draft.tags.includes(tg));
+  }, [recipes, draft.tags]);
+
+  const addTag = (tg: string) => {
+    const clean = tg.trim();
+    if (!clean || draft.tags.includes(clean)) return;
+    patch({ tags: [...draft.tags, clean] });
+    setNewTag('');
+  };
+  const removeTag = (tg: string) => patch({ tags: draft.tags.filter((x) => x !== tg) });
 
   const onPickPhoto = async (file: File) => {
     if (!profile) return;
@@ -67,11 +137,6 @@ export function RecipeForm({
     setPhotoPreview(supabase.storage.from('recipe-photos').getPublicUrl(path).data.publicUrl);
   };
 
-  const parsedCount = useMemo(
-    () => parseIngredientLines(draft.ingredientsText).length,
-    [draft.ingredientsText],
-  );
-
   const submit = async () => {
     if (!canSave) return;
     onSaved(await saveRecipe(draft));
@@ -79,7 +144,7 @@ export function RecipeForm({
 
   return (
     <div
-      data-screen-label="Nueva receta"
+      data-screen-label={recipe ? 'Editar receta' : 'Nueva receta'}
       style={{
         position: 'fixed',
         inset: 0,
@@ -90,7 +155,7 @@ export function RecipeForm({
       }}
     >
       <PushHeader
-        title={t.newRecipe}
+        title={recipe ? t.editRecipe : t.newRecipe}
         leading={
           <Pressable
             onClick={onClose}
@@ -109,7 +174,7 @@ export function RecipeForm({
         }
         trailing={
           <Pressable
-            onClick={submit}
+            onClick={() => void submit()}
             scale={0.95}
             style={{
               height: 40,
@@ -172,51 +237,218 @@ export function RecipeForm({
 
         <div>
           <Eyebrow style={{ margin: '0 2px 10px' }}>{t.ingredients}</Eyebrow>
-          <textarea
-            value={draft.ingredientsText}
-            onChange={(e) => patch({ ingredientsText: e.target.value })}
-            placeholder={t.ingsPlaceholder}
-            rows={6}
-            aria-label={t.ingredients}
-            style={{
-              width: '100%',
-              border: '1px solid var(--line)',
-              background: 'var(--surface)',
-              borderRadius: radius.button,
-              padding: 14,
-              fontSize: 15.5,
-              lineHeight: 1.7,
-              outline: 'none',
-              resize: 'vertical',
-              boxShadow: 'var(--shadow-s)',
-            }}
-          />
-          <div style={{ marginTop: 8, fontSize: 13, color: 'var(--muted)', padding: '0 2px' }}>
-            {parsedCount ? `${parsedCount} ${t.ingsParsed}` : t.ingsHint}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {draft.ingredients.map((ri, index) => (
+              <div
+                key={index}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  padding: 12,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--line)',
+                  borderRadius: radius.button,
+                  boxShadow: 'var(--shadow-s)',
+                }}
+              >
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <IngredientNameField
+                      value={ri.name}
+                      onChange={(v) => patchIngredient(index, { name: v })}
+                      onPick={(ing) => patchIngredient(index, { name: loc(ing.name), unit: ing.defaultUnit })}
+                      placeholder={t.ingredientNamePlaceholder}
+                      ingredients={ingredients}
+                      locale={locale}
+                      loc={loc}
+                      style={{ height: 44 }}
+                    />
+                  </div>
+                  <Pressable
+                    onClick={() => removeIngredientRow(index)}
+                    ariaLabel={t.removeIngredient}
+                    scale={0.9}
+                    style={{
+                      width: 36,
+                      height: 36,
+                      flex: '0 0 36px',
+                      borderRadius: radius.pill,
+                      display: 'grid',
+                      placeItems: 'center',
+                      color: 'var(--muted)',
+                    }}
+                  >
+                    <Icon name="close" size={14} strokeWidth={2.4} />
+                  </Pressable>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <TextField
+                    value={ri.quantity}
+                    onChange={(v) => patchIngredient(index, { quantity: v.replace(/[^\d.,]/g, '') })}
+                    placeholder={t.quantityPlaceholder}
+                    inputMode="decimal"
+                    ariaLabel={t.quantityPlaceholder}
+                    style={{ flex: '0 0 96px', height: 44, ...tabular }}
+                  />
+                  <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+                    {UNITS.map((u) => (
+                      <OptionChip
+                        key={u}
+                        label={u === 'ud' ? (locale === 'es' ? 'uds' : 'pcs') : u}
+                        height={44}
+                        active={ri.unit === u}
+                        onClick={() => patchIngredient(index, { unit: u })}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
+          <Pressable
+            onClick={addIngredientRow}
+            scale={0.98}
+            style={{
+              marginTop: 10,
+              width: '100%',
+              height: 44,
+              borderRadius: radius.button,
+              border: '1px dashed var(--line)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              fontSize: 14.5,
+              fontWeight: 600,
+              color: 'var(--accent-ink)',
+            }}
+          >
+            <Icon name="plus" size={15} />
+            {t.addIngredient}
+          </Pressable>
         </div>
 
         <div>
           <Eyebrow style={{ margin: '0 2px 10px' }}>{t.steps}</Eyebrow>
-          <textarea
-            value={draft.stepsText}
-            onChange={(e) => patch({ stepsText: e.target.value })}
-            placeholder={t.stepsPlaceholder}
-            rows={6}
-            aria-label={t.steps}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {draft.steps.map((s, index) => (
+              <div
+                key={index}
+                style={{
+                  display: 'flex',
+                  gap: 10,
+                  padding: 12,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--line)',
+                  borderRadius: radius.button,
+                  boxShadow: 'var(--shadow-s)',
+                }}
+              >
+                <StepNumber n={index + 1} />
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <textarea
+                    value={s.text}
+                    onChange={(e) => patchStep(index, { text: e.target.value })}
+                    placeholder={t.stepPlaceholder}
+                    rows={2}
+                    aria-label={`${t.steps} ${index + 1}`}
+                    style={{
+                      width: '100%',
+                      border: '1px solid var(--line)',
+                      background: 'var(--surface2)',
+                      borderRadius: 12,
+                      padding: 10,
+                      fontSize: 15,
+                      lineHeight: 1.5,
+                      outline: 'none',
+                      resize: 'vertical',
+                    }}
+                  />
+                  <TextField
+                    value={s.timerMinutes}
+                    onChange={(v) => patchStep(index, { timerMinutes: v.replace(/\D/g, '') })}
+                    placeholder={t.timerMinutesPlaceholder}
+                    inputMode="numeric"
+                    ariaLabel={t.timerMinutesPlaceholder}
+                    style={{ height: 40, width: 160, fontSize: 14, ...tabular }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <Pressable
+                    onClick={() => moveStep(index, -1)}
+                    disabled={index === 0}
+                    ariaLabel={t.moveStepUp}
+                    scale={0.9}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 9,
+                      display: 'grid',
+                      placeItems: 'center',
+                      color: 'var(--muted)',
+                      opacity: index === 0 ? 0.35 : 1,
+                    }}
+                  >
+                    <Icon name="chevronUp" size={15} />
+                  </Pressable>
+                  <Pressable
+                    onClick={() => moveStep(index, 1)}
+                    disabled={index === draft.steps.length - 1}
+                    ariaLabel={t.moveStepDown}
+                    scale={0.9}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 9,
+                      display: 'grid',
+                      placeItems: 'center',
+                      color: 'var(--muted)',
+                      opacity: index === draft.steps.length - 1 ? 0.35 : 1,
+                    }}
+                  >
+                    <Icon name="chevronDown" size={15} />
+                  </Pressable>
+                  <Pressable
+                    onClick={() => removeStepRow(index)}
+                    ariaLabel={t.removeStep}
+                    scale={0.9}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 9,
+                      display: 'grid',
+                      placeItems: 'center',
+                      color: 'var(--muted)',
+                    }}
+                  >
+                    <Icon name="close" size={13} strokeWidth={2.4} />
+                  </Pressable>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Pressable
+            onClick={addStepRow}
+            scale={0.98}
             style={{
+              marginTop: 10,
               width: '100%',
-              border: '1px solid var(--line)',
-              background: 'var(--surface)',
+              height: 44,
               borderRadius: radius.button,
-              padding: 14,
-              fontSize: 15.5,
-              lineHeight: 1.7,
-              outline: 'none',
-              resize: 'vertical',
-              boxShadow: 'var(--shadow-s)',
+              border: '1px dashed var(--line)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              fontSize: 14.5,
+              fontWeight: 600,
+              color: 'var(--accent-ink)',
             }}
-          />
+          >
+            <Icon name="plus" size={15} />
+            {t.addStep}
+          </Pressable>
         </div>
 
         <div
@@ -375,22 +607,80 @@ export function RecipeForm({
 
               <div>
                 <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.tags}</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {TAGS.map((tg) => (
-                    <Chip
-                      key={tg}
-                      label={tg}
-                      active={draft.tags.includes(tg)}
-                      onClick={() =>
-                        patch({
-                          tags: draft.tags.includes(tg)
-                            ? draft.tags.filter((x) => x !== tg)
-                            : [...draft.tags, tg],
-                        })
+                {draft.tags.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                    {draft.tags.map((tg) => (
+                      <div
+                        key={tg}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          height: 34,
+                          padding: '0 8px 0 14px',
+                          borderRadius: radius.pill,
+                          background: 'var(--soft)',
+                          color: 'var(--accent-ink)',
+                          fontSize: 14,
+                          fontWeight: 550,
+                        }}
+                      >
+                        {tg}
+                        <Pressable
+                          onClick={() => removeTag(tg)}
+                          ariaLabel={t.removeTag}
+                          scale={0.85}
+                          style={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: radius.pill,
+                            display: 'grid',
+                            placeItems: 'center',
+                          }}
+                        >
+                          <Icon name="close" size={11} strokeWidth={2.6} />
+                        </Pressable>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <TextField
+                    value={newTag}
+                    onChange={setNewTag}
+                    placeholder={t.newTagPlaceholder}
+                    ariaLabel={t.newTagPlaceholder}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addTag(newTag);
                       }
-                    />
-                  ))}
+                    }}
+                    style={{ height: 40, fontSize: 14.5 }}
+                  />
+                  <Pressable
+                    onClick={() => addTag(newTag)}
+                    scale={0.95}
+                    style={{
+                      flex: '0 0 auto',
+                      height: 40,
+                      padding: '0 16px',
+                      borderRadius: radius.input,
+                      background: 'var(--surface2)',
+                      fontSize: 14,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {t.addTag}
+                  </Pressable>
                 </div>
+                {knownTags.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                    {knownTags.map((tg) => (
+                      <Chip key={tg} label={tg} active={false} onClick={() => addTag(tg)} />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

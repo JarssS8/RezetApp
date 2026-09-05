@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { Icon } from './Icon';
 import { Pressable } from './Pressable';
 import { glassHeader, height, radius, screen } from './tokens';
@@ -115,12 +115,20 @@ export function TextField({
   placeholder,
   inputMode,
   style,
+  onFocus,
+  onBlur,
+  onKeyDown,
+  ariaLabel,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   inputMode?: 'numeric' | 'decimal' | 'text';
   style?: CSSProperties;
+  onFocus?: () => void;
+  onBlur?: () => void;
+  onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
+  ariaLabel?: string;
 }) {
   return (
     <input
@@ -128,6 +136,10 @@ export function TextField({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       inputMode={inputMode}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      onKeyDown={onKeyDown}
+      aria-label={ariaLabel}
       style={{
         width: '100%',
         height: 50,

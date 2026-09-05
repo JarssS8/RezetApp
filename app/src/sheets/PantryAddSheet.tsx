@@ -3,6 +3,7 @@ import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
 import { Button } from '../ui/Button';
 import { OptionChip } from '../ui/Chip';
+import { IngredientNameField } from '../ui/IngredientNameField';
 import { TextField } from '../ui/Fields';
 import { Sheet } from '../ui/Sheet';
 import { radius } from '../ui/tokens';
@@ -15,8 +16,8 @@ export function PantryAddSheet({
   onClose: () => void;
   onToast: (message: string) => void;
 }) {
-  const { t, locale } = usePrefs();
-  const { pantryAdd } = useData();
+  const { t, locale, loc } = usePrefs();
+  const { pantryAdd, ingredients } = useData();
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState<Unit>('g');
@@ -48,7 +49,15 @@ export function PantryAddSheet({
   return (
     <Sheet title={t.add} onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 6 }}>
-        <TextField value={name} onChange={setName} placeholder={t.itemName} />
+        <IngredientNameField
+          value={name}
+          onChange={setName}
+          onPick={(ing) => setUnit(ing.defaultUnit)}
+          placeholder={t.itemName}
+          ingredients={ingredients}
+          locale={locale}
+          loc={loc}
+        />
         <div style={{ display: 'flex', gap: 10 }}>
           <TextField
             value={quantity}
