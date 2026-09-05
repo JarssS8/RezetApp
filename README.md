@@ -277,7 +277,11 @@ Sustituye el login antiguo por completo: fuera la tarjeta blanca sobre verde pla
 
 Tres pasos. "Saltar" / "Skip" arriba a la derecha, 15px/550 `var(--muted)`, siempre visible.
 
-Hero de 210px, radio 26px, `background: var(--soft)`, borde `1px solid var(--line)`: cuatro barras de 34px de ancho, radio 9px, alturas 64/104/82/52px, opacidades 0.35/0.6/1/0.45 en `var(--accent)`, alineadas abajo con gap 10px. Es un diagrama abstracto, **no** una ilustración: no lo sustituyas por un dibujo.
+Hero de 210px, radio 26px, `background: var(--soft)`, borde `1px solid var(--line)`. Cada paso tiene su propio diagrama abstracto — nada de ilustraciones ni dibujos — que escenifica ese paso concreto del bucle plan → despensa → cocinar:
+
+1. **Plan.** Rejilla de 7 columnas (L-D), cada una una barra de 26×58px, radio 8px, `var(--surface)` con borde `var(--line)`; la columna del jueves rellena en `var(--accent)`. Encima, una "tarjeta" de 40×30px (`var(--surface)`, borde, `--shadow-s`) con el icono `bowl` cayendo sobre ese hueco — la receta que se arrastra al plan.
+2. **Despensa.** Dos grupos de 4 barras de 16px de ancho × 84px de alto, radio 7px, pista `var(--soft)` con borde `var(--line)`, relleno en `var(--accent)` según nivel. El segundo grupo es el primero después de cocinar: una barra baja de nivel y queda a opacidad 0.55. Una flecha (`chevronRight`) separa los dos grupos.
+3. **Cocinar.** Anillo de progreso de 76px (mismo patrón SVG que la tarjeta de calorías de Hoy: `r=42`, `stroke-width 9`, pista `var(--soft)`, progreso `var(--accent)`) marcando el paso 3 de 5, con el texto "3/5" centrado. A la derecha, checklist de 3 ingredientes: los completados en una píldora `var(--accent)` con `check` de 11px en `var(--onaccent)`, el pendiente en `var(--surface)` con borde.
 
 Copy exacto:
 

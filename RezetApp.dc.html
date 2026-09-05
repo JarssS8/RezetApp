@@ -111,12 +111,65 @@ a:hover{color:color-mix(in oklab, var(--accent-ink) 75%, var(--text))}
   <div style="flex:1;display:grid;place-items:center;padding:8px 24px 0">
     <div style="width:100%;max-width:420px;text-align:center">
       <div style="height:210px;border-radius:26px;background:var(--soft);border:1px solid var(--line);display:grid;place-items:center;overflow:hidden;box-shadow:var(--shadow-s)">
-        <div style="display:flex;gap:10px;align-items:flex-end">
-          <div style="width:34px;height:64px;border-radius:9px;background:var(--accent);opacity:.35"></div>
-          <div style="width:34px;height:104px;border-radius:9px;background:var(--accent);opacity:.6"></div>
-          <div style="width:34px;height:82px;border-radius:9px;background:var(--accent)"></div>
-          <div style="width:34px;height:52px;border-radius:9px;background:var(--accent);opacity:.45"></div>
+        <sc-if value="{{ onboardIsPlan }}">
+        <div style="position:relative;width:100%;height:100%;display:grid;place-items:center">
+          <div style="display:flex;gap:8px">
+            <sc-for list="{{ onboardWeekdays }}" as="d" hint-placeholder-count="7">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+                <div style="font-size:10.5px;font-weight:650;color:var(--muted);opacity:.7">{{ d.label }}</div>
+                <div style="width:26px;height:58px;border-radius:8px;background:{{ d.fill }};border:{{ d.border }}"></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="position:absolute;top:14px;left:50%;transform:translateX(calc(-50% + 3px));width:40px;height:30px;border-radius:10px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-s);display:grid;place-items:center">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h16a8 8 0 0 1-8 6 8 8 0 0 1-8-6ZM12 4v3"></path></svg>
+          </div>
         </div>
+        </sc-if>
+        <sc-if value="{{ onboardIsPantry }}">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div style="display:flex;gap:7px;align-items:flex-end;height:84px">
+            <div style="width:16px;height:84px;border-radius:7px;background:var(--soft);border:1px solid var(--line);display:flex;align-items:flex-end;overflow:hidden"><div style="width:100%;height:85%;background:var(--accent)"></div></div>
+            <div style="width:16px;height:84px;border-radius:7px;background:var(--soft);border:1px solid var(--line);display:flex;align-items:flex-end;overflow:hidden"><div style="width:100%;height:55%;background:var(--accent)"></div></div>
+            <div style="width:16px;height:84px;border-radius:7px;background:var(--soft);border:1px solid var(--line);display:flex;align-items:flex-end;overflow:hidden"><div style="width:100%;height:95%;background:var(--accent)"></div></div>
+            <div style="width:16px;height:84px;border-radius:7px;background:var(--soft);border:1px solid var(--line);display:flex;align-items:flex-end;overflow:hidden"><div style="width:100%;height:40%;background:var(--accent)"></div></div>
+          </div>
+          <div style="display:flex;gap:7px;align-items:flex-end;height:84px">
+            <div style="width:16px;height:84px;border-radius:7px;background:var(--soft);border:1px solid var(--line);display:flex;align-items:flex-end;overflow:hidden"><div style="width:100%;height:85%;background:var(--accent)"></div></div>
+            <div style="width:16px;height:84px;border-radius:7px;background:var(--soft);border:1px solid var(--line);display:flex;align-items:flex-end;overflow:hidden"><div style="width:100%;height:20%;background:var(--accent);opacity:.55"></div></div>
+            <div style="width:16px;height:84px;border-radius:7px;background:var(--soft);border:1px solid var(--line);display:flex;align-items:flex-end;overflow:hidden"><div style="width:100%;height:95%;background:var(--accent)"></div></div>
+            <div style="width:16px;height:84px;border-radius:7px;background:var(--soft);border:1px solid var(--line);display:flex;align-items:flex-end;overflow:hidden"><div style="width:100%;height:40%;background:var(--accent)"></div></div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6l6 6-6 6"></path></svg>
+        </div>
+        </sc-if>
+        <sc-if value="{{ onboardIsCook }}">
+        <div style="display:flex;align-items:center;gap:18px">
+          <div style="position:relative;width:76px;height:76px;flex:0 0 76px">
+            <svg width="76" height="76" viewBox="0 0 100 100" style="transform:rotate(-90deg)">
+              <circle cx="50" cy="50" r="42" fill="none" stroke="var(--soft)" stroke-width="9"></circle>
+              <circle cx="50" cy="50" r="42" fill="none" stroke="var(--accent)" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="105.6"></circle>
+            </svg>
+            <div style="position:absolute;inset:0;display:grid;place-items:center">
+              <div style="font-size:15px;font-weight:650;letter-spacing:-.02em">3/5</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+            <div style="display:flex;align-items:center;gap:7px">
+              <div style="width:18px;height:18px;border-radius:7px;display:grid;place-items:center;background:var(--accent);color:var(--onaccent)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg></div>
+              <div style="width:46px;height:8px;border-radius:4px;background:var(--soft);opacity:.5"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px">
+              <div style="width:18px;height:18px;border-radius:7px;display:grid;place-items:center;background:var(--accent);color:var(--onaccent)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg></div>
+              <div style="width:46px;height:8px;border-radius:4px;background:var(--soft);opacity:.5"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px">
+              <div style="width:18px;height:18px;border-radius:7px;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line)"></div>
+              <div style="width:46px;height:8px;border-radius:4px;background:var(--soft)"></div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
       </div>
       <div style="margin-top:30px;font-size:27px;font-weight:700;letter-spacing:-.025em;line-height:1.15">{{ onboardTitle }}</div>
       <div style="margin-top:12px;font-size:16.5px;line-height:1.5;color:var(--muted);text-wrap:pretty">{{ onboardBody }}</div>
@@ -1495,6 +1548,14 @@ class Component extends DCLogic {
     v.onboardBody = t.onb[step] ? t.onb[step][1] : "";
     v.onboardDots = [0,1,2].map(i => ({ on:"", key:i }));
     v.onboardCta = step === 2 ? t.start : t.next;
+    v.onboardIsPlan = step === 0;
+    v.onboardIsPantry = step === 1;
+    v.onboardIsCook = step === 2;
+    v.onboardWeekdays = ["L","M","X","J","V","S","D"].map((label, i) => ({
+      key: i, label,
+      fill: i === 3 ? "var(--accent)" : "var(--surface)",
+      border: i === 3 ? "none" : "1px solid var(--line)"
+    }));
     v.onNextOnboard = () => this.setState({ onboard: step >= 2 ? null : step + 1 });
     v.onSkipOnboard = () => this.setState({ onboard:null });
 
