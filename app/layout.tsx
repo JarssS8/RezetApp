@@ -1,15 +1,10 @@
 import type { Metadata, Viewport } from 'next'
-import { DM_Sans, JetBrains_Mono, Outfit } from 'next/font/google'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import { Suspense } from 'react'
 import { IntlShell } from '@/components/i18n/intl-shell'
 import { RegisterServiceWorker } from '@/components/pwa/register-sw'
 import { DEFAULT_PREFS, PREFS_BOOT_SCRIPT } from '@/lib/prefs'
 import './globals.css'
-
-const outfit = Outfit({ subsets: ['latin'], weight: ['600', '700'], variable: '--font-outfit', display: 'swap' })
-const dmSans = DM_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-dm-sans', display: 'swap' })
-const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-jetbrains-mono', display: 'swap' })
 
 // El layout raíz es síncrono a propósito: no lee cookies ni mensajes. Es la
 // pieza que decide si la app tiene armazón estático — mientras esperaba aquí
@@ -46,7 +41,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang={DEFAULT_PREFS.locale}
       data-accent={DEFAULT_PREFS.accent}
-      className={`${outfit.variable} ${dmSans.variable} ${mono.variable}`}
       suppressHydrationWarning
     >
       <head>

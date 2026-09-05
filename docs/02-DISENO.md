@@ -23,21 +23,17 @@ sintió agresiva. El diagnóstico, para no repetirlo:
 
 ## Tipografía
 
-| Rol | Familia | Uso |
+Fuente de sistema, sin webfonts (rediseño 2026-09):
+`-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", Helvetica, sans-serif`.
+
+| Rol | Fuente | Dónde |
 |---|---|---|
-| Títulos | **Outfit** 600/700 | Cabeceras de pantalla (`.title-screen`), títulos de contenido (`.title-content`) y **la cifra protagonista** (`.num-hero`, `.num-lead`) |
-| Interfaz | **DM Sans** 400/500/600/700 | Todo el texto corriente |
-| Datos | **JetBrains Mono** 500/600 | Cifras **en columna**: cantidades, fechas, tablas, totales pequeños (`.tabular`) |
+| Títulos y cifra protagonista | Sistema, 600/700 | Cabeceras de pantalla (`.title-screen`), títulos de contenido (`.title-content`) y la cifra protagonista (`.num-hero`, `.num-lead`) |
+| Interfaz | Sistema, 400/500/600/700 | Todo el texto corriente |
+| Datos en columna | Monoespaciada de sistema (`ui-monospace, SFMono-Regular, Menlo, monospace`) | Cifras **en columna**: cantidades, fechas, tablas, totales pequeños (`.tabular`) |
 
-La cifra protagonista —las kcal cocinadas del anillo de Hoy y las kcal por ración
-de la ficha— va en **Outfit con `tabular-nums`**, no en monoespaciada: un número
-hero en mono se lee como panel de control, justo lo que esta dirección evita
-(ver «Qué evitar»). La monoespaciada se reserva para lo que se compara en
-columna, que es donde su ancho fijo sirve para algo. Hasta W6 el mismo dato salía
-en las dos familias según la pantalla.
-
-Los números que se comparan en columna llevan `font-variant-numeric: tabular-nums`.
-El texto corrido no pasa de ~65 caracteres de ancho.
+La cifra protagonista va con `tabular-nums`, no en monoespaciada: un número
+grande se lee como dato de producto, no como panel de control.
 
 ## Escala de radios
 

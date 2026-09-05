@@ -228,8 +228,10 @@ parezcan plantilla. Aplica los tokens antes de dar nada por bueno.
 - Los ejemplos en español de `docs/03-DOMINIO.md` y `docs/06-SHOPLIST.md`
   (`escalar`, `Linea`, `enviarACompra`…) se implementan con identificadores en
   inglés (`scaleQuantity`, `ShoppingLine`, `pushToShopList`).
-- **Cifras**: Outfit para la cifra protagonista, JetBrains Mono para las
-  cifras en columna (manda `docs/02-DISENO.md` desde W6).
+- **Cifras**: fuente de sistema para todo (rediseño 2026-09, sin webfonts) —
+  `--f-display` para la cifra protagonista con `tabular-nums`, `--f-mono`
+  (monoespaciada de sistema) para las cifras en columna. Manda
+  `docs/02-DISENO.md`.
 
 ## Índice de documentos
 

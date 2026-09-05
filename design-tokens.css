@@ -88,10 +88,11 @@
   --ease-in: cubic-bezier(.4, 0, 1, 1);
   --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
 
-  /* Tipografía */
-  --f-display: "Outfit", "Helvetica Neue", system-ui, sans-serif;
-  --f-body:    "DM Sans", "Segoe UI", system-ui, sans-serif;
-  --f-mono:    "JetBrains Mono", ui-monospace, Menlo, monospace;
+  /* Fuente del sistema — sin webfonts (handoff de rediseño 2026-09,
+     design_handoff_rezet_redesign/README.md §3 y §9). */
+  --f-display: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", Helvetica, sans-serif;
+  --f-body:    -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", Helvetica, sans-serif;
+  --f-mono:    ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /* «Noche suave» — carbón cálido, no negro azulado */
