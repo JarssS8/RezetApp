@@ -159,7 +159,7 @@ export const en: Dictionary = {
   relative3Days: '3 days',
   relative1Week: '1 week',
   relative1Month: '1 month',
-  dateOption: 'Date',
+  dateOption: 'Choose date',
 
   appearance: 'Appearance',
   language: 'Language',

@@ -159,7 +159,7 @@ export const es = {
   relative3Days: '3 días',
   relative1Week: '1 semana',
   relative1Month: '1 mes',
-  dateOption: 'Fecha',
+  dateOption: 'Elegir fecha',
 
   appearance: 'Aspecto',
   language: 'Idioma',

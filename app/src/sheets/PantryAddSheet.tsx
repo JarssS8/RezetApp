@@ -2,7 +2,8 @@ import { useCallback, useRef, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
 import { Button } from '../ui/Button';
-import { OptionChip, Pill } from '../ui/Chip';
+import { Calendar } from '../ui/Calendar';
+import { OptionChip } from '../ui/Chip';
 import { IngredientNameField } from '../ui/IngredientNameField';
 import { TextField } from '../ui/Fields';
 import { SegmentedControl } from '../ui/SegmentedControl';
@@ -10,9 +11,11 @@ import { Sheet } from '../ui/Sheet';
 import { radius, text as T } from '../ui/tokens';
 import { offsetKey, todayKey } from '../domain/dates';
 import { defaultLocationFor, findIngredientByName, inferFoodGroup } from '../domain/recipeText';
-import { formatQuantity, formatUnitLabel, parseQuantityInput } from '../domain/units';
+import { formatQuantity } from '../domain/units';
 import { PantryScanCapture } from './PantryScanCapture';
 import type { PantryLoc, Unit } from '../types';
+
+const UNITS: Unit[] = ['g', 'ml', 'ud'];
 
 type ExpiryChoice = '3d' | '1w' | '1m' | 'date' | null;
 
@@ -39,6 +42,8 @@ export function PantryAddSheet({
   const [mode, setMode] = useState<'scan' | 'manual'>('scan');
   const [name, setName] = useState('');
   const [quantityInput, setQuantityInput] = useState('');
+  const [unit, setUnit] = useState<Unit>('ud');
+  const [unitTouched, setUnitTouched] = useState(false);
   const [location, setLocation] = useState<PantryLoc>('cupboard');
   const [locationTouched, setLocationTouched] = useState(false);
   const [expiresOn, setExpiresOn] = useState('');
@@ -51,7 +56,9 @@ export function PantryAddSheet({
 
   const matchedIngredient = name.trim() ? findIngredientByName(ingredients, name.trim()) : undefined;
   const fallbackUnit: Unit = matchedIngredient?.defaultUnit ?? 'ud';
-  const { quantity: resolvedQuantity, unit: resolvedUnit } = parseQuantityInput(quantityInput, fallbackUnit);
+  const effectiveUnit = unitTouched ? unit : fallbackUnit;
+  const parsedQuantity = parseFloat(quantityInput.replace(',', '.'));
+  const resolvedQuantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1;
 
   const inferredGroup = matchedIngredient?.group ?? (name.trim() ? inferFoodGroup(name.trim()) : undefined);
   const effectiveLocation = locationTouched ? location : inferredGroup ? defaultLocationFor(inferredGroup) : location;
@@ -70,7 +77,13 @@ export function PantryAddSheet({
 
   const applyPrefill = useCallback((item: { name: string; quantity?: number; unit?: Unit; expiresOn?: string }) => {
     setName(item.name);
-    setQuantityInput(item.quantity != null ? (item.unit ? `${item.quantity} ${item.unit}` : String(item.quantity)) : '');
+    setQuantityInput(item.quantity != null ? String(item.quantity) : '');
+    if (item.unit) {
+      setUnit(item.unit);
+      setUnitTouched(true);
+    } else {
+      setUnitTouched(false);
+    }
     setLocationTouched(false);
     if (item.expiresOn) {
       if (item.expiresOn === offsetKey(3)) setExpiryChoice('3d');
@@ -98,6 +111,7 @@ export function PantryAddSheet({
   const resetForm = () => {
     setName('');
     setQuantityInput('');
+    setUnitTouched(false);
     setExpiresOn('');
     setExpiryChoice(null);
     setLocationTouched(false);
@@ -110,7 +124,7 @@ export function PantryAddSheet({
       const result = await pantryAdd({
         name: name.trim(),
         quantity: resolvedQuantity,
-        unit: resolvedUnit,
+        unit: effectiveUnit,
         location: effectiveLocation,
         expiresOn: expiresOn || undefined,
       });
@@ -121,7 +135,7 @@ export function PantryAddSheet({
           entryId,
           pantryId: result.id,
           name: name.trim(),
-          quantitySummary: formatQuantity(resolvedQuantity, resolvedUnit, units, locale),
+          quantitySummary: formatQuantity(resolvedQuantity, effectiveUnit, units, locale),
           addedQuantity: result.addedQuantity,
         },
       ]);
@@ -177,42 +191,64 @@ export function PantryAddSheet({
             style={{ ...T.cardTitle, height: 54 }}
           />
 
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <TextField
               value={quantityInput}
-              onChange={setQuantityInput}
-              placeholder="500 g"
-              inputMode="text"
-              style={{ flex: 1, fontVariantNumeric: 'tabular-nums' }}
+              onChange={(v) => setQuantityInput(v.replace(/[^\d.,]/g, ''))}
+              placeholder="500"
+              inputMode="decimal"
+              style={{ flex: '0 0 110px', fontVariantNumeric: 'tabular-nums' }}
             />
-            <Pill>{formatUnitLabel(resolvedUnit, units, locale)}</Pill>
-          </div>
-
-          <div>
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.location}</div>
-            <SegmentedControl
-              value={effectiveLocation}
-              onChange={(v) => {
-                setLocation(v);
-                setLocationTouched(true);
-              }}
-              options={locations}
-            />
-          </div>
-
-          <div>
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.expiresOnLabel}</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <OptionChip label={t.relative3Days} active={expiryChoice === '3d'} onClick={() => pickExpiry(expiryChoice === '3d' ? null : '3d')} />
-              <OptionChip label={t.relative1Week} active={expiryChoice === '1w'} onClick={() => pickExpiry(expiryChoice === '1w' ? null : '1w')} />
-              <OptionChip label={t.relative1Month} active={expiryChoice === '1m'} onClick={() => pickExpiry(expiryChoice === '1m' ? null : '1m')} />
-              <OptionChip label={t.dateOption} active={expiryChoice === 'date'} onClick={() => pickExpiry(expiryChoice === 'date' ? null : 'date')} />
+            <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+              {UNITS.map((u) => (
+                <OptionChip
+                  key={u}
+                  label={u === 'ud' ? (locale === 'es' ? 'uds' : 'pcs') : u}
+                  active={effectiveUnit === u}
+                  onClick={() => {
+                    setUnit(u);
+                    setUnitTouched(true);
+                  }}
+                />
+              ))}
             </div>
-            {expiryChoice === 'date' && (
-              <div style={{ marginTop: 10 }}>
-                <TextField type="date" min={todayKey()} value={expiresOn} onChange={setExpiresOn} />
+          </div>
+
+          {/* Tarjeta agrupada: ubicación y caducidad viven juntas (patrón de lista agrupada), en vez de dos bloques sueltos. */}
+          <div style={{ background: 'var(--surface2)', borderRadius: radius.list, padding: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.location}</div>
+              <SegmentedControl
+                value={effectiveLocation}
+                onChange={(v) => {
+                  setLocation(v);
+                  setLocationTouched(true);
+                }}
+                options={locations}
+              />
+            </div>
+
+            <div style={{ height: 1, background: 'var(--line)' }} />
+
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.expiresOnLabel}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <OptionChip label={t.relative3Days} active={expiryChoice === '3d'} onClick={() => pickExpiry(expiryChoice === '3d' ? null : '3d')} />
+                <OptionChip label={t.relative1Week} active={expiryChoice === '1w'} onClick={() => pickExpiry(expiryChoice === '1w' ? null : '1w')} />
+                <OptionChip label={t.relative1Month} active={expiryChoice === '1m'} onClick={() => pickExpiry(expiryChoice === '1m' ? null : '1m')} />
+                <OptionChip label={t.dateOption} active={expiryChoice === 'date'} onClick={() => pickExpiry(expiryChoice === 'date' ? null : 'date')} />
               </div>
-            )}
+              {expiryChoice === 'date' && (
+                <div style={{ marginTop: 12 }}>
+                  <Calendar
+                    initialSelected={expiresOn || todayKey()}
+                    minDate={todayKey()}
+                    showEventDots={false}
+                    onSelect={setExpiresOn}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           <Button full size="primary" disabled={!name.trim() || submitting} onClick={() => void submit()} style={{ borderRadius: radius.button }}>

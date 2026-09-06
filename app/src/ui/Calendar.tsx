@@ -23,6 +23,8 @@ export interface CalendarProps {
   events?: string[];
   /** Fecha inicialmente seleccionada, ISO. Por defecto hoy. */
   initialSelected?: string;
+  /** Fecha mínima seleccionable, ISO (inclusive). Los días anteriores se muestran deshabilitados. */
+  minDate?: string;
   /** Se dispara al elegir un día (click en celda o "Hoy"). */
   onSelect?: (dateIso: string) => void;
 }
@@ -34,6 +36,7 @@ export function Calendar({
   showEventDots = true,
   events,
   initialSelected,
+  minDate,
   onSelect,
 }: CalendarProps) {
   const today = new Date();
@@ -81,6 +84,7 @@ export function Calendar({
       hasEvent: boolean;
       outside: boolean;
       hidden: boolean;
+      disabled: boolean;
     }[] = [];
     for (let i = 0; i < total; i++) {
       const dayNum = i - lead + 1;
@@ -90,20 +94,22 @@ export function Calendar({
       const isSel = !outside && key === selected;
       const isToday = key === todayIso;
       const hidden = outside && !showAdjacentDays;
+      const disabled = !hidden && minDate != null && key < minDate;
       out.push({
         key: `${i}-${key}`,
         label: hidden ? '' : date.getDate(),
-        onClick: hidden ? undefined : () => select(key, date.getFullYear(), date.getMonth()),
+        onClick: hidden || disabled ? undefined : () => select(key, date.getFullYear(), date.getMonth()),
         isSel,
         isToday: isToday && !hidden,
         hasEvent: showEventDots && eventSet.has(key) && !hidden,
         outside,
         hidden,
+        disabled,
       });
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [y, m, mondayFirst, showAdjacentDays, showEventDots, eventSet, selected, todayIso]);
+  }, [y, m, mondayFirst, showAdjacentDays, showEventDots, eventSet, selected, todayIso, minDate]);
 
   const sel = selected.split('-').map(Number) as [number, number, number];
   const selectedLabel = `${sel[2]} de ${MONTHS[sel[1] - 1]} de ${sel[0]}`;
@@ -217,10 +223,10 @@ export function Calendar({
                     ? 'var(--onaccent)'
                     : c.isToday
                       ? 'var(--accent-ink)'
-                      : c.outside
+                      : c.outside || c.disabled
                         ? 'var(--muted)'
                         : 'var(--text)',
-                  opacity: c.outside && !c.isSel && !c.isToday ? 0.55 : 1,
+                  opacity: c.disabled ? 0.35 : c.outside && !c.isSel && !c.isToday ? 0.55 : 1,
                 }}
               >
                 {c.label}
