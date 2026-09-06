@@ -465,9 +465,27 @@ export function SupabaseDataProvider({
         .select('id, merged, added_quantity')
         .single();
       if (error) throw error;
+      const id = data.id as string;
+      const merged = data.merged as boolean;
+      const addedQuantity = data.added_quantity as number;
+      queryClient.setQueryData<PantryItem[]>(pantryKey, (old = []) =>
+        merged
+          ? old.map((p) => (p.id === id ? { ...p, quantity: p.quantity + addedQuantity } : p))
+          : [
+              ...old,
+              {
+                id,
+                ingredientId,
+                quantity: addedQuantity,
+                unit: input.unit,
+                location: input.location,
+                expiresInDays: resolveExpiry(input.expiresOn ?? null),
+              },
+            ],
+      );
       void queryClient.invalidateQueries({ queryKey: pantryKey });
       void queryClient.invalidateQueries({ queryKey: ingredientsKey });
-      return { id: data.id as string, merged: data.merged as boolean, addedQuantity: data.added_quantity as number };
+      return { id, merged, addedQuantity };
     },
     [resolveIngredientId, queryClient, pantryKey, ingredientsKey],
   );

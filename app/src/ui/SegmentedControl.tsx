@@ -30,7 +30,12 @@ export function SegmentedControl<T extends string>({
     };
     measure();
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    const ro = new ResizeObserver(measure);
+    ro.observe(track);
+    return () => {
+      window.removeEventListener('resize', measure);
+      ro.disconnect();
+    };
   }, [index, options.length]);
 
   return (

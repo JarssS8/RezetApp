@@ -201,4 +201,14 @@ describe('parseQuantityInput', () => {
   it('numérico patológico no produce NaN', () => {
     expect(parseQuantityInput('1.2.3', 'ud').quantity).not.toBeNaN();
   });
+  it('defaults to 1 with the fallback unit for empty input', () => {
+    expect(parseQuantityInput('', 'g')).toEqual({ quantity: 1, unit: 'g' });
+  });
+  it('treats zero and negative quantities as invalid, defaulting to 1', () => {
+    expect(parseQuantityInput('0 g', 'ud')).toEqual({ quantity: 1, unit: 'g' });
+    expect(parseQuantityInput('-5', 'ml')).toEqual({ quantity: 1, unit: 'ml' });
+  });
+  it('ignores a trailing period on the unit', () => {
+    expect(parseQuantityInput('2 kg.', 'ud')).toEqual({ quantity: 2000, unit: 'g' });
+  });
 });

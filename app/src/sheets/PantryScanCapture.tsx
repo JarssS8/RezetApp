@@ -142,6 +142,8 @@ export function PantryScanCapture({
         />
       )}
 
+      {status === 'starting' && <div style={{ color: 'var(--muted)', fontSize: 14.5 }}>{t.lookingUp}</div>}
+
       {status === 'looking' && <div style={{ color: 'var(--muted)', fontSize: 14.5 }}>{t.lookingUp}</div>}
 
       {status === 'scanning' && allowPhoto && (
@@ -156,7 +158,13 @@ export function PantryScanCapture({
           {status === 'notFound' && <div style={{ fontSize: 13, color: 'var(--warn-ink)' }}>{t.scanNotFound}</div>}
           {status === 'photoFailed' && <div style={{ fontSize: 13, color: 'var(--warn-ink)' }}>{t.photoRecognizeFailed}</div>}
           {status !== 'noCamera' && (
-            <Button full onClick={() => setAttempt((n) => n + 1)}>
+            <Button
+              full
+              onClick={() => {
+                setStatus('starting');
+                setAttempt((n) => n + 1);
+              }}
+            >
               {t.scanAgain}
             </Button>
           )}

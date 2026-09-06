@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
 import { Button } from '../ui/Button';
@@ -10,7 +10,7 @@ import { Sheet } from '../ui/Sheet';
 import { radius, text as T } from '../ui/tokens';
 import { offsetKey, todayKey } from '../domain/dates';
 import { defaultLocationFor, findIngredientByName, inferFoodGroup } from '../domain/recipeText';
-import { formatQuantity, parseQuantityInput } from '../domain/units';
+import { formatQuantity, formatUnitLabel, parseQuantityInput } from '../domain/units';
 import { PantryScanCapture } from './PantryScanCapture';
 import type { PantryLoc, Unit } from '../types';
 
@@ -21,7 +21,6 @@ interface AddedItem {
   pantryId: string;
   name: string;
   quantitySummary: string;
-  merged: boolean;
   addedQuantity: number;
 }
 
@@ -69,19 +68,23 @@ export function PantryAddSheet({
     focusName();
   };
 
-  const applyPrefill = (item: { name: string; quantity?: number; unit?: Unit; expiresOn?: string }) => {
+  const applyPrefill = useCallback((item: { name: string; quantity?: number; unit?: Unit; expiresOn?: string }) => {
     setName(item.name);
-    if (item.quantity != null) setQuantityInput(item.unit ? `${item.quantity} ${item.unit}` : String(item.quantity));
+    setQuantityInput(item.quantity != null ? (item.unit ? `${item.quantity} ${item.unit}` : String(item.quantity)) : '');
+    setLocationTouched(false);
     if (item.expiresOn) {
       if (item.expiresOn === offsetKey(3)) setExpiryChoice('3d');
       else if (item.expiresOn === offsetKey(7)) setExpiryChoice('1w');
       else if (item.expiresOn === offsetKey(30)) setExpiryChoice('1m');
       else setExpiryChoice('date');
       setExpiresOn(item.expiresOn);
+    } else {
+      setExpiryChoice(null);
+      setExpiresOn('');
     }
     setMode('manual');
     focusName();
-  };
+  }, []);
 
   const pickExpiry = (choice: ExpiryChoice) => {
     setExpiryChoice(choice);
@@ -119,7 +122,6 @@ export function PantryAddSheet({
           pantryId: result.id,
           name: name.trim(),
           quantitySummary: formatQuantity(resolvedQuantity, resolvedUnit, units, locale),
-          merged: result.merged,
           addedQuantity: result.addedQuantity,
         },
       ]);
@@ -183,7 +185,7 @@ export function PantryAddSheet({
               inputMode="text"
               style={{ flex: 1, fontVariantNumeric: 'tabular-nums' }}
             />
-            <Pill>{formatQuantity(resolvedQuantity, resolvedUnit, units, locale)}</Pill>
+            <Pill>{formatUnitLabel(resolvedUnit, units, locale)}</Pill>
           </div>
 
           <div>

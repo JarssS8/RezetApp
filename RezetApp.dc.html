@@ -1114,7 +1114,9 @@ class Component extends DCLogic {
       searchPantry:"Buscar en la despensa", add:"Añadir", pantryEmpty:"La despensa está vacía",
       pantryEmptyBody:"Añade lo que tengas en casa y Rezet te dirá qué puedes cocinar.",
       itemName:"Qué es", location:"Dónde está", cupboard:"Armario", fridge:"Nevera", freezer:"Congelador",
-      expiresOnLabel:"Caduca el (opcional)", addManual:"Manual", addBarcode:"Código de barras", addPhotoMode:"Foto", takePhoto:"Tomar foto",
+      expiresOnLabel:"Caduca el (opcional)",
+      scanAgain:"Escanear otro", recognizeByPhoto:"Reconocer por foto", enterManually:"Escribirlo a mano", dateOption:"Fecha", undo:"Deshacer",
+      relative3Days:"3 días", relative1Week:"1 semana", relative1Month:"1 mes",
       appearance:"Aspecto", language:"Idioma", units:"Unidades", metric:"Métrico", imperial:"Imperial",
       light:"Claro", dark:"Oscuro", system:"Sistema", replayTour:"Ver la guía otra vez", signOut:"Cerrar sesión",
       reset:"Reiniciar", startTimer:"Empezar", pauseTimer:"Pausa", finishCook:"He terminado", back:"Atrás",
@@ -1161,7 +1163,9 @@ class Component extends DCLogic {
       searchPantry:"Search the pantry", add:"Add", pantryEmpty:"The pantry is empty",
       pantryEmptyBody:"Add what you have at home and Rezet will tell you what you can cook.",
       itemName:"What is it", location:"Where", cupboard:"Cupboard", fridge:"Fridge", freezer:"Freezer",
-      expiresOnLabel:"Expires on (optional)", addManual:"Manual", addBarcode:"Barcode", addPhotoMode:"Photo", takePhoto:"Take a photo",
+      expiresOnLabel:"Expires on (optional)",
+      scanAgain:"Scan another", recognizeByPhoto:"Recognize by photo", enterManually:"Enter it by hand", dateOption:"Date", undo:"Undo",
+      relative3Days:"3 days", relative1Week:"1 week", relative1Month:"1 month",
       appearance:"Appearance", language:"Language", units:"Units", metric:"Metric", imperial:"Imperial",
       light:"Light", dark:"Dark", system:"System", replayTour:"Replay the tour", signOut:"Sign out",
       reset:"Reset", startTimer:"Start", pauseTimer:"Pause", finishCook:"I'm done", back:"Back",
@@ -2032,8 +2036,7 @@ class Component extends DCLogic {
     }));
 
     // Expiry chip options
-    const expiryMap = { "3d":"3 días", "1w":"1 semana", "1m":"1 mes", "date": t.dateOption };
-    if (s.lang !== "es") Object.assign(expiryMap, { "3d":"3 days", "1w":"1 week", "1m":"1 month" });
+    const expiryMap = { "3d": t.relative3Days, "1w": t.relative1Week, "1m": t.relative1Month, "date": t.dateOption };
     const pickExpiry = (choice) => {
       const now = new Date();
       let exp = "";

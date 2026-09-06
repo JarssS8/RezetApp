@@ -31,6 +31,16 @@ export function formatQuantity(
   return `${formatNumber(quantity, locale)} ${unit}`;
 }
 
+/** Solo la etiqueta de unidad resuelta (sin cantidad), consciente de sistema/locale. */
+export function formatUnitLabel(unit: Unit, system: UnitSystem, locale: Locale): string {
+  if (system === 'imperial') {
+    if (unit === 'g') return 'oz';
+    if (unit === 'ml') return 'fl oz';
+  }
+  if (unit === 'ud') return locale === 'es' ? 'uds' : 'pcs';
+  return unit;
+}
+
 export function formatKcal(kcal: number, locale: Locale): string {
   return Math.round(kcal).toLocaleString(locale === 'es' ? 'es-ES' : 'en-US');
 }
@@ -55,7 +65,7 @@ function toNumber(raw: string | undefined): number {
  * unidad no se entendió. kg/l se normalizan a g/ml. Nunca lanza.
  */
 export function parseQuantityInput(input: string, fallbackUnit: Unit): { quantity: number; unit: Unit } {
-  const trimmed = input.trim();
+  const trimmed = input.trim().replace(/\.+$/, '');
   const full = trimmed.match(QUANTITY_INPUT_RE);
   if (!full) {
     const lead = trimmed.match(LEADING_NUMBER_RE);
