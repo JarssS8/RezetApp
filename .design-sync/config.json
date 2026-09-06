@@ -1,0 +1,17 @@
+{
+  "projectId": "53a98cf3-05f6-4a2a-9f44-ec96b4243560",
+  "shape": "package",
+  "pkg": "rezet",
+  "globalName": "Rezet",
+  "entry": "app/dist/index.js",
+  "srcDir": "src/ui",
+  "cssEntry": "src/styles/tokens.css",
+  "readmeHeader": ".design-sync/conventions.md",
+  "overrides": {
+    "Sheet": { "cardMode": "single", "viewport": "420x560" },
+    "AlertDialog": { "cardMode": "single", "viewport": "420x420" },
+    "Toast": { "cardMode": "single", "viewport": "420x160" },
+    "PushHeader": { "cardMode": "column" },
+    "ScreenHeader": { "cardMode": "column" }
+  }
+}
