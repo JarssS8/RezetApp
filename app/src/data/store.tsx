@@ -219,11 +219,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   const pantryAdd = useCallback(
-    (input: { name: string; quantity: number; unit: Unit; location: PantryLoc; expiresOn?: string }) =>
+    async (input: { name: string; quantity: number; unit: Unit; location: PantryLoc; expiresOn?: string }) => {
+      // Se genera fuera del updater de setData a propósito: bajo
+      // <StrictMode>, React invoca el updater dos veces en desarrollo, y un
+      // uid() generado DENTRO del updater daría dos ids distintos entre lo
+      // que esta función devuelve y lo que React realmente guarda —
+      // rompiendo el deshacer en silencio.
+      const newId = uid('p');
+      let result!: { id: string; merged: boolean; addedQuantity: number };
       setData((d) => {
         const resolved = resolveIngredient(d.ingredients, input.name, input.unit);
+        const existing = d.pantry.find(
+          (p) => p.ingredientId === resolved.id && p.unit === input.unit && p.location === input.location,
+        );
+        if (existing) {
+          result = { id: existing.id, merged: true, addedQuantity: input.quantity };
+          const pantry = d.pantry.map((p) =>
+            p.id === existing.id
+              ? { ...p, quantity: p.quantity + input.quantity, expiresOn: p.expiresOn ?? input.expiresOn ?? null }
+              : p,
+          );
+          return { ...d, ingredients: resolved.list, pantry };
+        }
+        result = { id: newId, merged: false, addedQuantity: input.quantity };
         const item: StoredPantryItem = {
-          id: uid('p'),
+          id: newId,
           ingredientId: resolved.id,
           quantity: input.quantity,
           unit: input.unit,
@@ -231,7 +251,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           expiresOn: input.expiresOn ?? null,
         };
         return { ...d, ingredients: resolved.list, pantry: [...d.pantry, item] };
-      }),
+      });
+      return result;
+    },
     [resolveIngredient, setData],
   );
 

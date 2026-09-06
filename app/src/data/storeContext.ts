@@ -85,7 +85,7 @@ export interface Store {
     unit: Unit;
     location: PantryLoc;
     expiresOn?: string;
-  }) => void;
+  }) => Promise<{ id: string; merged: boolean; addedQuantity: number }>;
   toggleShoppingCheck: (key: string) => void;
   buyChecked: (needs: ShoppingNeed[]) => void;
   /**

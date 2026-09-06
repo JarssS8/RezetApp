@@ -452,24 +452,24 @@ export function SupabaseDataProvider({
   );
 
   const pantryAdd = useCallback(
-    (input: { name: string; quantity: number; unit: Unit; location: PantryLoc; expiresOn?: string }) => {
-      void (async () => {
-        const ingredientId = await resolveIngredientId(input.name, input.unit);
-        const { error } = await supabase.from('pantry_item').insert({
-          household_id: householdId,
-          ingredient_id: ingredientId,
-          quantity: input.quantity,
-          unit: input.unit,
-          location: input.location,
-          expires_on: input.expiresOn ?? null,
-        });
-        if (!error) {
-          void queryClient.invalidateQueries({ queryKey: pantryKey });
-          void queryClient.invalidateQueries({ queryKey: ingredientsKey });
-        }
-      })();
+    async (input: { name: string; quantity: number; unit: Unit; location: PantryLoc; expiresOn?: string }) => {
+      const ingredientId = await resolveIngredientId(input.name, input.unit);
+      const { data, error } = await supabase
+        .rpc('pantry_add', {
+          p_ingredient_id: ingredientId,
+          p_quantity: input.quantity,
+          p_unit: input.unit,
+          p_location: input.location,
+          p_expires_on: input.expiresOn ?? null,
+        })
+        .select('id, merged, added_quantity')
+        .single();
+      if (error) throw error;
+      void queryClient.invalidateQueries({ queryKey: pantryKey });
+      void queryClient.invalidateQueries({ queryKey: ingredientsKey });
+      return { id: data.id as string, merged: data.merged as boolean, addedQuantity: data.added_quantity as number };
     },
-    [resolveIngredientId, householdId, queryClient, pantryKey, ingredientsKey],
+    [resolveIngredientId, queryClient, pantryKey, ingredientsKey],
   );
 
   const toggleShoppingCheck = useCallback(
