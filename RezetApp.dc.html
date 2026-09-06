@@ -967,52 +967,64 @@ a:hover{color:color-mix(in oklab, var(--accent-ink) 75%, var(--text))}
 
       <sc-if value="{{ isSheetPantryAdd }}">
       <div style="display:flex;flex-direction:column;gap:16px;padding-bottom:6px">
-        <div style="display:flex;gap:8px;margin-bottom:4px">
-          <sc-for list="{{ pantryModeOpts }}" as="m" hint-placeholder-count="3">
-            <button onClick="{{ m.onTap }}" style="flex:1;height:44px;border-radius:13px;font-size:14.5px;font-weight:600;border:1px solid {{ m.line }};background:{{ m.bg }};color:{{ m.fg }}">{{ m.label }}</button>
-          </sc-for>
-        </div>
 
         <sc-if value="{{ pantryIsManual }}">
-        <input value="{{ pform.name }}" onInput="{{ onPName }}" placeholder="{{ t.itemName }}" style="width:100%;height:50px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:16.5px;outline:none" />
-        <div style="display:flex;gap:10px">
-          <input value="{{ pform.qty }}" onInput="{{ onPQty }}" inputmode="decimal" placeholder="500" style="flex:2;height:50px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:16.5px;outline:none;font-variant-numeric:tabular-nums" />
-          <div style="flex:3;display:flex;gap:6px">
-            <sc-for list="{{ unitOpts }}" as="u" hint-placeholder-count="3">
-              <button onClick="{{ u.onTap }}" style="flex:1;height:50px;border-radius:14px;font-size:14.5px;font-weight:600;border:1px solid {{ u.line }};background:{{ u.bg }};color:{{ u.fg }}">{{ u.label }}</button>
-            </sc-for>
-          </div>
+        <button type="button" onClick="{{ goToPantryMode }}" style="alignSelf:flex-start;border:0;background:transparent;padding:0;fontSize:14px;fontWeight:600;color:var(--accent-ink)">{{ t.scanAgain }}</button>
+
+        <input value="{{ pform.name }}" onInput="{{ onPName }}" placeholder="{{ t.itemName }}" style="width:100%;height:54px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:17px;font-weight:600;outline:none" />
+
+        <div style="display:flex;gap:10px;align-items:center">
+          <input value="{{ pform.qty }}" onInput="{{ onPQty }}" placeholder="500 g" style="flex:1;height:50px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:15.5px;outline:none;font-variant-numeric:tabular-nums" />
+          <div style="padding:6px 12px;border-radius:12px;background:var(--soft);font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap">{{ pantryResolvedUnit }}</div>
         </div>
-        <div>
-          <div style="font-size:13px;color:var(--muted);margin-bottom:8px">{{ t.expiresOnLabel }}</div>
-          <input type="date" min="{{ todayKey }}" value="{{ pform.expiresOn }}" onInput="{{ onPExpiresOn }}" style="width:100%;height:50px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:16.5px;outline:none" />
-        </div>
+
         <div>
           <div style="font-size:13px;color:var(--muted);margin-bottom:8px">{{ t.location }}</div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:0;border-radius:13px;border:1px solid var(--line);background:var(--surface);overflow:hidden">
             <sc-for list="{{ locOpts }}" as="l" hint-placeholder-count="3">
-              <button onClick="{{ l.onTap }}" style="flex:1;height:44px;border-radius:13px;font-size:14.5px;font-weight:600;border:1px solid {{ l.line }};background:{{ l.bg }};color:{{ l.fg }}">{{ l.label }}</button>
+              <button onClick="{{ l.onTap }}" style="flex:1;height:44px;border-radius:0;border-right:1px solid var(--line);font-size:14.5px;font-weight:600;background:{{ l.bg }};color:{{ l.fg }};border:none;border-right:{{ l.isLast ? 'none' : '1px solid var(--line)' }}" style-active="transform:scale(.98)">{{ l.label }}</button>
             </sc-for>
           </div>
         </div>
-        <button onClick="{{ savePantry }}" style="height:52px;border-radius:16px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:650" style-active="transform:scale(.98)">{{ t.add }}</button>
-        </sc-if>
 
-        <sc-if value="{{ pantryIsBarcode }}">
-        <div style="display:flex;flex-direction:column;gap:16px;align-items:center;padding:12px 0">
-          <div style="width:100%;height:140px;border-radius:20px;background:var(--soft);border:1px solid var(--line);display:grid;place-items:center;color:var(--muted)">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6v12M7 6v12M9.5 6v12M12 6v12M14.5 6v12M17 6v12M20 6v12"></path></svg>
+        <div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:8px">{{ t.expiresOnLabel }}</div>
+          <div style="display:flex;gap:8px">
+            <sc-for list="{{ expiryOpts }}" as="e" hint-placeholder-count="4">
+              <button onClick="{{ e.onTap }}" style="flex:1;height:40px;border-radius:12px;font-size:13.5px;font-weight:600;border:1px solid {{ e.line }};background:{{ e.bg }};color:{{ e.fg }}" style-active="transform:scale(.96)">{{ e.label }}</button>
+            </sc-for>
           </div>
-          <button style="width:100%;height:52px;border-radius:16px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:650">{{ t.takePhoto }}</button>
+          <sc-if value="{{ pantryDatePickerActive }}">
+          <div style="margin-top:10px">
+            <input type="date" min="{{ todayKey }}" value="{{ pform.expiresOn }}" onInput="{{ onPExpiresOn }}" style="width:100%;height:50px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:15.5px;outline:none" />
+          </div>
+          </sc-if>
+        </div>
+
+        <button onClick="{{ savePantry }}" style="height:52px;border-radius:16px;background:{{ !pform.name.trim() ? 'var(--soft)' : 'var(--accent)' }};color:{{ !pform.name.trim() ? 'var(--muted)' : 'var(--onaccent)' }};font-size:16px;font-weight:650;cursor:{{ !pform.name.trim() ? 'default' : 'pointer' }}" style-active="transform:{{ !pform.name.trim() ? 'scale(1)' : 'scale(.98)' }}">{{ t.add }}</button>
+
+        <sc-if value="{{ pantryAddedItems.length }}">
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+          <sc-for list="{{ pantryAddedItems }}" as="item" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 2px">
+              <div style="font-size:14.5px">{{ item.name }} <span style="color:var(--muted)">· {{ item.qty }}</span></div>
+              <button type="button" onClick="{{ item.onUndo }}" style="border:0;background:transparent;padding:0;font-size:13.5px;font-weight:600;color:var(--warn-ink)">{{ t.undo }}</button>
+            </div>
+          </sc-for>
         </div>
         </sc-if>
+        </sc-if>
 
-        <sc-if value="{{ pantryIsPhoto }}">
-        <div style="display:flex;flex-direction:column;gap:16px;align-items:center;padding:12px 0">
-          <div style="width:100%;height:140px;border-radius:20px;background:var(--soft);border:1px solid var(--line);display:grid;place-items:center;color:var(--muted)">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M9 4h6l1.5 2.5H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5a2 2 0 0 1 2-2h2.5Z"></path><circle cx="12" cy="13" r="3.3"></circle></svg>
+        <sc-if value="{{ !pantryIsManual }}">
+        <div style="display:flex;flex-direction:column;gap:14px;align-items:center;padding:4px 0">
+          <div style="width:100%;height:220px;border-radius:20px;background:var(--soft);border:1px solid var(--line);display:grid;place-items:center;color:var(--muted);font-size:14.5px;font-weight:500">
+            <div style="text-align:center">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" style="margin:0 auto 8px;display:block"><path d="M4 6v12M7 6v12M9.5 6v12M12 6v12M14.5 6v12M17 6v12M20 6v12"></path></svg>
+              <div>Cámara en vivo</div>
+            </div>
           </div>
-          <button style="width:100%;height:52px;border-radius:16px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:650">{{ t.takePhoto }}</button>
+          <button onClick="{{ doGeminiPhoto }}" style="width:100%;height:44px;border-radius:16px;background:var(--surface2);color:var(--text);font-size:15px;font-weight:600;border:1px solid var(--line)" style-active="transform:scale(.98)">{{ t.recognizeByPhoto }}</button>
+          <button type="button" onClick="{{ goToManualMode }}" style="border:0;background:transparent;padding:0;font-size:14.5px;font-weight:600;color:var(--accent-ink)">{{ t.enterManually }}</button>
         </div>
         </sc-if>
       </div>
@@ -1220,7 +1232,8 @@ class Component extends DCLogic {
       query: "", tag: null, haveOnly: false, pantryQuery: "",
       weekOffset: 0, detailServings: null, detailId: null,
       form: { title:"", desc:"", ings:"", steps:"", servings:2, minutes:"", kcal:"", diff:"easy", tags:[], advanced:false },
-      pform: { name:"", qty:"", unit:"g", loc:"cupboard" },
+      pform: { name:"", qty:"", unit:"g", loc:"cupboard", expiresOn:"", expiryChoice:null, mode:"scan" },
+      pantryAddedItems: [],
       shopChecked: {}, cookChecked: {}, finishServings: 2, finishMissing: null,
       pickerTarget: null, sheetY: 0,
       isWide: typeof window !== "undefined" ? window.innerWidth >= 900 : true,
@@ -1568,7 +1581,7 @@ class Component extends DCLogic {
       closeSheet: () => this.setState({ sheet:null, sheetY:0 }),
       openSettings: () => this.setState({ sheet:"settings" }),
       openShop: () => this.setState({ sheet:"shop" }),
-      openPantryAdd: () => this.setState({ sheet:"pantryAdd", pform:{ name:"", qty:"", unit:"g", loc:"cupboard", expiresOn:"", mode:"manual" } }),
+      openPantryAdd: () => this.setState({ sheet:"pantryAdd", pform:{ name:"", qty:"", unit:"g", loc:"cupboard", expiresOn:"", expiryChoice:null, mode:"scan" }, pantryAddedItems:[] }),
       openNewRecipe: () => this.setState({ push:{ type:"new" } }),
       goPlan: () => this.setState({ tab:"plan" }),
       replayOnboard: () => this.setState({ onboard:0, sheet:null })
@@ -1996,12 +2009,63 @@ class Component extends DCLogic {
     v.onPName = e => this.setState({ pform:{ ...s.pform, name:e.target.value } });
     v.onPQty = e => this.setState({ pform:{ ...s.pform, qty:e.target.value } });
     v.onPExpiresOn = e => this.setState({ pform:{ ...s.pform, expiresOn:e.target.value } });
-    v.unitOpts = [["g","g"], ["ml","ml"], ["ud", s.lang === "es" ? "uds" : "pcs"]].map(([id, label]) => ({ key:id, label, ...chip(s.pform.unit === id), onTap: () => this.setState({ pform:{ ...s.pform, unit:id } }) }));
-    v.locOpts = locs.map(([id, label]) => ({ key:id, label, ...chip(s.pform.loc === id), onTap: () => this.setState({ pform:{ ...s.pform, loc:id } }) }));
-    v.pantryModeOpts = [["manual", t.addManual], ["barcode", t.addBarcode], ["photo", t.addPhotoMode]].map(([id, label]) => ({ key:id, label, ...chip((s.pform.mode || "manual") === id), onTap: () => this.setState({ pform:{ ...s.pform, mode:id } }) }));
-    v.pantryIsManual = (s.pform.mode || "manual") === "manual";
-    v.pantryIsBarcode = s.pform.mode === "barcode";
-    v.pantryIsPhoto = s.pform.mode === "photo";
+    v.pantryIsManual = s.pform.mode === "manual";
+    v.goToManualMode = () => this.setState({ pform:{ ...s.pform, mode:"manual" } });
+    v.goToPantryMode = () => this.setState({ pform:{ ...s.pform, mode:"scan" } });
+    v.doGeminiPhoto = () => {};
+
+    // Infer location from ingredient group if name entered
+    const inferredLoc = () => {
+      if (!s.pform.name.trim()) return s.pform.loc;
+      const ing = s.recipes.flatMap(r => r.ings).find(i => this.loc(i.n).toLowerCase() === s.pform.name.trim().toLowerCase());
+      if (ing && ing.g === "fresco") return "fridge";
+      return s.pform.loc;
+    };
+    const effectiveLoc = inferredLoc();
+
+    v.locOpts = locs.map(([id, label], idx) => ({
+      key:id, label, isLast: idx === locs.length - 1,
+      bg: effectiveLoc === id ? "var(--soft)" : "var(--surface)",
+      fg: effectiveLoc === id ? "var(--accent-ink)" : "var(--text)",
+      line: effectiveLoc === id ? "var(--soft2)" : "var(--line)",
+      onTap: () => this.setState({ pform:{ ...s.pform, loc:id } })
+    }));
+
+    // Expiry chip options
+    const expiryMap = { "3d":"3 días", "1w":"1 semana", "1m":"1 mes", "date": t.dateOption };
+    if (s.lang !== "es") Object.assign(expiryMap, { "3d":"3 days", "1w":"1 week", "1m":"1 month" });
+    const pickExpiry = (choice) => {
+      const now = new Date();
+      let exp = "";
+      if (choice === "3d") exp = new Date(now.getTime() + 3 * 86400000).toISOString().split("T")[0];
+      else if (choice === "1w") exp = new Date(now.getTime() + 7 * 86400000).toISOString().split("T")[0];
+      else if (choice === "1m") exp = new Date(now.getTime() + 30 * 86400000).toISOString().split("T")[0];
+      this.setState({ pform:{ ...s.pform, expiryChoice: s.pform.expiryChoice === choice ? null : choice, expiresOn: choice === "date" ? (s.pform.expiresOn || this.todayKey()) : exp } });
+    };
+    v.expiryOpts = ["3d","1w","1m","date"].map(id => ({
+      key:id, label: expiryMap[id],
+      bg: s.pform.expiryChoice === id ? "var(--soft)" : "var(--surface)",
+      fg: s.pform.expiryChoice === id ? "var(--accent-ink)" : "var(--text)",
+      line: s.pform.expiryChoice === id ? "var(--soft2)" : "var(--line)",
+      onTap: () => pickExpiry(id)
+    }));
+    v.pantryDatePickerActive = s.pform.expiryChoice === "date";
+
+    // Resolved unit display
+    v.pantryResolvedUnit = "g";
+    const qtyMatch = s.pform.qty.match(/(\d+(?:[.,]\d+)?)\s*([a-zA-Z]*)/);
+    if (qtyMatch) {
+      const unit = (qtyMatch[2] || "g").trim() || "g";
+      v.pantryResolvedUnit = unit === "ud" || unit === "uds" ? "ud" : unit;
+    }
+
+    v.pantryAddedItems = (s.pantryAddedItems || []).map((item, idx) => ({
+      key: item.id,
+      name: item.name,
+      qty: item.qty,
+      onUndo: () => this.setState({ pantryAddedItems: s.pantryAddedItems.filter((_, i) => i !== idx) })
+    }));
+
     v.todayKey = new Date().toISOString().slice(0,10);
     v.savePantry = () => {
       const f = s.pform;
@@ -2009,11 +2073,17 @@ class Component extends DCLogic {
       const expDays = f.expiresOn
         ? Math.round((new Date(f.expiresOn + "T00:00:00") - new Date(new Date().toDateString())) / 86400000)
         : null;
+      const item = {
+        id: "temp-" + Math.random().toString(36).slice(2,7),
+        name: f.name.trim(),
+        qty: f.qty + " " + f.unit,
+        pantryId: "p" + Math.random().toString(36).slice(2,7)
+      };
       this.setState({
-        pantry:[...s.pantry, { id:"p"+Math.random().toString(36).slice(2,7), n:{ es:f.name, en:f.name }, q: parseFloat(f.qty.replace(",", ".")) || 1, u:f.unit, loc:f.loc, exp: expDays }],
-        sheet:null
+        pantryAddedItems: [...s.pantryAddedItems, item],
+        pantry:[...s.pantry, { id:item.pantryId, n:{ es:f.name, en:f.name }, q: parseFloat(f.qty.replace(",", ".")) || 1, u:f.unit, loc:effectiveLoc, exp: expDays }],
+        pform:{ name:"", qty:"", unit:"g", loc:effectiveLoc, expiresOn:"", expiryChoice:null, mode:"manual" }
       });
-      this.toast(t.savedPantry);
     };
 
     const pt = s.pickerTarget;

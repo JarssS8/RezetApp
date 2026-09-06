@@ -387,10 +387,9 @@ Valores por defecto al guardar: minutos 20, kcal 450, dificultad `easy`, racione
 - Botón de borrar de 32px, muted, que pasa a `var(--warn)` en hover.
 - Vacío: tarjeta discontinua con "La despensa está vacía" + "Añade lo que tengas en casa y Rezet te dirá qué puedes cocinar." + botón "Añadir".
 
-Hoja **Añadir a despensa**: tres `OptionChip`s arriba — **Manual** / **Código de barras** / **Foto** (Foto oculto en modo demo) — que cambian el cuerpo de la hoja, sin abrir una hoja nueva.
+Hoja **Añadir a despensa**: comienza en modo captura de cámara en vivo que decodifica códigos de barras en bucle; botón manual "Reconocer por foto" (Gemini, solo cuentas reales) como fallback; enlace "Escribirlo a mano" para acceder al formulario manual. Vía captura nunca se guarda directamente — siempre vuelve al formulario para revisar.
 
-- **Manual**: input de nombre 50px; fila con cantidad (`flex: 2`) y tres chips de unidad `g` / `ml` / `uds` (`flex: 3`); campo de fecha de caducidad (nativo, `type="date"`, `min` = hoy, opcional) justo debajo; tres chips de ubicación; botón acento "Añadir" de 52px. La fecha la escribe el usuario — no hay valor por defecto adivinado.
-- **Código de barras** / **Foto**: sustituyen el formulario por una vista de captura — recuadro `var(--soft)` de 140px con un icono (`barcode` / `camera`) y un botón "Tomar foto" que abre la cámara del móvil (`<input type="file" capture="environment">`). Al reconocer algo, la hoja vuelve a **Manual** con los campos ya rellenos para revisar antes de guardar — nunca se guarda directamente desde estas dos vistas.
+**Formulario manual**: nombre con enfoque automático y tamaño destacado; un input combinado cantidad+unidad (ej. `"500 g"`, parseado) con la unidad resuelta mostrada en una píldora al lado; control segmentado verdadero (tres botones en un contenedor redondeado y paddeado, no chips separados) para ubicación — **Armario · Nevera · Congelador** —, predeterminado desde el grupo de alimento inferido del ingrediente (fresco → nevera, seco/enlatado → armario) hasta que el usuario lo cambie manualmente; label de caducidad seguida de cuatro chips — **3 días · 1 semana · 1 mes · Fecha** — que reemplazan el date picker desnudo como UI primaria (el date input solo aparece cuando está activo el chip "Fecha"); botón acento "Añadir" de 52px, deshabilitado hasta que haya nombre; tras cada añadido, la hoja permanece abierta listando lo agregado con botón "Deshacer" por ítem, cerrable solo vía el chrome de la hoja.
 
 ### 4.9 Cocinar (pantalla completa)
 
