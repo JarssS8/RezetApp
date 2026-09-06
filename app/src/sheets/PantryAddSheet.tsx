@@ -3,7 +3,7 @@ import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
 import { Button } from '../ui/Button';
 import { Calendar } from '../ui/Calendar';
-import { OptionChip } from '../ui/Chip';
+import { Chip, OptionChip } from '../ui/Chip';
 import { Icon } from '../ui/Icon';
 import { IngredientNameField } from '../ui/IngredientNameField';
 import { TextField } from '../ui/Fields';
@@ -23,7 +23,7 @@ const FRACTIONS = [
   { value: '0.75', glyph: '¾' },
 ];
 
-type ExpiryChoice = '3d' | '1w' | '1m' | 'date' | null;
+type ExpiryChoice = 'today' | '3d' | '1w' | '1m' | 'date' | null;
 
 interface AddedItem {
   entryId: number;
@@ -108,10 +108,11 @@ export function PantryAddSheet({
     focusName();
   }, []);
 
-  /** Los tres atajos relativos. La fecha exacta la pone el calendario, ver <Calendar onSelect>. */
-  const pickExpiry = (choice: '3d' | '1w' | '1m' | null) => {
+  /** Los cuatro atajos relativos. La fecha exacta la pone el calendario, ver <Calendar onSelect>. */
+  const pickExpiry = (choice: 'today' | '3d' | '1w' | '1m' | null) => {
     setExpiryChoice(choice);
-    if (choice === '3d') setExpiresOn(offsetKey(3));
+    if (choice === 'today') setExpiresOn(todayKey());
+    else if (choice === '3d') setExpiresOn(offsetKey(3));
     else if (choice === '1w') setExpiresOn(offsetKey(7));
     else if (choice === '1m') setExpiresOn(offsetKey(30));
     else setExpiresOn('');
@@ -188,7 +189,8 @@ export function PantryAddSheet({
   const unitOptions: Array<{ value: Unit; label: string }> = UNITS.map((u) => ({ value: u, label: unitLabel(u) }));
 
   const expirySummary =
-    expiryChoice === '3d' ? t.relative3Days
+    expiryChoice === 'today' ? t.today
+    : expiryChoice === '3d' ? t.relative3Days
     : expiryChoice === '1w' ? t.relative1Week
     : expiryChoice === '1m' ? t.relative1Month
     : expiryChoice === 'date' && expiresOn ? shortMonthDate(expiresOn, locale)
@@ -291,20 +293,22 @@ export function PantryAddSheet({
                 <span style={{ color: expirySummary ? 'var(--text)' : 'var(--muted)' }}>
                   {expirySummary ?? t.noExpiry}
                 </span>
-                <Icon name={expiryOpen ? 'chevronUp' : 'chevronDown'} size={16} strokeWidth={2.2} />
+                <Icon name="chevronRight" size={16} strokeWidth={2.2} />
               </button>
 
               {expiryOpen && (
                 <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <OptionChip label={t.relative3Days} active={expiryChoice === '3d'} onClick={() => pickExpiry(expiryChoice === '3d' ? null : '3d')} />
-                    <OptionChip label={t.relative1Week} active={expiryChoice === '1w'} onClick={() => pickExpiry(expiryChoice === '1w' ? null : '1w')} />
-                    <OptionChip label={t.relative1Month} active={expiryChoice === '1m'} onClick={() => pickExpiry(expiryChoice === '1m' ? null : '1m')} />
+                    <Chip label={t.today} active={expiryChoice === 'today'} onClick={() => pickExpiry(expiryChoice === 'today' ? null : 'today')} />
+                    <Chip label={t.relative3Days} active={expiryChoice === '3d'} onClick={() => pickExpiry(expiryChoice === '3d' ? null : '3d')} />
+                    <Chip label={t.relative1Week} active={expiryChoice === '1w'} onClick={() => pickExpiry(expiryChoice === '1w' ? null : '1w')} />
+                    <Chip label={t.relative1Month} active={expiryChoice === '1m'} onClick={() => pickExpiry(expiryChoice === '1m' ? null : '1m')} />
                   </div>
                   <Calendar
                     key={expiryChoice ?? 'none'}
-                    initialSelected={expiresOn || todayKey()}
+                    initialSelected={expiresOn || undefined}
                     minDate={todayKey()}
+                    showAdjacentDays={false}
                     showEventDots={false}
                     onSelect={(d) => {
                       setExpiresOn(d);

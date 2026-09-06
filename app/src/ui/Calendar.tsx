@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Button, IconButton } from './Button';
 import { Icon } from './Icon';
+import { Pressable } from './Pressable';
 
 const MONTHS = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -45,7 +45,7 @@ export function Calendar({
     const d = initialSelected ? new Date(initialSelected) : today;
     return { y: d.getFullYear(), m: d.getMonth() };
   });
-  const [selected, setSelected] = useState(initialSelected ?? todayIso);
+  const [selected, setSelected] = useState<string | null>(initialSelected ?? null);
 
   const select = (dateIso: string, y: number, m: number) => {
     setSelected(dateIso);
@@ -60,6 +60,7 @@ export function Calendar({
     });
 
   const { y, m } = view;
+  const monthLabel = MONTHS[m]!.replace(/^./, (c) => c.toUpperCase());
   const eventSet = useMemo(
     () =>
       new Set(
@@ -91,7 +92,7 @@ export function Calendar({
       const outside = dayNum < 1 || dayNum > daysIn;
       const date = new Date(y, m, dayNum);
       const key = iso(date.getFullYear(), date.getMonth(), date.getDate());
-      const isSel = !outside && key === selected;
+      const isSel = !outside && selected != null && key === selected;
       const isToday = key === todayIso;
       const hidden = outside && !showAdjacentDays;
       const disabled = !hidden && minDate != null && key < minDate;
@@ -111,9 +112,6 @@ export function Calendar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [y, m, mondayFirst, showAdjacentDays, showEventDots, eventSet, selected, todayIso, minDate]);
 
-  const sel = selected.split('-').map(Number) as [number, number, number];
-  const selectedLabel = `${sel[2]} de ${MONTHS[sel[1] - 1]} de ${sel[0]}`;
-
   return (
     <div
       style={{
@@ -127,37 +125,35 @@ export function Calendar({
         boxSizing: 'border-box',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 650,
-              letterSpacing: '.05em',
-              textTransform: 'uppercase',
-              color: 'var(--muted)',
-            }}
-          >
-            {y}
-          </div>
-          <div
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: 'var(--text)',
-              textTransform: 'capitalize',
-              lineHeight: 1.2,
-            }}
-          >
-            {MONTHS[m]}
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 16 }}>
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: 18,
+            fontWeight: 700,
+            color: 'var(--text)',
+            letterSpacing: '-.01em',
+          }}
+        >
+          {monthLabel} de {y}
         </div>
-        <IconButton ariaLabel="Mes anterior" size={36} onClick={() => shift(-1)}>
-          <Icon name="chevronLeft" size={18} />
-        </IconButton>
-        <IconButton ariaLabel="Mes siguiente" size={36} onClick={() => shift(1)}>
-          <Icon name="chevronRight" size={18} />
-        </IconButton>
+        <Pressable
+          onClick={() => shift(-1)}
+          ariaLabel="Mes anterior"
+          scale={0.9}
+          style={{ width: 28, height: 28, display: 'grid', placeItems: 'center', color: 'var(--muted)' }}
+        >
+          <Icon name="chevronLeft" size={16} />
+        </Pressable>
+        <Pressable
+          onClick={() => shift(1)}
+          ariaLabel="Mes siguiente"
+          scale={0.9}
+          style={{ width: 28, height: 28, display: 'grid', placeItems: 'center', color: 'var(--muted)' }}
+        >
+          <Icon name="chevronRight" size={16} />
+        </Pressable>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 6 }}>
@@ -210,9 +206,6 @@ export function Calendar({
                 }}
               />
             )}
-            {!c.isSel && c.isToday && (
-              <span style={{ position: 'absolute', inset: 0, borderRadius: 14, background: 'var(--soft)' }} />
-            )}
             {!c.hidden && (
               <span
                 style={{
@@ -246,38 +239,6 @@ export function Calendar({
             )}
           </button>
         ))}
-      </div>
-
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          marginTop: 14,
-          paddingTop: 13,
-          borderTop: '1px solid var(--line)',
-        }}
-      >
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            fontSize: 13,
-            color: 'var(--muted)',
-            textOverflow: 'ellipsis',
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {selectedLabel}
-        </div>
-        <Button
-          variant={selected === todayIso ? 'secondary' : 'primary'}
-          size="secondary"
-          onClick={() => select(todayIso, today.getFullYear(), today.getMonth())}
-        >
-          Hoy
-        </Button>
       </div>
     </div>
   );

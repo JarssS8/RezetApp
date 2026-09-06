@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { scaleQuantity } from '../domain/scaling';
 import { addDays, dateKey, resolveExpiry, slotForNow, todayKey } from '../domain/dates';
@@ -67,6 +67,24 @@ const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = usePersistentState<Data>('rezet.data', INITIAL);
   const { locale } = usePrefs();
+
+  // `rezet.data` es un blob persistido: una demo ya usada nunca vuelve a leer
+  // `seed.ts` para sus recetas. Rellena aquí lo que el seed haya ganado desde
+  // entonces (p. ej. fotos) sin tocar nada que el usuario ya haya cambiado.
+  useEffect(() => {
+    setData((d) => {
+      let changed = false;
+      const recipes = d.recipes.map((r) => {
+        if (r.photoUrl) return r;
+        const seeded = RECIPES.find((sr) => sr.id === r.id);
+        if (!seeded?.photoUrl) return r;
+        changed = true;
+        return { ...r, photoUrl: seeded.photoUrl };
+      });
+      return changed ? { ...d, recipes } : d;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pantryExposed = useMemo<PantryItem[]>(
     () =>
