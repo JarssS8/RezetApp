@@ -2002,16 +2002,19 @@ class Component extends DCLogic {
     v.pantryIsManual = (s.pform.mode || "manual") === "manual";
     v.pantryIsBarcode = s.pform.mode === "barcode";
     v.pantryIsPhoto = s.pform.mode === "photo";
+    v.todayKey = new Date().toISOString().slice(0,10);
     v.savePantry = () => {
       const f = s.pform;
       if (!f.name.trim()) return;
+      const expDays = f.expiresOn
+        ? Math.round((new Date(f.expiresOn + "T00:00:00") - new Date(new Date().toDateString())) / 86400000)
+        : null;
       this.setState({
-        pantry:[...s.pantry, { id:"p"+Math.random().toString(36).slice(2,7), n:{ es:f.name, en:f.name }, q: parseFloat(f.qty.replace(",", ".")) || 1, u:f.unit, loc:f.loc, expOn: f.expiresOn || null }],
+        pantry:[...s.pantry, { id:"p"+Math.random().toString(36).slice(2,7), n:{ es:f.name, en:f.name }, q: parseFloat(f.qty.replace(",", ".")) || 1, u:f.unit, loc:f.loc, exp: expDays }],
         sheet:null
       });
       this.toast(t.savedPantry);
     };
-    v.todayKey = new Date().toISOString().slice(0,10);
 
     const pt = s.pickerTarget;
     v.pickerSub = pt && pt.recipeId ? (s.lang === "es" ? "Elige el día y la comida." : "Pick the day and the meal.") : (s.lang === "es" ? "Recetas que puedes poner en este hueco." : "Recipes you can drop in this slot.");

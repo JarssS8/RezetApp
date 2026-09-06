@@ -102,6 +102,10 @@ El esquema de base de datos con RLS está en `../BUILD_FROM_ZERO.md` §3.
 5. Anillo de foco visible con `--accent` en los inputs (los primitivos ya
    quitan el `outline` por defecto).
 6. PWA con `vite-plugin-pwa` si además quieres instalación desde el navegador.
+7. Desplegar la función `supabase/functions/recognize-pantry-item` y añadir
+   una fila `GEMINI_API_KEY` en `app_secret` — sin esto, el modo "Foto" al
+   añadir a la despensa es visible mas no funciona (falla con un mensaje
+   genérico, sin explicación en pantalla de por qué).
 
 La especificación de diseño completa está en `../README.md`. Ante cualquier duda
 visual, `../RezetApp.dc.html` es la fuente de verdad.

@@ -262,7 +262,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               quantity: need.quantity,
               unit: need.unit,
               location: need.group === 'fresco' ? 'fridge' : 'cupboard',
-              expiresOn: need.group === 'fresco' ? dateKey(addDays(new Date(), 5)) : null,
+              expiresOn: null,
             });
         }
         return { ...d, pantry, shoppingChecked: {} };

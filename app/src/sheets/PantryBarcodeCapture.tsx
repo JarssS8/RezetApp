@@ -11,12 +11,16 @@ import type { Unit } from '../types';
 type Status = 'idle' | 'looking' | 'manualEntry' | 'notFound';
 
 async function lookupBarcode(code: string): Promise<{ name: string; quantity: number; unit: Unit } | null> {
-  const res = await fetch(
-    `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,quantity,product_quantity,product_quantity_unit`,
-  );
-  if (!res.ok) return null;
-  const json = (await res.json()) as OffApiResponse;
-  return mapOpenFoodFactsProduct(json);
+  try {
+    const res = await fetch(
+      `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,quantity,product_quantity,product_quantity_unit`,
+    );
+    if (!res.ok) return null;
+    const json = (await res.json()) as OffApiResponse;
+    return mapOpenFoodFactsProduct(json);
+  } catch {
+    return null;
+  }
 }
 
 export function PantryBarcodeCapture({

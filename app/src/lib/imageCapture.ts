@@ -1,8 +1,12 @@
 /**
- * Reduce una foto capturada a un lado largo máximo antes de decodificarla o
- * subirla — una foto de móvil típica (3000×4000px+) es innecesariamente
- * lenta/cara para esto; el zxing decodifica un código de barras igual de
- * bien a 1024px, y Gemini paga menos tokens por una imagen más pequeña.
+ * Reduce una foto capturada a un lado largo máximo antes de subirla a
+ * Gemini — una foto de móvil típica (3000×4000px+) es innecesariamente
+ * lenta/cara para eso, y Gemini paga menos tokens por una imagen más
+ * pequeña. NO uses esto antes de decodificar un código de barras: se
+ * verificó directamente que este resize + la recompresión JPEG rompen el
+ * decode de zxing en códigos que decodifica bien a resolución completa
+ * (ver `PantryBarcodeCapture.tsx`, que decodifica desde el archivo
+ * original a propósito).
  */
 export async function resizeImageFile(
   file: File,
