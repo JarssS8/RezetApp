@@ -1,4 +1,5 @@
-import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
+import { forwardRef } from 'react';
+import type { CSSProperties, KeyboardEvent, ReactNode, Ref } from 'react';
 import { Icon } from './Icon';
 import { Pressable } from './Pressable';
 import { glassHeader, height, radius, screen } from './tokens';
@@ -109,33 +110,37 @@ export function SearchField({
 }
 
 /** Campo de texto con caja. */
-export function TextField({
-  value,
-  onChange,
-  placeholder,
-  inputMode,
-  type = 'text',
-  min,
-  style,
-  onFocus,
-  onBlur,
-  onKeyDown,
-  ariaLabel,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  inputMode?: 'numeric' | 'decimal' | 'text';
-  type?: 'text' | 'date';
-  min?: string;
-  style?: CSSProperties;
-  onFocus?: () => void;
-  onBlur?: () => void;
-  onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
-  ariaLabel?: string;
-}) {
+export const TextField = forwardRef(function TextField(
+  {
+    value,
+    onChange,
+    placeholder,
+    inputMode,
+    type = 'text',
+    min,
+    style,
+    onFocus,
+    onBlur,
+    onKeyDown,
+    ariaLabel,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+    placeholder?: string;
+    inputMode?: 'numeric' | 'decimal' | 'text';
+    type?: 'text' | 'date';
+    min?: string;
+    style?: CSSProperties;
+    onFocus?: () => void;
+    onBlur?: () => void;
+    onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
+    ariaLabel?: string;
+  },
+  ref: Ref<HTMLInputElement>,
+) {
   return (
     <input
+      ref={ref}
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -159,7 +164,7 @@ export function TextField({
       }}
     />
   );
-}
+});
 
 /** Cabecera translúcida de una vista apilada. */
 export function PushHeader({

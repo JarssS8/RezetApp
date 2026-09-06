@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { forwardRef, useMemo, useState } from 'react';
+import type { CSSProperties, Ref } from 'react';
 import { TextField } from './Fields';
 import { radius } from './tokens';
-import type { CSSProperties } from 'react';
 import type { Ingredient, Locale } from '../types';
 
 /**
@@ -9,26 +9,29 @@ import type { Ingredient, Locale } from '../types';
  * que ya hay en la despensa o en otras recetas) y del catálogo global. Se usa
  * en "Añadir a despensa" y en las filas de ingredientes de una receta.
  */
-export function IngredientNameField({
-  value,
-  onChange,
-  onPick,
-  placeholder,
-  ingredients,
-  locale,
-  loc,
-  style,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  /** Se dispara al elegir una sugerencia — trae el ingrediente completo (para tomar su unidad por defecto, etc.). */
-  onPick?: (ingredient: Ingredient) => void;
-  placeholder?: string;
-  ingredients: Ingredient[];
-  locale: Locale;
-  loc: (v: Ingredient['name']) => string;
-  style?: CSSProperties;
-}) {
+export const IngredientNameField = forwardRef(function IngredientNameField(
+  {
+    value,
+    onChange,
+    onPick,
+    placeholder,
+    ingredients,
+    locale,
+    loc,
+    style,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+    /** Se dispara al elegir una sugerencia — trae el ingrediente completo (para tomar su unidad por defecto, etc.). */
+    onPick?: (ingredient: Ingredient) => void;
+    placeholder?: string;
+    ingredients: Ingredient[];
+    locale: Locale;
+    loc: (v: Ingredient['name']) => string;
+    style?: CSSProperties;
+  },
+  ref: Ref<HTMLInputElement>,
+) {
   const [open, setOpen] = useState(false);
 
   const suggestions = useMemo(() => {
@@ -40,6 +43,7 @@ export function IngredientNameField({
   return (
     <div style={{ position: 'relative' }}>
       <TextField
+        ref={ref}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
@@ -90,4 +94,4 @@ export function IngredientNameField({
       )}
     </div>
   );
-}
+});
