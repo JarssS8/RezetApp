@@ -35,7 +35,7 @@ export function PantryAddSheet({
   allowPhoto?: boolean;
 }) {
   const { t, locale, loc, units } = usePrefs();
-  const { pantryAdd, pantryBump, pantryDelete, ingredients } = useData();
+  const { pantryAdd, pantryBump, ingredients } = useData();
 
   const [mode, setMode] = useState<'scan' | 'manual'>('scan');
   const [name, setName] = useState('');
@@ -133,8 +133,12 @@ export function PantryAddSheet({
   };
 
   const undoAdd = (item: AddedItem) => {
-    if (item.merged) pantryBump(item.pantryId, -item.addedQuantity);
-    else pantryDelete(item.pantryId);
+    // Nunca pantryDelete aquí: si otro add posterior fusionó cantidad extra
+    // en la misma fila, un delete destruiría también esa cantidad. pantryBump
+    // ya deja la fila en 0 y la limpia sola cuando corresponde (ver store.tsx),
+    // así que cubre "era la única aportación" y "quedan otras" con una sola
+    // llamada.
+    pantryBump(item.pantryId, -item.addedQuantity);
     setAddedItems((items) => items.filter((i) => i.entryId !== item.entryId));
   };
 
