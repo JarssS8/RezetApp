@@ -2,7 +2,6 @@ import { useRef, useState } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { usePrefs } from '../store/prefs';
 import { mapOpenFoodFactsProduct, type OffApiResponse } from '../domain/pantryImport';
-import { resizeImageFile } from '../lib/imageCapture';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { TextField } from '../ui/Fields';
@@ -41,9 +40,9 @@ export function PantryBarcodeCapture({
 
   const onFile = async (file: File) => {
     setStatus('looking');
-    const { dataUrl } = await resizeImageFile(file, 1024);
+    const url = URL.createObjectURL(file);
     const img = new Image();
-    img.src = dataUrl;
+    img.src = url;
     try {
       await img.decode();
       const reader = new BrowserMultiFormatReader();
@@ -51,6 +50,8 @@ export function PantryBarcodeCapture({
       await runLookup(result.getText());
     } catch {
       setStatus('manualEntry');
+    } finally {
+      URL.revokeObjectURL(url);
     }
   };
 
