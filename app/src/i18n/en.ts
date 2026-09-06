@@ -222,7 +222,6 @@ export const en: Dictionary = {
   added: 'Added to the plan',
   removed: 'Removed from the plan',
   savedRecipe: 'Recipe saved',
-  savedPantry: 'Added to the pantry',
   cookSaved: 'Cooked. Pantry updated.',
 
   onboarding: [

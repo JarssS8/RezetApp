@@ -10,14 +10,15 @@ import { Sheet } from '../ui/Sheet';
 import { radius, text as T } from '../ui/tokens';
 import { offsetKey, todayKey } from '../domain/dates';
 import { defaultLocationFor, findIngredientByName, inferFoodGroup } from '../domain/recipeText';
-import { parseQuantityInput } from '../domain/units';
+import { formatQuantity, parseQuantityInput } from '../domain/units';
 import { PantryScanCapture } from './PantryScanCapture';
 import type { PantryLoc, Unit } from '../types';
 
 type ExpiryChoice = '3d' | '1w' | '1m' | 'date' | null;
 
 interface AddedItem {
-  id: string;
+  entryId: number;
+  pantryId: string;
   name: string;
   quantitySummary: string;
   merged: boolean;
@@ -33,7 +34,7 @@ export function PantryAddSheet({
   onToast: (message: string) => void;
   allowPhoto?: boolean;
 }) {
-  const { t, locale, loc } = usePrefs();
+  const { t, locale, loc, units } = usePrefs();
   const { pantryAdd, pantryBump, pantryDelete, ingredients } = useData();
 
   const [mode, setMode] = useState<'scan' | 'manual'>('scan');
@@ -47,6 +48,7 @@ export function PantryAddSheet({
   const [addedItems, setAddedItems] = useState<AddedItem[]>([]);
 
   const nameRef = useRef<HTMLInputElement>(null);
+  const nextEntryId = useRef(0);
 
   const matchedIngredient = name.trim() ? findIngredientByName(ingredients, name.trim()) : undefined;
   const fallbackUnit: Unit = matchedIngredient?.defaultUnit ?? 'ud';
@@ -109,12 +111,14 @@ export function PantryAddSheet({
         location: effectiveLocation,
         expiresOn: expiresOn || undefined,
       });
+      const entryId = nextEntryId.current++;
       setAddedItems((items) => [
         ...items,
         {
-          id: result.id,
+          entryId,
+          pantryId: result.id,
           name: name.trim(),
-          quantitySummary: `${resolvedQuantity} ${resolvedUnit}`,
+          quantitySummary: formatQuantity(resolvedQuantity, resolvedUnit, units, locale),
           merged: result.merged,
           addedQuantity: result.addedQuantity,
         },
@@ -129,9 +133,9 @@ export function PantryAddSheet({
   };
 
   const undoAdd = (item: AddedItem) => {
-    if (item.merged) pantryBump(item.id, -item.addedQuantity);
-    else pantryDelete(item.id);
-    setAddedItems((items) => items.filter((i) => i.id !== item.id));
+    if (item.merged) pantryBump(item.pantryId, -item.addedQuantity);
+    else pantryDelete(item.pantryId);
+    setAddedItems((items) => items.filter((i) => i.entryId !== item.entryId));
   };
 
   const locations: Array<{ value: PantryLoc; label: string }> = [
@@ -175,7 +179,7 @@ export function PantryAddSheet({
               inputMode="text"
               style={{ flex: 1, fontVariantNumeric: 'tabular-nums' }}
             />
-            <Pill>{resolvedUnit}</Pill>
+            <Pill>{formatQuantity(resolvedQuantity, resolvedUnit, units, locale)}</Pill>
           </div>
 
           <div>
@@ -212,7 +216,7 @@ export function PantryAddSheet({
           {addedItems.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
               {addedItems.map((item) => (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 2px' }}>
+                <div key={item.entryId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 2px' }}>
                   <div style={{ fontSize: 14.5 }}>
                     {item.name} <span style={{ color: 'var(--muted)' }}>· {item.quantitySummary}</span>
                   </div>

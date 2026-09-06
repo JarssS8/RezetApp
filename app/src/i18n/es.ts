@@ -223,7 +223,6 @@ export const es = {
   added: 'Añadido al plan',
   removed: 'Quitado del plan',
   savedRecipe: 'Receta guardada',
-  savedPantry: 'Añadido a la despensa',
   cookSaved: 'Cocinado. Despensa actualizada.',
 
   onboarding: [
