@@ -382,12 +382,15 @@ Valores por defecto al guardar: minutos 20, kcal 450, dificultad `easy`, racione
 - Cabecera: "Despensa" + botón acento "Añadir".
 - Buscador idéntico al de Recetas.
 - Agrupada por ubicación en este orden: **Armario · Nevera · Congelador**. Los grupos vacíos no se renderizan. Cabecera de grupo: eyebrow + regla + recuento.
-- Contenedor radio 18px con filas de padding `13px 14px` separadas por `1px var(--line)`: nombre 15.5px/550; subtítulo 12.5px con "caduca en N días" o "sin fecha" — y en **`var(--warn)`** cuando faltan 3 días o menos, en `var(--muted)` si no.
+- Contenedor radio 18px con filas de padding `13px 14px` separadas por `1px var(--line)`: nombre 15.5px/550; subtítulo 12.5px con "caduca en N días", "sin fecha" o **"Caducado"** (cuando la fecha ya pasó) — y en **`var(--warn)`** cuando faltan 3 días o menos, en `var(--muted)` si no.
 - Stepper de cantidad: contenedor `var(--surface2)` radio 11px, botones de 32px, cifra `min-width: 64px` tabular. **Paso: 1 para unidades, 100 para g/ml.** Nunca baja de 0; al llegar a 0 el ítem se elimina de la lista.
 - Botón de borrar de 32px, muted, que pasa a `var(--warn)` en hover.
 - Vacío: tarjeta discontinua con "La despensa está vacía" + "Añade lo que tengas en casa y Rezet te dirá qué puedes cocinar." + botón "Añadir".
 
-Hoja **Añadir a despensa**: input de nombre 50px; fila con cantidad (`flex: 2`) y tres chips de unidad `g` / `ml` / `uds` (`flex: 3`); tres chips de ubicación; botón acento "Añadir" de 52px. Al guardar en Nevera, `exp = 5` días por defecto; en Armario, sin fecha.
+Hoja **Añadir a despensa**: tres `OptionChip`s arriba — **Manual** / **Código de barras** / **Foto** (Foto oculto en modo demo) — que cambian el cuerpo de la hoja, sin abrir una hoja nueva.
+
+- **Manual**: input de nombre 50px; fila con cantidad (`flex: 2`) y tres chips de unidad `g` / `ml` / `uds` (`flex: 3`); campo de fecha de caducidad (nativo, `type="date"`, `min` = hoy, opcional) justo debajo; tres chips de ubicación; botón acento "Añadir" de 52px. La fecha la escribe el usuario — no hay valor por defecto adivinado.
+- **Código de barras** / **Foto**: sustituyen el formulario por una vista de captura — recuadro `var(--soft)` de 140px con un icono (`barcode` / `camera`) y un botón "Tomar foto" que abre la cámara del móvil (`<input type="file" capture="environment">`). Al reconocer algo, la hoja vuelve a **Manual** con los campos ya rellenos para revisar antes de guardar — nunca se guarda directamente desde estas dos vistas.
 
 ### 4.9 Cocinar (pantalla completa)
 

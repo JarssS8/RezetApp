@@ -967,6 +967,13 @@ a:hover{color:color-mix(in oklab, var(--accent-ink) 75%, var(--text))}
 
       <sc-if value="{{ isSheetPantryAdd }}">
       <div style="display:flex;flex-direction:column;gap:16px;padding-bottom:6px">
+        <div style="display:flex;gap:8px;margin-bottom:4px">
+          <sc-for list="{{ pantryModeOpts }}" as="m" hint-placeholder-count="3">
+            <button onClick="{{ m.onTap }}" style="flex:1;height:44px;border-radius:13px;font-size:14.5px;font-weight:600;border:1px solid {{ m.line }};background:{{ m.bg }};color:{{ m.fg }}">{{ m.label }}</button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ pantryIsManual }}">
         <input value="{{ pform.name }}" onInput="{{ onPName }}" placeholder="{{ t.itemName }}" style="width:100%;height:50px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:16.5px;outline:none" />
         <div style="display:flex;gap:10px">
           <input value="{{ pform.qty }}" onInput="{{ onPQty }}" inputmode="decimal" placeholder="500" style="flex:2;height:50px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:16.5px;outline:none;font-variant-numeric:tabular-nums" />
@@ -977,6 +984,10 @@ a:hover{color:color-mix(in oklab, var(--accent-ink) 75%, var(--text))}
           </div>
         </div>
         <div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:8px">{{ t.expiresOnLabel }}</div>
+          <input type="date" min="{{ todayKey }}" value="{{ pform.expiresOn }}" onInput="{{ onPExpiresOn }}" style="width:100%;height:50px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:16.5px;outline:none" />
+        </div>
+        <div>
           <div style="font-size:13px;color:var(--muted);margin-bottom:8px">{{ t.location }}</div>
           <div style="display:flex;gap:8px">
             <sc-for list="{{ locOpts }}" as="l" hint-placeholder-count="3">
@@ -985,6 +996,25 @@ a:hover{color:color-mix(in oklab, var(--accent-ink) 75%, var(--text))}
           </div>
         </div>
         <button onClick="{{ savePantry }}" style="height:52px;border-radius:16px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:650" style-active="transform:scale(.98)">{{ t.add }}</button>
+        </sc-if>
+
+        <sc-if value="{{ pantryIsBarcode }}">
+        <div style="display:flex;flex-direction:column;gap:16px;align-items:center;padding:12px 0">
+          <div style="width:100%;height:140px;border-radius:20px;background:var(--soft);border:1px solid var(--line);display:grid;place-items:center;color:var(--muted)">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6v12M7 6v12M9.5 6v12M12 6v12M14.5 6v12M17 6v12M20 6v12"></path></svg>
+          </div>
+          <button style="width:100%;height:52px;border-radius:16px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:650">{{ t.takePhoto }}</button>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ pantryIsPhoto }}">
+        <div style="display:flex;flex-direction:column;gap:16px;align-items:center;padding:12px 0">
+          <div style="width:100%;height:140px;border-radius:20px;background:var(--soft);border:1px solid var(--line);display:grid;place-items:center;color:var(--muted)">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M9 4h6l1.5 2.5H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5a2 2 0 0 1 2-2h2.5Z"></path><circle cx="12" cy="13" r="3.3"></circle></svg>
+          </div>
+          <button style="width:100%;height:52px;border-radius:16px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:650">{{ t.takePhoto }}</button>
+        </div>
+        </sc-if>
       </div>
       </sc-if>
 
@@ -1072,6 +1102,7 @@ class Component extends DCLogic {
       searchPantry:"Buscar en la despensa", add:"Añadir", pantryEmpty:"La despensa está vacía",
       pantryEmptyBody:"Añade lo que tengas en casa y Rezet te dirá qué puedes cocinar.",
       itemName:"Qué es", location:"Dónde está", cupboard:"Armario", fridge:"Nevera", freezer:"Congelador",
+      expiresOnLabel:"Caduca el (opcional)", addManual:"Manual", addBarcode:"Código de barras", addPhotoMode:"Foto", takePhoto:"Tomar foto",
       appearance:"Aspecto", language:"Idioma", units:"Unidades", metric:"Métrico", imperial:"Imperial",
       light:"Claro", dark:"Oscuro", system:"Sistema", replayTour:"Ver la guía otra vez", signOut:"Cerrar sesión",
       reset:"Reiniciar", startTimer:"Empezar", pauseTimer:"Pausa", finishCook:"He terminado", back:"Atrás",
@@ -1118,6 +1149,7 @@ class Component extends DCLogic {
       searchPantry:"Search the pantry", add:"Add", pantryEmpty:"The pantry is empty",
       pantryEmptyBody:"Add what you have at home and Rezet will tell you what you can cook.",
       itemName:"What is it", location:"Where", cupboard:"Cupboard", fridge:"Fridge", freezer:"Freezer",
+      expiresOnLabel:"Expires on (optional)", addManual:"Manual", addBarcode:"Barcode", addPhotoMode:"Photo", takePhoto:"Take a photo",
       appearance:"Appearance", language:"Language", units:"Units", metric:"Metric", imperial:"Imperial",
       light:"Light", dark:"Dark", system:"System", replayTour:"Replay the tour", signOut:"Sign out",
       reset:"Reset", startTimer:"Start", pauseTimer:"Pause", finishCook:"I'm done", back:"Back",
@@ -1536,7 +1568,7 @@ class Component extends DCLogic {
       closeSheet: () => this.setState({ sheet:null, sheetY:0 }),
       openSettings: () => this.setState({ sheet:"settings" }),
       openShop: () => this.setState({ sheet:"shop" }),
-      openPantryAdd: () => this.setState({ sheet:"pantryAdd", pform:{ name:"", qty:"", unit:"g", loc:"cupboard" } }),
+      openPantryAdd: () => this.setState({ sheet:"pantryAdd", pform:{ name:"", qty:"", unit:"g", loc:"cupboard", expiresOn:"", mode:"manual" } }),
       openNewRecipe: () => this.setState({ push:{ type:"new" } }),
       goPlan: () => this.setState({ tab:"plan" }),
       replayOnboard: () => this.setState({ onboard:0, sheet:null })
@@ -1963,17 +1995,23 @@ class Component extends DCLogic {
     v.pform = s.pform;
     v.onPName = e => this.setState({ pform:{ ...s.pform, name:e.target.value } });
     v.onPQty = e => this.setState({ pform:{ ...s.pform, qty:e.target.value } });
+    v.onPExpiresOn = e => this.setState({ pform:{ ...s.pform, expiresOn:e.target.value } });
     v.unitOpts = [["g","g"], ["ml","ml"], ["ud", s.lang === "es" ? "uds" : "pcs"]].map(([id, label]) => ({ key:id, label, ...chip(s.pform.unit === id), onTap: () => this.setState({ pform:{ ...s.pform, unit:id } }) }));
     v.locOpts = locs.map(([id, label]) => ({ key:id, label, ...chip(s.pform.loc === id), onTap: () => this.setState({ pform:{ ...s.pform, loc:id } }) }));
+    v.pantryModeOpts = [["manual", t.addManual], ["barcode", t.addBarcode], ["photo", t.addPhotoMode]].map(([id, label]) => ({ key:id, label, ...chip((s.pform.mode || "manual") === id), onTap: () => this.setState({ pform:{ ...s.pform, mode:id } }) }));
+    v.pantryIsManual = (s.pform.mode || "manual") === "manual";
+    v.pantryIsBarcode = s.pform.mode === "barcode";
+    v.pantryIsPhoto = s.pform.mode === "photo";
     v.savePantry = () => {
       const f = s.pform;
       if (!f.name.trim()) return;
       this.setState({
-        pantry:[...s.pantry, { id:"p"+Math.random().toString(36).slice(2,7), n:{ es:f.name, en:f.name }, q: parseFloat(f.qty.replace(",", ".")) || 1, u:f.unit, loc:f.loc, exp: f.loc === "fridge" ? 5 : null }],
+        pantry:[...s.pantry, { id:"p"+Math.random().toString(36).slice(2,7), n:{ es:f.name, en:f.name }, q: parseFloat(f.qty.replace(",", ".")) || 1, u:f.unit, loc:f.loc, expOn: f.expiresOn || null }],
         sheet:null
       });
       this.toast(t.savedPantry);
     };
+    v.todayKey = new Date().toISOString().slice(0,10);
 
     const pt = s.pickerTarget;
     v.pickerSub = pt && pt.recipeId ? (s.lang === "es" ? "Elige el día y la comida." : "Pick the day and the meal.") : (s.lang === "es" ? "Recetas que puedes poner en este hueco." : "Recipes you can drop in this slot.");
