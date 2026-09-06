@@ -19,8 +19,6 @@ const PATHS = {
   sun: 'M12 3v2M12 19v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M3 12h2M19 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   clock: 'M12 9.5V13l2.5 1.5',
   edit: 'M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z',
-  camera: 'M9 4h6l1.5 2.5H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5a2 2 0 0 1 2-2h2.5Z',
-  barcode: 'M4 6v12M7 6v12M9.5 6v12M12 6v12M14.5 6v12M17 6v12M20 6v12',
 } as const;
 
 export type IconName = keyof typeof PATHS;
@@ -55,7 +53,6 @@ export function Icon({
       {name === 'key' && <circle cx="9" cy="9" r="4" />}
       {name === 'clock' && <circle cx="12" cy="13" r="8" />}
       {name === 'sun' && <circle cx="12" cy="12" r="3" />}
-      {name === 'camera' && <circle cx="12" cy="13" r="3.3" />}
       <path d={PATHS[name]} />
     </svg>
   );
