@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { createStoreDerivations } from '../domain/deriveStore';
 import { todayKey, slotForNow, resolveExpiry } from '../domain/dates';
-import { SENSITIVE_RE } from '../domain/recipeText';
+import { SENSITIVE_RE, defaultLocationFor, inferFoodGroup } from '../domain/recipeText';
 import { usePrefs } from '../store/prefs';
 import { StoreCtx, type RecipeDraft, type Store } from './storeContext';
 import type {
@@ -440,6 +440,7 @@ export function SupabaseDataProvider({
           name_es: name,
           name_en: name,
           default_unit: unit,
+          food_group: inferFoodGroup(name),
           is_sensitive: SENSITIVE_RE.test(name),
         })
         .select('id')
@@ -498,7 +499,7 @@ export function SupabaseDataProvider({
           ingredient_id: n.ingredientId,
           quantity: n.quantity,
           unit: n.unit,
-          location: n.group === 'fresco' ? 'fridge' : 'cupboard',
+          location: defaultLocationFor(n.group),
         }));
       if (!items.length) return;
       void supabase.rpc('buy_checked', { p_items: items }).then(({ error }) => {
