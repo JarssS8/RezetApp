@@ -48,6 +48,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'r1',
     name: { es: 'Lentejas con verduras', en: 'Lentils with vegetables' },
+    photoUrl: 'https://commons.wikimedia.org/wiki/Special:FilePath/Catalan_lentil_soup.JPG?width=800',
     description: { es: 'Guiso sencillo que aguanta toda la semana.', en: 'A simple stew that keeps all week.' },
     baseServings: 2,
     minutes: 35,
@@ -70,6 +71,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'r2',
     name: { es: 'Pollo al limón con arroz', en: 'Lemon chicken with rice' },
+    photoUrl: 'https://commons.wikimedia.org/wiki/Special:FilePath/Lemonchicken.jpg?width=800',
     description: { es: 'Cena rápida de sartén, lista en 25 minutos.', en: 'Quick pan dinner, ready in 25 minutes.' },
     baseServings: 2,
     minutes: 25,
@@ -92,6 +94,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'r3',
     name: { es: 'Ensalada de garbanzos', en: 'Chickpea salad' },
+    photoUrl: 'https://commons.wikimedia.org/wiki/Special:FilePath/Colorful_healthy_Chickpea_Salad_-_49859083608.jpg?width=800',
     description: { es: 'Fría, para llevar en tartera.', en: 'Cold, good for a lunchbox.' },
     baseServings: 2,
     minutes: 10,
@@ -113,6 +116,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'r4',
     name: { es: 'Salmón al horno', en: 'Baked salmon' },
+    photoUrl: 'https://commons.wikimedia.org/wiki/Special:FilePath/Grilled_Salmon_(14745629127).jpg?width=800',
     description: { es: 'Bandeja única con verduras de temporada.', en: 'One tray with seasonal vegetables.' },
     baseServings: 2,
     minutes: 30,
@@ -135,6 +139,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'r5',
     name: { es: 'Tortilla de patatas', en: 'Potato omelette' },
+    photoUrl: 'https://commons.wikimedia.org/wiki/Special:FilePath/Tortilla_de_patatas.jpg?width=800',
     description: { es: 'La de siempre, con cebolla.', en: 'The classic one, with onion.' },
     baseServings: 4,
     minutes: 40,
@@ -158,6 +163,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'r6',
     name: { es: 'Curry de garbanzos y espinacas', en: 'Chickpea and spinach curry' },
+    photoUrl: 'https://commons.wikimedia.org/wiki/Special:FilePath/Spinach-Chickpea_Curry_(3117324894).jpg?width=800',
     description: { es: 'Especiado, de una sola olla.', en: 'Spiced, one pot.' },
     baseServings: 3,
     minutes: 28,
@@ -180,6 +186,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'r7',
     name: { es: 'Pasta al pesto', en: 'Pesto pasta' },
+    photoUrl: 'https://commons.wikimedia.org/wiki/Special:FilePath/Pesto_pasta.jpg?width=800',
     description: { es: 'Quince minutos de principio a fin.', en: 'Fifteen minutes start to finish.' },
     baseServings: 2,
     minutes: 15,
@@ -201,6 +208,7 @@ export const RECIPES: Recipe[] = [
   {
     id: 'r8',
     name: { es: 'Yogur con avena y frutos rojos', en: 'Yogurt with oats and berries' },
+    photoUrl: 'https://commons.wikimedia.org/wiki/Special:FilePath/Yogurt_fruit_bowl.jpg?width=800',
     description: { es: 'Desayuno de dos minutos.', en: 'A two minute breakfast.' },
     baseServings: 1,
     minutes: 5,
