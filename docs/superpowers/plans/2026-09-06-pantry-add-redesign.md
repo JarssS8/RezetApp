@@ -1445,6 +1445,14 @@ export function PantryScanCapture({
   const [attempt, setAttempt] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
+  // Vive toda la vida del componente (no del efecto de escaneo, que se
+  // reinicia en cada `attempt`) — es la única señal de cancelación que le
+  // hace falta a captureFrameForGemini, una acción disparada por el
+  // usuario una vez, no algo que el efecto de escaneo reinicie.
+  const unmountedRef = useRef(false);
+  useEffect(() => () => {
+    unmountedRef.current = true;
+  }, []);
 
   const runLookup = useCallback(
     async (code: string, cancelledRef: { current: boolean }) => {
@@ -1492,7 +1500,6 @@ export function PantryScanCapture({
   const captureFrameForGemini = async () => {
     const video = videoRef.current;
     if (!video) return;
-    const cancelledRef = { current: false };
     setStatus('looking');
     controlsRef.current?.stop();
     try {
@@ -1514,7 +1521,7 @@ export function PantryScanCapture({
       const { data, error } = await supabase.functions.invoke('recognize-pantry-item', {
         body: { image, mimeType: 'image/jpeg' },
       });
-      if (cancelledRef.current) return;
+      if (unmountedRef.current) return;
       if (error) return setStatus('photoFailed');
       const recognized = mapGeminiRecognition(data);
       if (!recognized) return setStatus('photoFailed');
@@ -1525,7 +1532,7 @@ export function PantryScanCapture({
         expiresOn: recognized.expiresOn ?? undefined,
       });
     } catch {
-      if (!cancelledRef.current) setStatus('photoFailed');
+      if (!unmountedRef.current) setStatus('photoFailed');
     }
   };
 
@@ -1571,6 +1578,8 @@ export function PantryScanCapture({
   );
 }
 ```
+
+**Correction (post-Task-11-implementation).** The version of this code above has already been fixed once: an earlier draft gave `captureFrameForGemini` its own local `const cancelledRef = { current: false };`, disconnected from the mount effect's `cancelledRef` that actually flips to `true` on unmount — so the guard checks inside `captureFrameForGemini` could never fire, making them dead code. The implementer caught this by re-reading the code rather than deviating from the brief unilaterally, correctly implemented the (buggy) version as specified, and flagged it. Fixed by introducing a component-lifetime `unmountedRef` (a `useRef` flipped in a dedicated unmount-only effect, independent of the scanning effect that restarts on `attempt`), which `captureFrameForGemini` now checks instead — the code above already reflects this fix.
 
 - [ ] **Step 2: Delete the two superseded files**
 
