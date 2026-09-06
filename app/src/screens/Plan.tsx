@@ -19,6 +19,7 @@ export function Plan({
   onOpenShopping,
   onOpenRecipe,
   onPickForSlot,
+  onNewRecipe,
   onToast,
 }: {
   weekOffset: number;
@@ -26,6 +27,7 @@ export function Plan({
   onOpenShopping: () => void;
   onOpenRecipe: (recipeId: string, servings: number) => void;
   onPickForSlot: (date: string, slot: MealSlot) => void;
+  onNewRecipe: () => void;
   onToast: (message: string) => void;
 }) {
   const { t, locale, loc } = usePrefs();
@@ -69,44 +71,96 @@ export function Plan({
       />
 
       {/* Cajón de recetas arrastrables. */}
-      <div
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--line)',
-          borderRadius: radius.list,
-          padding: '12px 14px',
-          boxShadow: 'var(--shadow-s)',
-          marginBottom: 16,
-        }}
-      >
-        <Eyebrow style={{ fontSize: 12.5, marginBottom: 10 }}>{t.dragHint}</Eyebrow>
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
-          {recipes.slice(0, 8).map((r) => (
-            <div
-              key={r.id}
-              onPointerDown={start(r.id)}
-              style={{
-                flex: '0 0 auto',
-                height: 36,
-                padding: '0 14px',
-                borderRadius: radius.pill,
-                background: 'var(--soft)',
-                color: 'var(--accent-ink)',
-                fontSize: 14,
-                fontWeight: 600,
-                letterSpacing: '-.01em',
-                display: 'flex',
-                alignItems: 'center',
-                cursor: 'grab',
-                touchAction: 'none',
-                userSelect: 'none',
-              }}
-            >
-              {loc(r.name)}
-            </div>
-          ))}
+      {recipes.length > 0 ? (
+        <div
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--line)',
+            borderRadius: radius.list,
+            padding: '12px 14px',
+            boxShadow: 'var(--shadow-s)',
+            marginBottom: 16,
+          }}
+        >
+          <Eyebrow style={{ fontSize: 12.5, marginBottom: 10 }}>{t.dragHint}</Eyebrow>
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
+            {recipes.slice(0, 8).map((r) => (
+              <div
+                key={r.id}
+                onPointerDown={start(r.id)}
+                style={{
+                  flex: '0 0 auto',
+                  height: 36,
+                  padding: '0 14px',
+                  borderRadius: radius.pill,
+                  background: 'var(--soft)',
+                  color: 'var(--accent-ink)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  letterSpacing: '-.01em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  cursor: 'grab',
+                  touchAction: 'none',
+                  userSelect: 'none',
+                }}
+              >
+                {loc(r.name)}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--line)',
+            borderRadius: radius.list,
+            padding: '20px 16px',
+            boxShadow: 'var(--shadow-s)',
+            marginBottom: 18,
+            textAlign: 'center',
+          }}
+        >
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: radius.pill,
+              background: 'var(--soft)',
+              display: 'grid',
+              placeItems: 'center',
+              margin: '0 auto 12px',
+              color: 'var(--accent-ink)',
+            }}
+          >
+            <Icon name="book" size={22} strokeWidth={1.9} />
+          </div>
+          <div style={{ fontSize: 14.5, fontWeight: 650, letterSpacing: '-.015em' }}>{t.planDrawerEmpty}</div>
+          <div
+            style={{
+              marginTop: 5,
+              fontSize: 13,
+              color: 'var(--muted)',
+              lineHeight: 1.4,
+              maxWidth: 260,
+              margin: '5px auto 0',
+            }}
+          >
+            {t.planDrawerEmptyBody}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
+            <Button
+              size="header"
+              onClick={onNewRecipe}
+              icon={<Icon name="plus" size={14} strokeWidth={2.6} />}
+              style={{ height: 36, fontSize: 14 }}
+            >
+              {t.newRecipe}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div
         style={{

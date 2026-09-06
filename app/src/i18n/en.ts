@@ -79,7 +79,10 @@ export const en: Dictionary = {
 
   searchRecipes: 'Search recipes',
   newRecipe: 'New recipe',
+  noRecipesYet: 'No recipes yet',
+  noRecipesYetBody: 'Add your first recipe and start planning the week.',
   noResults: 'No results',
+  noResultsBody: 'Try another word or clear the active filters.',
   resetFilters: 'Clear filters',
   allTags: 'All',
   haveIngredients: 'I have these',
@@ -132,6 +135,9 @@ export const en: Dictionary = {
   thisWeek: 'This week',
   shoppingList: 'Shopping list',
   dragHint: 'Drag a recipe onto a slot',
+  planDrawerEmpty: 'No recipes to drag',
+  planDrawerEmptyBody: 'Create a recipe and it will show up here to add to the plan.',
+  pickerNoRecipesBody: 'Create your first recipe so you can add it to the plan.',
 
   searchPantry: 'Search the pantry',
   add: 'Add',

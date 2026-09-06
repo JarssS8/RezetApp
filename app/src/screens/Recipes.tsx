@@ -199,10 +199,80 @@ export function Recipes({
             );
           })}
         </div>
+      ) : recipes.length === 0 ? (
+        <div
+          style={{
+            background: 'var(--surface)',
+            border: '1px dashed var(--line)',
+            borderRadius: radius.hero,
+            padding: '44px 24px',
+            textAlign: 'center',
+          }}
+        >
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: radius.pill,
+              background: 'var(--soft)',
+              display: 'grid',
+              placeItems: 'center',
+              margin: '0 auto 16px',
+              color: 'var(--accent-ink)',
+            }}
+          >
+            <Icon name="book" size={28} strokeWidth={1.9} />
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 650, letterSpacing: '-.02em' }}>{t.noRecipesYet}</div>
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 14.5,
+              color: 'var(--muted)',
+              maxWidth: 280,
+              margin: '8px auto 0',
+              lineHeight: 1.5,
+              textWrap: 'pretty',
+            }}
+          >
+            {t.noRecipesYetBody}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
+            <Button size="header" onClick={onNewRecipe} icon={<Icon name="plus" size={16} strokeWidth={2.4} />}>
+              {t.newRecipe}
+            </Button>
+          </div>
+        </div>
       ) : (
-        <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+        <div style={{ padding: '52px 20px', textAlign: 'center' }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: radius.pill,
+              background: 'var(--surface2)',
+              display: 'grid',
+              placeItems: 'center',
+              margin: '0 auto 14px',
+              color: 'var(--muted)',
+            }}
+          >
+            <Icon name="search" size={24} strokeWidth={2} />
+          </div>
           <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-.02em' }}>{t.noResults}</div>
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 14,
+              color: 'var(--muted)',
+              maxWidth: 260,
+              margin: '8px auto 0',
+              lineHeight: 1.45,
+            }}
+          >
+            {t.noResultsBody}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
             <Button variant="secondary" size="header" onClick={reset}>
               {t.resetFilters}
             </Button>

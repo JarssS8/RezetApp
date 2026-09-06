@@ -5,6 +5,7 @@ import { SHOPPING_GROUP_ORDER } from '../domain/shopping';
 import { formatQuantity } from '../domain/units';
 import { Button } from '../ui/Button';
 import { CheckRow } from '../ui/CheckRow';
+import { Icon } from '../ui/Icon';
 import { Sheet } from '../ui/Sheet';
 import { radius } from '../ui/tokens';
 import type { FoodGroup } from '../types';
@@ -104,7 +105,21 @@ export function ShoppingSheet({
             </div>
           </>
         ) : (
-          <div style={{ padding: '36px 10px', textAlign: 'center' }}>
+          <div style={{ padding: '24px 10px', textAlign: 'center' }}>
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: radius.pill,
+                background: 'var(--soft)',
+                display: 'grid',
+                placeItems: 'center',
+                margin: '0 auto 14px',
+                color: 'var(--accent-ink)',
+              }}
+            >
+              <Icon name="check" size={24} strokeWidth={2.1} />
+            </div>
             <div style={{ fontSize: 17, fontWeight: 650, letterSpacing: '-.02em' }}>{t.shopEmpty}</div>
             <div style={{ marginTop: 8, fontSize: 14, color: 'var(--muted)', textWrap: 'pretty' }}>
               {t.shopEmptyBody}

@@ -218,6 +218,7 @@ function MainApp({
             onPickForSlot={(date: string, slot: MealSlot) =>
               setSheet({ kind: 'picker', target: { kind: 'slot', date, slot } })
             }
+            onNewRecipe={() => setPush({ kind: 'new' })}
             onToast={show}
           />
         )}
@@ -282,6 +283,10 @@ function MainApp({
           target={sheet.target}
           weekOffset={weekOffset}
           onClose={() => setSheet(null)}
+          onNewRecipe={() => {
+            setSheet(null);
+            setPush({ kind: 'new' });
+          }}
           onToast={show}
         />
       )}

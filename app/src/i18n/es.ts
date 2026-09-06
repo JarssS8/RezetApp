@@ -78,7 +78,10 @@ export const es = {
 
   searchRecipes: 'Buscar recetas',
   newRecipe: 'Nueva receta',
+  noRecipesYet: 'Aún no tienes recetas',
+  noRecipesYetBody: 'Añade tu primera receta y empieza a planificar la semana.',
   noResults: 'Sin resultados',
+  noResultsBody: 'Prueba con otra palabra o quita los filtros activos.',
   resetFilters: 'Quitar filtros',
   allTags: 'Todas',
   haveIngredients: 'Las tengo',
@@ -132,6 +135,9 @@ export const es = {
   thisWeek: 'Esta semana',
   shoppingList: 'Lista de la compra',
   dragHint: 'Arrastra una receta a un hueco',
+  planDrawerEmpty: 'Sin recetas para arrastrar',
+  planDrawerEmptyBody: 'Crea una receta y aparecerá aquí para añadirla al plan.',
+  pickerNoRecipesBody: 'Crea tu primera receta para poder añadirla al plan.',
 
   searchPantry: 'Buscar en la despensa',
   add: 'Añadir',

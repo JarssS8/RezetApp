@@ -107,6 +107,20 @@ export function Pantry({ onAdd }: { onAdd: () => void }) {
         </div>
       ) : (
         <Card dashed style={{ padding: '44px 24px', textAlign: 'center', borderRadius: radius.hero }}>
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: radius.pill,
+              background: 'var(--soft)',
+              display: 'grid',
+              placeItems: 'center',
+              margin: '0 auto 16px',
+              color: 'var(--accent-ink)',
+            }}
+          >
+            <Icon name="shelf" size={28} strokeWidth={1.9} />
+          </div>
           <div style={{ fontSize: 18, fontWeight: 650, letterSpacing: '-.02em' }}>{t.pantryEmpty}</div>
           <div
             style={{
