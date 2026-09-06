@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+:root{
+  --bg: oklch(0.982 0.005 120); --bg2: oklch(0.955 0.007 120); --surface:#ffffff; --surface2: oklch(0.968 0.006 120);
+  --text: oklch(0.235 0.012 150); --muted: oklch(0.53 0.012 150); --line: oklch(0.905 0.008 150);
+  --accent: oklch(0.54 0.105 156); --warn: oklch(0.545 0.13 62);
+  --shadow-s: 0 1px 2px rgba(30,40,30,.05); --shadow-m: 0 1px 2px rgba(30,40,30,.05), 0 8px 24px rgba(25,40,25,.07);
+  --soft: color-mix(in oklab, var(--accent) 15%, var(--bg)); --soft2: color-mix(in oklab, var(--accent) 26%, var(--bg));
+  --onaccent:#ffffff; --accent-ink: color-mix(in oklab, var(--accent) 85%, black); --warn-ink: color-mix(in oklab, var(--warn) 90%, black);
+}
+html,body{margin:0;padding:0;height:100%}
+body{background:var(--bg2);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}
+*{box-sizing:border-box}
+input{font:inherit;color:inherit}
+</style>
+</helmet>
+
+<div style="width:100%;height:100%;display:flex;gap:28px;align-items:flex-start;justify-content:center;padding:36px 24px">
+
+  <div style="width:280px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:var(--shadow-s)">
+    <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--warn-ink);margin-bottom:12px">Antes</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Caduca el (opcional)</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="height:34px;padding:0 14px;border-radius:13px;font-size:14px;font-weight:550;border:1px solid var(--line);background:var(--surface);display:flex;align-items:center">3 días</div>
+      <div style="height:34px;padding:0 14px;border-radius:13px;font-size:14px;font-weight:550;border:1px solid var(--soft2);background:var(--soft);color:var(--accent-ink);display:flex;align-items:center">Fecha</div>
+    </div>
+    <input type="date" value="2026-09-12" style="width:100%;height:46px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:16px;outline:none">
+    <div style="margin-top:14px;font-size:13px;color:var(--muted);line-height:1.5">Input nativo del sistema: rompe la marca, cambia de forma según el navegador/OS y no combina con nada del resto de la app.</div>
+  </div>
+
+  <div style="width:280px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:var(--shadow-s)">
+    <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:12px">Después</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Caduca el (opcional)</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="height:34px;padding:0 14px;border-radius:13px;font-size:14px;font-weight:550;border:1px solid var(--line);background:var(--surface);display:flex;align-items:center">3 días</div>
+      <div style="height:34px;padding:0 14px;border-radius:13px;font-size:14px;font-weight:550;border:1px solid var(--soft2);background:var(--soft);color:var(--accent-ink);display:flex;align-items:center">Fecha</div>
+    </div>
+    <div style="background:var(--surface2);border-radius:16px;padding:12px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:10px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">2026</div>
+          <div style="font-size:15px;font-weight:700;line-height:1.15">Septiembre</div>
+        </div>
+        <div style="width:22px;height:22px;border-radius:7px;background:var(--surface);display:grid;place-items:center">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 6l-6 6 6 6"/></svg>
+        </div>
+        <div style="width:22px;height:22px;border-radius:7px;background:var(--surface);display:grid;place-items:center">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 6l6 6-6 6"/></svg>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px">
+        <div style="text-align:center;font-size:8.5px;font-weight:650;text-transform:uppercase;color:var(--muted)">L</div>
+        <div style="text-align:center;font-size:8.5px;font-weight:650;text-transform:uppercase;color:var(--muted)">M</div>
+        <div style="text-align:center;font-size:8.5px;font-weight:650;text-transform:uppercase;color:var(--muted)">X</div>
+        <div style="text-align:center;font-size:8.5px;font-weight:650;text-transform:uppercase;color:var(--muted)">J</div>
+        <div style="text-align:center;font-size:8.5px;font-weight:650;text-transform:uppercase;color:var(--muted)">V</div>
+        <div style="text-align:center;font-size:8.5px;font-weight:650;text-transform:uppercase;color:var(--muted)">S</div>
+        <div style="text-align:center;font-size:8.5px;font-weight:650;text-transform:uppercase;color:var(--muted)">D</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
+        <div style="height:24px;display:grid;place-items:center;font-size:11px;color:var(--muted);opacity:.55">31</div>
+        <div style="height:24px;display:grid;place-items:center;font-size:11px">1</div>
+        <div style="height:24px;display:grid;place-items:center;font-size:11px">2</div>
+        <div style="height:24px;display:grid;place-items:center;font-size:11px">3</div>
+        <div style="height:24px;display:grid;place-items:center;font-size:11px">4</div>
+        <div style="height:24px;display:grid;place-items:center;font-size:11px">5</div>
+        <div style="height:24px;display:grid;place-items:center;font-size:11px">6</div>
+        <div style="height:24px;display:grid;place-items:center;font-size:11px">7</div>
+        <div style="height:24px;display:grid;place-items:center;font-size:11px">8</div>
+        <div style="height:24px;display:grid;place-items:center;font-size:11px">9</div>
+        <div style="height:24px;display:grid;place-items:center;font-size:11px">10</div>
+        <div style="height:24px;display:grid;place-items:center;font-size:11px">11</div>
+        <div style="height:24px;border-radius:8px;background:var(--accent);color:var(--onaccent);display:grid;place-items:center;font-size:11px;font-weight:700">12</div>
+        <div style="height:24px;display:grid;place-items:center;font-size:11px">13</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line)">
+        <div style="flex:1;font-size:10.5px;color:var(--muted)">12 de septiembre</div>
+        <div style="height:22px;padding:0 10px;border-radius:8px;background:var(--surface);font-size:10.5px;font-weight:600;display:flex;align-items:center">Hoy</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;font-size:13px;color:var(--muted);line-height:1.5">Nuestro <code>Calendar</code> real: mismos tokens, radios y tipografía que el resto del sheet — tocás un día y listo, sin salir del sheet.</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

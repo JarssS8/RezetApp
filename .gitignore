@@ -9,3 +9,7 @@ ds-bundle/
 .design-sync/.cache/
 .design-sync/learnings/
 .design-sync/node_modules
+
+# design canvas (seeded output — regenerate with seed-canvas.mjs from the .dc.html sources)
+.design-canvas/**/*.html
+!.design-canvas/**/*.dc.html

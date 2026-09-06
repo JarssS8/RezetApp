@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+:root{
+  --bg:        oklch(0.982 0.005 120);
+  --bg2:       oklch(0.955 0.007 120);
+  --surface:   #ffffff;
+  --surface2:  oklch(0.968 0.006 120);
+  --text:      oklch(0.235 0.012 150);
+  --muted:     oklch(0.53 0.012 150);
+  --line:      oklch(0.905 0.008 150);
+  --accent:    oklch(0.54 0.105 156);
+  --warn:      oklch(0.545 0.13 62);
+  --glass:     rgba(255,255,255,.72);
+  --shadow-s:  0 1px 2px rgba(30,40,30,.05);
+  --shadow-m:  0 1px 2px rgba(30,40,30,.05), 0 8px 24px rgba(25,40,25,.07);
+  --shadow-l:  0 2px 6px rgba(20,35,20,.08), 0 24px 60px rgba(20,35,20,.14);
+  --soft:      color-mix(in oklab, var(--accent) 15%, var(--bg));
+  --soft2:     color-mix(in oklab, var(--accent) 26%, var(--bg));
+  --onaccent:  #ffffff;
+  --accent-ink: color-mix(in oklab, var(--accent) 85%, black);
+  --warn-ink:   color-mix(in oklab, var(--warn) 90%, black);
+  --warnsoft:  color-mix(in oklab, var(--warn) 16%, var(--bg));
+  color-scheme: light;
+}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg2);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Helvetica Neue",Helvetica,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+input{font:inherit;color:inherit}
+a{color:var(--accent-ink);text-decoration:none}
+::placeholder{color:var(--muted);opacity:.8}
+@keyframes rise{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+
+<div style="width:100%;min-height:100%;display:flex;justify-content:center;align-items:flex-end;padding:0">
+  <div style="position:relative;width:100%;max-width:430px;background:var(--surface);border:1px solid var(--line);border-top-left-radius:26px;border-top-right-radius:26px;box-shadow:var(--shadow-l);display:flex;flex-direction:column;animation:rise .34s cubic-bezier(.2,.8,.2,1) both">
+
+    <div style="padding:12px 0 6px;display:grid;place-items:center">
+      <div style="width:40px;height:5px;border-radius:99px;background:var(--line)"></div>
+    </div>
+    <div style="padding:6px 20px 14px;display:flex;align-items:center;gap:12px">
+      <div style="flex:1;font-size:20px;font-weight:700;letter-spacing:-.024em">Añadir</div>
+      <div style="width:34px;height:34px;border-radius:99px;background:var(--surface2);display:grid;place-items:center;color:var(--muted)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </div>
+    </div>
+
+    <div style="padding:0 20px 28px;display:flex;flex-direction:column;gap:16px">
+
+      <button type="button" style="align-self:flex-start;font-size:14px;font-weight:600;color:var(--accent-ink)">Escanear otro</button>
+
+      <input value="Yogur natural" readonly style="width:100%;height:54px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:16.5px;font-weight:600;letter-spacing:-.018em;outline:none">
+
+      <div style="display:flex;gap:10px;align-items:center">
+        <input value="{{ quantityValue }}" onInput="{{ onQtyInput }}" inputmode="decimal" style="flex:1;height:46px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:0 14px;font-size:16.5px;outline:none;font-variant-numeric:tabular-nums">
+        <!-- Segmented control, no chips sueltos — mismo lenguaje que "Dónde está" para la misma interacción (elegir 1 de 3) -->
+        <div style="position:relative;display:flex;background:var(--surface2);border-radius:11px;padding:3px;width:150px">
+          <sc-for list="{{unitOptions}}" as="u" hint-placeholder-count="3">
+            <button type="button" onClick="{{ u.pick }}" style="position:relative;flex:1;height:26px;border-radius:8px;font-size:12.5px;font-weight:600;z-index:1;color:{{ u.color }}">{{ u.label }}</button>
+          </sc-for>
+          <div style="position:absolute;top:3px;bottom:3px;width:calc(33.333% - 2px);left:{{ unitPillLeft }};background:var(--surface);border-radius:8px;box-shadow:var(--shadow-s);transition:left .2s cubic-bezier(.2,.8,.2,1)"></div>
+        </div>
+      </div>
+
+      <!-- Grouped card: Location + Expiry live together, Apple grouped-list style, instead of two loose flat sections -->
+      <div style="background:var(--surface2);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:14px">
+
+        <div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Dónde está</div>
+          <div style="position:relative;display:flex;background:var(--bg2);border-radius:13px;padding:3px">
+            <sc-for list="{{locations}}" as="loc" hint-placeholder-count="3">
+              <button type="button" onClick="{{ loc.pick }}" style="position:relative;flex:1;height:38px;border-radius:10px;font-size:14px;font-weight:600;z-index:1;color:{{ loc.color }}">{{ loc.label }}</button>
+            </sc-for>
+            <div style="position:absolute;top:3px;bottom:3px;width:calc(33.333% - 2px);left:{{ locPillLeft }};background:var(--surface);border-radius:10px;box-shadow:var(--shadow-s);transition:left .2s cubic-bezier(.2,.8,.2,1)"></div>
+          </div>
+        </div>
+
+        <div style="height:1px;background:var(--line)"></div>
+
+        <div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Caduca el (opcional)</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <sc-for list="{{expiryOptions}}" as="opt" hint-placeholder-count="4">
+              <button type="button" onClick="{{ opt.pick }}" style="height:34px;padding:0 14px;border-radius:13px;font-size:14px;font-weight:550;border:1px solid {{ opt.border }};background:{{ opt.bg }};color:{{ opt.color }}">{{ opt.label }}</button>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ showCalendar }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:14px 14px 10px">
+
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:11.5px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">{{ calYear }}</div>
+                  <div style="font-size:18px;font-weight:700;text-transform:capitalize;line-height:1.2">{{ calMonth }}</div>
+                </div>
+                <button type="button" onClick="{{ calPrev }}" aria-label="Mes anterior" style="width:30px;height:30px;border-radius:10px;background:var(--surface2);display:grid;place-items:center">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 6l-6 6 6 6"/></svg>
+                </button>
+                <button type="button" onClick="{{ calNext }}" aria-label="Mes siguiente" style="width:30px;height:30px;border-radius:10px;background:var(--surface2);display:grid;place-items:center">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 6l6 6-6 6"/></svg>
+                </button>
+              </div>
+
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
+                <sc-for list="{{weekdays}}" as="wd" hint-placeholder-count="7">
+                  <div style="text-align:center;font-size:10px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:3px 0">{{ wd }}</div>
+                </sc-for>
+              </div>
+
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
+                <sc-for list="{{calCells}}" as="c" hint-placeholder-count="35">
+                  <button type="button" onClick="{{ c.onClick }}" style="position:relative;height:38px;border-radius:12px;display:grid;place-items:center;background:{{ c.cellBg }}">
+                    <span style="position:relative;font-size:13.5px;font-weight:{{ c.weight }};color:{{ c.color }}">{{ c.label }}</span>
+                  </button>
+                </sc-for>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:11px;border-top:1px solid var(--line)">
+                <div style="flex:1;min-width:0;font-size:12.5px;color:var(--muted)">{{ calSelectedLabel }}</div>
+                <button type="button" onClick="{{ calGoToday }}" style="height:32px;padding:0 14px;border-radius:12px;background:var(--surface2);font-size:13px;font-weight:600">Hoy</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <button type="button" style="width:100%;height:52px;border-radius:16px;background:var(--accent);color:var(--onaccent);font-size:16px;font-weight:650;letter-spacing:-.015em">Añadir</button>
+
+      <div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 2px">
+          <div style="font-size:14.5px">Leche entera <span style="color:var(--muted)">· 1 l</span></div>
+          <button type="button" style="font-size:13.5px;font-weight:600;color:var(--warn-ink)">Deshacer</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const MONTHS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const WD = ['L','M','X','J','V','S','D'];
+const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+const LOCS = [
+  { value: 'cupboard', label: 'Armario' },
+  { value: 'fridge', label: 'Nevera' },
+  { value: 'freezer', label: 'Congelador' },
+];
+const EXPIRY = [
+  { value: '3d', label: '3 días' },
+  { value: '1w', label: '1 semana' },
+  { value: '1m', label: '1 mes' },
+  { value: 'date', label: 'Elegir fecha' },
+];
+const UNITS = [
+  { value: 'g', label: 'g' },
+  { value: 'ml', label: 'ml' },
+  { value: 'ud', label: 'uds' },
+];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const t = new Date();
+    this.state = {
+      location: 'fridge',
+      unit: 'ud',
+      quantityValue: '4',
+      expiry: 'date',
+      calView: { y: t.getFullYear(), m: t.getMonth() },
+      calSelected: iso(t.getFullYear(), t.getMonth(), t.getDate() + 4),
+    };
+  }
+  shiftMonth(n) {
+    this.setState((s) => {
+      const d = new Date(s.calView.y, s.calView.m + n, 1);
+      return { calView: { y: d.getFullYear(), m: d.getMonth() } };
+    });
+  }
+  renderVals() {
+    const today = new Date();
+    const todayIso = iso(today.getFullYear(), today.getMonth(), today.getDate());
+
+    const locIdx = LOCS.findIndex((l) => l.value === this.state.location);
+    const locations = LOCS.map((l) => ({
+      label: l.label,
+      color: l.value === this.state.location ? 'var(--text)' : 'var(--muted)',
+      pick: () => this.setState({ location: l.value }),
+    }));
+
+    const unitIdx = UNITS.findIndex((u) => u.value === this.state.unit);
+    const unitOptions = UNITS.map((u) => ({
+      label: u.label,
+      color: u.value === this.state.unit ? 'var(--text)' : 'var(--muted)',
+      pick: () => this.setState({ unit: u.value }),
+    }));
+
+    const expiryOptions = EXPIRY.map((e) => {
+      const active = this.state.expiry === e.value;
+      return {
+        label: e.label,
+        bg: active ? 'var(--soft)' : 'var(--surface)',
+        border: active ? 'var(--soft2)' : 'var(--line)',
+        color: active ? 'var(--accent-ink)' : 'var(--text)',
+        pick: () => this.setState({ expiry: this.state.expiry === e.value ? null : e.value }),
+      };
+    });
+
+    const { y, m } = this.state.calView;
+    const first = new Date(y, m, 1).getDay();
+    const lead = (first + 6) % 7;
+    const daysIn = new Date(y, m + 1, 0).getDate();
+    const total = Math.ceil((lead + daysIn) / 7) * 7;
+    const calCells = [];
+    for (let i = 0; i < total; i++) {
+      const dayNum = i - lead + 1;
+      const outside = dayNum < 1 || dayNum > daysIn;
+      const date = new Date(y, m, dayNum);
+      const key = iso(date.getFullYear(), date.getMonth(), date.getDate());
+      const isSel = !outside && key === this.state.calSelected;
+      const isToday = key === todayIso;
+      calCells.push({
+        label: outside ? '' : date.getDate(),
+        cellBg: isSel ? 'var(--accent)' : (!isSel && isToday ? 'var(--soft)' : 'transparent'),
+        color: isSel ? 'var(--onaccent)' : (isToday ? 'var(--accent-ink)' : outside ? 'var(--muted)' : 'var(--text)'),
+        weight: isSel || isToday ? 700 : 500,
+        onClick: outside ? undefined : () => this.setState({ calSelected: key }),
+      });
+    }
+    const sel = this.state.calSelected.split('-').map(Number);
+
+    return {
+      locations,
+      locPillLeft: `calc(${locIdx} * 33.333% + 3px)`,
+      unitOptions,
+      unitPillLeft: `calc(${unitIdx} * 33.333% + 3px)`,
+      quantityValue: this.state.quantityValue,
+      onQtyInput: (e) => this.setState({ quantityValue: e.target.value }),
+      expiryOptions,
+      showCalendar: this.state.expiry === 'date',
+      weekdays: WD,
+      calCells,
+      calYear: String(y),
+      calMonth: MONTHS[m],
+      calSelectedLabel: `${sel[2]} de ${MONTHS[sel[1] - 1]} de ${sel[0]}`,
+      calPrev: () => this.shiftMonth(-1),
+      calNext: () => this.shiftMonth(1),
+      calGoToday: () => this.setState({ calView: { y: today.getFullYear(), m: today.getMonth() }, calSelected: todayIso }),
+    };
+  }
+}
+</script>
+</body>
+</html>
