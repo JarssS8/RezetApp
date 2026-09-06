@@ -1272,9 +1272,26 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
  * antes de tocarlo — esta función no valida más allá de "es JSON".
  *
  * Requiere sesión válida (a diferencia de `send-timer-notifications`, que
- * es cron-only): la llama directamente un usuario logueado.
+ * es cron-only): la llama directamente un usuario logueado, desde el
+ * navegador (`supabase.functions.invoke`) — a diferencia de esa función
+ * cron-only, esta SÍ necesita cabeceras CORS: el navegador manda un
+ * preflight `OPTIONS` antes del POST real con `Authorization`/`Content-Type`,
+ * y sin responder ese preflight con las cabeceras correctas el navegador
+ * bloquea la petición real antes de que la lógica de esta función importe.
  */
 const GEMINI_MODEL = "gemini-2.0-flash";
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+  });
+}
 
 const PROMPT = `Analiza la foto de un producto de alimentación y devuelve SOLO un JSON con esta forma exacta, sin texto adicional ni backticks:
 {"name": string | null, "quantity": number | null, "unit": "g" | "ml" | "ud" | null, "expiresOn": string | null}
@@ -1284,9 +1301,13 @@ const PROMPT = `Analiza la foto de un producto de alimentación y devuelve SOLO 
 Si no reconoces el producto, devuelve todos los campos como null.`;
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS_HEADERS });
+  }
+
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+    return json({ error: "unauthorized" }, 401);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -1296,17 +1317,17 @@ Deno.serve(async (req) => {
   });
   const { data: userData, error: userError } = await callerClient.auth.getUser();
   if (userError || !userData.user) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+    return json({ error: "unauthorized" }, 401);
   }
 
   let body: { image?: string; mimeType?: string };
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "invalid body" }), { status: 400 });
+    return json({ error: "invalid body" }, 400);
   }
   if (!body.image || !body.mimeType) {
-    return new Response(JSON.stringify({ error: "missing image or mimeType" }), { status: 400 });
+    return json({ error: "missing image or mimeType" }, 400);
   }
 
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -1316,7 +1337,7 @@ Deno.serve(async (req) => {
     .select("value")
     .eq("key", "GEMINI_API_KEY");
   if (secretError || !secretRows?.[0]) {
-    return new Response(JSON.stringify({ error: "missing GEMINI_API_KEY secret" }), { status: 500 });
+    return json({ error: "missing GEMINI_API_KEY secret" }, 500);
   }
   const geminiKey = secretRows[0].value as string;
 
@@ -1336,25 +1357,27 @@ Deno.serve(async (req) => {
     },
   );
   if (!geminiRes.ok) {
-    return new Response(JSON.stringify({ error: "gemini request failed" }), { status: 502 });
+    return json({ error: "gemini request failed" }, 502);
   }
 
   const geminiJson = await geminiRes.json();
   const text = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
   if (typeof text !== "string") {
-    return new Response(JSON.stringify({ error: "empty gemini response" }), { status: 502 });
+    return json({ error: "empty gemini response" }, 502);
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
-    return new Response(JSON.stringify({ error: "gemini returned invalid json" }), { status: 502 });
+    return json({ error: "gemini returned invalid json" }, 502);
   }
 
-  return new Response(JSON.stringify(parsed), { headers: { "Content-Type": "application/json" } });
+  return json(parsed);
 });
 ```
+
+**Correction (post-Task-9-review):** the code above adds `CORS_HEADERS` and an `OPTIONS` early-return, and every response (including every error path) now goes through a `json()` helper that attaches those headers. The original version of this brief had no CORS handling at all — `send-timer-notifications` (this function's stated model) never needed it because it's cron-invoked server-to-server, never called from a browser. This function IS called from the browser (`supabase.functions.invoke` in Task 10), so without this, the browser's CORS preflight would block the real request regardless of the function's own auth logic being correct — caught in Task 9's review, before Task 10 (which actually exercises this from a browser) was ever dispatched.
 
 - [ ] **Step 2: Deploy the function**
 
