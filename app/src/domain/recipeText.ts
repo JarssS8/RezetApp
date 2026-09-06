@@ -1,7 +1,28 @@
-import type { Ingredient, Locale, Recipe, Unit } from '../types';
+import type { FoodGroup, Ingredient, Locale, PantryLoc, Recipe, Unit } from '../types';
 
 /** Detección de ingrediente sensible por nombre (no escala linealmente). */
 export const SENSITIVE_RE = /sal|salt|especia|spice|pimienta|pepper|levadura|yeast|curry/i;
+
+/** Coincidencia exacta (insensible a mayúsculas) por nombre ES o EN — no sustituye a las sugerencias de IngredientNameField, que buscan por subcadena. */
+export function findIngredientByName(list: Ingredient[], name: string): Ingredient | undefined {
+  const q = name.trim().toLowerCase();
+  return list.find((i) => i.name.es.toLowerCase() === q || i.name.en.toLowerCase() === q);
+}
+
+const FRESH_RE = /leche|milk|yogur|yogurt|carne|meat|pollo|chicken|pescado|fish|marisco|seafood|huevo|egg|queso|cheese|fruta|fruit|verdura|vegetable|ensalada|salad|nata|cream|mantequilla|butter|tofu/i;
+const TINNED_RE = /\b(lata|conserva|bote|enlatad\w*|tinned?|canned?|jarred?)\b/i;
+
+/** Adivina el grupo de un ingrediente nuevo por su nombre — mismo criterio que SENSITIVE_RE: heurística barata, bilingüe, el usuario corrige si hace falta. */
+export function inferFoodGroup(name: string): FoodGroup {
+  if (FRESH_RE.test(name)) return 'fresco';
+  if (TINNED_RE.test(name)) return 'conserva';
+  return 'seco';
+}
+
+/** fresco → nevera, seco/conserva → armario. Única fuente de esta regla — antes vivía duplicada en store.tsx, supabaseStore.tsx (dos veces) y esta hoja. */
+export function defaultLocationFor(group: FoodGroup): PantryLoc {
+  return group === 'fresco' ? 'fridge' : 'cupboard';
+}
 
 const escape = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { scaleQuantity } from '../scaling';
 import { isCovered } from '../coverage';
 import { formatQuantity, roundNice } from '../units';
-import { parseIngredientLines, textMentions } from '../recipeText';
+import { defaultLocationFor, findIngredientByName, inferFoodGroup, parseIngredientLines, textMentions } from '../recipeText';
 import { shoppingNeeds } from '../shopping';
 import type { Ingredient, PantryItem, PlanEntry, Recipe } from '../../types';
 
@@ -118,5 +118,56 @@ describe('lista de la compra', () => {
       { id: 'p1', date: '2026-02-01', slot: 'lunch', recipeId: 'r1', servings: 2, cooked: false },
     ];
     expect(shoppingNeeds({ ...base, plan, pantry: [] })).toHaveLength(0);
+  });
+});
+
+describe('findIngredientByName', () => {
+  const list: Ingredient[] = [
+    { id: 'i1', name: { es: 'Leche', en: 'Milk' }, group: 'fresco', sensitive: false, defaultUnit: 'ml' },
+    { id: 'i2', name: { es: 'Lentejas', en: 'Lentils' }, group: 'seco', sensitive: false, defaultUnit: 'g' },
+  ];
+  it('encuentra por nombre en español, sin distinguir mayúsculas', () => {
+    expect(findIngredientByName(list, 'leche')?.id).toBe('i1');
+  });
+  it('encuentra por nombre en inglés', () => {
+    expect(findIngredientByName(list, 'Milk')?.id).toBe('i1');
+  });
+  it('no hace coincidencia parcial ("le" no debe encontrar "Leche")', () => {
+    expect(findIngredientByName(list, 'le')).toBeUndefined();
+  });
+  it('undefined si no hay coincidencia exacta', () => {
+    expect(findIngredientByName(list, 'Arroz')).toBeUndefined();
+  });
+});
+
+describe('inferFoodGroup', () => {
+  it('reconoce fresco en español', () => {
+    expect(inferFoodGroup('Leche')).toBe('fresco');
+    expect(inferFoodGroup('Yogur natural')).toBe('fresco');
+  });
+  it('reconoce fresco en inglés (bilingüe, igual que SENSITIVE_RE)', () => {
+    expect(inferFoodGroup('Milk')).toBe('fresco');
+    expect(inferFoodGroup('Chicken breast')).toBe('fresco');
+  });
+  it('reconoce conserva en español e inglés', () => {
+    expect(inferFoodGroup('Lata de tomate')).toBe('conserva');
+    expect(inferFoodGroup('Canned beans')).toBe('conserva');
+  });
+  it('no confunde "botella" con "bote" (límite de palabra)', () => {
+    expect(inferFoodGroup('Botella de agua')).toBe('seco');
+  });
+  it('cae a seco por defecto', () => {
+    expect(inferFoodGroup('Arroz')).toBe('seco');
+    expect(inferFoodGroup('Pasta')).toBe('seco');
+  });
+});
+
+describe('defaultLocationFor', () => {
+  it('fresco va a nevera', () => {
+    expect(defaultLocationFor('fresco')).toBe('fridge');
+  });
+  it('seco y conserva van a armario', () => {
+    expect(defaultLocationFor('seco')).toBe('cupboard');
+    expect(defaultLocationFor('conserva')).toBe('cupboard');
   });
 });
