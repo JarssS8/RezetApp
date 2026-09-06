@@ -274,7 +274,7 @@ function MainApp({
       )}
 
       {sheet?.kind === 'pantryAdd' && (
-        <PantryAddSheet onClose={() => setSheet(null)} onToast={show} />
+        <PantryAddSheet onClose={() => setSheet(null)} onToast={show} allowPhoto={!demo} />
       )}
 
       {sheet?.kind === 'picker' && (

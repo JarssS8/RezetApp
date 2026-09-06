@@ -9,14 +9,17 @@ import { Sheet } from '../ui/Sheet';
 import { radius } from '../ui/tokens';
 import { todayKey } from '../domain/dates';
 import { PantryBarcodeCapture } from './PantryBarcodeCapture';
+import { PantryPhotoCapture } from './PantryPhotoCapture';
 import type { PantryLoc, Unit } from '../types';
 
 export function PantryAddSheet({
   onClose,
   onToast,
+  allowPhoto = false,
 }: {
   onClose: () => void;
   onToast: (message: string) => void;
+  allowPhoto?: boolean;
 }) {
   const { t, locale, loc } = usePrefs();
   const { pantryAdd, ingredients } = useData();
@@ -25,7 +28,7 @@ export function PantryAddSheet({
   const [unit, setUnit] = useState<Unit>('g');
   const [location, setLocation] = useState<PantryLoc>('cupboard');
   const [expiresOn, setExpiresOn] = useState('');
-  const [mode, setMode] = useState<'manual' | 'barcode'>('manual');
+  const [mode, setMode] = useState<'manual' | 'barcode' | 'photo'>('manual');
 
   const unitOptions: Array<[Unit, string]> = [
     ['g', 'g'],
@@ -51,10 +54,11 @@ export function PantryAddSheet({
     onToast(t.savedPantry);
   };
 
-  const applyPrefill = (item: { name: string; quantity: number; unit: Unit }) => {
+  const applyPrefill = (item: { name: string; quantity?: number; unit?: Unit; expiresOn?: string }) => {
     setName(item.name);
-    setQuantity(String(item.quantity));
-    setUnit(item.unit);
+    if (item.quantity != null) setQuantity(String(item.quantity));
+    if (item.unit) setUnit(item.unit);
+    if (item.expiresOn) setExpiresOn(item.expiresOn);
     setMode('manual');
   };
 
@@ -63,6 +67,9 @@ export function PantryAddSheet({
       <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
         <OptionChip label={t.addManual} active={mode === 'manual'} onClick={() => setMode('manual')} />
         <OptionChip label={t.addBarcode} active={mode === 'barcode'} onClick={() => setMode('barcode')} />
+        {allowPhoto && (
+          <OptionChip label={t.addPhotoMode} active={mode === 'photo'} onClick={() => setMode('photo')} />
+        )}
       </div>
       {mode === 'manual' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 6 }}>
@@ -108,6 +115,9 @@ export function PantryAddSheet({
       )}
       {mode === 'barcode' && (
         <PantryBarcodeCapture onResult={applyPrefill} onCancel={() => setMode('manual')} />
+      )}
+      {mode === 'photo' && allowPhoto && (
+        <PantryPhotoCapture onResult={applyPrefill} onCancel={() => setMode('manual')} />
       )}
     </Sheet>
   );
