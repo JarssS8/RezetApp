@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
 import { SLOT_ORDER, longDate, todayKey } from '../domain/dates';
 import { entriesOfDay } from '../domain/shopping';
 import { formatKcal } from '../domain/units';
+import { prefersReducedMotion } from '../motion/motion';
 import { Button, IconButton } from '../ui/Button';
 import { Card, Eyebrow, SectionHeader } from '../ui/Card';
 import { Pill } from '../ui/Chip';
@@ -47,6 +48,14 @@ export function Today({
   }, [entries, recipeById]);
 
   const pct = kcalTarget > 0 ? Math.min(1, done / kcalTarget) : 0;
+
+  // Se inicia en 0 para que el anillo siempre haga el relleno al entrar en
+  // la pantalla (Today se desmonta/monta entero al cambiar de pestaña, así
+  // que un valor de partida ya correcto nunca tendría nada que animar).
+  const [animatedPct, setAnimatedPct] = useState(() => (prefersReducedMotion() ? pct : 0));
+  useEffect(() => {
+    setAnimatedPct(pct);
+  }, [pct]);
 
   const groups = useMemo(() => {
     return SLOT_ORDER.map((slot) => ({
@@ -104,7 +113,7 @@ export function Today({
               strokeWidth={9}
               strokeLinecap="round"
               strokeDasharray={RING_CIRCUMFERENCE}
-              strokeDashoffset={RING_CIRCUMFERENCE * (1 - pct)}
+              strokeDashoffset={RING_CIRCUMFERENCE * (1 - animatedPct)}
               style={{ transition: 'stroke-dashoffset .7s cubic-bezier(.2,.7,.2,1)' }}
             />
           </svg>
