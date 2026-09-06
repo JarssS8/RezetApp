@@ -272,13 +272,13 @@ export function RecipeForm({
                     ariaLabel={t.removeIngredient}
                     scale={0.9}
                     style={{
-                      width: 36,
-                      height: 36,
-                      flex: '0 0 36px',
+                      width: 44,
+                      height: 44,
+                      flex: '0 0 44px',
                       borderRadius: radius.pill,
                       display: 'grid',
                       placeItems: 'center',
-                      color: 'var(--muted)',
+                      color: 'var(--warn-ink)',
                     }}
                   >
                     <Icon name="close" size={14} strokeWidth={2.4} />
@@ -380,55 +380,66 @@ export function RecipeForm({
                     style={{ height: 40, width: 160, fontSize: 14, ...tabular }}
                   />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <Pressable
-                    onClick={() => moveStep(index, -1)}
-                    disabled={index === 0}
-                    ariaLabel={t.moveStepUp}
-                    scale={0.9}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                  <div
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 9,
-                      display: 'grid',
-                      placeItems: 'center',
-                      color: 'var(--muted)',
-                      opacity: index === 0 ? 0.35 : 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 2,
+                      background: 'var(--surface2)',
+                      borderRadius: radius.stepper,
+                      padding: 3,
                     }}
                   >
-                    <Icon name="chevronUp" size={15} />
-                  </Pressable>
-                  <Pressable
-                    onClick={() => moveStep(index, 1)}
-                    disabled={index === draft.steps.length - 1}
-                    ariaLabel={t.moveStepDown}
-                    scale={0.9}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 9,
-                      display: 'grid',
-                      placeItems: 'center',
-                      color: 'var(--muted)',
-                      opacity: index === draft.steps.length - 1 ? 0.35 : 1,
-                    }}
-                  >
-                    <Icon name="chevronDown" size={15} />
-                  </Pressable>
+                    <Pressable
+                      onClick={() => moveStep(index, -1)}
+                      disabled={index === 0}
+                      ariaLabel={t.moveStepUp}
+                      scale={0.9}
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 9,
+                        display: 'grid',
+                        placeItems: 'center',
+                        color: 'var(--muted)',
+                        opacity: index === 0 ? 0.35 : 1,
+                      }}
+                    >
+                      <Icon name="chevronUp" size={15} />
+                    </Pressable>
+                    <Pressable
+                      onClick={() => moveStep(index, 1)}
+                      disabled={index === draft.steps.length - 1}
+                      ariaLabel={t.moveStepDown}
+                      scale={0.9}
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 9,
+                        display: 'grid',
+                        placeItems: 'center',
+                        color: 'var(--muted)',
+                        opacity: index === draft.steps.length - 1 ? 0.35 : 1,
+                      }}
+                    >
+                      <Icon name="chevronDown" size={15} />
+                    </Pressable>
+                  </div>
                   <Pressable
                     onClick={() => removeStepRow(index)}
                     ariaLabel={t.removeStep}
                     scale={0.9}
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 9,
+                      width: 40,
+                      height: 40,
+                      borderRadius: radius.pill,
                       display: 'grid',
                       placeItems: 'center',
-                      color: 'var(--muted)',
+                      color: 'var(--warn-ink)',
                     }}
                   >
-                    <Icon name="close" size={13} strokeWidth={2.4} />
+                    <Icon name="close" size={14} strokeWidth={2.4} />
                   </Pressable>
                 </div>
               </div>

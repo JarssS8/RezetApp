@@ -80,6 +80,16 @@ a{color:var(--accent-ink);text-decoration:none}
 a:hover{color:color-mix(in oklab, var(--accent-ink) 75%, var(--text))}
 ::placeholder{color:var(--muted);opacity:.8}
 
+/* Anillo de foco: README §8 lo marca como carencia real del prototipo.
+   :focus-visible ya distingue teclado de ratón en los navegadores actuales,
+   así que no hace falta ningún JS para esto. */
+:focus{outline:none}
+:focus-visible{
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
 /* Animaciones de entrada */
 @keyframes fadein  {from{opacity:0}to{opacity:1}}
 @keyframes rise    {from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}

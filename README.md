@@ -343,28 +343,30 @@ Cuerpo `max-width: 620px`, padding `18px 20px 40px`:
 
 ### 4.6 Nueva receta
 
-**Tres campos visibles. Nada más.** El resto va detrás de "Más detalles".
+**Tres campos visibles primero.** El resto va detrás de "Más detalles". Ingredientes y pasos son listas de filas estructuradas — no un `textarea` libre parseado por regex; ver nota al final de esta sección.
 
 Cabecera pegajosa translúcida: "Cancelar" a la izquierda, "Nueva receta" centrado, "Guardar" a la derecha. **"Guardar" está apagado** (`var(--surface2)` / `var(--muted)`) mientras el nombre esté vacío, y pasa a acento cuando hay nombre. Al pulsarlo sin nombre: toast "Ponle un nombre a la receta".
 
 1. Nombre: input **sin caja**, 27px/700/−0.03em, placeholder "Nombre de la receta". Debajo, regla de 1px.
 2. Descripción: input sin caja, 16px, placeholder "Una línea que la describa".
-3. Ingredientes: eyebrow + `textarea` de 6 filas, radio 16px, `line-height: 1.7`, placeholder `300 g lentejas ⏎ 1 cebolla ⏎ 2 g sal`. Debajo, contador vivo 13px muted: `N ingredientes reconocidos`, o la ayuda "Uno por línea: cantidad, unidad y nombre." cuando está vacío.
-4. Pasos: `textarea` de 6 filas, placeholder "Un paso por línea. / Sofríe la cebolla 5 min."
-5. **"Más detalles"** — bloque colapsable radio 18px con `+` / `–` a la derecha. Dentro: raciones base (stepper), Minutos y kcal/ración (dos inputs de 44px lado a lado), dificultad (3 chips: Fácil/Media/Difícil) y etiquetas (chips múltiples).
+3. **Ingredientes** — eyebrow + lista de tarjetas (`var(--surface)`, borde `var(--line)`, radio 16px, `--shadow-s`), una por ingrediente:
+   - Fila superior: campo de nombre con autocompletado (`IngredientNameField`, 44px) + botón de quitar circular de **44px**, siempre en `var(--warn-ink)` (no solo en `:hover` — en touch no hay hover, y un aviso que solo aparece con el ratón es invisible en móvil).
+   - Fila inferior: cantidad (input de 44px, ancho 96px, `inputMode="decimal"`) + control segmentado de unidad (`g` / `ml` / `ud` / `cda`, 44px cada chip, seleccionada en `var(--soft)` / `var(--accent-ink)`).
+   - Debajo de la lista: botón de borde discontinuo "Añadir ingrediente", 44px, ancho completo.
+4. **Pasos** — misma tarjeta, una por paso: número de paso (círculo `--soft`/`--accent-ink`, 24px) + `textarea` de 2 filas + campo explícito de minutos de temporizador (40px, `inputMode="numeric"`, ya no se infiere del texto). A la derecha, columna de acciones:
+   - Subir/bajar orden agrupados en una píldora `var(--surface2)` (mismo patrón visual que el Stepper de raciones), 36px cada botón.
+   - Separado con ~10px de aire, un botón de borrar de **40px**, también permanente en `var(--warn-ink)`.
+   - Debajo de la lista: botón de borde discontinuo "Añadir paso", 44px, ancho completo.
+5. **"Más detalles"** — bloque colapsable radio 18px con `+` / `–` a la derecha. Dentro: raciones base (stepper), Minutos y kcal/ración (dos inputs de 44px lado a lado), dificultad (3 chips: Fácil/Media/Difícil), foto del plato (solo cuentas reales, sube a `recipe-photos` en Storage) y etiquetas — chips existentes seleccionables **más** un campo de texto libre con botón "Añadir" para etiquetas nuevas.
 
-**Parsing de ingredientes** (una línea = un ingrediente):
-```
-/^([\d.,]+)\s*(g|kg|ml|l|ud|uds|pcs)?\s+(.*)$/i
-```
-`kg → g ×1000`, `l → ml ×1000`, `uds|pcs → ud`, unidad ausente → `ud`. Si no hay coincidencia: cantidad 1, unidad `ud`, todo el texto como nombre.
-**Detección de ingrediente sensible** (no escala linealmente):
+**Detección de ingrediente sensible** (no escala linealmente), aplicada al nombre tal cual se escribe en el campo, no a una línea parseada:
 ```
 /sal|salt|especia|spice|pimienta|pepper|levadura|yeast|curry/i
 ```
-**Parsing de pasos:** separa por líneas en blanco o saltos; si el texto contiene `N min|minutos|minutes`, ese paso obtiene temporizador de N minutos.
 
 Valores por defecto al guardar: minutos 20, kcal 450, dificultad `easy`, raciones 2.
+
+> **Nota de implementación (2026-09):** esta pantalla se construyó primero como un `textarea` único por sección con parseo por regex (una línea = un ingrediente o paso) — ese diseño sigue siendo el que dibuja `RezetApp.dc.html`, pero **la pantalla real ya no lo usa**: se sustituyó por las filas estructuradas de arriba, que evitan errores de formato y permiten autocompletar el nombre del ingrediente. `parseIngredientLines`/`parseStepLines` (las funciones que hacían ese parseo) se eliminaron de `domain/recipeText.ts` por no tener ya ningún llamador en la app — solo las ejercitaban dos tests, que se quitaron con ellas. Es una divergencia deliberada frente al prototipo, no un desvío accidental — si se retoma el prototipo como base de una reconstrucción, hay que decidir explícitamente cuál de las dos versiones es la correcta en vez de copiarlo tal cual.
 
 ### 4.7 Plan
 

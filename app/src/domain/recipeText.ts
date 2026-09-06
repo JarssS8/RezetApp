@@ -1,4 +1,4 @@
-import type { FoodGroup, Ingredient, Locale, PantryLoc, Recipe, Unit } from '../types';
+import type { FoodGroup, Ingredient, Locale, PantryLoc, Recipe } from '../types';
 
 /** Detección de ingrediente sensible por nombre (no escala linealmente). */
 export const SENSITIVE_RE = /sal|salt|especia|spice|pimienta|pepper|levadura|yeast|curry/i;
@@ -91,57 +91,3 @@ export function isPassiveStep(recipe: Recipe, index: number): boolean {
   return (recipe.steps[index]?.timerMinutes ?? 0) >= 8;
 }
 
-export interface ParsedIngredientLine {
-  name: string;
-  quantity: number;
-  unit: Unit;
-  sensitive: boolean;
-}
-
-/**
- * Una línea escrita a mano -> un ingrediente.
- * `kg` y `l` se normalizan a `g` y `ml`; sin unidad se asume `ud`.
- */
-export function parseIngredientLines(text: string): ParsedIngredientLine[] {
-  return text
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const m = line.match(/^([\d.,]+)\s*(g|kg|ml|l|ud|uds|pcs)?\s+(.*)$/i);
-      if (!m || !m[3]) {
-        return { name: line, quantity: 1, unit: 'ud' as Unit, sensitive: SENSITIVE_RE.test(line) };
-      }
-      let quantity = parseFloat((m[1] ?? '1').replace(',', '.'));
-      let unit = (m[2] ?? 'ud').toLowerCase();
-      if (unit === 'kg') {
-        quantity *= 1000;
-        unit = 'g';
-      }
-      if (unit === 'l') {
-        quantity *= 1000;
-        unit = 'ml';
-      }
-      if (unit === 'uds' || unit === 'pcs') unit = 'ud';
-      const name = m[3];
-      return {
-        name,
-        quantity: Number.isFinite(quantity) ? quantity : 1,
-        unit: unit as Unit,
-        sensitive: SENSITIVE_RE.test(name),
-      };
-    });
-}
-
-/** Un paso por línea; `N min` en el texto le pone temporizador. */
-export function parseStepLines(text: string): Array<{ text: string; timerMinutes?: number }> {
-  return text
-    .split(/\n+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s) => {
-      const m = s.match(/(\d+)\s*(min|minutos|minutes)/i);
-      const minutes = m?.[1] ? parseInt(m[1], 10) : undefined;
-      return minutes ? { text: s, timerMinutes: minutes } : { text: s };
-    });
-}

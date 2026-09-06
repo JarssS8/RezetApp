@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { scaleQuantity } from '../scaling';
 import { isCovered } from '../coverage';
 import { formatFractionalQuantity, formatQuantity, roundNice } from '../units';
-import { defaultLocationFor, findIngredientByName, inferFoodGroup, parseIngredientLines, textMentions } from '../recipeText';
+import { defaultLocationFor, findIngredientByName, inferFoodGroup, textMentions } from '../recipeText';
 import { shoppingNeeds } from '../shopping';
 import type { Ingredient, PantryItem, PlanEntry, Recipe } from '../../types';
 
@@ -60,15 +60,6 @@ describe('texto de receta', () => {
     expect(textMentions('Hornea el salmón 18 minutos', 'Sal')).toBe(false));
   it('casa una palabra de un nombre compuesto', () =>
     expect(textMentions('Dora el pollo', 'Pechuga de pollo')).toBe(true));
-  it('parsea cantidad, unidad y nombre', () => {
-    const [first] = parseIngredientLines('300 g lentejas\n1 cebolla\n2 g sal');
-    expect(first).toEqual({ name: 'lentejas', quantity: 300, unit: 'g', sensitive: false });
-  });
-  it('normaliza kg a g y marca la sal como sensible', () => {
-    const rows = parseIngredientLines('1,5 kg patata\n2 g sal');
-    expect(rows[0]).toMatchObject({ quantity: 1500, unit: 'g' });
-    expect(rows[1]?.sensitive).toBe(true);
-  });
 });
 
 describe('lista de la compra', () => {

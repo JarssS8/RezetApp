@@ -99,10 +99,8 @@ El esquema de base de datos con RLS está en `../BUILD_FROM_ZERO.md` §3.
 4. Relación paso→ingrediente en el modelo de datos. Ahora se deduce del texto
    del paso, que funciona bien pero es una heurística: `recipe_step_ingredient`
    la vuelve exacta. El código ya usa `step.ingredientIds` si existe.
-5. Anillo de foco visible con `--accent` en los inputs (los primitivos ya
-   quitan el `outline` por defecto).
-6. PWA con `vite-plugin-pwa` si además quieres instalación desde el navegador.
-7. Desplegar la función `supabase/functions/recognize-pantry-item` y añadir
+5. PWA con `vite-plugin-pwa` si además quieres instalación desde el navegador.
+6. Desplegar la función `supabase/functions/recognize-pantry-item` y añadir
    una fila `GEMINI_API_KEY` en `app_secret` — sin esto, el modo "Foto" al
    añadir a la despensa es visible mas no funciona (falla con un mensaje
    genérico, sin explicación en pantalla de por qué).
