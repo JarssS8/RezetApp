@@ -161,6 +161,12 @@ export const en: Dictionary = {
   relative1Month: '1 month',
   dateOption: 'Choose date',
 
+  scanTutorialTitle1: 'Scan the barcode',
+  scanTutorialBody1: "Point the camera at the stripes on the package — we'll fill in name, quantity and expiry if the product has it.",
+  scanTutorialTitle2: 'No barcode? Point it anyway',
+  scanTutorialBody2: 'Our AI recognizes the product from a photo and gets the details ready for you to review before saving.',
+  gotIt: 'Got it',
+
   appearance: 'Appearance',
   language: 'Language',
   units: 'Units',

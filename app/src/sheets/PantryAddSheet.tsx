@@ -15,7 +15,12 @@ import { formatQuantity } from '../domain/units';
 import { PantryScanCapture } from './PantryScanCapture';
 import type { PantryLoc, Unit } from '../types';
 
-const UNITS: Unit[] = ['g', 'ml', 'ud'];
+const UNITS: Unit[] = ['g', 'ml', 'ud', 'tbsp'];
+const FRACTIONS = [
+  { value: '0.25', glyph: '¼' },
+  { value: '0.5', glyph: '½' },
+  { value: '0.75', glyph: '¾' },
+];
 
 type ExpiryChoice = '3d' | '1w' | '1m' | 'date' | null;
 
@@ -164,6 +169,13 @@ export function PantryAddSheet({
     { value: 'freezer', label: t.freezer },
   ];
 
+  const unitLabel = (u: Unit) => {
+    if (u === 'ud') return locale === 'es' ? 'uds' : 'pcs';
+    if (u === 'tbsp') return locale === 'es' ? 'cda' : 'tbsp';
+    return u;
+  };
+  const unitOptions: Array<{ value: Unit; label: string }> = UNITS.map((u) => ({ value: u, label: unitLabel(u) }));
+
   return (
     <Sheet title={t.add} onClose={onClose}>
       {mode === 'scan' && (
@@ -191,28 +203,38 @@ export function PantryAddSheet({
             style={{ ...T.cardTitle, height: 54 }}
           />
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <TextField
               value={quantityInput}
               onChange={(v) => setQuantityInput(v.replace(/[^\d.,]/g, ''))}
               placeholder="500"
               inputMode="decimal"
-              style={{ flex: '0 0 110px', fontVariantNumeric: 'tabular-nums' }}
+              style={{ flex: 1, fontVariantNumeric: 'tabular-nums' }}
             />
-            <div style={{ display: 'flex', gap: 6, flex: 1 }}>
-              {UNITS.map((u) => (
+            <div style={{ width: 224, flex: '0 0 224px' }}>
+              <SegmentedControl
+                value={effectiveUnit}
+                onChange={(u) => {
+                  setUnit(u);
+                  setUnitTouched(true);
+                }}
+                options={unitOptions}
+              />
+            </div>
+          </div>
+
+          {effectiveUnit === 'ud' && (
+            <div style={{ display: 'flex', gap: 8, marginTop: -6 }}>
+              {FRACTIONS.map((f) => (
                 <OptionChip
-                  key={u}
-                  label={u === 'ud' ? (locale === 'es' ? 'uds' : 'pcs') : u}
-                  active={effectiveUnit === u}
-                  onClick={() => {
-                    setUnit(u);
-                    setUnitTouched(true);
-                  }}
+                  key={f.value}
+                  label={f.glyph}
+                  active={quantityInput === f.value}
+                  onClick={() => setQuantityInput(f.value)}
                 />
               ))}
             </div>
-          </div>
+          )}
 
           {/* Tarjeta agrupada: ubicación y caducidad viven juntas (patrón de lista agrupada), en vez de dos bloques sueltos. */}
           <div style={{ background: 'var(--surface2)', borderRadius: radius.list, padding: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>

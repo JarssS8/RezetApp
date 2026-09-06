@@ -1,4 +1,4 @@
-export type Unit = 'g' | 'ml' | 'ud';
+export type Unit = 'g' | 'ml' | 'ud' | 'tbsp';
 export type FoodGroup = 'fresco' | 'seco' | 'conserva';
 export type PantryLoc = 'cupboard' | 'fridge' | 'freezer';
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';

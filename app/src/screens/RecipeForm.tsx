@@ -15,7 +15,7 @@ import { maxW, radius, tabular } from '../ui/tokens';
 import type { Difficulty, Ingredient, Localized, Recipe, Unit } from '../types';
 
 const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard'];
-const UNITS: Unit[] = ['g', 'ml', 'ud'];
+const UNITS: Unit[] = ['g', 'ml', 'ud', 'tbsp'];
 
 const emptyIngredient = () => ({ name: '', quantity: '', unit: 'g' as Unit });
 const emptyStep = () => ({ text: '', timerMinutes: '' });
@@ -297,7 +297,11 @@ export function RecipeForm({
                     {UNITS.map((u) => (
                       <OptionChip
                         key={u}
-                        label={u === 'ud' ? (locale === 'es' ? 'uds' : 'pcs') : u}
+                        label={
+                          u === 'ud' ? (locale === 'es' ? 'uds' : 'pcs')
+                          : u === 'tbsp' ? (locale === 'es' ? 'cda' : 'tbsp')
+                          : u
+                        }
                         height={44}
                         active={ri.unit === u}
                         onClick={() => patchIngredient(index, { unit: u })}

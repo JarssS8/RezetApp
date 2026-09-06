@@ -6,9 +6,122 @@ import { supabase } from '../data/supabaseClient';
 import { mapGeminiRecognition, mapOpenFoodFactsProduct, type OffApiResponse } from '../domain/pantryImport';
 import { blobToBase64 } from '../lib/imageCapture';
 import { Button } from '../ui/Button';
+import { Pressable } from '../ui/Pressable';
+import { maxW, radius } from '../ui/tokens';
+import { EASE_SHEET } from '../motion/motion';
 import type { Unit } from '../types';
 
 type Status = 'starting' | 'scanning' | 'looking' | 'notFound' | 'photoFailed' | 'noCamera';
+
+const SCAN_TUTORIAL_SEEN_KEY = 'rezet.seenScanTutorial';
+
+/** Barras de un código de barras, sin ilustración: solo trazos. */
+function BarcodeDiagram() {
+  const bars = [2, 4, 1, 3, 1, 4, 2, 1, 3, 2, 4, 1];
+  return (
+    <div
+      style={{
+        width: 112,
+        height: 78,
+        background: 'var(--surface)',
+        borderRadius: 12,
+        boxShadow: 'var(--shadow-m)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 2,
+      }}
+    >
+      {bars.map((w, i) => (
+        <div key={i} style={{ width: w, height: 42, background: 'var(--text)' }} />
+      ))}
+    </div>
+  );
+}
+
+/** Producto con puntos de reconocimiento alrededor: diagrama, no ilustración. */
+function AiDiagram() {
+  return (
+    <div style={{ position: 'relative', width: 88, height: 88, display: 'grid', placeItems: 'center' }}>
+      <div style={{ width: 62, height: 62, borderRadius: 16, background: 'var(--surface)', boxShadow: 'var(--shadow-m)' }} />
+      <div style={{ position: 'absolute', top: 4, right: 10, width: 7, height: 7, borderRadius: 99, background: 'var(--accent)' }} />
+      <div style={{ position: 'absolute', bottom: 10, left: 4, width: 6, height: 6, borderRadius: 99, background: 'var(--accent)' }} />
+      <div style={{ position: 'absolute', top: 16, left: 0, width: 5, height: 5, borderRadius: 99, background: 'var(--accent)' }} />
+    </div>
+  );
+}
+
+/**
+ * Guía de dos pasos que se ve una sola vez, la primera vez que se abre el
+ * escáner: código de barras y, si no hay, reconocimiento por foto con IA.
+ * Se marca vista en localStorage — no vuelve a salir salvo que se borre.
+ */
+function ScanTutorial({ onDone }: { onDone: () => void }) {
+  const { t } = usePrefs();
+  const [step, setStep] = useState(0);
+  const pages = [
+    { Diagram: BarcodeDiagram, title: t.scanTutorialTitle1, body: t.scanTutorialBody1 },
+    { Diagram: AiDiagram, title: t.scanTutorialTitle2, body: t.scanTutorialBody2 },
+  ];
+  const last = step === pages.length - 1;
+  const page = pages[step]!;
+  const Diagram = page.Diagram;
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 85, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,12,8,.55)' }} />
+      <Pressable
+        onClick={onDone}
+        ariaLabel={t.skip}
+        scale={0.96}
+        style={{ position: 'absolute', top: 18, right: 18, padding: '8px 12px', borderRadius: 10, fontSize: 14, fontWeight: 550, color: 'rgba(255,255,255,.85)' }}
+      >
+        {t.skip}
+      </Pressable>
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: maxW.sheet,
+          margin: '0 auto',
+          background: 'var(--surface)',
+          borderTopLeftRadius: radius.sheet,
+          borderTopRightRadius: radius.sheet,
+          boxShadow: 'var(--shadow-l)',
+          padding: '24px 22px 26px',
+          animation: `rise .32s ${EASE_SHEET} both`,
+        }}
+      >
+        <div
+          style={{
+            height: 150,
+            borderRadius: radius.hero,
+            background: 'var(--soft)',
+            border: '1px solid var(--line)',
+            display: 'grid',
+            placeItems: 'center',
+            marginBottom: 20,
+          }}
+        >
+          <Diagram />
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1.15 }}>{page.title}</div>
+        <div style={{ marginTop: 10, fontSize: 15.5, lineHeight: 1.5, color: 'var(--muted)' }}>{page.body}</div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 7, margin: '22px 0 16px' }} aria-hidden="true">
+          {pages.map((_, i) => (
+            <div
+              key={i}
+              style={{ width: 7, height: 7, borderRadius: radius.pill, background: 'var(--accent)', opacity: i === step ? 1 : 0.3 }}
+            />
+          ))}
+        </div>
+        <Button full onClick={() => (last ? onDone() : setStep((s) => s + 1))}>
+          {last ? t.gotIt : t.next}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 async function lookupBarcode(code: string): Promise<{ name: string; quantity: number; unit: Unit } | null> {
   try {
@@ -39,6 +152,21 @@ export function PantryScanCapture({
   const { t } = usePrefs();
   const [status, setStatus] = useState<Status>('starting');
   const [attempt, setAttempt] = useState(0);
+  const [showTutorial, setShowTutorial] = useState(() => {
+    try {
+      return !localStorage.getItem(SCAN_TUTORIAL_SEEN_KEY);
+    } catch {
+      return false;
+    }
+  });
+  const dismissTutorial = () => {
+    try {
+      localStorage.setItem(SCAN_TUTORIAL_SEEN_KEY, '1');
+    } catch {
+      // localStorage puede fallar en privado/incógnito — no bloquea el escaneo.
+    }
+    setShowTutorial(false);
+  };
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   // Vive toda la vida del componente (no del efecto de escaneo, que se
@@ -134,6 +262,8 @@ export function PantryScanCapture({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', padding: '4px 0' }}>
+      {showTutorial && <ScanTutorial onDone={dismissTutorial} />}
+
       {(status === 'starting' || status === 'scanning' || status === 'looking') && (
         <video
           ref={videoRef}

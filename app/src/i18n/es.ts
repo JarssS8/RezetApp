@@ -161,6 +161,12 @@ export const es = {
   relative1Month: '1 mes',
   dateOption: 'Elegir fecha',
 
+  scanTutorialTitle1: 'Escanea el código de barras',
+  scanTutorialBody1: 'Apunta la cámara a las rayas del envase y rellenamos nombre, cantidad y caducidad si el producto la trae.',
+  scanTutorialTitle2: '¿Sin código? Apúntale igual',
+  scanTutorialBody2: 'Nuestra IA reconoce el producto por foto y te deja los datos listos para revisar antes de guardar.',
+  gotIt: 'Entendido',
+
   appearance: 'Aspecto',
   language: 'Idioma',
   units: 'Unidades',
