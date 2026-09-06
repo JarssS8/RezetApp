@@ -1770,8 +1770,12 @@ export function PantryAddSheet({
   };
 
   const undoAdd = (item: AddedItem) => {
-    if (item.merged) pantryBump(item.id, -item.addedQuantity);
-    else pantryDelete(item.id);
+    // Siempre resta, nunca borra la fila directamente: si otro add posterior
+    // ya fusionó cantidad extra en la misma fila (mismo ingredient+unit+
+    // location), un pantryDelete aquí destruiría esa cantidad también.
+    // pantryBump ya deja la fila en 0 y la limpia sola cuando corresponde,
+    // así que cubre tanto "era la única aportación" como "quedan otras".
+    pantryBump(item.id, -item.addedQuantity);
     setAddedItems((items) => items.filter((i) => i.id !== item.id));
   };
 
@@ -1901,6 +1905,10 @@ Run `cd app && npm run dev`. In demo mode, open Pantry → Añadir:
 10. Close the sheet (×, swipe, or Escape) and confirm the Pantry screen reflects everything correctly.
 11. Confirm the "Foto" / "Reconocer por foto" button does NOT appear anywhere in demo mode (open the scan view again — no such button).
 12. If you have a real (non-demo) account with the Edge Function deployed and a real Gemini key (see the prior plan's follow-up), also verify: "Reconocer por foto" appears in scan mode for a real account, and a successful recognition with an `expiresOn` correctly pre-selects either a relative chip or "Fecha" with the date populated (per the spec's fix for this).
+
+**Correction (post-Task-12-implementation, found in review, confirmed by live Playwright test):** the `undoAdd` code above (and this step's own point 9) describes the right behavior, but the code as originally specified — `if (item.merged) pantryBump(...) else pantryDelete(item.id)` — doesn't deliver it in one specific case: add a brand-new ingredient (fresh create, `merged: false`), then add the same ingredient+unit+location again in the same open sheet (now `merged: true`, same row), then undo the *first* entry. Because the first entry's `merged` is `false`, undo calls `pantryDelete(item.id)` on the shared row id — deleting the whole row, silently destroying the second entry's still-listed quantity too, even though its "Deshacer" row is still shown in the UI as if valid. Confirmed live: after this exact sequence the pantry row was gone entirely, not just reduced.
+
+Fix: drop the `merged` branch from `undoAdd` and always call `pantryBump(item.id, -item.addedQuantity)` (or `pantryBump(item.pantryId, -item.addedQuantity)` if your `AddedItem` already separates a client-side `entryId` from the pantry row id per the entryId/pantryId fix below). `pantryBump` already clamps at 0 and drops the row when it hits zero (see Task 8's `store.tsx`), so this one call correctly covers both "this was the only contribution" (row ends up removed) and "other adds are still there" (row is reduced, not erased) — `pantryDelete` is never the right call here. Also fix the parallel bug this same review found: give each `AddedItem` a client-side `entryId` (e.g. a `useRef` counter) distinct from the pantry row id returned by `pantryAdd`, since two adds of the same row in one session share that id and would otherwise collide as React keys and in the undo filter.
 
 - [ ] **Step 5: Commit**
 
