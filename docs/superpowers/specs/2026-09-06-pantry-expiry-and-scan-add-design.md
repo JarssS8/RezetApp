@@ -154,12 +154,22 @@ client-side against a decoded `<img>`).
    something" context. Only after *that* also fails (or the user skips it)
    does it fall back to an empty Manual form.
 
-**Review fix — downscale the captured photo before use.** A phone photo is
-typically 3000×4000px+. Before either the zxing decode or the Gemini
-upload, draw it to an offscreen `<canvas>` capped at ~1024px on the long
-edge and re-encode to JPEG — faster upload, cheaper Gemini request, and
-zxing decodes barcodes fine at that resolution (it needs the barcode's
-stripes resolved, not the whole-photo detail).
+**Review fix — downscale the captured photo before the Gemini upload only.**
+A phone photo is typically 3000×4000px+. Before the Gemini upload, draw it
+to an offscreen `<canvas>` capped at ~1024px on the long edge and re-encode
+to JPEG — faster upload, cheaper Gemini request.
+
+**Correction (post-Task-8-verification):** the original version of this
+fix said zxing "decodes barcodes fine at that resolution" — untested when
+written, and wrong. Verified directly: a barcode image that zxing decodes
+correctly at full resolution reliably **fails** to decode after exactly
+this resize-to-1024px-then-JPEG-0.85 transform — the softened edges from
+bilinear scaling plus lossy JPEG compression are enough to break a 1D
+barcode reader, which needs sharp bar/space transitions far more than a
+vision model reading a product label does. The barcode path must decode
+from the original captured file (e.g. `URL.createObjectURL(file)` straight
+into `<img>`), never through this resize step. The resize only applies to
+the photo-recognition (Gemini) path, where it's genuinely safe and useful.
 
 ## Photo-recognition flow (needs the new Edge Function)
 

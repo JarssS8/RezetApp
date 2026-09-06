@@ -971,7 +971,9 @@ EOF
 
 **Interfaces:**
 - Consumes: `mapOpenFoodFactsProduct`, `OffApiResponse` from `../domain/pantryImport` (Task 2); `t.addManual`/`t.addBarcode`/`t.takePhoto`/`t.lookingUp`/`t.scanNotFound`/`t.scanDecodeFailed`/`t.enterBarcodeManually` (Task 5).
-- Produces: `resizeImageFile(file: File, maxDim: number): Promise<{ blob: Blob; dataUrl: string }>` and `blobToBase64(blob: Blob): Promise<string>` from `lib/imageCapture.ts` — Task 10 also uses both. `PantryBarcodeCapture`'s props: `{ onResult: (item: { name: string; quantity: number; unit: Unit }) => void; onCancel: () => void }`.
+- Produces: `resizeImageFile(file: File, maxDim: number): Promise<{ blob: Blob; dataUrl: string }>` and `blobToBase64(blob: Blob): Promise<string>` from `lib/imageCapture.ts` — **Task 10 uses both; this task's own `PantryBarcodeCapture` does NOT call `resizeImageFile`** (see the correction below — decode must run against the original file). `PantryBarcodeCapture`'s props: `{ onResult: (item: { name: string; quantity: number; unit: Unit }) => void; onCancel: () => void }`.
+
+**Correction (post-Task-8-live-verification):** the barcode-decode step (`PantryBarcodeCapture`'s `onFile`) must NOT call `resizeImageFile` before decoding. This was directly tested: a barcode image zxing decodes correctly at full resolution reliably fails to decode after the resize-to-1024px + JPEG-0.85 transform (softened edges + lossy compression break a 1D reader). Decode from the original `File` via `URL.createObjectURL(file)` instead — `lib/imageCapture.ts` still gets created exactly as below since Task 10's Gemini path genuinely benefits from downscaling, this task just doesn't use it for the decode.
 
 - [ ] **Step 1: Add the `@zxing/browser` dependency**
 
@@ -1047,7 +1049,6 @@ import { useRef, useState } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { usePrefs } from '../store/prefs';
 import { mapOpenFoodFactsProduct, type OffApiResponse } from '../domain/pantryImport';
-import { resizeImageFile } from '../lib/imageCapture';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { TextField } from '../ui/Fields';
@@ -1086,9 +1087,15 @@ export function PantryBarcodeCapture({
 
   const onFile = async (file: File) => {
     setStatus('looking');
-    const { dataUrl } = await resizeImageFile(file, 1024);
+    // Decode from the original file — do NOT run this through
+    // resizeImageFile. Verified directly: the resize-to-1024px +
+    // JPEG-0.85 re-encode reliably breaks zxing's decode on barcodes
+    // it reads correctly at full resolution (softened edges + lossy
+    // compression are fatal to a 1D reader). Downscaling is only safe
+    // for the Gemini photo-recognition path (Task 10), never this one.
+    const url = URL.createObjectURL(file);
     const img = new Image();
-    img.src = dataUrl;
+    img.src = url;
     try {
       await img.decode();
       const reader = new BrowserMultiFormatReader();
@@ -1096,6 +1103,8 @@ export function PantryBarcodeCapture({
       await runLookup(result.getText());
     } catch {
       setStatus('manualEntry');
+    } finally {
+      URL.revokeObjectURL(url);
     }
   };
 
