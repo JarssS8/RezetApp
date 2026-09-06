@@ -39,3 +39,33 @@ export function formatKcal(kcal: number, locale: Locale): string {
 export function pantryStep(unit: Unit): number {
   return unit === 'ud' ? 1 : 100;
 }
+
+const QUANTITY_INPUT_RE = /^([\d.,]+)\s*(g|kg|ml|l|ud|uds|pcs)?\s*$/i;
+const LEADING_NUMBER_RE = /^([\d.,]+)/;
+
+function toNumber(raw: string | undefined): number {
+  const n = parseFloat((raw ?? '').replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+/**
+ * Parsea "500 g" / "2 kg" / "3" en cantidad + unidad. Sin unidad escrita, o
+ * con un sufijo que no reconoce, usa `fallbackUnit` — pero SIEMPRE conserva
+ * el número que escribió el usuario, nunca lo descarta a 1 solo porque la
+ * unidad no se entendió. kg/l se normalizan a g/ml. Nunca lanza.
+ */
+export function parseQuantityInput(input: string, fallbackUnit: Unit): { quantity: number; unit: Unit } {
+  const trimmed = input.trim();
+  const full = trimmed.match(QUANTITY_INPUT_RE);
+  if (!full) {
+    const lead = trimmed.match(LEADING_NUMBER_RE);
+    return { quantity: toNumber(lead?.[1]), unit: fallbackUnit };
+  }
+  const quantity = toNumber(full[1]);
+  const rawUnit = (full[2] ?? '').toLowerCase();
+  if (rawUnit === 'kg') return { quantity: quantity * 1000, unit: 'g' };
+  if (rawUnit === 'l') return { quantity: quantity * 1000, unit: 'ml' };
+  if (rawUnit === 'g' || rawUnit === 'ml') return { quantity, unit: rawUnit };
+  if (rawUnit === 'ud' || rawUnit === 'uds' || rawUnit === 'pcs') return { quantity, unit: 'ud' };
+  return { quantity, unit: fallbackUnit };
+}

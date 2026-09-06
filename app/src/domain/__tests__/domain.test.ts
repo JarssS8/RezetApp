@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { scaleQuantity } from '../scaling';
 import { isCovered } from '../coverage';
-import { formatQuantity, roundNice } from '../units';
+import { formatQuantity, parseQuantityInput, roundNice } from '../units';
 import { defaultLocationFor, findIngredientByName, inferFoodGroup, parseIngredientLines, textMentions } from '../recipeText';
 import { shoppingNeeds } from '../shopping';
 import type { Ingredient, PantryItem, PlanEntry, Recipe } from '../../types';
@@ -169,5 +169,36 @@ describe('defaultLocationFor', () => {
   it('seco y conserva van a armario', () => {
     expect(defaultLocationFor('seco')).toBe('cupboard');
     expect(defaultLocationFor('conserva')).toBe('cupboard');
+  });
+});
+
+describe('parseQuantityInput', () => {
+  it('parsea gramos', () => {
+    expect(parseQuantityInput('500 g', 'ud')).toEqual({ quantity: 500, unit: 'g' });
+  });
+  it('normaliza kg a gramos', () => {
+    expect(parseQuantityInput('2 kg', 'ud')).toEqual({ quantity: 2000, unit: 'g' });
+  });
+  it('normaliza litros a mililitros', () => {
+    expect(parseQuantityInput('1.5 l', 'ud')).toEqual({ quantity: 1500, unit: 'ml' });
+  });
+  it('acepta uds y pcs como ud', () => {
+    expect(parseQuantityInput('3 uds', 'g')).toEqual({ quantity: 3, unit: 'ud' });
+    expect(parseQuantityInput('3 pcs', 'g')).toEqual({ quantity: 3, unit: 'ud' });
+  });
+  it('sin unidad, usa la unidad de respaldo', () => {
+    expect(parseQuantityInput('3', 'ml')).toEqual({ quantity: 3, unit: 'ml' });
+  });
+  it('sufijo no reconocido: conserva el número, usa la unidad de respaldo (no lo descarta a 1)', () => {
+    expect(parseQuantityInput('500 gramos', 'g')).toEqual({ quantity: 500, unit: 'g' });
+  });
+  it('coma decimal', () => {
+    expect(parseQuantityInput('1,5 kg', 'ud')).toEqual({ quantity: 1500, unit: 'g' });
+  });
+  it('entrada irreconocible cae a 1 con la unidad de respaldo', () => {
+    expect(parseQuantityInput('abc', 'ud')).toEqual({ quantity: 1, unit: 'ud' });
+  });
+  it('numérico patológico no produce NaN', () => {
+    expect(parseQuantityInput('1.2.3', 'ud').quantity).not.toBeNaN();
   });
 });
