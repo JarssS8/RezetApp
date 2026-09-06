@@ -26,6 +26,7 @@ export const height = {
   touch: 44,
   chip: 34,
   stepper: 32,
+  segment: 38,
 } as const;
 
 export const screen = {
