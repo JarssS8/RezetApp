@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { scaleQuantity } from '../domain/scaling';
 import { addDays, dateKey, resolveExpiry, slotForNow, todayKey } from '../domain/dates';
-import { SENSITIVE_RE } from '../domain/recipeText';
+import { SENSITIVE_RE, defaultLocationFor, inferFoodGroup } from '../domain/recipeText';
 import { createStoreDerivations } from '../domain/deriveStore';
 import { INGREDIENTS, KCAL_TARGET, PANTRY, PLAN, RECIPES } from './seed';
 import { usePrefs } from '../store/prefs';
@@ -140,7 +140,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const created: Ingredient = {
         id: uid('ing'),
         name: { es: name, en: name },
-        group: 'seco',
+        group: inferFoodGroup(name),
         defaultUnit: unit,
         sensitive: SENSITIVE_RE.test(name),
       };
@@ -261,7 +261,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               ingredientId: need.ingredientId,
               quantity: need.quantity,
               unit: need.unit,
-              location: need.group === 'fresco' ? 'fridge' : 'cupboard',
+              location: defaultLocationFor(need.group),
               expiresOn: null,
             });
         }
