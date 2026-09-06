@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { scaleQuantity } from '../scaling';
 import { isCovered } from '../coverage';
-import { formatQuantity, formatUdQuantity, roundNice } from '../units';
+import { formatFractionalQuantity, formatQuantity, roundNice } from '../units';
 import { defaultLocationFor, findIngredientByName, inferFoodGroup, parseIngredientLines, textMentions } from '../recipeText';
 import { shoppingNeeds } from '../shopping';
 import type { Ingredient, PantryItem, PlanEntry, Recipe } from '../../types';
@@ -44,12 +44,14 @@ describe('unidades', () => {
     expect(formatQuantity(0.5, 'ud', 'metric', 'es')).toBe('½ uds'));
   it('unidad y cuarto se muestra con la parte entera', () =>
     expect(formatQuantity(1.25, 'ud', 'metric', 'es')).toBe('1¼ uds'));
-  it('tres cuartos de unidad', () => expect(formatUdQuantity(0.75, 'es')).toBe('¾'));
+  it('tres cuartos de unidad', () => expect(formatFractionalQuantity(0.75, 'es')).toBe('¾'));
   it('un decimal que no es una fracción reconocida cae al número', () =>
-    expect(formatUdQuantity(1.3, 'es')).toBe('1,3'));
+    expect(formatFractionalQuantity(1.3, 'es')).toBe('1,3'));
   it('cucharada sopera no se convierte ni en imperial', () =>
     expect(formatQuantity(2, 'tbsp', 'imperial', 'es')).toBe('2 cda'));
   it('cucharada en inglés', () => expect(formatQuantity(1, 'tbsp', 'metric', 'en')).toBe('1 tbsp'));
+  it('media cucharada se muestra como fracción, igual que las unidades sueltas', () =>
+    expect(formatQuantity(0.5, 'tbsp', 'metric', 'es')).toBe('½ cda'));
 });
 
 describe('texto de receta', () => {

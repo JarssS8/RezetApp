@@ -4,12 +4,13 @@ import { useData } from '../data/store';
 import { Button } from '../ui/Button';
 import { Calendar } from '../ui/Calendar';
 import { OptionChip } from '../ui/Chip';
+import { Icon } from '../ui/Icon';
 import { IngredientNameField } from '../ui/IngredientNameField';
 import { TextField } from '../ui/Fields';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Sheet } from '../ui/Sheet';
 import { radius, text as T } from '../ui/tokens';
-import { offsetKey, todayKey } from '../domain/dates';
+import { offsetKey, shortMonthDate, todayKey } from '../domain/dates';
 import { defaultLocationFor, findIngredientByName, inferFoodGroup } from '../domain/recipeText';
 import { formatQuantity } from '../domain/units';
 import { PantryScanCapture } from './PantryScanCapture';
@@ -53,6 +54,7 @@ export function PantryAddSheet({
   const [locationTouched, setLocationTouched] = useState(false);
   const [expiresOn, setExpiresOn] = useState('');
   const [expiryChoice, setExpiryChoice] = useState<ExpiryChoice>(null);
+  const [expiryOpen, setExpiryOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [addedItems, setAddedItems] = useState<AddedItem[]>([]);
 
@@ -96,21 +98,29 @@ export function PantryAddSheet({
       else if (item.expiresOn === offsetKey(30)) setExpiryChoice('1m');
       else setExpiryChoice('date');
       setExpiresOn(item.expiresOn);
+      setExpiryOpen(true);
     } else {
       setExpiryChoice(null);
       setExpiresOn('');
+      setExpiryOpen(false);
     }
     setMode('manual');
     focusName();
   }, []);
 
-  const pickExpiry = (choice: ExpiryChoice) => {
+  /** Los tres atajos relativos. La fecha exacta la pone el calendario, ver <Calendar onSelect>. */
+  const pickExpiry = (choice: '3d' | '1w' | '1m' | null) => {
     setExpiryChoice(choice);
     if (choice === '3d') setExpiresOn(offsetKey(3));
     else if (choice === '1w') setExpiresOn(offsetKey(7));
     else if (choice === '1m') setExpiresOn(offsetKey(30));
-    else if (choice === 'date') setExpiresOn((v) => v || todayKey());
     else setExpiresOn('');
+  };
+
+  const clearExpiry = () => {
+    setExpiryChoice(null);
+    setExpiresOn('');
+    setExpiryOpen(false);
   };
 
   const resetForm = () => {
@@ -119,6 +129,7 @@ export function PantryAddSheet({
     setUnitTouched(false);
     setExpiresOn('');
     setExpiryChoice(null);
+    setExpiryOpen(false);
     setLocationTouched(false);
   };
 
@@ -176,6 +187,13 @@ export function PantryAddSheet({
   };
   const unitOptions: Array<{ value: Unit; label: string }> = UNITS.map((u) => ({ value: u, label: unitLabel(u) }));
 
+  const expirySummary =
+    expiryChoice === '3d' ? t.relative3Days
+    : expiryChoice === '1w' ? t.relative1Week
+    : expiryChoice === '1m' ? t.relative1Month
+    : expiryChoice === 'date' && expiresOn ? shortMonthDate(expiresOn, locale)
+    : null;
+
   return (
     <Sheet title={t.add} onClose={onClose}>
       {mode === 'scan' && (
@@ -223,7 +241,7 @@ export function PantryAddSheet({
             </div>
           </div>
 
-          {effectiveUnit === 'ud' && (
+          {(effectiveUnit === 'ud' || effectiveUnit === 'tbsp') && (
             <div style={{ display: 'flex', gap: 8, marginTop: -6 }}>
               {FRACTIONS.map((f) => (
                 <OptionChip
@@ -254,20 +272,54 @@ export function PantryAddSheet({
 
             <div>
               <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.expiresOnLabel}</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <OptionChip label={t.relative3Days} active={expiryChoice === '3d'} onClick={() => pickExpiry(expiryChoice === '3d' ? null : '3d')} />
-                <OptionChip label={t.relative1Week} active={expiryChoice === '1w'} onClick={() => pickExpiry(expiryChoice === '1w' ? null : '1w')} />
-                <OptionChip label={t.relative1Month} active={expiryChoice === '1m'} onClick={() => pickExpiry(expiryChoice === '1m' ? null : '1m')} />
-                <OptionChip label={t.dateOption} active={expiryChoice === 'date'} onClick={() => pickExpiry(expiryChoice === 'date' ? null : 'date')} />
-              </div>
-              {expiryChoice === 'date' && (
-                <div style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={() => setExpiryOpen((v) => !v)}
+                style={{
+                  width: '100%',
+                  height: 46,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0 14px',
+                  borderRadius: radius.input,
+                  border: '1px solid var(--line)',
+                  background: 'var(--surface)',
+                  fontSize: 15,
+                }}
+              >
+                <span style={{ color: expirySummary ? 'var(--text)' : 'var(--muted)' }}>
+                  {expirySummary ?? t.noExpiry}
+                </span>
+                <Icon name={expiryOpen ? 'chevronUp' : 'chevronDown'} size={16} strokeWidth={2.2} />
+              </button>
+
+              {expiryOpen && (
+                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <OptionChip label={t.relative3Days} active={expiryChoice === '3d'} onClick={() => pickExpiry(expiryChoice === '3d' ? null : '3d')} />
+                    <OptionChip label={t.relative1Week} active={expiryChoice === '1w'} onClick={() => pickExpiry(expiryChoice === '1w' ? null : '1w')} />
+                    <OptionChip label={t.relative1Month} active={expiryChoice === '1m'} onClick={() => pickExpiry(expiryChoice === '1m' ? null : '1m')} />
+                  </div>
                   <Calendar
+                    key={expiryChoice ?? 'none'}
                     initialSelected={expiresOn || todayKey()}
                     minDate={todayKey()}
                     showEventDots={false}
-                    onSelect={setExpiresOn}
+                    onSelect={(d) => {
+                      setExpiresOn(d);
+                      setExpiryChoice('date');
+                    }}
                   />
+                  {expiryChoice && (
+                    <button
+                      type="button"
+                      onClick={clearExpiry}
+                      style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, fontSize: 13.5, fontWeight: 600, color: 'var(--warn-ink)' }}
+                    >
+                      {t.clearDate}
+                    </button>
+                  )}
                 </div>
               )}
             </div>

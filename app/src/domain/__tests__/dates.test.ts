@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, dateKey, daysUntil, resolveExpiry } from '../dates';
+import { addDays, dateKey, daysUntil, resolveExpiry, shortMonthDate } from '../dates';
 
 describe('daysUntil', () => {
   it('es 0 para la fecha de hoy', () => {
@@ -20,5 +20,14 @@ describe('resolveExpiry', () => {
   it('delega en daysUntil cuando hay fecha', () => {
     const future = dateKey(addDays(new Date(), 2));
     expect(resolveExpiry(future)).toBe(2);
+  });
+});
+
+describe('shortMonthDate', () => {
+  it('día y mes largo, sin año ni día de la semana', () => {
+    expect(shortMonthDate('2026-09-12', 'es')).toBe('12 de septiembre');
+  });
+  it('en inglés', () => {
+    expect(shortMonthDate('2026-09-12', 'en')).toBe('September 12');
   });
 });

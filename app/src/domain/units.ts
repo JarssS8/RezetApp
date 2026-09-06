@@ -13,11 +13,11 @@ export function formatNumber(n: number, locale: Locale): string {
   return roundNice(n).toLocaleString(locale === 'es' ? 'es-ES' : 'en-US');
 }
 
-/** ¼ ½ ¾ como glifo — solo para cantidades sueltas (media cebolla, un cuarto de limón). */
+/** ¼ ½ ¾ como glifo — para unidades sueltas y cucharadas (media cebolla, media cucharada). */
 const FRACTION_GLYPHS: Record<string, string> = { '0.25': '¼', '0.5': '½', '0.75': '¾' };
 
 /** "1½", "½", o el número tal cual si no es una fracción reconocida. */
-export function formatUdQuantity(quantity: number, locale: Locale): string {
+export function formatFractionalQuantity(quantity: number, locale: Locale): string {
   const whole = Math.floor(quantity);
   const frac = Math.round((quantity - whole) * 100) / 100;
   const glyph = FRACTION_GLYPHS[String(frac)];
@@ -27,8 +27,8 @@ export function formatUdQuantity(quantity: number, locale: Locale): string {
 
 /**
  * Cantidad con unidad, en el sistema activo.
- * Las unidades sueltas (`ud`) nunca se convierten: se muestran como uds / pcs,
- * con fracciones (½, ¼, ¾) en vez de decimales.
+ * Las unidades sueltas (`ud`) y las cucharadas (`tbsp`) nunca se convierten:
+ * se muestran con fracciones (½, ¼, ¾) en vez de decimales.
  */
 export function formatQuantity(
   quantity: number,
@@ -40,8 +40,8 @@ export function formatQuantity(
     if (unit === 'g') return `${formatNumber(quantity / G_PER_OZ, locale)} oz`;
     if (unit === 'ml') return `${formatNumber(quantity / ML_PER_FLOZ, locale)} fl oz`;
   }
-  if (unit === 'ud') return `${formatUdQuantity(quantity, locale)} ${locale === 'es' ? 'uds' : 'pcs'}`;
-  if (unit === 'tbsp') return `${formatNumber(quantity, locale)} ${locale === 'es' ? 'cda' : 'tbsp'}`;
+  if (unit === 'ud') return `${formatFractionalQuantity(quantity, locale)} ${locale === 'es' ? 'uds' : 'pcs'}`;
+  if (unit === 'tbsp') return `${formatFractionalQuantity(quantity, locale)} ${locale === 'es' ? 'cda' : 'tbsp'}`;
   return `${formatNumber(quantity, locale)} ${unit}`;
 }
 

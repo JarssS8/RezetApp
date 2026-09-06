@@ -159,7 +159,8 @@ export const en: Dictionary = {
   relative3Days: '3 days',
   relative1Week: '1 week',
   relative1Month: '1 month',
-  dateOption: 'Choose date',
+  noExpiry: 'No date',
+  clearDate: 'Clear date',
 
   scanTutorialTitle1: 'Scan the barcode',
   scanTutorialBody1: "Point the camera at the stripes on the package — we'll fill in name, quantity and expiry if the product has it.",

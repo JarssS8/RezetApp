@@ -159,7 +159,8 @@ export const es = {
   relative3Days: '3 días',
   relative1Week: '1 semana',
   relative1Month: '1 mes',
-  dateOption: 'Elegir fecha',
+  noExpiry: 'Sin fecha',
+  clearDate: 'Quitar fecha',
 
   scanTutorialTitle1: 'Escanea el código de barras',
   scanTutorialBody1: 'Apunta la cámara a las rayas del envase y rellenamos nombre, cantidad y caducidad si el producto la trae.',

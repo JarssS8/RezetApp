@@ -56,6 +56,11 @@ export function longDate(d: Date, locale: Locale): string {
   return d.toLocaleDateString(intl(locale), { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
+/** "12 de septiembre" — resumen corto para una fecha ya elegida (sin año, sin día de la semana). */
+export function shortMonthDate(dateStr: string, locale: Locale): string {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString(intl(locale), { day: 'numeric', month: 'long' });
+}
+
 export function shortDay(d: Date, locale: Locale): string {
   return d.toLocaleDateString(intl(locale), { weekday: 'short', day: 'numeric' });
 }
