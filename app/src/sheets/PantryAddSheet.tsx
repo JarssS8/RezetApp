@@ -1,16 +1,28 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
 import { Button } from '../ui/Button';
-import { OptionChip } from '../ui/Chip';
+import { OptionChip, Pill } from '../ui/Chip';
 import { IngredientNameField } from '../ui/IngredientNameField';
 import { TextField } from '../ui/Fields';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import { Sheet } from '../ui/Sheet';
-import { radius } from '../ui/tokens';
-import { todayKey } from '../domain/dates';
-import { PantryBarcodeCapture } from './PantryBarcodeCapture';
-import { PantryPhotoCapture } from './PantryPhotoCapture';
+import { radius, text as T } from '../ui/tokens';
+import { offsetKey, todayKey } from '../domain/dates';
+import { defaultLocationFor, findIngredientByName, inferFoodGroup } from '../domain/recipeText';
+import { parseQuantityInput } from '../domain/units';
+import { PantryScanCapture } from './PantryScanCapture';
 import type { PantryLoc, Unit } from '../types';
+
+type ExpiryChoice = '3d' | '1w' | '1m' | 'date' | null;
+
+interface AddedItem {
+  id: string;
+  name: string;
+  quantitySummary: string;
+  merged: boolean;
+  addedQuantity: number;
+}
 
 export function PantryAddSheet({
   onClose,
@@ -22,102 +34,200 @@ export function PantryAddSheet({
   allowPhoto?: boolean;
 }) {
   const { t, locale, loc } = usePrefs();
-  const { pantryAdd, ingredients } = useData();
+  const { pantryAdd, pantryBump, pantryDelete, ingredients } = useData();
+
+  const [mode, setMode] = useState<'scan' | 'manual'>('scan');
   const [name, setName] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [unit, setUnit] = useState<Unit>('g');
+  const [quantityInput, setQuantityInput] = useState('');
   const [location, setLocation] = useState<PantryLoc>('cupboard');
+  const [locationTouched, setLocationTouched] = useState(false);
   const [expiresOn, setExpiresOn] = useState('');
-  const [mode, setMode] = useState<'manual' | 'barcode' | 'photo'>('manual');
+  const [expiryChoice, setExpiryChoice] = useState<ExpiryChoice>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [addedItems, setAddedItems] = useState<AddedItem[]>([]);
 
-  const unitOptions: Array<[Unit, string]> = [
-    ['g', 'g'],
-    ['ml', 'ml'],
-    ['ud', locale === 'es' ? 'uds' : 'pcs'],
-  ];
-  const locations: Array<[PantryLoc, string]> = [
-    ['cupboard', t.cupboard],
-    ['fridge', t.fridge],
-    ['freezer', t.freezer],
-  ];
+  const nameRef = useRef<HTMLInputElement>(null);
 
-  const submit = () => {
-    if (!name.trim()) return;
-    pantryAdd({
-      name: name.trim(),
-      quantity: parseFloat(quantity.replace(',', '.')) || 1,
-      unit,
-      location,
-      expiresOn: expiresOn || undefined,
-    });
-    onClose();
-    onToast(t.savedPantry);
+  const matchedIngredient = name.trim() ? findIngredientByName(ingredients, name.trim()) : undefined;
+  const fallbackUnit: Unit = matchedIngredient?.defaultUnit ?? 'ud';
+  const { quantity: resolvedQuantity, unit: resolvedUnit } = parseQuantityInput(quantityInput, fallbackUnit);
+
+  const inferredGroup = matchedIngredient?.group ?? (name.trim() ? inferFoodGroup(name.trim()) : undefined);
+  const effectiveLocation = locationTouched ? location : inferredGroup ? defaultLocationFor(inferredGroup) : location;
+
+  const focusName = () => {
+    // Se dispara siempre dentro de un gesto del usuario (click), nunca en
+    // un useEffect — iOS no levanta el teclado para un focus() disparado
+    // fuera de un gesto real.
+    requestAnimationFrame(() => nameRef.current?.focus());
+  };
+
+  const goManual = () => {
+    setMode('manual');
+    focusName();
   };
 
   const applyPrefill = (item: { name: string; quantity?: number; unit?: Unit; expiresOn?: string }) => {
     setName(item.name);
-    if (item.quantity != null) setQuantity(String(item.quantity));
-    if (item.unit) setUnit(item.unit);
-    if (item.expiresOn) setExpiresOn(item.expiresOn);
+    if (item.quantity != null) setQuantityInput(item.unit ? `${item.quantity} ${item.unit}` : String(item.quantity));
+    if (item.expiresOn) {
+      if (item.expiresOn === offsetKey(3)) setExpiryChoice('3d');
+      else if (item.expiresOn === offsetKey(7)) setExpiryChoice('1w');
+      else if (item.expiresOn === offsetKey(30)) setExpiryChoice('1m');
+      else setExpiryChoice('date');
+      setExpiresOn(item.expiresOn);
+    }
     setMode('manual');
+    focusName();
   };
+
+  const pickExpiry = (choice: ExpiryChoice) => {
+    setExpiryChoice(choice);
+    if (choice === '3d') setExpiresOn(offsetKey(3));
+    else if (choice === '1w') setExpiresOn(offsetKey(7));
+    else if (choice === '1m') setExpiresOn(offsetKey(30));
+    else if (choice === 'date') setExpiresOn((v) => v || todayKey());
+    else setExpiresOn('');
+  };
+
+  const resetForm = () => {
+    setName('');
+    setQuantityInput('');
+    setExpiresOn('');
+    setExpiryChoice(null);
+    setLocationTouched(false);
+  };
+
+  const submit = async () => {
+    if (!name.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      const result = await pantryAdd({
+        name: name.trim(),
+        quantity: resolvedQuantity,
+        unit: resolvedUnit,
+        location: effectiveLocation,
+        expiresOn: expiresOn || undefined,
+      });
+      setAddedItems((items) => [
+        ...items,
+        {
+          id: result.id,
+          name: name.trim(),
+          quantitySummary: `${resolvedQuantity} ${resolvedUnit}`,
+          merged: result.merged,
+          addedQuantity: result.addedQuantity,
+        },
+      ]);
+      resetForm();
+      focusName();
+    } catch {
+      onToast(t.pantryAddError);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const undoAdd = (item: AddedItem) => {
+    if (item.merged) pantryBump(item.id, -item.addedQuantity);
+    else pantryDelete(item.id);
+    setAddedItems((items) => items.filter((i) => i.id !== item.id));
+  };
+
+  const locations: Array<{ value: PantryLoc; label: string }> = [
+    { value: 'cupboard', label: t.cupboard },
+    { value: 'fridge', label: t.fridge },
+    { value: 'freezer', label: t.freezer },
+  ];
 
   return (
     <Sheet title={t.add} onClose={onClose}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-        <OptionChip label={t.addManual} active={mode === 'manual'} onClick={() => setMode('manual')} />
-        <OptionChip label={t.addBarcode} active={mode === 'barcode'} onClick={() => setMode('barcode')} />
-        {allowPhoto && (
-          <OptionChip label={t.addPhotoMode} active={mode === 'photo'} onClick={() => setMode('photo')} />
-        )}
-      </div>
+      {mode === 'scan' && (
+        <PantryScanCapture allowPhoto={allowPhoto} onResult={applyPrefill} onManual={goManual} />
+      )}
+
       {mode === 'manual' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 6 }}>
+          <button
+            type="button"
+            onClick={() => setMode('scan')}
+            style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, fontSize: 14, fontWeight: 600, color: 'var(--accent-ink)' }}
+          >
+            {t.scanAgain}
+          </button>
+
           <IngredientNameField
+            ref={nameRef}
             value={name}
             onChange={setName}
-            onPick={(ing) => setUnit(ing.defaultUnit)}
             placeholder={t.itemName}
             ingredients={ingredients}
             locale={locale}
             loc={loc}
+            style={{ ...T.cardTitle, height: 54 }}
           />
-          <div style={{ display: 'flex', gap: 10 }}>
+
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <TextField
-              value={quantity}
-              onChange={setQuantity}
-              placeholder="500"
-              inputMode="decimal"
-              style={{ flex: 2, fontVariantNumeric: 'tabular-nums' }}
+              value={quantityInput}
+              onChange={setQuantityInput}
+              placeholder="500 g"
+              inputMode="text"
+              style={{ flex: 1, fontVariantNumeric: 'tabular-nums' }}
             />
-            <div style={{ flex: 3, display: 'flex', gap: 6 }}>
-              {unitOptions.map(([id, label]) => (
-                <OptionChip key={id} label={label} height={50} active={unit === id} onClick={() => setUnit(id)} />
-              ))}
-            </div>
+            <Pill>{resolvedUnit}</Pill>
           </div>
-          <div>
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.expiresOnLabel}</div>
-            <TextField type="date" min={todayKey()} value={expiresOn} onChange={setExpiresOn} />
-          </div>
+
           <div>
             <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.location}</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {locations.map(([id, label]) => (
-                <OptionChip key={id} label={label} active={location === id} onClick={() => setLocation(id)} />
-              ))}
-            </div>
+            <SegmentedControl
+              value={effectiveLocation}
+              onChange={(v) => {
+                setLocation(v);
+                setLocationTouched(true);
+              }}
+              options={locations}
+            />
           </div>
-          <Button full size="primary" onClick={submit} style={{ borderRadius: radius.button }}>
+
+          <div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{t.expiresOnLabel}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <OptionChip label={t.relative3Days} active={expiryChoice === '3d'} onClick={() => pickExpiry(expiryChoice === '3d' ? null : '3d')} />
+              <OptionChip label={t.relative1Week} active={expiryChoice === '1w'} onClick={() => pickExpiry(expiryChoice === '1w' ? null : '1w')} />
+              <OptionChip label={t.relative1Month} active={expiryChoice === '1m'} onClick={() => pickExpiry(expiryChoice === '1m' ? null : '1m')} />
+              <OptionChip label={t.dateOption} active={expiryChoice === 'date'} onClick={() => pickExpiry(expiryChoice === 'date' ? null : 'date')} />
+            </div>
+            {expiryChoice === 'date' && (
+              <div style={{ marginTop: 10 }}>
+                <TextField type="date" min={todayKey()} value={expiresOn} onChange={setExpiresOn} />
+              </div>
+            )}
+          </div>
+
+          <Button full size="primary" disabled={!name.trim() || submitting} onClick={() => void submit()} style={{ borderRadius: radius.button }}>
             {t.add}
           </Button>
+
+          {addedItems.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+              {addedItems.map((item) => (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 2px' }}>
+                  <div style={{ fontSize: 14.5 }}>
+                    {item.name} <span style={{ color: 'var(--muted)' }}>· {item.quantitySummary}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => undoAdd(item)}
+                    style={{ border: 0, background: 'transparent', padding: 0, fontSize: 13.5, fontWeight: 600, color: 'var(--warn-ink)' }}
+                  >
+                    {t.undo}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
-      {mode === 'barcode' && (
-        <PantryBarcodeCapture onResult={applyPrefill} onCancel={() => setMode('manual')} />
-      )}
-      {mode === 'photo' && allowPhoto && (
-        <PantryPhotoCapture onResult={applyPrefill} onCancel={() => setMode('manual')} />
       )}
     </Sheet>
   );
