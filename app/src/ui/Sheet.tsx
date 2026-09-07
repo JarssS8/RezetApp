@@ -146,15 +146,26 @@ export function Sheet({
 export function AlertDialog({
   title,
   body,
+  children,
   confirmLabel,
   cancelLabel,
+  confirmDisabled,
   onConfirm,
   onCancel,
 }: {
   title: string;
-  body: string;
+  body: ReactNode;
+  /**
+   * Contenido extra entre el cuerpo y los botones — p. ej. el campo de
+   * "escribe el nombre para confirmar" del borrado de hogar. Opcional a
+   * propósito: los demás usos de este diálogo (salir de cocinar, etc.) no
+   * lo necesitan.
+   */
+  children?: ReactNode;
   confirmLabel: string;
   cancelLabel: string;
+  /** Para gatear la acción destructiva a una confirmación previa (p. ej. escribir el nombre exacto). */
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -191,6 +202,7 @@ export function AlertDialog({
         <div style={{ marginTop: 10, fontSize: 15, lineHeight: 1.5, color: 'var(--muted)', textWrap: 'pretty' }}>
           {body}
         </div>
+        {children}
         <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {/* La acción segura va primera y en acento. */}
           <Pressable
@@ -209,6 +221,7 @@ export function AlertDialog({
           </Pressable>
           <Pressable
             onClick={onConfirm}
+            disabled={confirmDisabled}
             scale={0.97}
             style={{
               height: 50,
@@ -217,6 +230,7 @@ export function AlertDialog({
               color: 'var(--warn-ink)',
               fontSize: 16,
               fontWeight: 600,
+              opacity: confirmDisabled ? 0.5 : 1,
             }}
           >
             {confirmLabel}

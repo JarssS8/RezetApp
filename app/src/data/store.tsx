@@ -8,6 +8,7 @@ import { INGREDIENTS, KCAL_TARGET, PANTRY, PLAN, RECIPES } from './seed';
 import { usePrefs } from '../store/prefs';
 import { StoreCtx, type RecipeDraft, type Store } from './storeContext';
 import type {
+  HouseholdDetail,
   Ingredient,
   MealSlot,
   PantryItem,
@@ -63,6 +64,31 @@ export type { RecipeDraft, Coverage, Store } from './storeContext';
 export { useData } from './storeContext';
 
 const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
+
+/**
+ * El modo demo no tiene concepto real de hogar multi-usuario (no hay
+ * sesión, no hay otros miembros). `household` se rellena con un valor
+ * mínimo de un solo miembro solo para satisfacer el contrato `Store` —
+ * nunca se muestra: la fila "Tu hogar" de Ajustes no se renderiza en demo
+ * (mismo patrón que `onInvite={demo ? undefined : ...}` en `App.tsx`).
+ * `leaveHousehold`/`deleteHousehold` son alcanzables solo si algo llama a
+ * estas funciones sin pasar por esa UI, así que rechazan con un mensaje
+ * claro en vez de fingir que hacen algo.
+ */
+const DEMO_HOUSEHOLD: HouseholdDetail = {
+  id: 'demo',
+  name: 'Demo',
+  ownerId: 'demo-user',
+  members: [{ id: 'demo-user', displayName: 'Tú' }],
+  membersLoaded: true,
+};
+
+async function demoHouseholdActionUnavailable(): Promise<never> {
+  throw new Error('No disponible en el modo demo.');
+}
+
+/** El modo demo no tiene ninguna query real que gatear. */
+function demoSetHouseholdSheetOpen(): void {}
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = usePersistentState<Data>('rezet.data', INITIAL);
@@ -369,6 +395,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     () => ({
       ...data,
       pantry: pantryExposed,
+      household: DEMO_HOUSEHOLD,
       recipeById,
       ingredientById,
       knownTags,
@@ -386,6 +413,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toggleShoppingCheck,
       buyChecked,
       finishCook,
+      leaveHousehold: demoHouseholdActionUnavailable,
+      deleteHousehold: demoHouseholdActionUnavailable,
+      setHouseholdSheetOpen: demoSetHouseholdSheetOpen,
     }),
     [
       data,

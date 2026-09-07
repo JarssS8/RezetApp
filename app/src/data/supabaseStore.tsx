@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { createStoreDerivations } from '../domain/deriveStore';
@@ -8,6 +8,7 @@ import { usePrefs } from '../store/prefs';
 import { StoreCtx, type RecipeDraft, type Store } from './storeContext';
 import type {
   FoodGroup,
+  HouseholdDetail,
   Ingredient,
   MealSlot,
   PantryItem,
@@ -150,6 +151,11 @@ const RECIPE_SELECT = `
   recipe_step ( id, position, text, timer_minutes, recipe_step_ingredient ( recipe_ingredient_id ) )
 `;
 
+/** Escapes `%`, `_` and `\` so a literal search term never acts as an ILIKE wildcard (Postgres LIKE/ILIKE default ESCAPE is `\`). */
+function escapeIlike(value: string): string {
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
 const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
 
 export function SupabaseDataProvider({
@@ -168,6 +174,7 @@ export function SupabaseDataProvider({
   const planKey = useMemo(() => ['plan', householdId] as const, [householdId]);
   const shoppingKey = useMemo(() => ['shopping', householdId] as const, [householdId]);
   const householdKey = useMemo(() => ['household', householdId] as const, [householdId]);
+  const householdMembersKey = useMemo(() => ['householdMembers', householdId] as const, [householdId]);
 
   const ingredientsQ = useQuery({
     queryKey: ingredientsKey,
@@ -238,11 +245,45 @@ export function SupabaseDataProvider({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('household')
-        .select('kcal_target')
+        .select('kcal_target, name, owner_id')
         .eq('id', householdId)
         .single();
       if (error) throw error;
-      return data.kcal_target as number;
+      return {
+        kcalTarget: data.kcal_target as number,
+        name: data.name as string,
+        ownerId: (data.owner_id as string | null) ?? null,
+      };
+    },
+  });
+
+  /**
+   * Se abre/cierra desde `App.tsx` (vía `setHouseholdSheetOpen`) mientras la
+   * hoja "Tu hogar" o el flujo de salir/eliminar que cuelga de ella están
+   * abiertos. `householdMembersQ` de abajo solo se pide con esto en `true`:
+   * casi ninguna sesión abre esa hoja, así que pedirla en cada login sería
+   * un viaje de red de más para algo que casi nadie ve (hallazgo 8).
+   */
+  const [householdSheetOpen, setHouseholdSheetOpen] = useState(false);
+
+  /**
+   * Nombres del resto del hogar, para la hoja "Tu hogar". No entra en el
+   * gate `ready`: solo hace falta cuando se abre esa hoja, y bloquear toda
+   * la app por ella sería carísimo para algo tan secundario. La RLS de
+   * `profile` ya permite leer las filas de otros miembros del propio hogar
+   * (`profile_select`: `id = auth.uid() OR household_id = current_household()`),
+   * así que no hace falta ninguna migración para esta consulta.
+   */
+  const householdMembersQ = useQuery({
+    queryKey: householdMembersKey,
+    enabled: householdSheetOpen,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profile')
+        .select('id, display_name')
+        .eq('household_id', householdId);
+      if (error) throw error;
+      return (data ?? []).map((r) => ({ id: r.id as string, displayName: r.display_name as string }));
     },
   });
 
@@ -279,6 +320,17 @@ export function SupabaseDataProvider({
       void supabase.removeChannel(channel);
     };
   }, [householdId, queryClient, pantryKey, planKey, shoppingKey, recipesKey]);
+
+  const household = useMemo<HouseholdDetail | null>(() => {
+    if (!householdQ.data) return null;
+    return {
+      id: householdId,
+      name: householdQ.data.name,
+      ownerId: householdQ.data.ownerId,
+      members: householdMembersQ.data ?? [],
+      membersLoaded: householdMembersQ.data !== undefined,
+    };
+  }, [householdId, householdQ.data, householdMembersQ.data]);
 
   const recipeById = useMemo(
     () => new Map((recipesQ.data ?? []).map((r) => [r.id, r])),
@@ -424,11 +476,12 @@ export function SupabaseDataProvider({
 
   const resolveIngredientId = useCallback(
     async (name: string, unit: Unit): Promise<string> => {
+      const pattern = escapeIlike(name);
       const { data: found } = await supabase
         .from('ingredient')
         .select('id')
         .or(`household_id.eq.${householdId},household_id.is.null`)
-        .ilike('name_es', name)
+        .ilike('name_es', pattern)
         .limit(1)
         .maybeSingle();
       if (found) return found.id as string;
@@ -445,7 +498,22 @@ export function SupabaseDataProvider({
         })
         .select('id')
         .single();
-      if (error) throw error;
+      if (error) {
+        // Race: another concurrent call resolved/created this same name first and won the
+        // unique constraint. Re-run the SELECT instead of throwing — don't retry everything.
+        if (error.code === '23505') {
+          const { data: retryFound, error: retryError } = await supabase
+            .from('ingredient')
+            .select('id')
+            .or(`household_id.eq.${householdId},household_id.is.null`)
+            .ilike('name_es', pattern)
+            .limit(1)
+            .maybeSingle();
+          if (retryError) throw retryError;
+          if (retryFound) return retryFound.id as string;
+        }
+        throw error;
+      }
       return created.id as string;
     },
     [householdId],
@@ -554,6 +622,34 @@ export function SupabaseDataProvider({
     [finishCookMut],
   );
 
+  /**
+   * `leave_household()`/`delete_household()` (ver migración
+   * `20260907145609_rezet_leave_delete_household.sql`) devuelven sus
+   * rechazos como excepciones Postgres normales (`code = P0001`), que
+   * supabase-js expone en `error.message` ya en español y listas para
+   * mostrar tal cual — mismo camino que usa `auth.tsx` con `create_household`
+   * / `redeem_invite`. No hace falta invalidar ninguna query al terminar:
+   * el éxito borra la fila `profile` propia, y quien llama se encarga de
+   * disparar `refreshProfile()` para que `App.tsx` enrute a
+   * `needsHousehold` — este `SupabaseDataProvider` entero se desmonta con
+   * ese cambio de estado.
+   */
+  const leaveHouseholdMut = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('leave_household');
+      if (error) throw new Error(error.message);
+    },
+  });
+  const leaveHousehold = useCallback(() => leaveHouseholdMut.mutateAsync(), [leaveHouseholdMut]);
+
+  const deleteHouseholdMut = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('delete_household');
+      if (error) throw new Error(error.message);
+    },
+  });
+  const deleteHousehold = useCallback(() => deleteHouseholdMut.mutateAsync(), [deleteHouseholdMut]);
+
   const ready =
     !ingredientsQ.isLoading &&
     !recipesQ.isLoading &&
@@ -569,7 +665,8 @@ export function SupabaseDataProvider({
       pantry: pantryQ.data ?? [],
       plan: planQ.data ?? [],
       shoppingChecked: shoppingQ.data ?? {},
-      kcalTarget: householdQ.data ?? 2100,
+      kcalTarget: householdQ.data?.kcalTarget ?? 2100,
+      household,
       recipeById,
       ingredientById,
       knownTags,
@@ -587,6 +684,9 @@ export function SupabaseDataProvider({
       toggleShoppingCheck,
       buyChecked,
       finishCook,
+      leaveHousehold,
+      deleteHousehold,
+      setHouseholdSheetOpen,
     }),
     [
       ingredientsQ.data,
@@ -595,6 +695,7 @@ export function SupabaseDataProvider({
       planQ.data,
       shoppingQ.data,
       householdQ.data,
+      household,
       recipeById,
       ingredientById,
       knownTags,
@@ -612,6 +713,8 @@ export function SupabaseDataProvider({
       toggleShoppingCheck,
       buyChecked,
       finishCook,
+      leaveHousehold,
+      deleteHousehold,
     ],
   );
 

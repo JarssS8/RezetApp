@@ -185,6 +185,58 @@ export const es = {
   replayTour: 'Ver la guía otra vez',
   signOut: 'Cerrar sesión',
 
+  householdRow: 'Tu hogar',
+  householdSheetTitle: 'Tu hogar',
+  householdPeopleSection: 'Personas',
+  youTag: 'Tú',
+  householdMembersCount: (n: number) => (n === 1 ? '1 persona' : `${n} personas`),
+  leaveHouseholdRow: 'Salir del hogar',
+  deleteHouseholdRow: 'Eliminar hogar',
+
+  leaveConfirmTitle: (name: string) => `¿Salir de ${name}?`,
+  leaveConfirmBody:
+    'Perderás acceso a las recetas, el plan y la despensa de este hogar. El resto del hogar mantiene todo como está. Para volver, necesitarás un código de invitación nuevo.',
+
+  leaveOwnerWithMembersError:
+    'Eres el propietario de este hogar y aún quedan otros miembros dentro. Transferir la propiedad todavía no está disponible, así que no puedes salir.',
+  deleteNotOwnerError: 'Solo quien creó este hogar puede eliminarlo.',
+
+  leaveLastMemberTitle: 'Eres la única persona aquí',
+  leaveLastMemberBody: (name: string) =>
+    `Si sales, ${name} se queda sin nadie dentro pero sigue existiendo. Si ya no lo necesitas, elimínalo en su lugar.`,
+  deleteInsteadAction: 'Eliminar hogar en su lugar',
+
+  deleteIntroTitle: (name: string) => `Eliminar ${name}`,
+  deleteIntroBodyLead: 'Esta acción es',
+  irreversibleWord: 'irreversible',
+  deleteIntroBodyMid: (count: number) =>
+    count <= 1
+      ? 'y elimina todo lo tuyo en este hogar:'
+      : `y elimina lo siguiente para las ${count} personas del hogar:`,
+  deleteIntroRecipesCount: (n: number) => (n === 1 ? '1 receta' : `${n} recetas`),
+  deleteIntroPlanRow: 'El plan semanal',
+  deleteIntroPantryRow: 'La despensa y la lista de la compra',
+  deleteIntroOthersRow: (othersCount: number) =>
+    othersCount === 1
+      ? 'Esto también afecta a la otra persona del hogar'
+      : `Esto también afecta a las otras ${othersCount} personas del hogar`,
+  downloadJson: 'Descargar copia (JSON)',
+  downloadedJson: (n: number) => (n === 1 ? 'Copia descargada · 1 receta' : `Copia descargada · ${n} recetas`),
+  continueAction: 'Continuar',
+
+  deleteConfirmTitle: 'Última confirmación',
+  deleteConfirmBodyLead: 'Esto elimina',
+  deleteConfirmBodyTrail: (count: number) =>
+    count <= 1
+      ? 'para siempre. No se puede deshacer.'
+      : `para siempre, con las recetas y la despensa de las ${count} personas del hogar. No se puede deshacer.`,
+  deleteConfirmTypePrefix: 'Escribe',
+  deleteConfirmTypeSuffix: 'para confirmar',
+  deleteForeverAction: 'Eliminar hogar para siempre',
+
+  leftHouseholdToast: 'Has salido del hogar',
+  deletedHouseholdToast: 'Hogar eliminado',
+
   reset: 'Reiniciar',
   startTimer: 'Empezar',
   pauseTimer: 'Pausa',

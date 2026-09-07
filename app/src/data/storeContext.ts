@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import type {
   Difficulty,
+  HouseholdDetail,
   Ingredient,
   MealSlot,
   PantryItem,
@@ -62,6 +63,13 @@ export interface Store {
   plan: PlanEntry[];
   shoppingChecked: Record<string, boolean>;
   kcalTarget: number;
+  /**
+   * Nombre, propietario y miembros del hogar actual, para la hoja "Tu
+   * hogar". `null` mientras se carga en modo real; el modo demo devuelve un
+   * valor mínimo siempre (nunca se llega a mostrar: la entrada de Ajustes
+   * que abre esta hoja no se renderiza en demo).
+   */
+  household: HouseholdDetail | null;
 
   recipeById: Map<string, Recipe>;
   ingredientById: Map<string, Ingredient>;
@@ -99,6 +107,30 @@ export interface Store {
     planEntryId: string | null;
   }) => Promise<Shortage[]>;
   shortagesFor: (recipe: Recipe, servings: number) => Shortage[];
+
+  /**
+   * Contrato: `rpc/leave_household`. Borra la fila `profile` propia. Rechaza
+   * (mensaje ya en español, listo para mostrar) si eres el único miembro
+   * (hay que borrar el hogar en vez de salir) o si eres el propietario y
+   * quedan otros miembros (sin transferencia de propiedad todavía).
+   */
+  leaveHousehold: () => Promise<void>;
+  /**
+   * Contrato: `rpc/delete_household`. Solo el propietario. Borra el profile
+   * de todos los miembros y luego el hogar (cascada). Rechaza si no eres el
+   * propietario.
+   */
+  deleteHousehold: () => Promise<void>;
+
+  /**
+   * Señal desde la UI de que la hoja "Tu hogar" (o el flujo de salir/
+   * eliminar que cuelga de ella) está abierta. La implementación real la
+   * usa para gatear el fetch de la lista de miembros del hogar — casi
+   * ninguna sesión abre esa hoja, así que no tiene sentido pedirla en cada
+   * login (ver `householdMembersQ` en `supabaseStore.tsx`). El modo demo no
+   * hace nada.
+   */
+  setHouseholdSheetOpen: (open: boolean) => void;
 }
 
 export const StoreCtx = createContext<Store | null>(null);

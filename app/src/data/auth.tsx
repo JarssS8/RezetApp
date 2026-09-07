@@ -31,6 +31,15 @@ interface AuthContextValue {
   redeemInvite: (code: string, displayName: string) => Promise<void>;
   markOnboarded: () => Promise<void>;
   clearError: () => void;
+  /**
+   * Fuerza una relectura de la fila `profile` de la sesión actual. Hace
+   * falta tras `leaveHousehold`/`deleteHousehold`: la sesión sigue siendo la
+   * misma (no es un evento de `onAuthStateChange`), pero el `profile` ya no
+   * existe, así que nada vuelve a comprobarlo por su cuenta — quien llama a
+   * esas acciones debe disparar esto para que `status` pase a
+   * `needsHousehold` y `App.tsx` enrute a `CreateOrJoinHousehold`.
+   */
+  refreshProfile: () => Promise<void>;
 }
 
 const Ctx = createContext<AuthContextValue | null>(null);
@@ -57,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [error, setError] = useState<string | null>(null);
 
-  const refreshProfile = useCallback(async (userId: string) => {
+  const refreshProfileFor = useCallback(async (userId: string) => {
     try {
       const p = await loadProfile(userId);
       setProfile(p);
@@ -74,13 +83,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
       setSession(data.session);
-      if (data.session) void refreshProfile(data.session.user.id);
+      if (data.session) void refreshProfileFor(data.session.user.id);
       else setStatus('signedOut');
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
-      if (next) void refreshProfile(next.user.id);
+      if (next) void refreshProfileFor(next.user.id);
       else {
         setProfile(null);
         setStatus('signedOut');
@@ -91,7 +100,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, [refreshProfile]);
+  }, [refreshProfileFor]);
+
+  /** Versión pública, sin argumentos: relee el profile de la sesión actual. */
+  const refreshProfile = useCallback(async () => {
+    if (!session) return;
+    await refreshProfileFor(session.user.id);
+  }, [session, refreshProfileFor]);
 
   const signInWithGoogle = useCallback(async () => {
     setError(null);
@@ -138,9 +153,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setError(err.message);
         throw err;
       }
-      if (session) await refreshProfile(session.user.id);
+      if (session) await refreshProfileFor(session.user.id);
     },
-    [session, refreshProfile],
+    [session, refreshProfileFor],
   );
 
   const redeemInvite = useCallback(
@@ -154,9 +169,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setError(err.message);
         throw err;
       }
-      if (session) await refreshProfile(session.user.id);
+      if (session) await refreshProfileFor(session.user.id);
     },
-    [session, refreshProfile],
+    [session, refreshProfileFor],
   );
 
   const markOnboarded = useCallback(async () => {
@@ -183,6 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       redeemInvite,
       markOnboarded,
       clearError,
+      refreshProfile,
     }),
     [
       status,
@@ -198,6 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       redeemInvite,
       markOnboarded,
       clearError,
+      refreshProfile,
     ],
   );
 

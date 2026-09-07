@@ -115,3 +115,30 @@ export interface ShoppingNeed {
   unit: Unit;
   group: FoodGroup;
 }
+
+/** Miembro de un hogar, tal y como se ve en la hoja "Tu hogar". */
+export interface HouseholdMember {
+  id: string;
+  displayName: string;
+}
+
+/**
+ * Detalle de hogar para la hoja "Tu hogar" (nombre, propietario, miembros).
+ * `ownerId` puede ser `null` en datos heredados de antes de que existiera la
+ * columna `household.owner_id` (se hace backfill, pero por si acaso).
+ */
+export interface HouseholdDetail {
+  id: string;
+  name: string;
+  ownerId: string | null;
+  members: HouseholdMember[];
+  /**
+   * `false` mientras `members` todavía no refleja la lista real (la
+   * implementación real la carga aparte, sin bloquear el gate `ready` — ver
+   * `supabaseStore.tsx`). El modo demo es siempre `true`. Cualquier cálculo
+   * derivado de `members` (p. ej. "cuántas otras personas hay") debe
+   * esperar a que esto sea `true` para no mostrar un número silenciosamente
+   * erróneo.
+   */
+  membersLoaded: boolean;
+}

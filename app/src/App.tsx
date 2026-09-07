@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useIsWide } from './hooks/useMediaQuery';
 import { usePersistentState, useToast } from './hooks/usePersistentState';
 import { usePrefs } from './store/prefs';
@@ -26,6 +26,9 @@ import { PantryAddSheet } from './sheets/PantryAddSheet';
 import { RecipePickerSheet, type PickerTarget } from './sheets/RecipePickerSheet';
 import { CookFinishSheet } from './sheets/CookFinishSheet';
 import { InviteSheet } from './sheets/InviteSheet';
+import { HouseholdSheet } from './sheets/HouseholdSheet';
+import { LeaveConfirmDialog, LeaveLastMemberDialog } from './sheets/LeaveHouseholdDialogs';
+import { DeleteIntroSheet, DeleteConfirmDialog } from './sheets/DeleteHouseholdFlow';
 import { Toast } from './ui/Fields';
 import type { MealSlot } from './types';
 
@@ -41,6 +44,11 @@ type SheetState =
   | { kind: 'picker'; target: PickerTarget }
   | { kind: 'finish' }
   | { kind: 'invite' }
+  | { kind: 'household' }
+  | { kind: 'leaveConfirm' }
+  | { kind: 'leaveLastMember' }
+  | { kind: 'deleteIntro' }
+  | { kind: 'deleteConfirm' }
   | null;
 
 /**
@@ -135,8 +143,9 @@ function MainApp({
 }) {
   const isWide = useIsWide();
   const { t } = usePrefs();
-  const { profile } = useAuth();
-  const { recipeById, finishCook } = useData();
+  const auth = useAuth();
+  const { profile } = auth;
+  const { recipeById, finishCook, setHouseholdSheetOpen } = useData();
   const { message, show } = useToast();
 
   const [tab, setTab] = usePersistentState<Tab>('rezet.tab', 'today');
@@ -145,6 +154,23 @@ function MainApp({
   const [sheet, setSheet] = useState<SheetState>(null);
   /** Guía repetible desde Ajustes; independiente de la de primer uso. */
   const [replayStep, setReplayStep] = useState<number | null>(null);
+
+  /**
+   * "Tu hogar" y todo el flujo de salir/eliminar que cuelga de ella
+   * (`App.tsx` la cierra y abre el diálogo siguiente, así que nunca hay dos
+   * a la vez, pero sí huecos con `sheet === null` entre paso y paso).
+   * Mientras cualquiera de estas hojas esté abierta, se le señala a la capa
+   * de datos que puede pedir la lista de miembros del hogar (hallazgo 8).
+   */
+  const householdFlowOpen =
+    sheet?.kind === 'household' ||
+    sheet?.kind === 'leaveConfirm' ||
+    sheet?.kind === 'leaveLastMember' ||
+    sheet?.kind === 'deleteIntro' ||
+    sheet?.kind === 'deleteConfirm';
+  useEffect(() => {
+    setHouseholdSheetOpen(householdFlowOpen);
+  }, [householdFlowOpen, setHouseholdSheetOpen]);
 
   const cook = useCookSession();
   const cookSession = cook.session;
@@ -180,6 +206,38 @@ function MainApp({
       show(t.cookSaved);
     },
     [cookSession, finishCook, cook, show, t.cookSaved],
+  );
+
+  /**
+   * Éxito de salir/eliminar el hogar: la fila `profile` propia ya no
+   * existe, pero la sesión sigue siendo la misma (no es un evento de
+   * `onAuthStateChange`), así que nada vuelve a comprobarlo por su cuenta
+   * — hay que forzar `refreshProfile()` para que `auth.status` pase a
+   * `needsHousehold` y `App()` enrute a `CreateOrJoinHousehold`. Ese cambio
+   * desmonta `SupabaseDataProvider`/`MainApp` enteros, así que el toast se
+   * dispara primero y `refreshProfile()` se retrasa un momento para que dé
+   * tiempo a verse antes de que la pantalla cambie.
+   */
+  const householdActionTimeoutRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (householdActionTimeoutRef.current != null) {
+        window.clearTimeout(householdActionTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
+  const onHouseholdActionDone = useCallback(
+    (toastMessage: string) => {
+      setSheet(null);
+      show(toastMessage);
+      householdActionTimeoutRef.current = window.setTimeout(() => {
+        householdActionTimeoutRef.current = null;
+        void auth.refreshProfile();
+      }, 900);
+    },
+    [show, auth],
   );
 
   if (replayStep !== null) {
@@ -266,6 +324,7 @@ function MainApp({
             onSignOut();
           }}
           onInvite={demo || !onInvite ? undefined : () => setSheet({ kind: 'invite' })}
+          onHousehold={demo || !onInvite ? undefined : () => setSheet({ kind: 'household' })}
           onToast={show}
         />
       )}
@@ -301,6 +360,40 @@ function MainApp({
       )}
 
       {sheet?.kind === 'invite' && <InviteSheet onClose={() => setSheet(null)} onToast={show} />}
+
+      {sheet?.kind === 'household' && (
+        <HouseholdSheet
+          onClose={() => setSheet(null)}
+          onRequestLeave={() => setSheet({ kind: 'leaveConfirm' })}
+          onRequestDelete={() => setSheet({ kind: 'deleteIntro' })}
+        />
+      )}
+
+      {sheet?.kind === 'leaveConfirm' && (
+        <LeaveConfirmDialog
+          onCancel={() => setSheet(null)}
+          onLeft={() => onHouseholdActionDone(t.leftHouseholdToast)}
+          onSoleMember={() => setSheet({ kind: 'leaveLastMember' })}
+        />
+      )}
+
+      {sheet?.kind === 'leaveLastMember' && (
+        <LeaveLastMemberDialog
+          onCancel={() => setSheet(null)}
+          onDeleteInstead={() => setSheet({ kind: 'deleteIntro' })}
+        />
+      )}
+
+      {sheet?.kind === 'deleteIntro' && (
+        <DeleteIntroSheet onClose={() => setSheet(null)} onContinue={() => setSheet({ kind: 'deleteConfirm' })} />
+      )}
+
+      {sheet?.kind === 'deleteConfirm' && (
+        <DeleteConfirmDialog
+          onCancel={() => setSheet(null)}
+          onDeleted={() => onHouseholdActionDone(t.deletedHouseholdToast)}
+        />
+      )}
 
       <Toast message={message} />
     </>

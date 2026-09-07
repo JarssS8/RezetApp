@@ -185,6 +185,58 @@ export const en: Dictionary = {
   replayTour: 'Replay the tour',
   signOut: 'Sign out',
 
+  householdRow: 'Your household',
+  householdSheetTitle: 'Your household',
+  householdPeopleSection: 'People',
+  youTag: 'You',
+  householdMembersCount: (n: number) => (n === 1 ? '1 person' : `${n} people`),
+  leaveHouseholdRow: 'Leave household',
+  deleteHouseholdRow: 'Delete household',
+
+  leaveConfirmTitle: (name: string) => `Leave ${name}?`,
+  leaveConfirmBody:
+    "You'll lose access to this household's recipes, plan and pantry. The rest of the household keeps everything as it is. To come back, you'll need a new invite code.",
+
+  leaveOwnerWithMembersError:
+    "You're the owner of this household and other members are still in it. Transferring ownership isn't available yet, so you can't leave.",
+  deleteNotOwnerError: 'Only the person who created this household can delete it.',
+
+  leaveLastMemberTitle: "You're the only person here",
+  leaveLastMemberBody: (name: string) =>
+    `If you leave, ${name} stays with no one in it but keeps existing. If you don't need it anymore, delete it instead.`,
+  deleteInsteadAction: 'Delete household instead',
+
+  deleteIntroTitle: (name: string) => `Delete ${name}`,
+  deleteIntroBodyLead: 'This action is',
+  irreversibleWord: 'irreversible',
+  deleteIntroBodyMid: (count: number) =>
+    count <= 1
+      ? 'and deletes everything of yours in this household:'
+      : `and deletes the following for the ${count} people in the household:`,
+  deleteIntroRecipesCount: (n: number) => (n === 1 ? '1 recipe' : `${n} recipes`),
+  deleteIntroPlanRow: 'The weekly plan',
+  deleteIntroPantryRow: 'The pantry and shopping list',
+  deleteIntroOthersRow: (othersCount: number) =>
+    othersCount === 1
+      ? 'This also affects the other person in the household'
+      : `This also affects the other ${othersCount} people in the household`,
+  downloadJson: 'Download a copy (JSON)',
+  downloadedJson: (n: number) => (n === 1 ? 'Copy downloaded · 1 recipe' : `Copy downloaded · ${n} recipes`),
+  continueAction: 'Continue',
+
+  deleteConfirmTitle: 'Final confirmation',
+  deleteConfirmBodyLead: 'This deletes',
+  deleteConfirmBodyTrail: (count: number) =>
+    count <= 1
+      ? 'forever. This cannot be undone.'
+      : `forever, along with the recipes and pantry of the ${count} people in the household. This cannot be undone.`,
+  deleteConfirmTypePrefix: 'Type',
+  deleteConfirmTypeSuffix: 'to confirm',
+  deleteForeverAction: 'Delete household forever',
+
+  leftHouseholdToast: 'You left the household',
+  deletedHouseholdToast: 'Household deleted',
+
   reset: 'Reset',
   startTimer: 'Start',
   pauseTimer: 'Pause',

@@ -6,6 +6,7 @@ import { OptionChip } from '../ui/Chip';
 import { Eyebrow } from '../ui/Card';
 import { Pressable } from '../ui/Pressable';
 import { Sheet } from '../ui/Sheet';
+import { Icon } from '../ui/Icon';
 import { radius } from '../ui/tokens';
 import type { Accent, Locale, Theme, UnitSystem } from '../types';
 
@@ -26,6 +27,7 @@ export function SettingsSheet({
   onReplayTour,
   onSignOut,
   onInvite,
+  onHousehold,
   onToast,
 }: {
   onClose: () => void;
@@ -33,6 +35,8 @@ export function SettingsSheet({
   onSignOut: () => void;
   /** Solo en modo real, con hogar: ausente en el modo demo. */
   onInvite?: () => void;
+  /** Solo en modo real: ausente en el modo demo (no hay hogar multi-usuario real que ver). */
+  onHousehold?: () => void;
   onToast?: (msg: string) => void;
 }) {
   const { t, theme, accent, locale, units, setTheme, setAccent, setLocale, setUnits } = usePrefs();
@@ -174,6 +178,19 @@ export function SettingsSheet({
               style={{ ...rowStyle, opacity: passkeyBusy ? 0.6 : 1 }}
             >
               {t.registerPasskey}
+            </Pressable>
+          )}
+          {onHousehold && (
+            <Pressable
+              onClick={onHousehold}
+              scale={0.98}
+              style={{ ...rowStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Icon name="home" size={18} strokeWidth={1.8} />
+                {t.householdRow}
+              </span>
+              <Icon name="chevronRight" size={16} strokeWidth={2.2} />
             </Pressable>
           )}
           {onInvite && (
