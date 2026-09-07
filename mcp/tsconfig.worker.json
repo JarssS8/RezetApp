@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["@cloudflare/workers-types"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "include": [
+    "src/worker",
+    "src/server.ts",
+    "src/context.ts",
+    "src/errors.ts",
+    "src/mappers.ts",
+    "src/queries.ts",
+    "src/schemas.ts",
+    "src/tools",
+    "worker-configuration.d.ts"
+  ]
+}

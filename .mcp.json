@@ -3,6 +3,20 @@
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=raepigwmunhguzkmzukd&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching"
+    },
+    "rezet": {
+      "type": "stdio",
+      "command": "/home/jars/Programing/Rezet/mcp/node_modules/.bin/tsx",
+      "args": ["/home/jars/Programing/Rezet/mcp/src/index.ts"],
+      "env": { "TZ": "Europe/Madrid" }
+    },
+    "rezet-dev": {
+      "type": "http",
+      "url": "http://localhost:8787/mcp"
+    },
+    "rezet-remote": {
+      "type": "http",
+      "url": "https://rezet-mcp.jarsss8.es/mcp"
     }
   }
 }

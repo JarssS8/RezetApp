@@ -2,6 +2,25 @@ import type { Locale, MealSlot } from '../types';
 
 export const SLOT_ORDER: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
+let clockFn: () => Date = () => new Date();
+/**
+ * Test/Worker hook: override how "now" is read. Default: the runtime's local clock.
+ *
+ * This is module-level mutable global state, safe today only because every caller in this
+ * codebase installs the exact same single timezone value (`REZET_TZ`, one fixed deployment-wide
+ * setting — see `mcp/src/worker/clock.ts`'s `installClock`, which is idempotent after the first
+ * call per isolate for that reason). It is NOT per-request-safe: if a future feature needs
+ * per-household timezones, do not call `setClock` per-request in a shared/concurrent runtime
+ * like the Cloudflare Worker without redesigning this (e.g. threading an explicit `now` through
+ * call sites instead of a shared global).
+ */
+export function setClock(fn: () => Date): void {
+  clockFn = fn;
+}
+function now(): Date {
+  return clockFn();
+}
+
 /** Clave ISO local `YYYY-MM-DD`, estable frente a zonas horarias. */
 export function dateKey(d: Date): string {
   const y = d.getFullYear();
@@ -11,7 +30,7 @@ export function dateKey(d: Date): string {
 }
 
 export function todayKey(): string {
-  return dateKey(new Date());
+  return dateKey(now());
 }
 
 /** Diferencia de días (con signo) entre hoy y `dateStr`. Negativo = ya caducado. */
@@ -34,12 +53,12 @@ export function addDays(d: Date, n: number): Date {
 }
 
 export function offsetKey(days: number): string {
-  return dateKey(addDays(new Date(), days));
+  return dateKey(addDays(now(), days));
 }
 
 /** Lunes de la semana, con desplazamiento en semanas. */
 export function mondayOf(weekOffset: number): Date {
-  const d = new Date();
+  const d = now();
   d.setHours(12, 0, 0, 0);
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + weekOffset * 7);
   return d;
@@ -79,6 +98,6 @@ export function clock(totalSeconds: number): string {
 }
 
 /** Franja por defecto al registrar un cocinado sin plan. */
-export function slotForNow(now = new Date()): MealSlot {
-  return now.getHours() < 16 ? 'lunch' : 'dinner';
+export function slotForNow(now_: Date = now()): MealSlot {
+  return now_.getHours() < 16 ? 'lunch' : 'dinner';
 }

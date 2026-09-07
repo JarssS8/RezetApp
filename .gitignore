@@ -13,3 +13,12 @@ ds-bundle/
 # design canvas (seeded output — regenerate with seed-canvas.mjs from the .dc.html sources)
 .design-canvas/**/*.html
 !.design-canvas/**/*.dc.html
+
+# mcp/
+mcp/node_modules/
+mcp/.env
+mcp/*.tsbuildinfo
+mcp/session*.json
+mcp/.dev.vars
+mcp/.wrangler/
+mcp/worker-configuration.d.ts

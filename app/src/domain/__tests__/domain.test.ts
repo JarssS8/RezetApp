@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { scaleQuantity } from '../scaling';
 import { isCovered } from '../coverage';
 import { formatFractionalQuantity, formatQuantity, roundNice } from '../units';
 import { defaultLocationFor, findIngredientByName, inferFoodGroup, textMentions } from '../recipeText';
 import { shoppingNeeds } from '../shopping';
+import { dateKey, mondayOf, setClock, slotForNow, todayKey } from '../dates';
 import type { Ingredient, PantryItem, PlanEntry, Recipe } from '../../types';
 
 describe('escalado', () => {
@@ -172,5 +173,18 @@ describe('defaultLocationFor', () => {
   it('seco y conserva van a armario', () => {
     expect(defaultLocationFor('seco')).toBe('cupboard');
     expect(defaultLocationFor('conserva')).toBe('cupboard');
+  });
+});
+
+describe('setClock', () => {
+  afterEach(() => {
+    setClock(() => new Date());
+  });
+
+  it('desplaza todayKey, mondayOf y slotForNow al reloj inyectado', () => {
+    setClock(() => new Date(2026, 8, 9, 23, 30));
+    expect(todayKey()).toBe('2026-09-09');
+    expect(dateKey(mondayOf(0))).toBe('2026-09-07');
+    expect(slotForNow()).toBe('dinner');
   });
 });

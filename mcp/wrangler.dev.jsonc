@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "rezet-mcp",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-09-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  // No `routes` here, unlike wrangler.jsonc: under `wrangler dev`, a configured `custom_domain`
+  // route makes the simulated request's Host — and therefore the OAuth provider's derived
+  // issuer/endpoint URLs (RFC 8414 metadata is built from `new URL(request.url).origin`) — the
+  // production hostname instead of localhost, even though the server only ever binds locally.
+  // Verified in @cloudflare/workers-oauth-provider@0.10.3: there is no `issuer`/`baseUrl` option
+  // to override this. Local OAuth testing must use this route-free config.
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "00000000000000000000000000000000" }],
+  "vars": {
+    "SUPABASE_URL": "https://raepigwmunhguzkmzukd.supabase.co",
+    "PUBLIC_ORIGIN": "http://localhost:8787",
+    "APP_URL": "https://rezet.jarsss8.es",
+    "REZET_TZ": "Europe/Madrid"
+  },
+  "observability": { "enabled": true }
+}
