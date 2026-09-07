@@ -237,6 +237,19 @@ export const es = {
   leftHouseholdToast: 'Has salido del hogar',
   deletedHouseholdToast: 'Hogar eliminado',
 
+  connectAiRow: 'Conectar un asistente IA',
+  connectAiSheetTitle: 'Conectar un asistente IA',
+  connectAiSheetBody:
+    'Conecta Claude (o cualquier asistente compatible con MCP) a tu hogar en Rezet: puede crear recetas, planificar la semana, ver la despensa y montar la lista de la compra hablando contigo, siempre con tu propia cuenta y solo con tu hogar.',
+  connectAiUrlLabel: 'URL del conector',
+  connectAiCopyUrl: 'Copiar URL',
+  connectAiCopiedUrl: 'URL copiada',
+  connectAiStepsLabel: 'Cómo conectarlo',
+  connectAiStep1: 'Abre los ajustes de conectores de tu asistente (en Claude: Ajustes → Conectores → Añadir conector personalizado).',
+  connectAiStep2: 'Pega esta URL.',
+  connectAiStep3: 'Inicia sesión con tu cuenta de Google o Apple — te pedirá confirmar el acceso a tu hogar.',
+  connectAiNote: 'Solo disponible con cuenta real, no en modo demo. Revocar el acceso: cierra sesión en la app.',
+
   reset: 'Reiniciar',
   startTimer: 'Empezar',
   pauseTimer: 'Pausa',

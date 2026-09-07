@@ -26,6 +26,7 @@ import { PantryAddSheet } from './sheets/PantryAddSheet';
 import { RecipePickerSheet, type PickerTarget } from './sheets/RecipePickerSheet';
 import { CookFinishSheet } from './sheets/CookFinishSheet';
 import { InviteSheet } from './sheets/InviteSheet';
+import { ConnectMcpSheet } from './sheets/ConnectMcpSheet';
 import { HouseholdSheet } from './sheets/HouseholdSheet';
 import { LeaveConfirmDialog, LeaveLastMemberDialog } from './sheets/LeaveHouseholdDialogs';
 import { DeleteIntroSheet, DeleteConfirmDialog } from './sheets/DeleteHouseholdFlow';
@@ -44,6 +45,7 @@ type SheetState =
   | { kind: 'picker'; target: PickerTarget }
   | { kind: 'finish' }
   | { kind: 'invite' }
+  | { kind: 'connectMcp' }
   | { kind: 'household' }
   | { kind: 'leaveConfirm' }
   | { kind: 'leaveLastMember' }
@@ -325,6 +327,7 @@ function MainApp({
           }}
           onInvite={demo || !onInvite ? undefined : () => setSheet({ kind: 'invite' })}
           onHousehold={demo || !onInvite ? undefined : () => setSheet({ kind: 'household' })}
+          onConnectMcp={demo || !onInvite ? undefined : () => setSheet({ kind: 'connectMcp' })}
           onToast={show}
         />
       )}
@@ -360,6 +363,8 @@ function MainApp({
       )}
 
       {sheet?.kind === 'invite' && <InviteSheet onClose={() => setSheet(null)} onToast={show} />}
+
+      {sheet?.kind === 'connectMcp' && <ConnectMcpSheet onClose={() => setSheet(null)} onToast={show} />}
 
       {sheet?.kind === 'household' && (
         <HouseholdSheet

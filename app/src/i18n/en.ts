@@ -237,6 +237,19 @@ export const en: Dictionary = {
   leftHouseholdToast: 'You left the household',
   deletedHouseholdToast: 'Household deleted',
 
+  connectAiRow: 'Connect an AI assistant',
+  connectAiSheetTitle: 'Connect an AI assistant',
+  connectAiSheetBody:
+    'Connect Claude (or any MCP-compatible assistant) to your Rezet household: it can create recipes, plan the week, check the pantry, and build the shopping list by talking with you, always as you and scoped to your own household.',
+  connectAiUrlLabel: 'Connector URL',
+  connectAiCopyUrl: 'Copy URL',
+  connectAiCopiedUrl: 'URL copied',
+  connectAiStepsLabel: 'How to connect it',
+  connectAiStep1: 'Open your assistant’s connector settings (in Claude: Settings → Connectors → Add custom connector).',
+  connectAiStep2: 'Paste this URL.',
+  connectAiStep3: 'Sign in with your Google or Apple account — it’ll ask you to confirm access to your household.',
+  connectAiNote: 'Real accounts only, not available in demo mode. To revoke access, sign out of the app.',
+
   reset: 'Reset',
   startTimer: 'Start',
   pauseTimer: 'Pause',

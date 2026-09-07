@@ -28,6 +28,7 @@ export function SettingsSheet({
   onSignOut,
   onInvite,
   onHousehold,
+  onConnectMcp,
   onToast,
 }: {
   onClose: () => void;
@@ -37,6 +38,8 @@ export function SettingsSheet({
   onInvite?: () => void;
   /** Solo en modo real: ausente en el modo demo (no hay hogar multi-usuario real que ver). */
   onHousehold?: () => void;
+  /** Solo en modo real: el server MCP necesita una cuenta/hogar de verdad. */
+  onConnectMcp?: () => void;
   onToast?: (msg: string) => void;
 }) {
   const { t, theme, accent, locale, units, setTheme, setAccent, setLocale, setUnits } = usePrefs();
@@ -196,6 +199,16 @@ export function SettingsSheet({
           {onInvite && (
             <Pressable onClick={onInvite} scale={0.98} style={rowStyle}>
               {t.inviteSomeone}
+            </Pressable>
+          )}
+          {onConnectMcp && (
+            <Pressable
+              onClick={onConnectMcp}
+              scale={0.98}
+              style={{ ...rowStyle, display: 'flex', alignItems: 'center', gap: 10 }}
+            >
+              <Icon name="link" size={18} strokeWidth={1.8} />
+              {t.connectAiRow}
             </Pressable>
           )}
           <Pressable onClick={onReplayTour} scale={0.98} style={rowStyle}>
