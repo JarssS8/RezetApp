@@ -27,6 +27,7 @@ import { RecipePickerSheet, type PickerTarget } from './sheets/RecipePickerSheet
 import { CookFinishSheet } from './sheets/CookFinishSheet';
 import { InviteSheet } from './sheets/InviteSheet';
 import { ConnectMcpSheet } from './sheets/ConnectMcpSheet';
+import { AccountHouseholdSheet } from './sheets/AccountHouseholdSheet';
 import { HouseholdSheet } from './sheets/HouseholdSheet';
 import { LeaveConfirmDialog, LeaveLastMemberDialog, LeaveLastAdminDialog } from './sheets/LeaveHouseholdDialogs';
 import { DeleteIntroSheet, DeleteConfirmDialog } from './sheets/DeleteHouseholdFlow';
@@ -51,6 +52,7 @@ type SheetState =
   | { kind: 'finish' }
   | { kind: 'invite' }
   | { kind: 'connectMcp' }
+  | { kind: 'accountHousehold' }
   | { kind: 'household' }
   | { kind: 'leaveConfirm' }
   | { kind: 'leaveLastMember' }
@@ -357,10 +359,7 @@ function MainApp({
             cook.endCook();
             onSignOut();
           }}
-          onInvite={demo || !onInvite ? undefined : () => setSheet({ kind: 'invite' })}
-          onHousehold={demo || !onInvite ? undefined : () => setSheet({ kind: 'household' })}
-          onConnectMcp={demo || !onInvite ? undefined : () => setSheet({ kind: 'connectMcp' })}
-          onDeleteAccount={demo || !onInvite ? undefined : () => setSheet({ kind: 'deleteAccountIntro' })}
+          onAccountHousehold={demo || !onInvite ? undefined : () => setSheet({ kind: 'accountHousehold' })}
           onToast={show}
         />
       )}
@@ -395,13 +394,28 @@ function MainApp({
         />
       )}
 
-      {sheet?.kind === 'invite' && <InviteSheet onClose={() => setSheet(null)} onToast={show} />}
+      {sheet?.kind === 'invite' && (
+        <InviteSheet onClose={() => setSheet({ kind: 'accountHousehold' })} onToast={show} />
+      )}
 
-      {sheet?.kind === 'connectMcp' && <ConnectMcpSheet onClose={() => setSheet(null)} onToast={show} />}
+      {sheet?.kind === 'connectMcp' && (
+        <ConnectMcpSheet onClose={() => setSheet({ kind: 'accountHousehold' })} onToast={show} />
+      )}
+
+      {sheet?.kind === 'accountHousehold' && (
+        <AccountHouseholdSheet
+          onClose={() => setSheet(null)}
+          onHousehold={() => setSheet({ kind: 'household' })}
+          onInvite={() => setSheet({ kind: 'invite' })}
+          onConnectMcp={() => setSheet({ kind: 'connectMcp' })}
+          onDeleteAccount={() => setSheet({ kind: 'deleteAccountIntro' })}
+          onToast={show}
+        />
+      )}
 
       {sheet?.kind === 'household' && (
         <HouseholdSheet
-          onClose={() => setSheet(null)}
+          onClose={() => setSheet({ kind: 'accountHousehold' })}
           onRequestLeave={() => setSheet({ kind: 'leaveConfirm' })}
           onRequestDelete={() => setSheet({ kind: 'deleteIntro' })}
           onToast={show}
@@ -444,7 +458,7 @@ function MainApp({
 
       {sheet?.kind === 'deleteAccountIntro' && (
         <DeleteAccountIntroSheet
-          onClose={() => setSheet(null)}
+          onClose={() => setSheet({ kind: 'accountHousehold' })}
           onContinue={() => setSheet({ kind: 'deleteAccountConfirm' })}
         />
       )}

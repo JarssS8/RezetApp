@@ -4,12 +4,21 @@ import { useAuth } from '../data/auth';
 import { useData } from '../data/storeContext';
 import { stripHouseholdErrorTag } from '../data/householdErrors';
 import { Sheet } from '../ui/Sheet';
-import { Icon } from '../ui/Icon';
-import { Button } from '../ui/Button';
 import { Pressable } from '../ui/Pressable';
 import { Pill } from '../ui/Chip';
 import { Eyebrow } from '../ui/Card';
 import { radius, text as T } from '../ui/tokens';
+
+const rowStyle = {
+  height: 48,
+  borderRadius: radius.input,
+  background: 'var(--warnsoft)',
+  color: 'var(--warn-ink)',
+  fontSize: 15.5,
+  fontWeight: 600,
+  textAlign: 'left' as const,
+  padding: '0 16px',
+};
 
 /**
  * Hoja "Tu hogar": nombre, lista de miembros (con insignia "Admin" para
@@ -139,26 +148,19 @@ export function HouseholdSheet({
           ))}
         </div>
 
-        <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <Button
-            full
-            variant="danger"
-            size="cta"
-            icon={<Icon name="logout" size={18} strokeWidth={1.8} />}
-            onClick={onRequestLeave}
-          >
+        <div style={{ marginTop: 24 }}>
+          <Pressable onClick={onRequestLeave} scale={0.98} style={rowStyle}>
             {t.leaveHouseholdRow}
-          </Button>
+          </Pressable>
           {amIAdmin && (
-            <Button
-              full
-              variant="danger"
-              size="cta"
-              icon={<Icon name="trash" size={18} strokeWidth={1.8} />}
-              onClick={onRequestDelete}
-            >
-              {t.deleteHouseholdRow}
-            </Button>
+            <>
+              <Eyebrow style={{ marginTop: 20, marginBottom: 9, color: 'var(--warn-ink)' }}>
+                {t.dangerZoneLabel}
+              </Eyebrow>
+              <Pressable onClick={onRequestDelete} scale={0.98} style={rowStyle}>
+                {t.deleteHouseholdRow}
+              </Pressable>
+            </>
           )}
         </div>
       </div>
