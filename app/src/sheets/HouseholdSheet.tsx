@@ -1,19 +1,29 @@
+import { useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useAuth } from '../data/auth';
 import { useData } from '../data/storeContext';
+import { stripHouseholdErrorTag } from '../data/householdErrors';
 import { Sheet } from '../ui/Sheet';
 import { Icon } from '../ui/Icon';
 import { Button } from '../ui/Button';
+import { Pressable } from '../ui/Pressable';
+import { Pill } from '../ui/Chip';
 import { Eyebrow } from '../ui/Card';
 import { radius, text as T } from '../ui/tokens';
 
 /**
- * Hoja "Tu hogar": nombre, lista de miembros y la única acción destructiva
- * que le corresponde a quien la ve — "Salir del hogar" para el resto,
- * "Eliminar hogar" solo para quien lo creó (`household.ownerId`). Nunca
- * ambas a la vez, siguiendo la regla del backend (`leave_household`/
- * `delete_household`): el propietario no puede salir mientras queden otros
- * miembros, así que no tiene sentido ofrecerle esa opción.
+ * Hoja "Tu hogar": nombre, lista de miembros (con insignia "Admin" para
+ * quien lo es) y las acciones destructivas que le corresponden a quien la
+ * ve. "Salir del hogar" se muestra siempre — `leave_household()` decide si
+ * procede (bloquea con un error claro si eres el único miembro, o el único
+ * administrador con gente dentro). "Eliminar hogar" se muestra además, solo
+ * a cualquier administrador (ya no hay un único propietario: cualquier
+ * número de miembros puede serlo, ver `profile.is_admin`) — ser admin no te
+ * quita la opción de simplemente salir si no eres el último.
+ *
+ * Quien ya es administrador puede además ascender a cualquier otro miembro
+ * que todavía no lo sea ("Hacer administrador", `promote_admin`) — quien no
+ * es administrador no ve ese control en absoluto, ni siquiera deshabilitado.
  *
  * No abre los diálogos de confirmación ella misma — solo avisa hacia
  * arriba (`onRequestLeave`/`onRequestDelete`). Quien monta esta hoja
@@ -26,14 +36,17 @@ export function HouseholdSheet({
   onClose,
   onRequestLeave,
   onRequestDelete,
+  onToast,
 }: {
   onClose: () => void;
   onRequestLeave: () => void;
   onRequestDelete: () => void;
+  onToast?: (msg: string) => void;
 }) {
   const { t } = usePrefs();
   const { profile } = useAuth();
-  const { household } = useData();
+  const { household, promoteAdmin } = useData();
+  const [promotingId, setPromotingId] = useState<string | null>(null);
 
   if (!household) {
     return (
@@ -43,7 +56,22 @@ export function HouseholdSheet({
     );
   }
 
-  const isOwner = profile != null && household.ownerId === profile.id;
+  const myMember = household.members.find((m) => m.id === profile?.id);
+  const amIAdmin = myMember?.isAdmin ?? false;
+
+  const promote = async (memberId: string) => {
+    if (promotingId) return;
+    setPromotingId(memberId);
+    try {
+      await promoteAdmin(memberId);
+      const member = household.members.find((m) => m.id === memberId);
+      onToast?.(t.promotedAdminToast(member?.displayName ?? ''));
+    } catch (e) {
+      onToast?.(stripHouseholdErrorTag(e instanceof Error ? e.message : String(e)));
+    } finally {
+      setPromotingId(null);
+    }
+  };
 
   return (
     <Sheet title={t.householdSheetTitle} onClose={onClose}>
@@ -57,7 +85,7 @@ export function HouseholdSheet({
         <div>
           {household.members.map((m, i) => (
             <div key={m.id}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', minHeight: 44 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', minHeight: 44 }}>
                 <div
                   aria-hidden="true"
                   style={{
@@ -77,19 +105,51 @@ export function HouseholdSheet({
                   {m.displayName.slice(0, 1).toUpperCase()}
                 </div>
                 <div style={{ flex: 1, minWidth: 0, fontSize: 15.5, fontWeight: 600 }}>{m.displayName}</div>
+                {m.isAdmin && <Pill style={{ flexShrink: 0 }}>{t.adminBadge}</Pill>}
                 {profile?.id === m.id && (
-                  <div style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 600 }}>{t.youTag}</div>
+                  <div style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 600, flexShrink: 0 }}>
+                    {t.youTag}
+                  </div>
+                )}
+                {amIAdmin && !m.isAdmin && (
+                  <Pressable
+                    onClick={() => void promote(m.id)}
+                    disabled={promotingId !== null}
+                    scale={0.95}
+                    style={{
+                      flexShrink: 0,
+                      height: 40,
+                      padding: '0 12px',
+                      borderRadius: radius.chip,
+                      background: 'var(--surface2)',
+                      color: 'var(--text)',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      opacity: promotingId !== null ? 0.6 : 1,
+                    }}
+                  >
+                    {promotingId === m.id ? t.promotingAdmin : t.makeAdminAction}
+                  </Pressable>
                 )}
               </div>
               {i < household.members.length - 1 && (
-                <div style={{ height: 1, background: 'var(--line)', marginLeft: 50 }} />
+                <div style={{ height: 1, background: 'var(--line)', marginLeft: 48 }} />
               )}
             </div>
           ))}
         </div>
 
-        <div style={{ marginTop: 24 }}>
-          {isOwner ? (
+        <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <Button
+            full
+            variant="danger"
+            size="cta"
+            icon={<Icon name="logout" size={18} strokeWidth={1.8} />}
+            onClick={onRequestLeave}
+          >
+            {t.leaveHouseholdRow}
+          </Button>
+          {amIAdmin && (
             <Button
               full
               variant="danger"
@@ -98,16 +158,6 @@ export function HouseholdSheet({
               onClick={onRequestDelete}
             >
               {t.deleteHouseholdRow}
-            </Button>
-          ) : (
-            <Button
-              full
-              variant="danger"
-              size="cta"
-              icon={<Icon name="logout" size={18} strokeWidth={1.8} />}
-              onClick={onRequestLeave}
-            >
-              {t.leaveHouseholdRow}
             </Button>
           )}
         </div>

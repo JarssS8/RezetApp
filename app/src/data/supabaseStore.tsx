@@ -245,14 +245,13 @@ export function SupabaseDataProvider({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('household')
-        .select('kcal_target, name, owner_id')
+        .select('kcal_target, name')
         .eq('id', householdId)
         .single();
       if (error) throw error;
       return {
         kcalTarget: data.kcal_target as number,
         name: data.name as string,
-        ownerId: (data.owner_id as string | null) ?? null,
       };
     },
   });
@@ -280,10 +279,14 @@ export function SupabaseDataProvider({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profile')
-        .select('id, display_name')
+        .select('id, display_name, is_admin')
         .eq('household_id', householdId);
       if (error) throw error;
-      return (data ?? []).map((r) => ({ id: r.id as string, displayName: r.display_name as string }));
+      return (data ?? []).map((r) => ({
+        id: r.id as string,
+        displayName: r.display_name as string,
+        isAdmin: r.is_admin as boolean,
+      }));
     },
   });
 
@@ -326,7 +329,6 @@ export function SupabaseDataProvider({
     return {
       id: householdId,
       name: householdQ.data.name,
-      ownerId: householdQ.data.ownerId,
       members: householdMembersQ.data ?? [],
       membersLoaded: householdMembersQ.data !== undefined,
     };
@@ -650,6 +652,37 @@ export function SupabaseDataProvider({
   });
   const deleteHousehold = useCallback(() => deleteHouseholdMut.mutateAsync(), [deleteHouseholdMut]);
 
+  /**
+   * `promote_admin(p_member_id)`: mismo camino de error P0001 -> `error.message`
+   * ya en español. Invalida `householdMembersKey` al terminar para que la
+   * hoja "Tu hogar" refleje la nueva insignia de administrador sin recargar.
+   */
+  const promoteAdminMut = useMutation({
+    mutationFn: async (memberId: string) => {
+      const { error } = await supabase.rpc('promote_admin', { p_member_id: memberId });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: householdMembersKey }),
+  });
+  const promoteAdmin = useCallback(
+    (memberId: string) => promoteAdminMut.mutateAsync(memberId),
+    [promoteAdminMut],
+  );
+
+  /**
+   * `delete_account()`: borra la cuenta de Auth de verdad, no solo el
+   * profile. Igual que `leaveHousehold`/`deleteHousehold`, no hace falta
+   * invalidar nada aquí — quien llama hace el cierre de sesión real (ver
+   * `auth.tsx::signOut`), que desmonta este proveedor entero.
+   */
+  const deleteAccountMut = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('delete_account');
+      if (error) throw new Error(error.message);
+    },
+  });
+  const deleteAccount = useCallback(() => deleteAccountMut.mutateAsync(), [deleteAccountMut]);
+
   const ready =
     !ingredientsQ.isLoading &&
     !recipesQ.isLoading &&
@@ -686,6 +719,8 @@ export function SupabaseDataProvider({
       finishCook,
       leaveHousehold,
       deleteHousehold,
+      promoteAdmin,
+      deleteAccount,
       setHouseholdSheetOpen,
     }),
     [
@@ -715,6 +750,8 @@ export function SupabaseDataProvider({
       finishCook,
       leaveHousehold,
       deleteHousehold,
+      promoteAdmin,
+      deleteAccount,
     ],
   );
 

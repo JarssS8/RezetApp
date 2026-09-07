@@ -29,6 +29,7 @@ export const en: Dictionary = {
   notificationsDisabled: 'Notifications disabled',
   settingsTabAppearance: 'Appearance',
   settingsTabAccount: 'Account',
+  settingsTabHousehold: 'Household',
   registerPasskey: 'Add a passkey to this device',
   passkeyRegistered: "Passkey added. You can sign in with it next time.",
   passkeyRegisterError: 'Could not register the passkey.',
@@ -193,13 +194,23 @@ export const en: Dictionary = {
   leaveHouseholdRow: 'Leave household',
   deleteHouseholdRow: 'Delete household',
 
+  adminBadge: 'Admin',
+  makeAdminAction: 'Make admin',
+  promotingAdmin: 'Promoting…',
+  promotedAdminToast: (name: string) => `${name} is now an admin`,
+
   leaveConfirmTitle: (name: string) => `Leave ${name}?`,
   leaveConfirmBody:
     "You'll lose access to this household's recipes, plan and pantry. The rest of the household keeps everything as it is. To come back, you'll need a new invite code.",
 
-  leaveOwnerWithMembersError:
-    "You're the owner of this household and other members are still in it. Transferring ownership isn't available yet, so you can't leave.",
-  deleteNotOwnerError: 'Only the person who created this household can delete it.',
+  deleteNotAdminError: 'Only an admin of this household can delete it.',
+
+  lastAdminTitle: "You're the only admin",
+  leaveLastAdminBody:
+    "Other members are still in this household, so make someone else an admin before you leave — otherwise they'd be left with no one to manage it.",
+  deleteAccountLastAdminBody:
+    "Other members are still in this household, so make someone else an admin before you delete your account — otherwise they'd be left with no one to manage it.",
+  goToHouseholdAction: 'Go to Your household',
 
   leaveLastMemberTitle: "You're the only person here",
   leaveLastMemberBody: (name: string) =>
@@ -236,6 +247,21 @@ export const en: Dictionary = {
 
   leftHouseholdToast: 'You left the household',
   deletedHouseholdToast: 'Household deleted',
+
+  deleteAccountRow: 'Delete account',
+  deleteAccountIntroTitle: 'Delete your account',
+  deleteAccountIntroBodySole:
+    "and deletes your entire account. Since you're the only person in your household, this also deletes the household and everything in it:",
+  deleteAccountIntroBodyShared:
+    'and deletes your entire account. The rest of your household keeps everything as it is.',
+  deleteAccountSoleMemberHouseholdRow: 'The household itself, with no one left in it',
+  deleteAccountSharedHouseholdRow: (name: string) => `${name} keeps existing for the rest`,
+
+  deleteAccountConfirmTitle: 'Final confirmation',
+  deleteAccountConfirmBody: 'This deletes your account forever. This cannot be undone.',
+  deleteForeverAccountAction: 'Delete account forever',
+
+  deletedAccountToast: 'Account deleted',
 
   connectAiRow: 'Connect an AI assistant',
   connectAiSheetTitle: 'Connect an AI assistant',

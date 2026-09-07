@@ -28,8 +28,13 @@ import { CookFinishSheet } from './sheets/CookFinishSheet';
 import { InviteSheet } from './sheets/InviteSheet';
 import { ConnectMcpSheet } from './sheets/ConnectMcpSheet';
 import { HouseholdSheet } from './sheets/HouseholdSheet';
-import { LeaveConfirmDialog, LeaveLastMemberDialog } from './sheets/LeaveHouseholdDialogs';
+import { LeaveConfirmDialog, LeaveLastMemberDialog, LeaveLastAdminDialog } from './sheets/LeaveHouseholdDialogs';
 import { DeleteIntroSheet, DeleteConfirmDialog } from './sheets/DeleteHouseholdFlow';
+import {
+  DeleteAccountIntroSheet,
+  DeleteAccountConfirmDialog,
+  DeleteAccountLastAdminDialog,
+} from './sheets/DeleteAccountFlow';
 import { Toast } from './ui/Fields';
 import type { MealSlot } from './types';
 
@@ -49,8 +54,12 @@ type SheetState =
   | { kind: 'household' }
   | { kind: 'leaveConfirm' }
   | { kind: 'leaveLastMember' }
+  | { kind: 'leaveLastAdmin' }
   | { kind: 'deleteIntro' }
   | { kind: 'deleteConfirm' }
+  | { kind: 'deleteAccountIntro' }
+  | { kind: 'deleteAccountConfirm' }
+  | { kind: 'deleteAccountLastAdmin' }
   | null;
 
 /**
@@ -168,8 +177,12 @@ function MainApp({
     sheet?.kind === 'household' ||
     sheet?.kind === 'leaveConfirm' ||
     sheet?.kind === 'leaveLastMember' ||
+    sheet?.kind === 'leaveLastAdmin' ||
     sheet?.kind === 'deleteIntro' ||
-    sheet?.kind === 'deleteConfirm';
+    sheet?.kind === 'deleteConfirm' ||
+    sheet?.kind === 'deleteAccountIntro' ||
+    sheet?.kind === 'deleteAccountConfirm' ||
+    sheet?.kind === 'deleteAccountLastAdmin';
   useEffect(() => {
     setHouseholdSheetOpen(householdFlowOpen);
   }, [householdFlowOpen, setHouseholdSheetOpen]);
@@ -241,6 +254,25 @@ function MainApp({
     },
     [show, auth],
   );
+
+  /**
+   * Éxito de `deleteAccount()`: a diferencia de salir/eliminar el hogar, la
+   * cuenta de Auth entera ha desaparecido — la sesión ya no es válida en
+   * absoluto, así que `refreshProfile()` (que solo releería el `profile` de
+   * la sesión actual) no basta. Hace falta el cierre de sesión real de
+   * verdad (`onSignOut`, que en modo real es `auth.signOut()` — ver `App()`
+   * más abajo) para que la UI no se quede colgada esperando una sesión que
+   * ya no existe.
+   */
+  const onAccountDeleted = useCallback(() => {
+    setSheet(null);
+    cook.endCook();
+    show(t.deletedAccountToast);
+    householdActionTimeoutRef.current = window.setTimeout(() => {
+      householdActionTimeoutRef.current = null;
+      onSignOut();
+    }, 900);
+  }, [show, t.deletedAccountToast, onSignOut, cook]);
 
   if (replayStep !== null) {
     return (
@@ -328,6 +360,7 @@ function MainApp({
           onInvite={demo || !onInvite ? undefined : () => setSheet({ kind: 'invite' })}
           onHousehold={demo || !onInvite ? undefined : () => setSheet({ kind: 'household' })}
           onConnectMcp={demo || !onInvite ? undefined : () => setSheet({ kind: 'connectMcp' })}
+          onDeleteAccount={demo || !onInvite ? undefined : () => setSheet({ kind: 'deleteAccountIntro' })}
           onToast={show}
         />
       )}
@@ -371,6 +404,7 @@ function MainApp({
           onClose={() => setSheet(null)}
           onRequestLeave={() => setSheet({ kind: 'leaveConfirm' })}
           onRequestDelete={() => setSheet({ kind: 'deleteIntro' })}
+          onToast={show}
         />
       )}
 
@@ -379,6 +413,7 @@ function MainApp({
           onCancel={() => setSheet(null)}
           onLeft={() => onHouseholdActionDone(t.leftHouseholdToast)}
           onSoleMember={() => setSheet({ kind: 'leaveLastMember' })}
+          onLastAdmin={() => setSheet({ kind: 'leaveLastAdmin' })}
         />
       )}
 
@@ -386,6 +421,13 @@ function MainApp({
         <LeaveLastMemberDialog
           onCancel={() => setSheet(null)}
           onDeleteInstead={() => setSheet({ kind: 'deleteIntro' })}
+        />
+      )}
+
+      {sheet?.kind === 'leaveLastAdmin' && (
+        <LeaveLastAdminDialog
+          onCancel={() => setSheet(null)}
+          onGoToHousehold={() => setSheet({ kind: 'household' })}
         />
       )}
 
@@ -397,6 +439,28 @@ function MainApp({
         <DeleteConfirmDialog
           onCancel={() => setSheet(null)}
           onDeleted={() => onHouseholdActionDone(t.deletedHouseholdToast)}
+        />
+      )}
+
+      {sheet?.kind === 'deleteAccountIntro' && (
+        <DeleteAccountIntroSheet
+          onClose={() => setSheet(null)}
+          onContinue={() => setSheet({ kind: 'deleteAccountConfirm' })}
+        />
+      )}
+
+      {sheet?.kind === 'deleteAccountConfirm' && (
+        <DeleteAccountConfirmDialog
+          onCancel={() => setSheet(null)}
+          onDeleted={onAccountDeleted}
+          onLastAdmin={() => setSheet({ kind: 'deleteAccountLastAdmin' })}
+        />
+      )}
+
+      {sheet?.kind === 'deleteAccountLastAdmin' && (
+        <DeleteAccountLastAdminDialog
+          onCancel={() => setSheet(null)}
+          onGoToHousehold={() => setSheet({ kind: 'household' })}
         />
       )}
 

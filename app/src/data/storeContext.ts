@@ -111,16 +111,31 @@ export interface Store {
   /**
    * Contrato: `rpc/leave_household`. Borra la fila `profile` propia. Rechaza
    * (mensaje ya en español, listo para mostrar) si eres el único miembro
-   * (hay que borrar el hogar en vez de salir) o si eres el propietario y
-   * quedan otros miembros (sin transferencia de propiedad todavía).
+   * (hay que borrar el hogar en vez de salir) o si eres el único
+   * administrador y quedan otros miembros (dale el rol a alguien más antes).
    */
   leaveHousehold: () => Promise<void>;
   /**
-   * Contrato: `rpc/delete_household`. Solo el propietario. Borra el profile
-   * de todos los miembros y luego el hogar (cascada). Rechaza si no eres el
-   * propietario.
+   * Contrato: `rpc/delete_household`. Cualquier administrador (no solo un
+   * propietario único: cualquier número de miembros puede ser admin). Borra
+   * el profile de todos los miembros y luego el hogar (cascada). Rechaza si
+   * no eres administrador.
    */
   deleteHousehold: () => Promise<void>;
+  /**
+   * Contrato: `rpc/promote_admin(p_member_id)`. Solo lo puede llamar un
+   * administrador; hace administrador a otro miembro del mismo hogar. No
+   * pasa nada si el objetivo ya lo era.
+   */
+  promoteAdmin: (memberId: string) => Promise<void>;
+  /**
+   * Contrato: `rpc/delete_account`. Borra la cuenta de Auth de quien llama
+   * de verdad (no solo el profile): irreversible, sin recuperación. Rechaza
+   * si eres el único administrador y quedan otros miembros. Si eres el
+   * único miembro del hogar, también borra el hogar entero como parte de la
+   * misma operación.
+   */
+  deleteAccount: () => Promise<void>;
 
   /**
    * Señal desde la UI de que la hoja "Tu hogar" (o el flujo de salir/

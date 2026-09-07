@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/storeContext';
-import { REZET_OWNER_WITH_MEMBERS, REZET_SOLE_MEMBER, stripHouseholdErrorTag } from '../data/householdErrors';
+import { REZET_LAST_ADMIN, REZET_SOLE_MEMBER, stripHouseholdErrorTag } from '../data/householdErrors';
 import { AlertDialog } from '../ui/Sheet';
 import { radius } from '../ui/tokens';
 
@@ -11,19 +11,24 @@ import { radius } from '../ui/tokens';
  * p. ej. el resto salió justo antes de que esto se ejecutara), se lo pasa a
  * `onSoleMember` para que quien monta este diálogo muestre
  * `LeaveLastMemberDialog` en su lugar en vez de un error genérico. Si
- * rechaza con `REZET_OWNER_WITH_MEMBERS:` (hoy inalcanzable desde esta UI
- * porque el propietario nunca ve la fila "Salir", pero el backend sigue
- * rechazándolo) se muestra su copia localizada. Cualquier otro rechazo
- * muestra el mensaje del backend sin la etiqueta, tal cual.
+ * rechaza con `REZET_LAST_ADMIN:` (hoy inalcanzable desde esta UI porque
+ * quien es administrador ve "Eliminar hogar", no "Salir" — ver
+ * `HouseholdSheet.tsx` — pero el backend sigue rechazándolo) se avisa a
+ * `onLastAdmin` para mostrar `LeaveLastAdminDialog` en vez de un error
+ * genérico, con un camino de vuelta a "Tu hogar" para ascender a alguien.
+ * Cualquier otro rechazo muestra el mensaje del backend sin la etiqueta, tal
+ * cual.
  */
 export function LeaveConfirmDialog({
   onCancel,
   onLeft,
   onSoleMember,
+  onLastAdmin,
 }: {
   onCancel: () => void;
   onLeft: () => void;
   onSoleMember: () => void;
+  onLastAdmin: () => void;
 }) {
   const { t } = usePrefs();
   const { household, leaveHousehold } = useData();
@@ -46,8 +51,8 @@ export function LeaveConfirmDialog({
         onSoleMember();
         return;
       }
-      if (message.startsWith(REZET_OWNER_WITH_MEMBERS)) {
-        setError(t.leaveOwnerWithMembersError);
+      if (message.startsWith(REZET_LAST_ADMIN)) {
+        onLastAdmin();
         return;
       }
       setError(stripHouseholdErrorTag(message));
@@ -108,6 +113,36 @@ export function LeaveLastMemberDialog({
       confirmLabel={t.deleteInsteadAction}
       onCancel={onCancel}
       onConfirm={onDeleteInstead}
+    />
+  );
+}
+
+/**
+ * Caso borde: quien intenta salir es administrador, el único que queda, y
+ * todavía hay otros miembros dentro (`REZET_LAST_ADMIN`). En la práctica hoy
+ * inalcanzable desde "Salir del hogar" (esa fila no se muestra a quien es
+ * administrador — ver `HouseholdSheet.tsx`), igual que `LeaveLastMemberDialog`
+ * con `REZET_SOLE_MEMBER` — pero no es un callejón sin salida: en vez de un
+ * error genérico, ofrece volver a "Tu hogar" para ascender a alguien más
+ * antes de intentarlo de nuevo.
+ */
+export function LeaveLastAdminDialog({
+  onCancel,
+  onGoToHousehold,
+}: {
+  onCancel: () => void;
+  onGoToHousehold: () => void;
+}) {
+  const { t } = usePrefs();
+
+  return (
+    <AlertDialog
+      title={t.lastAdminTitle}
+      body={t.leaveLastAdminBody}
+      cancelLabel={t.cancel}
+      confirmLabel={t.goToHouseholdAction}
+      onCancel={onCancel}
+      onConfirm={onGoToHousehold}
     />
   );
 }

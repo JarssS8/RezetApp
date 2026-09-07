@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/storeContext';
 import { buildHouseholdExport, downloadHouseholdExport } from '../data/householdExport';
-import { REZET_NOT_OWNER, stripHouseholdErrorTag } from '../data/householdErrors';
+import { REZET_NOT_ADMIN, stripHouseholdErrorTag } from '../data/householdErrors';
 import { Sheet, AlertDialog } from '../ui/Sheet';
 import { Button } from '../ui/Button';
 import { Icon, type IconName } from '../ui/Icon';
@@ -149,9 +149,9 @@ export function DeleteConfirmDialog({
     } catch (e) {
       setBusy(false);
       const message = e instanceof Error ? e.message : String(e);
-      // REZET_NOT_OWNER: hoy inalcanzable desde esta UI (solo el propietario ve esta hoja),
-      // pero el backend sigue rechazándolo — se muestra su copia localizada igualmente.
-      setError(message.startsWith(REZET_NOT_OWNER) ? t.deleteNotOwnerError : stripHouseholdErrorTag(message));
+      // REZET_NOT_ADMIN: hoy inalcanzable desde esta UI (solo quien es administrador ve esta
+      // hoja), pero el backend sigue rechazándolo — se muestra su copia localizada igualmente.
+      setError(message.startsWith(REZET_NOT_ADMIN) ? t.deleteNotAdminError : stripHouseholdErrorTag(message));
     }
   };
 

@@ -27,6 +27,7 @@ export const es = {
   notificationsDisabled: 'Notificaciones desactivadas',
   settingsTabAppearance: 'Aspecto',
   settingsTabAccount: 'Cuenta',
+  settingsTabHousehold: 'Hogar',
   registerPasskey: 'Añadir passkey a este dispositivo',
   passkeyRegistered: 'Passkey añadida. Ya puedes entrar con ella la próxima vez.',
   passkeyRegisterError: 'No se pudo registrar la passkey.',
@@ -193,13 +194,23 @@ export const es = {
   leaveHouseholdRow: 'Salir del hogar',
   deleteHouseholdRow: 'Eliminar hogar',
 
+  adminBadge: 'Admin',
+  makeAdminAction: 'Hacer administrador',
+  promotingAdmin: 'Ascendiendo…',
+  promotedAdminToast: (name: string) => `${name} ya es administrador`,
+
   leaveConfirmTitle: (name: string) => `¿Salir de ${name}?`,
   leaveConfirmBody:
     'Perderás acceso a las recetas, el plan y la despensa de este hogar. El resto del hogar mantiene todo como está. Para volver, necesitarás un código de invitación nuevo.',
 
-  leaveOwnerWithMembersError:
-    'Eres el propietario de este hogar y aún quedan otros miembros dentro. Transferir la propiedad todavía no está disponible, así que no puedes salir.',
-  deleteNotOwnerError: 'Solo quien creó este hogar puede eliminarlo.',
+  deleteNotAdminError: 'Solo un administrador de este hogar puede eliminarlo.',
+
+  lastAdminTitle: 'Eres el único administrador',
+  leaveLastAdminBody:
+    'Quedan otros miembros en este hogar, así que antes de salir dale el rol de administrador a alguien más — si no, se quedarían sin nadie que lo gestione.',
+  deleteAccountLastAdminBody:
+    'Quedan otros miembros en este hogar, así que antes de borrar tu cuenta dale el rol de administrador a alguien más — si no, se quedarían sin nadie que lo gestione.',
+  goToHouseholdAction: 'Ir a Tu hogar',
 
   leaveLastMemberTitle: 'Eres la única persona aquí',
   leaveLastMemberBody: (name: string) =>
@@ -236,6 +247,21 @@ export const es = {
 
   leftHouseholdToast: 'Has salido del hogar',
   deletedHouseholdToast: 'Hogar eliminado',
+
+  deleteAccountRow: 'Eliminar cuenta',
+  deleteAccountIntroTitle: 'Eliminar tu cuenta',
+  deleteAccountIntroBodySole:
+    'y elimina tu cuenta entera. Como eres la única persona de tu hogar, esto también elimina el hogar y todo lo de dentro:',
+  deleteAccountIntroBodyShared:
+    'y elimina tu cuenta entera. El resto de tu hogar mantiene todo como está.',
+  deleteAccountSoleMemberHouseholdRow: 'El hogar en sí, ya sin nadie dentro',
+  deleteAccountSharedHouseholdRow: (name: string) => `${name} sigue existiendo para el resto`,
+
+  deleteAccountConfirmTitle: 'Última confirmación',
+  deleteAccountConfirmBody: 'Esto elimina tu cuenta para siempre. No se puede deshacer.',
+  deleteForeverAccountAction: 'Eliminar cuenta para siempre',
+
+  deletedAccountToast: 'Cuenta eliminada',
 
   connectAiRow: 'Conectar un asistente IA',
   connectAiSheetTitle: 'Conectar un asistente IA',

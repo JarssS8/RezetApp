@@ -120,17 +120,14 @@ export interface ShoppingNeed {
 export interface HouseholdMember {
   id: string;
   displayName: string;
+  /** Cualquier número de miembros puede ser administrador (`profile.is_admin`), no solo uno. */
+  isAdmin: boolean;
 }
 
-/**
- * Detalle de hogar para la hoja "Tu hogar" (nombre, propietario, miembros).
- * `ownerId` puede ser `null` en datos heredados de antes de que existiera la
- * columna `household.owner_id` (se hace backfill, pero por si acaso).
- */
+/** Detalle de hogar para la hoja "Tu hogar" (nombre, miembros). */
 export interface HouseholdDetail {
   id: string;
   name: string;
-  ownerId: string | null;
   members: HouseholdMember[];
   /**
    * `false` mientras `members` todavía no refleja la lista real (la

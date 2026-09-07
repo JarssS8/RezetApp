@@ -78,12 +78,15 @@ const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 
 const DEMO_HOUSEHOLD: HouseholdDetail = {
   id: 'demo',
   name: 'Demo',
-  ownerId: 'demo-user',
-  members: [{ id: 'demo-user', displayName: 'Tú' }],
+  members: [{ id: 'demo-user', displayName: 'Tú', isAdmin: true }],
   membersLoaded: true,
 };
 
 async function demoHouseholdActionUnavailable(): Promise<never> {
+  throw new Error('No disponible en el modo demo.');
+}
+
+async function demoPromoteAdminUnavailable(_memberId: string): Promise<void> {
   throw new Error('No disponible en el modo demo.');
 }
 
@@ -415,6 +418,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       finishCook,
       leaveHousehold: demoHouseholdActionUnavailable,
       deleteHousehold: demoHouseholdActionUnavailable,
+      promoteAdmin: demoPromoteAdminUnavailable,
+      deleteAccount: demoHouseholdActionUnavailable,
       setHouseholdSheetOpen: demoSetHouseholdSheetOpen,
     }),
     [

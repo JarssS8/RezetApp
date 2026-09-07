@@ -10,7 +10,7 @@ import { Icon } from '../ui/Icon';
 import { radius } from '../ui/tokens';
 import type { Accent, Locale, Theme, UnitSystem } from '../types';
 
-type SettingsTab = 'appearance' | 'account';
+type SettingsTab = 'appearance' | 'account' | 'household';
 
 const rowStyle = {
   height: 48,
@@ -29,6 +29,7 @@ export function SettingsSheet({
   onInvite,
   onHousehold,
   onConnectMcp,
+  onDeleteAccount,
   onToast,
 }: {
   onClose: () => void;
@@ -40,6 +41,8 @@ export function SettingsSheet({
   onHousehold?: () => void;
   /** Solo en modo real: el server MCP necesita una cuenta/hogar de verdad. */
   onConnectMcp?: () => void;
+  /** Solo en modo real: no hay cuenta de verdad que borrar en el modo demo. */
+  onDeleteAccount?: () => void;
   onToast?: (msg: string) => void;
 }) {
   const { t, theme, accent, locale, units, setTheme, setAccent, setLocale, setUnits } = usePrefs();
@@ -111,6 +114,13 @@ export function SettingsSheet({
           onClick={() => setTab('appearance')}
         />
         <OptionChip label={t.settingsTabAccount} active={tab === 'account'} onClick={() => setTab('account')} />
+        {(onHousehold || onInvite) && (
+          <OptionChip
+            label={t.settingsTabHousehold}
+            active={tab === 'household'}
+            onClick={() => setTab('household')}
+          />
+        )}
       </div>
 
       {tab === 'appearance' && (
@@ -183,6 +193,43 @@ export function SettingsSheet({
               {t.registerPasskey}
             </Pressable>
           )}
+          {onConnectMcp && (
+            <Pressable
+              onClick={onConnectMcp}
+              scale={0.98}
+              style={{ ...rowStyle, display: 'flex', alignItems: 'center', gap: 10 }}
+            >
+              <Icon name="link" size={18} strokeWidth={1.8} />
+              {t.connectAiRow}
+            </Pressable>
+          )}
+          {onDeleteAccount && (
+            <Pressable
+              onClick={onDeleteAccount}
+              scale={0.98}
+              style={{ ...rowStyle, background: 'var(--warnsoft)', color: 'var(--warn-ink)' }}
+            >
+              {t.deleteAccountRow}
+            </Pressable>
+          )}
+          {/* Modo demo: no hay tab "Hogar" (ni hogar real que gestionar), así que la guía se queda aquí. */}
+          {!onHousehold && !onInvite && (
+            <Pressable onClick={onReplayTour} scale={0.98} style={rowStyle}>
+              {t.replayTour}
+            </Pressable>
+          )}
+          <Pressable
+            onClick={onSignOut}
+            scale={0.98}
+            style={{ ...rowStyle, background: 'var(--warnsoft)', color: 'var(--warn-ink)' }}
+          >
+            {t.signOut}
+          </Pressable>
+        </div>
+      )}
+
+      {tab === 'household' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 6 }}>
           {onHousehold && (
             <Pressable
               onClick={onHousehold}
@@ -201,25 +248,8 @@ export function SettingsSheet({
               {t.inviteSomeone}
             </Pressable>
           )}
-          {onConnectMcp && (
-            <Pressable
-              onClick={onConnectMcp}
-              scale={0.98}
-              style={{ ...rowStyle, display: 'flex', alignItems: 'center', gap: 10 }}
-            >
-              <Icon name="link" size={18} strokeWidth={1.8} />
-              {t.connectAiRow}
-            </Pressable>
-          )}
           <Pressable onClick={onReplayTour} scale={0.98} style={rowStyle}>
             {t.replayTour}
-          </Pressable>
-          <Pressable
-            onClick={onSignOut}
-            scale={0.98}
-            style={{ ...rowStyle, background: 'var(--warnsoft)', color: 'var(--warn-ink)' }}
-          >
-            {t.signOut}
           </Pressable>
         </div>
       )}
