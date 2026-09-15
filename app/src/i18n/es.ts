@@ -132,6 +132,8 @@ export const es = {
   ideasLoadError: 'No se ha podido cargar el catálogo de ideas.',
   ideaNoKcal: 'La receta original no trae calorías.',
   originalRecipeAt: 'Receta original en',
+  ideaSavedToast: 'Añadida a tus recetas',
+  ideaRemovedToast: 'Quitada de tus recetas',
   ideasRecipes: 'Ideas de recetas',
   ideasRecipesHelp: 'Recetas de Cecofry y Olla GM que puedes guardar en tu hogar. Se guardan por dispositivo.',
   show: 'Mostrar',

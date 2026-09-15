@@ -10,7 +10,10 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
  * abierto a cualquier URL que alguien logueado quisiera hacerle pedir.
  */
 const ALLOWED_HOSTS = new Set(["ecom-media-manager-prod.s3.amazonaws.com"]);
-const MAX_BYTES = 8 * 1024 * 1024;
+// Cecotec sirve algunas fotos originales en muy alta resolución (una vista
+// hasta 13 MB en producción) — 8 MB las rechazaba de más. El bucket de
+// Storage no impone un límite más bajo, así que 25 MB da margen real.
+const MAX_BYTES = 25 * 1024 * 1024;
 const EXT_BY_TYPE: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",

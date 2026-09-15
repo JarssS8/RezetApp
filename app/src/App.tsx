@@ -330,9 +330,7 @@ function MainApp({
         <IdeaDetail
           ideaId={push.ideaId}
           onClose={() => setPush(null)}
-          onSaved={(recipeId) =>
-            setPush({ kind: 'recipe', recipeId, servings: recipeById.get(recipeId)?.baseServings ?? 2 })
-          }
+          onToast={show}
           onAddToPlan={(recipeId) => setSheet({ kind: 'picker', target: { kind: 'recipe', recipeId } })}
         />
       )}

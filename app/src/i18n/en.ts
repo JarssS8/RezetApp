@@ -132,6 +132,8 @@ export const en: Dictionary = {
   ideasLoadError: "Couldn't load the recipe catalogue.",
   ideaNoKcal: "The original recipe doesn't give calories.",
   originalRecipeAt: 'Original recipe at',
+  ideaSavedToast: 'Added to your recipes',
+  ideaRemovedToast: 'Removed from your recipes',
   ideasRecipes: 'Recipe ideas',
   ideasRecipesHelp: 'Cecofry and Olla GM recipes you can save to your household. Saved per device.',
   show: 'Show',

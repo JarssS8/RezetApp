@@ -62,25 +62,20 @@ async function importIdeaPhoto(photoUrl: string): Promise<string | undefined> {
 export function IdeaDetail({
   ideaId,
   onClose,
-  onSaved,
+  onToast,
   onAddToPlan,
 }: {
   ideaId: string;
   onClose: () => void;
-  /** Se llama tras guardar, tanto si lo pide el usuario como si "Añadir al plan" guarda primero. */
-  onSaved: (recipeId: string) => void;
+  onToast: (message: string) => void;
   onAddToPlan: (recipeId: string) => void;
 }) {
   const { t, locale, units, loc } = usePrefs();
-  const { recipes, ingredients: ownIngredients, stockOf, saveRecipe } = useData();
+  const { recipes, ingredients: ownIngredients, stockOf, saveRecipe, deleteRecipe } = useData();
   const { data: idea, isLoading, isError } = useIdeaDetail(ideaId);
   const [servings, setServings] = useState(2);
   const [saving, setSaving] = useState(false);
-  // Tras guardar, la salida anima igual que un cierre normal; solo cambia
-  // adónde se navega cuando termina (README §7: toda pantalla sale por el
-  // mismo camino por el que entró, guardar no es una excepción).
-  const [savedId, setSavedId] = useState<string | null>(null);
-  const stack = useStackDismiss(() => (savedId ? onSaved(savedId) : onClose()));
+  const stack = useStackDismiss(onClose);
 
   useEffect(() => {
     if (idea) setServings(idea.baseServings ?? 2);
@@ -89,6 +84,7 @@ export function IdeaDetail({
   const alreadySaved = idea ? recipes.find((r) => r.sourceIdeaId === idea.id) : undefined;
   const [photoBroken, setPhotoBroken] = useState(false);
 
+  /** Crea la receta si hace falta y devuelve su id — usado por "Añadir al plan". */
   const save = async (): Promise<string> => {
     if (alreadySaved) return alreadySaved.id;
     if (!idea) throw new Error('idea not loaded');
@@ -99,6 +95,20 @@ export function IdeaDetail({
     } finally {
       setSaving(false);
     }
+  };
+
+  // "Guardar" ya no cambia de pantalla: se queda en la idea, avisa con un
+  // toast y el propio botón pasa a "Guardada" — tocarlo otra vez la quita.
+  // Ir y volver de la receta para deshacer un toque en falso era más fricción
+  // de la que merece guardar una idea.
+  const toggleSave = async () => {
+    if (alreadySaved) {
+      deleteRecipe(alreadySaved.id);
+      onToast(t.ideaRemovedToast);
+      return;
+    }
+    await save();
+    onToast(t.ideaSavedToast);
   };
 
   if (isLoading || !idea) {
@@ -315,14 +325,11 @@ export function IdeaDetail({
       <div style={{ maxWidth: maxW.detail, margin: '0 auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <Button
           size="primary"
+          variant={alreadySaved ? 'secondary' : 'primary'}
           disabled={saving}
-          onClick={async () => {
-            const id = await save();
-            setSavedId(id);
-            stack.dismiss();
-          }}
+          onClick={toggleSave}
           icon={<Icon name={alreadySaved ? 'check' : 'bookmark'} size={17} />}
-          style={{ flex: '1 1 180px', boxShadow: 'var(--shadow-m)', borderRadius: radius.button }}
+          style={{ flex: '1 1 180px', boxShadow: alreadySaved ? undefined : 'var(--shadow-m)', borderRadius: radius.button }}
         >
           {alreadySaved ? t.savedRecipe : t.save}
         </Button>

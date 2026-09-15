@@ -155,6 +155,7 @@ export function RecipeForm({
   };
 
   return (
+    <>
     <div
       data-screen-label={recipe ? 'Editar receta' : 'Nueva receta'}
       onAnimationEnd={stack.onAnimationEnd}
@@ -722,40 +723,43 @@ export function RecipeForm({
               </div>
             </div>
           )}
-
-          {recipe && (
-            // Zona de peligro: solo al editar, nunca al crear. Vive aquí (no en el
-            // detalle) para que un toque en falso desde la pantalla principal de la
-            // receta no sea posible — mismo lenguaje visual que borrar hogar/cuenta.
-            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
-              <Button
-                variant="danger"
-                size="secondary"
-                full
-                icon={<Icon name="trash" size={17} strokeWidth={2} />}
-                onClick={() => setConfirmDelete(true)}
-              >
-                {t.deleteRecipeAction}
-              </Button>
-            </div>
-          )}
         </div>
-      </div>
 
-      {recipe && confirmDelete && (
-        <AlertDialog
-          title={t.deleteRecipeConfirmTitle}
-          body={t.deleteRecipeConfirmBody(loc(recipe.name))}
-          confirmLabel={t.deleteRecipeConfirmAction}
-          cancelLabel={t.cancel}
-          onConfirm={() => {
-            deleteRecipe(recipe.id);
-            setConfirmDelete(false);
-            stack.dismiss();
-          }}
-          onCancel={() => setConfirmDelete(false)}
-        />
-      )}
+        {recipe && (
+          // Zona de peligro: propia sección, fuera de "Más detalles" — no dentro
+          // (se veía como si formara parte de esa tarjeta). Solo al editar, nunca
+          // al crear; vive aquí para que un toque en falso desde el detalle de la
+          // receta no sea posible — mismo lenguaje visual que borrar hogar/cuenta.
+          <Button
+            variant="danger"
+            size="secondary"
+            full
+            icon={<Icon name="trash" size={17} strokeWidth={2} />}
+            onClick={() => setConfirmDelete(true)}
+          >
+            {t.deleteRecipeAction}
+          </Button>
+        )}
+      </div>
     </div>
+
+    {/* Fuera del contenedor animado/con scroll a propósito: un diálogo `position:fixed`
+        anidado ahí podía quedar fuera de la vista al haber hecho scroll (mismo bug que
+        la barra de Ideas). */}
+    {recipe && confirmDelete && (
+      <AlertDialog
+        title={t.deleteRecipeConfirmTitle}
+        body={t.deleteRecipeConfirmBody(loc(recipe.name))}
+        confirmLabel={t.deleteRecipeConfirmAction}
+        cancelLabel={t.cancel}
+        onConfirm={() => {
+          deleteRecipe(recipe.id);
+          setConfirmDelete(false);
+          stack.dismiss();
+        }}
+        onCancel={() => setConfirmDelete(false)}
+      />
+    )}
+    </>
   );
 }
