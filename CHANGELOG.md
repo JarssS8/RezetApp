@@ -3,6 +3,40 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.3.0] - 2026-09-15
+
+### Español
+
+**Nuevo**
+- Ahora puedes eliminar una receta que ya no quieras, desde Editar.
+
+**Mejorado**
+- Mejor comportamiento con transparencia reducida o alto contraste activados en el sistema.
+- Quitar un producto de la despensa pide confirmación, para no borrarlo sin querer.
+
+**Arreglado**
+- Al guardar una idea como receta propia, ahora se guarda también su foto.
+- Las fotos de ideas que no llegan a cargar ya no se ven como una imagen rota.
+- En el detalle de una idea, el botón de Guardar se queda fijo abajo también al hacer scroll.
+- Guardar una idea o una receta ya no cambia de pantalla de golpe.
+- "Actualizar" ya no se queda colgado si la app tarda en tomar la versión nueva.
+
+### English
+
+**New**
+- You can now delete a recipe you no longer want, from Edit.
+
+**Improved**
+- Better behaviour with reduced transparency or increased contrast enabled at the system level.
+- Removing a pantry item now asks for confirmation, so it's not deleted by mistake.
+
+**Fixed**
+- Saving an idea as your own recipe now also saves its photo.
+- Idea photos that fail to load no longer show as a broken image.
+- In an idea's detail, the Save button now stays put at the bottom while scrolling too.
+- Saving an idea or a recipe no longer cuts to the next screen abruptly.
+- "Update" no longer gets stuck if the app takes a moment to switch to the new version.
+
 ## [1.2.0] - 2026-09-15
 
 ### Español
