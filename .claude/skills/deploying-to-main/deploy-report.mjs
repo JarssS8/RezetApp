@@ -46,6 +46,7 @@ const out = [];
 const say = (line = '') => out.push(line);
 
 tryGit('fetch', '--quiet', REMOTE, BRANCH);
+tryGit('fetch', '--quiet', '--tags', REMOTE);
 const head = git('rev-parse', 'HEAD');
 const branch = tryGit('symbolic-ref', '--short', 'HEAD') ?? '(HEAD suelto)';
 const remoteRef = `${REMOTE}/${BRANCH}`;
@@ -87,18 +88,39 @@ const files = remoteSha
   : git('ls-tree', '-r', '--name-only', 'HEAD').split('\n').filter(Boolean).map((path) => ({ status: 'A', path }));
 
 say('\n## Qué se despliega (mismas reglas que el workflow)');
+let deploysSomething = false;
 for (const target of TARGETS) {
   const hits = files.filter((f) => target.match(f.path));
   if (!hits.length) {
     say(`- ${target.label}: no se toca`);
     continue;
   }
+  deploysSomething = true;
   say(`- ${target.label}: SE DESPLIEGA (${hits.length} archivo(s))`);
   for (const f of hits.slice(0, 12)) say(`  - ${f.status} ${f.path}`);
   if (hits.length > 12) say(`  - … y ${hits.length - 12} más`);
 }
 const other = files.filter((f) => !TARGETS.some((t) => t.match(f.path)));
 say(`- Resto del repo (no se despliega): ${other.length} archivo(s)`);
+
+say('\n## Versión');
+const versionAt = (path) => {
+  const raw = tryGit('show', `HEAD:${path}`);
+  return raw ? JSON.parse(raw).version : null;
+};
+const appVersion = versionAt('app/package.json');
+const mcpVersion = versionAt('mcp/package.json');
+const releasedTags = (tryGit('tag', '-l', 'v*', '--sort=-v:refname') ?? '').split('\n').filter(Boolean);
+const alreadyReleased = releasedTags.includes(`v${appVersion}`);
+const hasNotes = (tryGit('show', 'HEAD:CHANGELOG.md') ?? '').split('\n').some((l) => l.startsWith(`## [${appVersion}]`));
+say(`- Versión en el commit: ${appVersion} · última publicada: ${releasedTags[0] ?? 'ninguna'}`);
+if (mcpVersion !== appVersion) say(`- AVISO: mcp/package.json dice ${mcpVersion}; debe coincidir con app/package.json`);
+if (deploysSomething && alreadyReleased) {
+  say(`- AVISO: se despliega código pero v${appVersion} ya está publicada. Falta subir versión (skill releasing-versions).`);
+} else if (deploysSomething) {
+  say(`- Al terminar el despliegue, CI publicará la Release v${appVersion}.`);
+}
+if (deploysSomething && !alreadyReleased && !hasNotes) say(`- AVISO: CHANGELOG.md no tiene sección para ${appVersion}; la Release fallará.`);
 
 say('\n## Migraciones');
 const migrations = files.filter((f) => f.path.startsWith('app/supabase/migrations/') && f.path.endsWith('.sql'));

@@ -37,6 +37,7 @@ import {
   DeleteAccountLastAdminDialog,
 } from './sheets/DeleteAccountFlow';
 import { Toast } from './ui/Fields';
+import { UpdatePrompt } from './app/UpdatePrompt';
 import type { MealSlot } from './types';
 
 type Push =
@@ -478,6 +479,7 @@ function MainApp({
         />
       )}
 
+      <UpdatePrompt hidden={cookSession != null} />
       <Toast message={message} />
     </>
   );

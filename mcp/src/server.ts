@@ -6,8 +6,10 @@ import { register as registerPlanTools } from './tools/plan.js';
 import { register as registerPantryTools } from './tools/pantry.js';
 import { register as registerShoppingTools } from './tools/shopping.js';
 import { register as registerCookTools } from './tools/cook.js';
+import appPackage from '../../app/package.json' with { type: 'json' };
 
-export const SERVER_INFO = { name: 'rezet', version: '0.1.0' };
+// Rezet has one product version (app/package.json); connected AI clients see the same number.
+export const SERVER_INFO = { name: 'rezet', version: appPackage.version };
 
 export const INSTRUCTIONS =
   'Rezet manages a household weekly meal plan, recipes, pantry, and shopping list. ' +

@@ -5,6 +5,15 @@ declare let self: ServiceWorkerGlobalScope;
 
 precacheAndRoute(self.__WB_MANIFEST);
 
+// Una versión nueva se queda en espera hasta que la app pide activarla (botón "Actualizar").
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if (event.data?.type === 'SKIP_WAITING') void self.skipWaiting();
+});
+
+self.addEventListener('activate', (event: ExtendableEvent) => {
+  event.waitUntil(self.clients.claim());
+});
+
 /**
  * M8b — push de temporizadores de cocina. El servidor (Edge Function +
  * pg_cron, ver app/supabase/functions/) manda `{ title, body }`; este

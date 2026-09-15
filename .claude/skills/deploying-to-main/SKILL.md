@@ -14,7 +14,7 @@ A PreToolUse hook (`.claude/hooks/guard-push-main.mjs`) blocks every Claude push
 ## Steps
 
 1. **Local checks** — run and keep the results: in `app/`, `npm run lint && npm test && npm run build`; in `mcp/` (if `mcp/` or `app/src/domain/` changes), `npm run types:worker && npm run lint && npm test`.
-2. **Facts** — `node .claude/skills/deploying-to-main/deploy-report.mjs`.
+2. **Facts** — `node .claude/skills/deploying-to-main/deploy-report.mjs`. If it says something deploys and the "Versión" section warns that the version is already released: **REQUIRED SUB-SKILL:** use releasing-versions (new version + CHANGELOG commit), then run the report again on that commit.
 3. **Production state** — `mcp__supabase__list_migrations`; every production version must exist locally with the same version prefix. Local-only versions are what CI will apply.
 4. **Read** every pending migration in full, every flagged line, and the diff of anything the MCP server exposes (`mcp/src/tools/`, tool names and arguments).
 5. **Write the report** below.
@@ -27,7 +27,7 @@ A PreToolUse hook (`.claude/hooks/guard-push-main.mjs`) blocks every Claude push
 **Informe de despliegue — `<sha>` "<asunto>"**
 
 1. **Veredicto** — `Riesgo: bajo/medio/alto · Pérdida de datos: no/posible/sí` and one sentence why.
-2. **Qué se sube** — push mode, commits; on force push, what GitHub loses and the backup branch.
+2. **Qué se sube** — version (`vX.Y.Z`, the bump level and why) with its CHANGELOG notes, push mode, commits; on force push, what GitHub loses and the backup branch.
 3. **Qué se despliega** — each of the four targets: what changes for users, or "no se toca".
 4. **Base de datos** — each pending migration in plain words; for each flagged statement, which data it touches and whether it can fail on existing rows; any production/local mismatch.
 5. **Qué puede fallar** — for this push specifically: missing CI secrets or variables, renamed/removed MCP tools or arguments (breaks connected AI clients), new `VITE_*` variables, `app_secret` keys a function needs, installed PWA users on a cached old version.

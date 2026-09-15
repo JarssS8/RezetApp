@@ -7,7 +7,7 @@ import { Eyebrow } from '../ui/Card';
 import { Pressable } from '../ui/Pressable';
 import { Sheet } from '../ui/Sheet';
 import { Icon } from '../ui/Icon';
-import { radius } from '../ui/tokens';
+import { radius, tabular } from '../ui/tokens';
 import type { Accent, Locale, Theme, UnitSystem } from '../types';
 
 const rowStyle = {
@@ -172,6 +172,10 @@ export function SettingsSheet({
           >
             {t.signOut}
           </Pressable>
+        </div>
+
+        <div style={{ textAlign: 'center', fontSize: 13.5, color: 'var(--muted)', ...tabular }}>
+          {t.appVersion} {__APP_VERSION__} · {__APP_COMMIT__}
         </div>
       </div>
     </Sheet>

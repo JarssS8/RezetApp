@@ -27,6 +27,8 @@ Deploy: **pushing to `main` on GitHub (`JarssS8/RezetApp`) deploys to production
 
 Migrations: a migration file's version prefix must equal the version recorded in production (`mcp__supabase__list_migrations`). `apply_migration` records the time it ran, not your file name — rename the file to that version right after applying, or CI's `supabase db push` will try to apply it again.
 
+Versions: Rezet has one SemVer version — `app/package.json`, mirrored in `mcp/package.json` and reported by the MCP server. Every deploy that changes something users run gets a new version through the `releasing-versions` skill (`node tools/release/bump-version.mjs <major|minor|patch>` plus a bilingual `CHANGELOG.md` entry, committed as `Release X.Y.Z`). Once every deploy job succeeds, CI tags `vX.Y.Z` and publishes the GitHub Release from that CHANGELOG section. The build bakes `__APP_VERSION__`/`__APP_COMMIT__` (shown at the bottom of Settings), and `app/UpdatePrompt.tsx` offers installed PWAs an "Actualizar" prompt when a new service worker is waiting (never during Cook mode). Release script tests: `node --test tools/release/version.test.mjs`.
+
 Capacitor (native shells): `app/capacitor.config.ts` is already scaffolded (`appId: com.jars.rezet`), but the packages aren't installed and there's no `ios/`/`android/` directory yet:
 ```bash
 npm i @capacitor/core && npm i -D @capacitor/cli && npx cap init

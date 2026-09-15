@@ -190,6 +190,9 @@ export const es = {
   system: 'Sistema',
   replayTour: 'Ver la guía otra vez',
   signOut: 'Cerrar sesión',
+  appVersion: 'Versión',
+  updateAvailable: 'Hay una versión nueva de Rezet',
+  updateNow: 'Actualizar',
 
   householdRow: 'Tu hogar',
   householdSheetTitle: 'Tu hogar',

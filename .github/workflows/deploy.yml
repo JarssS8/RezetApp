@@ -158,3 +158,29 @@ jobs:
           workingDirectory: mcp
           wranglerVersion: 4.129.0
           command: deploy
+
+  # Tags vX.Y.Z (app/package.json) and publishes its CHANGELOG.md section, only once
+  # every deploy job has succeeded, so a tag always matches what is live.
+  release:
+    needs: [changes, migrations, functions, app, mcp]
+    if: >-
+      !cancelled() && needs.changes.result == 'success' && !contains(needs.*.result, 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Tag and publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./app/package.json').version")
+          tag="v$version"
+          if git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+            echo "$tag is already released; nothing to publish."
+            exit 0
+          fi
+          node tools/release/release-notes.mjs "$version" > release-notes.md
+          gh release create "$tag" --target "$GITHUB_SHA" --title "Rezet $version" --notes-file release-notes.md

@@ -190,6 +190,9 @@ export const en: Dictionary = {
   system: 'System',
   replayTour: 'Replay the tour',
   signOut: 'Sign out',
+  appVersion: 'Version',
+  updateAvailable: 'A new version of Rezet is available',
+  updateNow: 'Update',
 
   householdRow: 'Your household',
   householdSheetTitle: 'Your household',
