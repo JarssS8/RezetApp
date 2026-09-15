@@ -3,6 +3,28 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.3.1] - 2026-09-15
+
+### Español
+
+**Mejorado**
+- Guardar una idea ya no cambia de pantalla: avisa con un mensaje y el botón pasa a "Receta guardada", con el que puedes quitarla otra vez.
+
+**Arreglado**
+- El botón de eliminar receta ya funciona siempre, también tras hacer scroll en Editar.
+- Eliminar receta ya no aparece como si fuera parte de "Más detalles".
+- Algunas fotos de ideas no se guardaban por pesar demasiado; ahora se admiten fotos más grandes.
+
+### English
+
+**Improved**
+- Saving an idea no longer switches screens: it shows a confirmation and the button becomes "Recipe saved", which you can tap again to remove it.
+
+**Fixed**
+- The delete-recipe button now always works, including after scrolling in Edit.
+- Delete recipe no longer looks like part of "More details".
+- Some idea photos failed to save for being too large; bigger photos are now accepted.
+
 ## [1.3.0] - 2026-09-15
 
 ### Español
