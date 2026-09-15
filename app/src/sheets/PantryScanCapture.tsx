@@ -225,37 +225,61 @@ export function PantryScanCapture({
     const video = videoRef.current;
     if (!video) return;
     setStatus('looking');
-    controlsRef.current?.stop();
     try {
       // Se dibuja directo desde el <video> vivo, no desde un File — por eso
       // no usa resizeImageFile (que se quitó del todo en el commit
       // anterior). El resize aquí SÍ es seguro (a diferencia del código de
       // barras, que decodifica el frame de vídeo directamente, nunca una
       // copia reducida/recomprimida).
+      //
+      // El frame se dibuja ANTES de parar el escáner (stop() más abajo): en
+      // algunos navegadores móviles, detener el stream de la cámara pone
+      // video.videoWidth/videoHeight a 0 de inmediato, y dibujar sobre un
+      // canvas 0x0 hace que toBlob() devuelva null.
       const canvas = document.createElement('canvas');
       const maxDim = 1024;
-      const scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
-      canvas.width = video.videoWidth * scale;
-      canvas.height = video.videoHeight * scale;
-      canvas.getContext('2d')!.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.85),
-      );
+      let blob: Blob;
+      try {
+        if (!video.videoWidth || !video.videoHeight) {
+          throw new Error(`video has no dimensions yet (${video.videoWidth}x${video.videoHeight})`);
+        }
+        const scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
+        canvas.width = video.videoWidth * scale;
+        canvas.height = video.videoHeight * scale;
+        canvas.getContext('2d')!.drawImage(video, 0, 0, canvas.width, canvas.height);
+        blob = await new Promise<Blob>((resolve, reject) =>
+          canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.85),
+        );
+      } finally {
+        // Se para el escáner justo después de intentar capturar el frame
+        // (éxito o no) — nunca antes, para no poner videoWidth/Height a 0 en
+        // navegadores que lo hacen al detener el stream (ver comentario
+        // arriba); y siempre, para no dejar la cámara encendida en segundo
+        // plano si la captura falla.
+        controlsRef.current?.stop();
+      }
       const image = await blobToBase64(blob);
       const { data, error } = await supabase.functions.invoke('recognize-pantry-item', {
         body: { image, mimeType: 'image/jpeg' },
       });
       if (unmountedRef.current) return;
-      if (error) return setStatus('photoFailed');
+      if (error) {
+        console.error('recognize-pantry-item invoke failed:', error, data);
+        return setStatus('photoFailed');
+      }
       const recognized = mapGeminiRecognition(data);
-      if (!recognized) return setStatus('photoFailed');
+      if (!recognized) {
+        console.error('recognize-pantry-item returned unusable data:', data);
+        return setStatus('photoFailed');
+      }
       onResult({
         name: recognized.name,
         quantity: recognized.quantity ?? undefined,
         unit: recognized.unit ?? undefined,
         expiresOn: recognized.expiresOn ?? undefined,
       });
-    } catch {
+    } catch (err) {
+      console.error('recognize-pantry-item capture threw:', err);
       if (!unmountedRef.current) setStatus('photoFailed');
     }
   };
@@ -275,6 +299,12 @@ export function PantryScanCapture({
       {status === 'starting' && <div style={{ color: 'var(--muted)', fontSize: 14.5 }}>{t.lookingUp}</div>}
 
       {status === 'looking' && <div style={{ color: 'var(--muted)', fontSize: 14.5 }}>{t.lookingUp}</div>}
+
+      {status === 'scanning' && (
+        <div style={{ color: 'var(--muted)', fontSize: 13.5, textAlign: 'center', lineHeight: 1.4 }}>
+          {allowPhoto ? t.scanLiveHint : t.scanLiveHintBarcodeOnly}
+        </div>
+      )}
 
       {status === 'scanning' && allowPhoto && (
         <Button full onClick={() => void captureFrameForGemini()}>

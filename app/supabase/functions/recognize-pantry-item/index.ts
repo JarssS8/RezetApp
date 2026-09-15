@@ -14,11 +14,12 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
  * y sin responder ese preflight con las cabeceras correctas el navegador
  * bloquea la petición real antes de que la lógica de esta función importe.
  */
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-3.6-flash";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 function json(body: unknown, status = 200): Response {
@@ -72,41 +73,55 @@ Deno.serve(async (req) => {
     .select("value")
     .eq("key", "GEMINI_API_KEY");
   if (secretError || !secretRows?.[0]) {
+    console.error("recognize-pantry-item: missing GEMINI_API_KEY secret", secretError);
     return json({ error: "missing GEMINI_API_KEY secret" }, 500);
   }
   const geminiKey = secretRows[0].value as string;
 
-  const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: PROMPT }, { inline_data: { mime_type: body.mimeType, data: body.image } }],
-          },
-        ],
-        generationConfig: { responseMimeType: "application/json" },
-      }),
-    },
-  );
-  if (!geminiRes.ok) {
-    return json({ error: "gemini request failed" }, 502);
-  }
-
-  const geminiJson = await geminiRes.json();
-  const text = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (typeof text !== "string") {
-    return json({ error: "empty gemini response" }, 502);
-  }
-
-  let parsed: unknown;
+  // Errores de red/DNS al llamar a Gemini no estaban capturados: sin este
+  // try/catch, una excepción aquí se escapaba de Deno.serve sin cabeceras
+  // CORS, y el navegador lo reportaba como fallo de CORS genérico en vez
+  // de como el fallo de red que realmente era.
   try {
-    parsed = JSON.parse(text);
-  } catch {
-    return json({ error: "gemini returned invalid json" }, 502);
-  }
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: PROMPT }, { inline_data: { mime_type: body.mimeType, data: body.image } }],
+            },
+          ],
+          generationConfig: { responseMimeType: "application/json" },
+        }),
+      },
+    );
+    if (!geminiRes.ok) {
+      const detail = await geminiRes.text().catch(() => "");
+      console.error(`recognize-pantry-item: gemini request failed (${geminiRes.status})`, detail);
+      return json({ error: "gemini request failed", status: geminiRes.status }, 502);
+    }
 
-  return json(parsed);
+    const geminiJson = await geminiRes.json();
+    const text = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (typeof text !== "string") {
+      console.error("recognize-pantry-item: empty gemini response", JSON.stringify(geminiJson));
+      return json({ error: "empty gemini response" }, 502);
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      console.error("recognize-pantry-item: gemini returned invalid json", text);
+      return json({ error: "gemini returned invalid json" }, 502);
+    }
+
+    return json(parsed);
+  } catch (err) {
+    console.error("recognize-pantry-item: unexpected error calling gemini", err);
+    return json({ error: "unexpected error" }, 500);
+  }
 });

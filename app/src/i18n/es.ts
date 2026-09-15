@@ -173,10 +173,12 @@ export const es = {
   clearDate: 'Quitar fecha',
 
   scanTutorialTitle1: 'Escanea el código de barras',
-  scanTutorialBody1: 'Apunta la cámara a las rayas del envase y rellenamos nombre, cantidad y caducidad si el producto la trae.',
-  scanTutorialTitle2: '¿Sin código? Apúntale igual',
-  scanTutorialBody2: 'Nuestra IA reconoce el producto por foto y te deja los datos listos para revisar antes de guardar.',
+  scanTutorialBody1: 'Apunta la cámara a las rayas del envase: rellenamos nombre y cantidad automáticamente. La caducidad no viene en el código de barras — se añade a mano si quieres.',
+  scanTutorialTitle2: '¿Sin código de barras? Hazle una foto a la etiqueta',
+  scanTutorialBody2: 'Toca "Reconocer por foto" y encuadra la etiqueta frontal del producto (nombre y peso/cantidad visibles). Si en el envase se ve impresa la fecha de caducidad, también la rellenamos.',
   gotIt: 'Entendido',
+  scanLiveHint: 'Apunta al código de barras del envase, o toca abajo para reconocer por foto',
+  scanLiveHintBarcodeOnly: 'Apunta al código de barras del envase',
 
   appearance: 'Aspecto',
   language: 'Idioma',

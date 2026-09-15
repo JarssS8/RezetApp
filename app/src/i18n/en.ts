@@ -173,10 +173,12 @@ export const en: Dictionary = {
   clearDate: 'Clear date',
 
   scanTutorialTitle1: 'Scan the barcode',
-  scanTutorialBody1: "Point the camera at the stripes on the package — we'll fill in name, quantity and expiry if the product has it.",
-  scanTutorialTitle2: 'No barcode? Point it anyway',
-  scanTutorialBody2: 'Our AI recognizes the product from a photo and gets the details ready for you to review before saving.',
+  scanTutorialBody1: "Point the camera at the stripes on the package: we'll fill in name and quantity automatically. Barcodes don't carry an expiry date — add that by hand if you want it.",
+  scanTutorialTitle2: 'No barcode? Photograph the label',
+  scanTutorialBody2: 'Tap "Recognize by photo" and frame the product\'s front label (name and net weight/quantity visible). If the package has a printed expiry date, we\'ll fill that in too.',
   gotIt: 'Got it',
+  scanLiveHint: 'Point the camera at the barcode, or tap below to recognize by photo',
+  scanLiveHintBarcodeOnly: 'Point the camera at the barcode',
 
   appearance: 'Appearance',
   language: 'Language',
