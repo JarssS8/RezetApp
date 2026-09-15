@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/storeContext';
+import { supabase } from '../data/supabaseClient';
 import { useIdeaDetail, type IdeaDetail as IdeaDetailData } from '../data/ideas';
 import { scaleQuantity } from '../domain/scaling';
 import { isCovered } from '../domain/coverage';
@@ -39,6 +40,25 @@ function draftFromIdea(idea: IdeaDetailData, servings: number, loc: (v: { es: st
   };
 }
 
+/**
+ * Descarga la foto de la idea y la sube al `recipe-photos` del hogar (vía la
+ * función de servidor `import-idea-photo` — el bucket de Cecotec no manda
+ * CORS, así que un `fetch()` directo desde aquí fallaría). Best-effort a
+ * propósito: si falla (sin sesión real, red, host no permitido…) la receta
+ * se guarda igual, sin foto, como hasta ahora — nunca bloquea "Guardar".
+ */
+async function importIdeaPhoto(photoUrl: string): Promise<string | undefined> {
+  try {
+    const { data, error } = await supabase.functions.invoke<{ path?: string }>('import-idea-photo', {
+      body: { url: photoUrl },
+    });
+    if (error || !data?.path) return undefined;
+    return data.path;
+  } catch {
+    return undefined;
+  }
+}
+
 export function IdeaDetail({
   ideaId,
   onClose,
@@ -56,20 +76,26 @@ export function IdeaDetail({
   const { data: idea, isLoading, isError } = useIdeaDetail(ideaId);
   const [servings, setServings] = useState(2);
   const [saving, setSaving] = useState(false);
-  const stack = useStackDismiss(onClose);
+  // Tras guardar, la salida anima igual que un cierre normal; solo cambia
+  // adónde se navega cuando termina (README §7: toda pantalla sale por el
+  // mismo camino por el que entró, guardar no es una excepción).
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const stack = useStackDismiss(() => (savedId ? onSaved(savedId) : onClose()));
 
   useEffect(() => {
     if (idea) setServings(idea.baseServings ?? 2);
   }, [idea]);
 
   const alreadySaved = idea ? recipes.find((r) => r.sourceIdeaId === idea.id) : undefined;
+  const [photoBroken, setPhotoBroken] = useState(false);
 
   const save = async (): Promise<string> => {
     if (alreadySaved) return alreadySaved.id;
     if (!idea) throw new Error('idea not loaded');
     setSaving(true);
     try {
-      return await saveRecipe(draftFromIdea(idea, servings, loc));
+      const photoPath = idea.photoUrl ? await importIdeaPhoto(idea.photoUrl) : undefined;
+      return await saveRecipe({ ...draftFromIdea(idea, servings, loc), photoPath });
     } finally {
       setSaving(false);
     }
@@ -96,6 +122,7 @@ export function IdeaDetail({
   const applianceLabel = idea.appliances.includes('cecofry') ? 'Cecofry' : 'Olla GM';
 
   return (
+    <>
     <div
       data-screen-label="Detalle de idea"
       onAnimationEnd={stack.onAnimationEnd}
@@ -104,11 +131,28 @@ export function IdeaDetail({
       <PushHeader onBack={stack.dismiss} title={loc(idea.name)} backLabel={t.back} />
 
       <div style={{ maxWidth: maxW.detail, margin: '0 auto', padding: '18px 20px 140px' }}>
-        <img
-          src={idea.photoUrl}
-          alt=""
-          style={{ width: '100%', height: 170, borderRadius: radius.hero, objectFit: 'cover', marginBottom: 20 }}
-        />
+        {photoBroken ? (
+          <div
+            style={{
+              height: 170,
+              borderRadius: radius.hero,
+              background: 'var(--soft)',
+              display: 'grid',
+              placeItems: 'center',
+              marginBottom: 20,
+              color: 'var(--accent-ink)',
+            }}
+          >
+            <Icon name="bowl" size={30} strokeWidth={1.6} />
+          </div>
+        ) : (
+          <img
+            src={idea.photoUrl}
+            alt=""
+            onError={() => setPhotoBroken(true)}
+            style={{ width: '100%', height: 170, borderRadius: radius.hero, objectFit: 'cover', marginBottom: 20 }}
+          />
+        )}
 
         <h1 style={{ margin: 0, ...T.detailTitle }}>{loc(idea.name)}</h1>
         <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 13.5, color: 'var(--muted)', ...tabular }}>
@@ -247,48 +291,53 @@ export function IdeaDetail({
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Barra inferior fija a propósito (a diferencia de RecipeDetail): "Guardar" es la
-          acción principal de una idea y conviene tenerla siempre a mano mientras se lee. */}
-      <div
-        style={{
-          position: 'fixed',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 61,
-          background: 'var(--glass)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-          borderTop: '1px solid var(--line)',
-          padding: 'calc(14px + env(safe-area-inset-bottom)) 20px 14px',
-        }}
-      >
-        <div style={{ maxWidth: maxW.detail, margin: '0 auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <Button
-            size="primary"
-            disabled={saving}
-            onClick={async () => {
-              const id = await save();
-              onSaved(id);
-            }}
-            icon={<Icon name={alreadySaved ? 'check' : 'bookmark'} size={17} />}
-            style={{ flex: '1 1 180px', boxShadow: 'var(--shadow-m)', borderRadius: radius.button }}
-          >
-            {alreadySaved ? t.savedRecipe : t.save}
-          </Button>
-          <Button
-            variant="secondary"
-            size="primary"
-            disabled={saving}
-            onClick={async () => onAddToPlan(await save())}
-            style={{ flex: '1 1 140px', borderRadius: radius.button }}
-          >
-            {t.addToPlan}
-          </Button>
-        </div>
+    {/* Fuera del contenedor animado a propósito: un `position:fixed` anidado dentro de
+        un ancestro que anima `transform` deja de estar fijo respecto al viewport
+        mientras se hace scroll (bug real visto en móvil). "Guardar" es la acción
+        principal de una idea y conviene tenerla siempre a mano mientras se lee. */}
+    <div
+      style={{
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 61,
+        background: 'var(--glass)',
+        backdropFilter: 'blur(var(--glass-blur, 20px)) saturate(180%)',
+        WebkitBackdropFilter: 'blur(var(--glass-blur, 20px)) saturate(180%)',
+        borderTop: '1px solid var(--line)',
+        padding: 'calc(14px + env(safe-area-inset-bottom)) 20px 14px',
+        pointerEvents: stack.style.pointerEvents,
+      }}
+    >
+      <div style={{ maxWidth: maxW.detail, margin: '0 auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <Button
+          size="primary"
+          disabled={saving}
+          onClick={async () => {
+            const id = await save();
+            setSavedId(id);
+            stack.dismiss();
+          }}
+          icon={<Icon name={alreadySaved ? 'check' : 'bookmark'} size={17} />}
+          style={{ flex: '1 1 180px', boxShadow: 'var(--shadow-m)', borderRadius: radius.button }}
+        >
+          {alreadySaved ? t.savedRecipe : t.save}
+        </Button>
+        <Button
+          variant="secondary"
+          size="primary"
+          disabled={saving}
+          onClick={async () => onAddToPlan(await save())}
+          style={{ flex: '1 1 140px', borderRadius: radius.button }}
+        >
+          {t.addToPlan}
+        </Button>
       </div>
     </div>
+    </>
   );
 }
 

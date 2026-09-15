@@ -3,12 +3,14 @@ import { usePrefs } from '../store/prefs';
 import { useData, type RecipeDraft } from '../data/store';
 import { useAuth } from '../data/auth';
 import { supabase } from '../data/supabaseClient';
+import { Button } from '../ui/Button';
 import { Chip, OptionChip } from '../ui/Chip';
 import { Eyebrow } from '../ui/Card';
 import { Pressable } from '../ui/Pressable';
 import { PushHeader, TextField } from '../ui/Fields';
 import { IngredientNameField } from '../ui/IngredientNameField';
 import { Icon } from '../ui/Icon';
+import { AlertDialog } from '../ui/Sheet';
 import { Stepper } from '../ui/Stepper';
 import { StepNumber } from '../ui/Card';
 import { maxW, radius, tabular } from '../ui/tokens';
@@ -69,7 +71,7 @@ export function RecipeForm({
   onSaved: (recipeId: string) => void;
 }) {
   const { t, locale, loc } = usePrefs();
-  const { saveRecipe, ingredients, ingredientById, knownTags: allKnownTags } = useData();
+  const { saveRecipe, deleteRecipe, ingredients, ingredientById, knownTags: allKnownTags } = useData();
   const { profile } = useAuth();
   const [draft, setDraft] = useState<RecipeDraft>(() =>
     recipe ? draftFromRecipe(recipe, ingredientById, locale) : EMPTY,
@@ -80,7 +82,11 @@ export function RecipeForm({
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const stack = useStackDismiss(onClose);
+  // Tras guardar, la salida anima igual que un cierre normal; solo cambia adónde se
+  // navega cuando termina (README §7: toda pantalla sale por el mismo camino).
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const stack = useStackDismiss(() => (savedId ? onSaved(savedId) : onClose()));
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const patch = (next: Partial<RecipeDraft>) => setDraft((d) => ({ ...d, ...next }));
   const canSave = draft.title.trim().length > 0;
@@ -144,7 +150,8 @@ export function RecipeForm({
 
   const submit = async () => {
     if (!canSave) return;
-    onSaved(await saveRecipe(draft));
+    setSavedId(await saveRecipe(draft));
+    stack.dismiss();
   };
 
   return (
@@ -715,8 +722,40 @@ export function RecipeForm({
               </div>
             </div>
           )}
+
+          {recipe && (
+            // Zona de peligro: solo al editar, nunca al crear. Vive aquí (no en el
+            // detalle) para que un toque en falso desde la pantalla principal de la
+            // receta no sea posible — mismo lenguaje visual que borrar hogar/cuenta.
+            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
+              <Button
+                variant="danger"
+                size="secondary"
+                full
+                icon={<Icon name="trash" size={17} strokeWidth={2} />}
+                onClick={() => setConfirmDelete(true)}
+              >
+                {t.deleteRecipeAction}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
+
+      {recipe && confirmDelete && (
+        <AlertDialog
+          title={t.deleteRecipeConfirmTitle}
+          body={t.deleteRecipeConfirmBody(loc(recipe.name))}
+          confirmLabel={t.deleteRecipeConfirmAction}
+          cancelLabel={t.cancel}
+          onConfirm={() => {
+            deleteRecipe(recipe.id);
+            setConfirmDelete(false);
+            stack.dismiss();
+          }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
     </div>
   );
 }

@@ -454,6 +454,31 @@ export function SupabaseDataProvider({
   });
   const saveRecipe = useCallback((draft: RecipeDraft) => saveRecipeMut.mutateAsync(draft), [saveRecipeMut]);
 
+  // Sin RPC: la política RLS de `recipe` ya deja borrar solo lo del propio
+  // hogar, y cada tabla que cuelga de una receta (ingredientes, pasos,
+  // etiquetas, entradas del plan, temporizadores, historial de cocinado)
+  // tiene `on delete cascade` hacia recipe(id). El plan cacheado sí puede
+  // quedarse con entradas de una receta que ya no existe, por eso se
+  // invalida además de invalidar recetas.
+  const deleteRecipe = useCallback(
+    (id: string) => {
+      const prev = queryClient.getQueryData<Recipe[]>(recipesKey);
+      queryClient.setQueryData<Recipe[]>(recipesKey, (old = []) => old.filter((r) => r.id !== id));
+      void supabase
+        .from('recipe')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error && prev) {
+            queryClient.setQueryData(recipesKey, prev);
+            return;
+          }
+          void queryClient.invalidateQueries({ queryKey: planKey });
+        });
+    },
+    [queryClient, recipesKey, planKey],
+  );
+
   const pantryBump = useCallback(
     (id: string, delta: number) => {
       const prev = queryClient.getQueryData<PantryItem[]>(pantryKey);
@@ -723,6 +748,7 @@ export function SupabaseDataProvider({
       addPlanEntry,
       removePlanEntry,
       saveRecipe,
+      deleteRecipe,
       pantryBump,
       pantryDelete,
       pantryAdd,
@@ -754,6 +780,7 @@ export function SupabaseDataProvider({
       addPlanEntry,
       removePlanEntry,
       saveRecipe,
+      deleteRecipe,
       pantryBump,
       pantryDelete,
       pantryAdd,

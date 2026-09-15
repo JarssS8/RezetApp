@@ -100,3 +100,14 @@ a:hover{color:color-mix(in oklab, var(--accent-ink) 75%, var(--text))}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.01ms !important;transition-duration:.12s !important}
 }
+
+/* Superficies "glass" (headers, hojas de acción, avisos flotantes) consumen
+   blur(var(--glass-blur, Npx)) — ver ui/tokens.ts y los pocos sitios que lo
+   duplican inline. Aquí, en vez de tocar cada uno, se pone --glass-blur a 0
+   y --glass a un fondo sólido: todos leen frío/sin desenfoque a la vez. */
+@media (prefers-reduced-transparency: reduce){
+  :root{ --glass: var(--surface); --glass-blur: 0px; }
+}
+@media (prefers-contrast: more){
+  :root{ --glass: var(--surface); --glass-blur: 0px; }
+}

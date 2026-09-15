@@ -68,12 +68,12 @@ export const tabular = { fontVariantNumeric: 'tabular-nums' } as const;
 /** Barra o cabecera translúcida: el contenido pasa por debajo. */
 export const glass = {
   background: 'var(--glass)',
-  backdropFilter: 'blur(22px) saturate(180%)',
-  WebkitBackdropFilter: 'blur(22px) saturate(180%)',
+  backdropFilter: 'blur(var(--glass-blur, 22px)) saturate(180%)',
+  WebkitBackdropFilter: 'blur(var(--glass-blur, 22px)) saturate(180%)',
 } as const;
 
 export const glassHeader = {
   background: 'var(--glass)',
-  backdropFilter: 'blur(20px) saturate(180%)',
-  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+  backdropFilter: 'blur(var(--glass-blur, 20px)) saturate(180%)',
+  WebkitBackdropFilter: 'blur(var(--glass-blur, 20px)) saturate(180%)',
 } as const;

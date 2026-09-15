@@ -7,6 +7,7 @@ import { Card, ListCard, Row, SectionHeader } from '../ui/Card';
 import { Icon } from '../ui/Icon';
 import { Pressable } from '../ui/Pressable';
 import { ScreenBody, ScreenHeader, SearchField } from '../ui/Fields';
+import { AlertDialog } from '../ui/Sheet';
 import { Stepper } from '../ui/Stepper';
 import { maxW, radius, text as T } from '../ui/tokens';
 import type { PantryLoc } from '../types';
@@ -17,6 +18,13 @@ export function Pantry({ onAdd }: { onAdd: () => void }) {
   const { t, locale, units, loc } = usePrefs();
   const { pantry, ingredientById, pantryBump, pantryDelete } = useData();
   const [query, setQuery] = useState('');
+  // Un toque en falso en el icono de papelera borraba el item sin remedio
+  // (README §16 Agencia/indulgencia): ahora hace falta confirmar, mismo
+  // patrón que borrar hogar/cuenta.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const confirmDeleteItem = confirmDeleteId ? pantry.find((p) => p.id === confirmDeleteId) : undefined;
+  const confirmDeleteIng = confirmDeleteItem ? ingredientById.get(confirmDeleteItem.ingredientId) : undefined;
+  const confirmDeleteName = confirmDeleteIng ? loc(confirmDeleteIng.name) : '';
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -84,7 +92,7 @@ export function Pantry({ onAdd }: { onAdd: () => void }) {
                         onIncrement={() => pantryBump(item.id, step)}
                       />
                       <Pressable
-                        onClick={() => pantryDelete(item.id)}
+                        onClick={() => setConfirmDeleteId(item.id)}
                         ariaLabel={`${t.pantry} — ${ing ? loc(ing.name) : ''}`}
                         scale={0.9}
                         style={{
@@ -141,6 +149,20 @@ export function Pantry({ onAdd }: { onAdd: () => void }) {
             </Button>
           </div>
         </Card>
+      )}
+
+      {confirmDeleteId && (
+        <AlertDialog
+          title={t.pantryDeleteConfirmTitle}
+          body={t.pantryDeleteConfirmBody(confirmDeleteName)}
+          confirmLabel={t.pantryDeleteAction}
+          cancelLabel={t.cancel}
+          onConfirm={() => {
+            pantryDelete(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
       )}
     </ScreenBody>
   );

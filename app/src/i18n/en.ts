@@ -210,6 +210,7 @@ export const en: Dictionary = {
   appVersion: 'Version',
   updateAvailable: 'A new version of Rezet is available',
   updateNow: 'Update',
+  updating: 'Updating…',
 
   householdRow: 'Your household',
   householdSheetTitle: 'Your household',
@@ -269,6 +270,15 @@ export const en: Dictionary = {
   deleteConfirmTypePrefix: 'Type',
   deleteConfirmTypeSuffix: 'to confirm',
   deleteForeverAction: 'Delete household forever',
+
+  pantryDeleteConfirmTitle: 'Remove from pantry',
+  pantryDeleteConfirmBody: (name: string) => `«${name}» will be removed from your pantry.`,
+  pantryDeleteAction: 'Remove',
+
+  deleteRecipeAction: 'Delete recipe',
+  deleteRecipeConfirmTitle: 'Delete recipe',
+  deleteRecipeConfirmBody: (name: string) => `«${name}» will be deleted forever. This cannot be undone.`,
+  deleteRecipeConfirmAction: 'Delete forever',
 
   leftHouseholdToast: 'You left the household',
   deletedHouseholdToast: 'Household deleted',

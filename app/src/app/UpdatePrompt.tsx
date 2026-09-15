@@ -1,10 +1,13 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { usePrefs } from '../store/prefs';
 import { Button } from '../ui/Button';
 import { radius } from '../ui/tokens';
 
 const CHECK_EVERY_MS = 60 * 60 * 1000;
+// Si el nuevo service worker nunca toma el control (red floja, `registration.waiting`
+// ya vacío), se fuerza la recarga de todos modos en vez de dejar el botón colgado.
+const UPDATE_TIMEOUT_MS = 8000;
 
 interface UpdateState {
   needRefresh: boolean;
@@ -36,10 +39,18 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
   });
 
   const update = () => {
+    let reloaded = false;
+    const reload = () => {
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload();
+    };
     // workbox-window only reloads when the page was already controlled when it loaded; in a
     // first-visit session the worker takes control later, so reload once the new one takes over.
-    navigator.serviceWorker?.addEventListener('controllerchange', () => window.location.reload(), { once: true });
-    void updateServiceWorker(true);
+    navigator.serviceWorker?.addEventListener('controllerchange', reload, { once: true });
+    // Red floja o `registration.waiting` ya vacío: sin esto el botón se queda colgado para siempre.
+    window.setTimeout(reload, UPDATE_TIMEOUT_MS);
+    void updateServiceWorker(true).catch(reload);
   };
 
   return <UpdateContext.Provider value={{ needRefresh, update }}>{children}</UpdateContext.Provider>;
@@ -49,6 +60,7 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
 export function UpdatePrompt({ hidden }: { hidden: boolean }) {
   const { t } = usePrefs();
   const { needRefresh, update } = useContext(UpdateContext);
+  const [updating, setUpdating] = useState(false);
   if (!needRefresh || hidden) return null;
 
   return (
@@ -78,8 +90,8 @@ export function UpdatePrompt({ hidden }: { hidden: boolean }) {
           padding: '8px 8px 8px 18px',
           borderRadius: radius.button,
           background: 'var(--glass)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          backdropFilter: 'blur(var(--glass-blur, 20px)) saturate(180%)',
+          WebkitBackdropFilter: 'blur(var(--glass-blur, 20px)) saturate(180%)',
           border: '1px solid var(--line)',
           boxShadow: 'var(--shadow-l)',
           animation: 'toastin .28s cubic-bezier(.2,.75,.2,1) both',
@@ -88,8 +100,15 @@ export function UpdatePrompt({ hidden }: { hidden: boolean }) {
         <div style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 600, letterSpacing: '-.01em' }}>
           {t.updateAvailable}
         </div>
-        <Button size="header" onClick={update}>
-          {t.updateNow}
+        <Button
+          size="header"
+          disabled={updating}
+          onClick={() => {
+            setUpdating(true);
+            update();
+          }}
+        >
+          {updating ? t.updating : t.updateNow}
         </Button>
       </div>
     </div>

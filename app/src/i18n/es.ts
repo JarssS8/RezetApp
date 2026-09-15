@@ -210,6 +210,7 @@ export const es = {
   appVersion: 'Versión',
   updateAvailable: 'Hay una versión nueva de Rezet',
   updateNow: 'Actualizar',
+  updating: 'Actualizando…',
 
   householdRow: 'Tu hogar',
   householdSheetTitle: 'Tu hogar',
@@ -269,6 +270,16 @@ export const es = {
   deleteConfirmTypePrefix: 'Escribe',
   deleteConfirmTypeSuffix: 'para confirmar',
   deleteForeverAction: 'Eliminar hogar para siempre',
+
+  pantryDeleteConfirmTitle: 'Quitar de la despensa',
+  pantryDeleteConfirmBody: (name: string) => `Se quitará «${name}» de tu despensa.`,
+  pantryDeleteAction: 'Quitar',
+
+  deleteRecipeAction: 'Eliminar receta',
+  deleteRecipeConfirmTitle: 'Eliminar receta',
+  deleteRecipeConfirmBody: (name: string) =>
+    `Se eliminará «${name}» para siempre. Esta acción no se puede deshacer.`,
+  deleteRecipeConfirmAction: 'Eliminar para siempre',
 
   leftHouseholdToast: 'Has salido del hogar',
   deletedHouseholdToast: 'Hogar eliminado',

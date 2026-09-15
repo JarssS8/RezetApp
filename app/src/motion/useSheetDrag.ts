@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { prefersReducedMotion, project, spring, velocityTracker } from './motion';
+import { prefersReducedMotion, project, rubberband, spring, velocityTracker } from './motion';
 
 const CLOSE_THRESHOLD = 140;
 const EXIT_Y = 620;
@@ -8,7 +8,8 @@ const REDUCED_FADE_MS = 120;
 /**
  * Arrastre de hoja inferior con proyección de momento.
  *
- * Seguimiento 1:1 del dedo, resistencia del 25% hacia arriba, y al soltar se
+ * Seguimiento 1:1 del dedo, resistencia progresiva (`rubberband`, README §9)
+ * hacia arriba — cuanto más se tira, menos sigue —, y al soltar se
  * decide por dónde IBA el gesto, no por cuánto recorrió: una hoja lanzada hacia
  * abajo se cierra aunque se haya movido poco. Interrumpible en pleno vuelo.
  * `dismiss` cierra por el mismo camino (×, velo, Escape); con movimiento
@@ -67,8 +68,8 @@ export function useSheetDrag(onClose: () => void) {
       const track = velocityTracker();
 
       const move = (e: PointerEvent) => {
-        let dy = e.clientY - startY;
-        if (dy < 0) dy *= 0.25;
+        const raw = e.clientY - startY;
+        const dy = raw < 0 ? -rubberband(-raw, EXIT_Y) : raw;
         track.push(e.clientY);
         set(dy);
       };

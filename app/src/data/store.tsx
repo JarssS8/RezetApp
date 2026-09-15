@@ -251,6 +251,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [resolveIngredient, setData],
   );
 
+  const deleteRecipe = useCallback(
+    (id: string) =>
+      setData((d) => ({
+        ...d,
+        recipes: d.recipes.filter((r) => r.id !== id),
+        plan: d.plan.filter((e) => e.recipeId !== id),
+      })),
+    [setData],
+  );
+
   const pantryBump = useCallback(
     (id: string, delta: number) =>
       setData((d) => ({
@@ -414,6 +424,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       addPlanEntry,
       removePlanEntry,
       saveRecipe,
+      deleteRecipe,
       pantryBump,
       pantryDelete,
       pantryAdd,
@@ -440,6 +451,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       addPlanEntry,
       removePlanEntry,
       saveRecipe,
+      deleteRecipe,
       pantryBump,
       pantryDelete,
       pantryAdd,

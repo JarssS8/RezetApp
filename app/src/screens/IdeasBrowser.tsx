@@ -101,6 +101,7 @@ export function IdeasBrowser({ onOpenIdea }: { onOpenIdea: (ideaId: string) => v
 
 function IdeaCard({ idea, saved, onOpen }: { idea: IdeaSummary; saved: boolean; onOpen: () => void }) {
   const { t, loc } = usePrefs();
+  const [broken, setBroken] = useState(false);
   return (
     <Pressable
       onClick={onOpen}
@@ -116,7 +117,19 @@ function IdeaCard({ idea, saved, onOpen }: { idea: IdeaSummary; saved: boolean; 
       }}
     >
       <div style={{ position: 'relative', height: 104, background: 'var(--soft)' }}>
-        <img src={idea.photoUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {broken ? (
+          <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'var(--accent-ink)' }}>
+            <Icon name="bowl" size={26} strokeWidth={1.6} />
+          </div>
+        ) : (
+          <img
+            src={idea.photoUrl}
+            alt=""
+            loading="lazy"
+            onError={() => setBroken(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        )}
         <div
           aria-hidden="true"
           style={{
@@ -127,8 +140,8 @@ function IdeaCard({ idea, saved, onOpen }: { idea: IdeaSummary; saved: boolean; 
             height: 32,
             borderRadius: radius.pill,
             background: 'var(--glass)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
+            backdropFilter: 'blur(var(--glass-blur, 12px))',
+            WebkitBackdropFilter: 'blur(var(--glass-blur, 12px))',
             display: 'grid',
             placeItems: 'center',
             color: saved ? 'var(--accent-ink)' : 'var(--muted)',

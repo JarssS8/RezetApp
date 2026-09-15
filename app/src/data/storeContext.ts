@@ -89,6 +89,7 @@ export interface Store {
   removePlanEntry: (id: string) => void;
   /** Async en las dos implementaciones: la real hace una llamada de red. */
   saveRecipe: (draft: RecipeDraft) => Promise<string>;
+  deleteRecipe: (recipeId: string) => void;
   pantryBump: (id: string, delta: number) => void;
   pantryDelete: (id: string) => void;
   pantryAdd: (input: {
