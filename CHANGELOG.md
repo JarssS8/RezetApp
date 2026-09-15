@@ -3,6 +3,22 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.2.0] - 2026-09-15
+
+### Español
+
+**Nuevo**
+- Nueva pestaña Ideas dentro de Recetas: más de 700 recetas de Cecofry y Olla GM que puedes explorar, filtrar por tiempo y aparato, y guardar en tus recetas con un toque. Se puede ocultar desde Ajustes.
+- Al ver una idea, se compara con lo que ya tienes en la despensa, igual que con tus propias recetas.
+- Al crear o editar una receta, un ingrediente puede marcarse "Al gusto" (sal, especias...) en vez de pedirle una cantidad. No aparece en la lista de la compra ni se descuenta de la despensa.
+
+### English
+
+**New**
+- New Ideas tab inside Recipes: over 700 Cecofry and Olla GM recipes you can browse, filter by time and appliance, and save to your own recipes with one tap. Can be hidden from Settings.
+- Viewing an idea checks it against what you already have in your pantry, just like your own recipes.
+- When creating or editing a recipe, an ingredient can be marked "To taste" (salt, spices...) instead of asking for an amount. It's left off the shopping list and isn't subtracted from your pantry.
+
 ## [1.1.0] - 2026-09-15
 
 ### Español
