@@ -3,6 +3,26 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.1.0] - 2026-09-15
+
+### Español
+
+**Nuevo**
+- Cuando hay una versión nueva de Rezet, la app te avisa y se actualiza al tocar "Actualizar". Nunca te interrumpe mientras cocinas.
+- Ajustes muestra la versión de Rezet que tienes.
+
+**Arreglado**
+- La app instalada en el móvil ya no se queda con la versión anterior hasta cerrarla del todo.
+
+### English
+
+**New**
+- When a new version of Rezet is out, the app lets you know and updates when you tap "Update". It never interrupts you while you're cooking.
+- Settings shows which version of Rezet you have.
+
+**Fixed**
+- The app installed on your phone no longer stays on the previous version until you close it completely.
+
 ## [1.0.0] - 2026-09-15
 
 ### Español
