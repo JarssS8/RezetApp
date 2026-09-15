@@ -20,7 +20,7 @@ export function Sheet({
   onClose: () => void;
   children: ReactNode;
 }) {
-  const { y, onPointerDown } = useSheetDrag(onClose);
+  const { y, fading, scrimOpacity, onPointerDown, dismiss } = useSheetDrag(onClose);
   const panel = useRef<HTMLDivElement>(null);
   const restoreTo = useRef<Element | null>(null);
 
@@ -30,7 +30,7 @@ export function Sheet({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        dismiss();
         return;
       }
       if (e.key !== 'Tab' || !panel.current) return;
@@ -53,7 +53,7 @@ export function Sheet({
       document.removeEventListener('keydown', onKey);
       (restoreTo.current as HTMLElement | null)?.focus?.();
     };
-  }, [onClose]);
+  }, [dismiss]);
 
   return (
     <div
@@ -67,12 +67,14 @@ export function Sheet({
       }}
     >
       <div
-        onClick={onClose}
+        onClick={() => dismiss()}
         style={{
           position: 'absolute',
           inset: 0,
           background: 'rgba(8,12,8,.42)',
-          animation: 'fadein .22s both',
+          opacity: scrimOpacity,
+          transition: fading ? 'opacity .12s ease' : undefined,
+          animation: 'fadein .22s',
         }}
       />
       <div
@@ -94,7 +96,10 @@ export function Sheet({
           display: 'flex',
           flexDirection: 'column',
           transform: y ? `translateY(${y}px)` : 'none',
-          animation: `rise .34s ${EASE_SHEET} both`,
+          opacity: fading ? 0 : 1,
+          transition: fading ? 'opacity .12s ease' : undefined,
+          // Sin relleno final: un keyframe "retenido" pisaría el translateY del arrastre.
+          animation: `rise .34s ${EASE_SHEET} backwards`,
           outline: 'none',
         }}
       >
@@ -113,7 +118,7 @@ export function Sheet({
         <div style={{ padding: '6px 20px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1, ...T.sheetTitle }}>{title}</div>
           <Pressable
-            onClick={onClose}
+            onClick={() => dismiss()}
             ariaLabel="Cerrar"
             scale={0.9}
             style={{

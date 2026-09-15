@@ -12,6 +12,7 @@ import { Icon } from '../ui/Icon';
 import { Stepper } from '../ui/Stepper';
 import { StepNumber } from '../ui/Card';
 import { maxW, radius, tabular } from '../ui/tokens';
+import { useStackDismiss } from '../motion/useStackDismiss';
 import type { Difficulty, Ingredient, Localized, Recipe, Unit } from '../types';
 
 const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard'];
@@ -78,6 +79,7 @@ export function RecipeForm({
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const stack = useStackDismiss(onClose);
 
   const patch = (next: Partial<RecipeDraft>) => setDraft((d) => ({ ...d, ...next }));
   const canSave = draft.title.trim().length > 0;
@@ -147,20 +149,21 @@ export function RecipeForm({
   return (
     <div
       data-screen-label={recipe ? 'Editar receta' : 'Nueva receta'}
+      onAnimationEnd={stack.onAnimationEnd}
       style={{
         position: 'fixed',
         inset: 0,
         zIndex: 60,
         background: 'var(--bg)',
         overflowY: 'auto',
-        animation: 'pushin .3s cubic-bezier(.2,.7,.2,1) both',
+        ...stack.style,
       }}
     >
       <PushHeader
         title={recipe ? t.editRecipe : t.newRecipe}
         leading={
           <Pressable
-            onClick={onClose}
+            onClick={stack.dismiss}
             scale={0.95}
             style={{
               height: 40,

@@ -38,16 +38,28 @@ export function useSlotDrag(onDrop: (id: string, slot: string) => void) {
         set({ id, x: e.clientX, y: e.clientY, slot: slotUnder(e.clientX, e.clientY) });
       };
 
-      const up = (e: PointerEvent) => {
+      const stop = () => {
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', cancel);
+      };
+
+      const up = (e: PointerEvent) => {
+        stop();
         const slot = slotUnder(e.clientX, e.clientY);
         if (slot) onDrop(id, slot);
         set(null);
       };
 
+      // El sistema se ha quedado el puntero: se suelta sin añadir nada al plan.
+      const cancel = () => {
+        stop();
+        set(null);
+      };
+
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', cancel);
     },
     [onDrop, set],
   );

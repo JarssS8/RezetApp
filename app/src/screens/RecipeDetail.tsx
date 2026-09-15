@@ -8,6 +8,7 @@ import { Card, Eyebrow, ListCard, Row, StepNumber } from '../ui/Card';
 import { Icon } from '../ui/Icon';
 import { Pressable } from '../ui/Pressable';
 import { PushHeader } from '../ui/Fields';
+import { useStackDismiss } from '../motion/useStackDismiss';
 import { Stepper } from '../ui/Stepper';
 import { maxW, radius, tabular, text as T } from '../ui/tokens';
 
@@ -30,6 +31,7 @@ export function RecipeDetail({
   const { recipeById, ingredientById, needOf, stockOf, coverageOf } = useData();
   const recipe = recipeById.get(recipeId);
   const [servings, setServings] = useState(initialServings);
+  const stack = useStackDismiss(onClose);
 
   if (!recipe) return null;
   const cov = coverageOf(recipe, servings);
@@ -40,17 +42,18 @@ export function RecipeDetail({
   return (
     <div
       data-screen-label="Detalle de receta"
+      onAnimationEnd={stack.onAnimationEnd}
       style={{
         position: 'fixed',
         inset: 0,
         zIndex: 60,
         background: 'var(--bg)',
         overflowY: 'auto',
-        animation: 'pushin .3s cubic-bezier(.2,.7,.2,1) both',
+        ...stack.style,
       }}
     >
       <PushHeader
-        onBack={onClose}
+        onBack={stack.dismiss}
         title={loc(recipe.name)}
         backLabel={t.back}
         trailing={

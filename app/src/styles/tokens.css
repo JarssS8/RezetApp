@@ -94,6 +94,7 @@ a:hover{color:color-mix(in oklab, var(--accent-ink) 75%, var(--text))}
 @keyframes fadein  {from{opacity:0}to{opacity:1}}
 @keyframes rise    {from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
 @keyframes pushin  {from{opacity:.4;transform:translateX(26px)}to{opacity:1;transform:none}}
+@keyframes pushout {to{opacity:0;transform:translateX(26px)}}
 @keyframes toastin {from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:none}}
 
 @media (prefers-reduced-motion: reduce){
