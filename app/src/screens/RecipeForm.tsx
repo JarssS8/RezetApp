@@ -18,7 +18,7 @@ import type { Difficulty, Ingredient, Localized, Recipe, Unit } from '../types';
 const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard'];
 const UNITS: Unit[] = ['g', 'ml', 'ud', 'tbsp'];
 
-const emptyIngredient = () => ({ name: '', quantity: '', unit: 'g' as Unit });
+const emptyIngredient = () => ({ name: '', quantity: '', unit: 'g' as Unit, toTaste: false });
 const emptyStep = () => ({ text: '', timerMinutes: '' });
 
 const EMPTY: RecipeDraft = {
@@ -41,8 +41,9 @@ function draftFromRecipe(recipe: Recipe, ingredientById: Map<string, Ingredient>
     description: nameOf(recipe.description),
     ingredients: recipe.ingredients.map((ri) => ({
       name: nameOf(ingredientById.get(ri.ingredientId)?.name ?? { es: '', en: '' }),
-      quantity: String(ri.quantity),
-      unit: ri.unit,
+      quantity: ri.quantity == null ? '' : String(ri.quantity),
+      unit: ri.unit ?? 'g',
+      toTaste: ri.toTaste ?? false,
     })),
     steps: recipe.steps.map((s) => ({
       text: nameOf(s.text),
@@ -288,29 +289,39 @@ export function RecipeForm({
                   </Pressable>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <TextField
-                    value={ri.quantity}
-                    onChange={(v) => patchIngredient(index, { quantity: v.replace(/[^\d.,]/g, '') })}
-                    placeholder={t.quantityPlaceholder}
-                    inputMode="decimal"
-                    ariaLabel={t.quantityPlaceholder}
-                    style={{ flex: '0 0 96px', height: 44, ...tabular }}
+                  <OptionChip
+                    label={t.toTaste}
+                    height={44}
+                    active={ri.toTaste}
+                    onClick={() => patchIngredient(index, { toTaste: !ri.toTaste })}
                   />
-                  <div style={{ display: 'flex', gap: 6, flex: 1 }}>
-                    {UNITS.map((u) => (
-                      <OptionChip
-                        key={u}
-                        label={
-                          u === 'ud' ? (locale === 'es' ? 'uds' : 'pcs')
-                          : u === 'tbsp' ? (locale === 'es' ? 'cda' : 'tbsp')
-                          : u
-                        }
-                        height={44}
-                        active={ri.unit === u}
-                        onClick={() => patchIngredient(index, { unit: u })}
+                  {!ri.toTaste && (
+                    <>
+                      <TextField
+                        value={ri.quantity}
+                        onChange={(v) => patchIngredient(index, { quantity: v.replace(/[^\d.,]/g, '') })}
+                        placeholder={t.quantityPlaceholder}
+                        inputMode="decimal"
+                        ariaLabel={t.quantityPlaceholder}
+                        style={{ flex: '0 0 96px', height: 44, ...tabular }}
                       />
-                    ))}
-                  </div>
+                      <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+                        {UNITS.map((u) => (
+                          <OptionChip
+                            key={u}
+                            label={
+                              u === 'ud' ? (locale === 'es' ? 'uds' : 'pcs')
+                              : u === 'tbsp' ? (locale === 'es' ? 'cda' : 'tbsp')
+                              : u
+                            }
+                            height={44}
+                            active={ri.unit === u}
+                            onClick={() => patchIngredient(index, { unit: u })}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

@@ -16,7 +16,7 @@ export interface RecipeInput {
   kcalPerServing: number;
   difficulty: Difficulty;
   tags: string[];
-  ingredients: { name: string; quantity: number; unit: Unit }[];
+  ingredients: { name: string; quantity?: number; unit?: Unit; toTaste?: boolean }[];
   steps: { text: string; timerMinutes?: number }[];
 }
 
@@ -33,8 +33,9 @@ export function buildSaveRecipePayload(input: RecipeInput, id: string | null) {
     tags: input.tags,
     ingredients: input.ingredients.map((ri) => ({
       name: ri.name.trim(),
-      quantity: ri.quantity,
-      unit: ri.unit,
+      quantity: ri.toTaste ? null : ri.quantity,
+      unit: ri.toTaste ? null : ri.unit,
+      to_taste: ri.toTaste ?? false,
       sensitive: SENSITIVE_RE.test(ri.name),
     })),
     steps: input.steps.map((s) => ({
@@ -79,6 +80,7 @@ function detailRecipe(r: Recipe, ingredientById: Map<string, Ingredient>, locale
         name: ing ? ing.name[locale] || ing.name.es : ri.ingredientId,
         quantity: ri.quantity,
         unit: ri.unit,
+        toTaste: ri.toTaste ?? false,
         sensitive: ing?.sensitive ?? false,
       };
     }),

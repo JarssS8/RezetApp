@@ -25,19 +25,24 @@ export function createStoreDerivations(args: {
       .filter((p) => p.ingredientId === ingredientId && p.unit === unit)
       .reduce((sum, p) => sum + p.quantity, 0);
 
-  const needOf = (recipe: Recipe, index: number, servings: number): number => {
+  /** `null` para ingredientes "al gusto": no hay cantidad que escalar. */
+  const needOf = (recipe: Recipe, index: number, servings: number): number | null => {
     const ri = recipe.ingredients[index];
-    if (!ri) return 0;
+    if (!ri || ri.toTaste) return null;
     const sensitive = ingredientById.get(ri.ingredientId)?.sensitive ?? false;
-    return scaleQuantity(ri.quantity, recipe.baseServings, servings, sensitive);
+    return scaleQuantity(ri.quantity!, recipe.baseServings, servings, sensitive);
   };
 
+  /** Los ingredientes "al gusto" no cuentan ni a favor ni en contra: no forman parte del total. */
   const coverageOf = (recipe: Recipe, servings: number) => {
     let have = 0;
+    let total = 0;
     recipe.ingredients.forEach((ri, index) => {
-      if (isCovered(needOf(recipe, index, servings), stockOf(ri.ingredientId, ri.unit))) have += 1;
+      const need = needOf(recipe, index, servings);
+      if (need === null) return;
+      total += 1;
+      if (isCovered(need, stockOf(ri.ingredientId, ri.unit!))) have += 1;
     });
-    const total = recipe.ingredients.length;
     return { have, total, full: total > 0 && have === total };
   };
 
@@ -55,12 +60,13 @@ export function createStoreDerivations(args: {
     const out: Shortage[] = [];
     recipe.ingredients.forEach((ri, index) => {
       const need = needOf(recipe, index, servings);
-      const have = stockOf(ri.ingredientId, ri.unit);
+      if (need === null) return;
+      const have = stockOf(ri.ingredientId, ri.unit!);
       if (have < need * 0.999) {
         out.push({
           name: ingredientById.get(ri.ingredientId)?.name[locale] ?? '',
           quantity: need - have,
-          unit: ri.unit,
+          unit: ri.unit!,
         });
       }
     });

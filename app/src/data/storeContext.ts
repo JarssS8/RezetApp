@@ -24,6 +24,8 @@ export interface RecipeIngredientDraft {
   name: string;
   quantity: string;
   unit: Unit;
+  /** "Al gusto": oculta cantidad/unidad en el formulario, se guarda sin cifra. */
+  toTaste: boolean;
 }
 
 export interface RecipeStepDraft {
@@ -76,8 +78,8 @@ export interface Store {
 
   /** Existencias de un ingrediente en la unidad pedida. */
   stockOf: (ingredientId: string, unit: Unit) => number;
-  /** Cantidad que pide una receta para N raciones. */
-  needOf: (recipe: Recipe, index: number, servings: number) => number;
+  /** Cantidad que pide una receta para N raciones. `null` si el ingrediente es "al gusto". */
+  needOf: (recipe: Recipe, index: number, servings: number) => number | null;
   coverageOf: (recipe: Recipe, servings: number) => Coverage;
   needsForWeek: (weekOffset: number) => ShoppingNeed[];
 

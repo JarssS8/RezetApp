@@ -9,8 +9,10 @@ import type { Difficulty, Ingredient, Locale, Recipe, Unit } from '../types';
  */
 export interface HouseholdExportIngredient {
   name: string;
-  quantity: number;
-  unit: Unit;
+  /** `null` si `toTaste`: "sal al gusto" no lleva cantidad. */
+  quantity: number | null;
+  unit: Unit | null;
+  toTaste: boolean;
 }
 
 export interface HouseholdExportStep {
@@ -46,6 +48,7 @@ export function buildHouseholdExport(
       name: ingredientById.get(ri.ingredientId)?.name[locale] ?? ri.ingredientId,
       quantity: ri.quantity,
       unit: ri.unit,
+      toTaste: ri.toTaste ?? false,
     })),
     steps: r.steps.map((s) => ({
       text: s.text[locale],

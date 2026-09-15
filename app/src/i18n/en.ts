@@ -119,6 +119,7 @@ export const en: Dictionary = {
   quantityPlaceholder: 'Amount',
   addIngredient: 'Add ingredient',
   removeIngredient: 'Remove ingredient',
+  toTaste: 'To taste',
   stepPlaceholder: 'Describe the step',
   timerMinutesPlaceholder: 'Minutes (optional)',
   addStep: 'Add step',

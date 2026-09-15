@@ -168,13 +168,32 @@ export function RecipeDetail({
           <ListCard style={{ borderRadius: radius.card }}>
             {recipe.ingredients.map((ri, index) => {
               const ing = ingredientById.get(ri.ingredientId);
-              const need = needOf(recipe, index, servings);
-              const have = stockOf(ri.ingredientId, ri.unit);
+              if (ri.toTaste) {
+                return (
+                  <Row key={`${ri.ingredientId}-${index}`} warn={ing?.sensitive}>
+                    <div
+                      style={{
+                        width: 8,
+                        height: 8,
+                        flex: '0 0 8px',
+                        borderRadius: radius.pill,
+                        background: 'var(--line)',
+                      }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={T.row}>{ing ? loc(ing.name) : '—'}</div>
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--muted)' }}>{t.toTaste}</div>
+                  </Row>
+                );
+              }
+              const need = needOf(recipe, index, servings)!;
+              const have = stockOf(ri.ingredientId, ri.unit!);
               const ok = isCovered(need, have);
               const note = ok
-                ? `${t.have} ${formatQuantity(have, ri.unit, units, locale)}`
+                ? `${t.have} ${formatQuantity(have, ri.unit!, units, locale)}`
                 : have > 0
-                  ? `${formatQuantity(need - have, ri.unit, units, locale)} ${t.short}`
+                  ? `${formatQuantity(need - have, ri.unit!, units, locale)} ${t.short}`
                   : t.notInPantry;
               return (
                 <Row key={`${ri.ingredientId}-${index}`} warn={ing?.sensitive}>
@@ -192,7 +211,7 @@ export function RecipeDetail({
                     <div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--muted)' }}>{note}</div>
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 600, ...tabular }}>
-                    {formatQuantity(need, ri.unit, units, locale)}
+                    {formatQuantity(need, ri.unit!, units, locale)}
                   </div>
                 </Row>
               );

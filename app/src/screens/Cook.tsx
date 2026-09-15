@@ -67,6 +67,7 @@ export function Cook({
     const ri = recipe.ingredients[index];
     if (!ri) return null;
     const ing = ingredientById.get(ri.ingredientId);
+    const need = needOf(recipe, index, session.servings);
     return (
       <CheckRow
         key={index}
@@ -79,11 +80,11 @@ export function Cook({
             style={{
               fontSize: 15,
               fontWeight: 600,
-              ...tabular,
-              color: session.checked[index] ? 'var(--muted)' : 'var(--text)',
+              ...(need === null ? {} : tabular),
+              color: need === null ? 'var(--muted)' : session.checked[index] ? 'var(--muted)' : 'var(--text)',
             }}
           >
-            {formatQuantity(needOf(recipe, index, session.servings), ri.unit, units, locale)}
+            {need === null ? t.toTaste : formatQuantity(need, ri.unit!, units, locale)}
           </div>
         }
       />
@@ -302,8 +303,21 @@ export function Cook({
                 <ListCard style={{ marginTop: 20 }}>
                   {recipe.ingredients.map((ri, index) => {
                     const ing = ingredientById.get(ri.ingredientId);
-                    const need = needOf(recipe, index, session.servings);
-                    const have = stockOf(ri.ingredientId, ri.unit);
+                    if (ri.toTaste) {
+                      return (
+                        <CheckRow
+                          key={index}
+                          checked={!!session.checked[index]}
+                          onToggle={() => cook.toggleChecked(index)}
+                          warn={ing?.sensitive}
+                          label={ing ? loc(ing.name) : '—'}
+                          sublabelTone="muted"
+                          trailing={<div style={{ fontSize: 15, fontWeight: 600, color: 'var(--muted)' }}>{t.toTaste}</div>}
+                        />
+                      );
+                    }
+                    const need = needOf(recipe, index, session.servings)!;
+                    const have = stockOf(ri.ingredientId, ri.unit!);
                     const ok = isCovered(need, have);
                     return (
                       <CheckRow
@@ -314,15 +328,15 @@ export function Cook({
                         label={ing ? loc(ing.name) : '—'}
                         sublabel={
                           ok
-                            ? `${t.have} ${formatQuantity(have, ri.unit, units, locale)}`
+                            ? `${t.have} ${formatQuantity(have, ri.unit!, units, locale)}`
                             : have > 0
-                              ? `${formatQuantity(need - have, ri.unit, units, locale)} ${t.short}`
+                              ? `${formatQuantity(need - have, ri.unit!, units, locale)} ${t.short}`
                               : t.notInPantry
                         }
                         sublabelTone={ok ? 'muted' : 'warn'}
                         trailing={
                           <div style={{ fontSize: 15, fontWeight: 600, ...tabular }}>
-                            {formatQuantity(need, ri.unit, units, locale)}
+                            {formatQuantity(need, ri.unit!, units, locale)}
                           </div>
                         }
                       />

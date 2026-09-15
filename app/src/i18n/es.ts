@@ -119,6 +119,7 @@ export const es = {
   quantityPlaceholder: 'Cantidad',
   addIngredient: 'Añadir ingrediente',
   removeIngredient: 'Quitar ingrediente',
+  toTaste: 'Al gusto',
   stepPlaceholder: 'Describe el paso',
   timerMinutesPlaceholder: 'Minutos (opcional)',
   addStep: 'Añadir paso',

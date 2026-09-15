@@ -208,8 +208,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             ingredients = resolved.list;
             return {
               ingredientId: resolved.id,
-              quantity: parseFloat(ri.quantity.replace(',', '.')) || 1,
-              unit: ri.unit,
+              quantity: ri.toTaste ? null : parseFloat(ri.quantity.replace(',', '.')) || 1,
+              unit: ri.toTaste ? null : ri.unit,
+              toTaste: ri.toTaste,
             };
           });
         const steps = draft.steps
@@ -353,6 +354,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setData((d) => {
         const pantry = d.pantry.map((p) => ({ ...p }));
         recipe.ingredients.forEach((ri) => {
+          // "Al gusto": nada que descontar de la despensa, igual que rpc/finish_cook.
+          if (ri.toTaste || ri.quantity == null || ri.unit == null) return;
           const sensitive = d.ingredients.find((i) => i.id === ri.ingredientId)?.sensitive ?? false;
           const need = scaleQuantity(ri.quantity, recipe.baseServings, input.servings, sensitive);
           const item = pantry.find((p) => p.ingredientId === ri.ingredientId && p.unit === ri.unit);

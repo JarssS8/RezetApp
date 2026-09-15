@@ -32,9 +32,9 @@ describe('buildSaveRecipePayload', () => {
       kcal_per_serving: 520,
       tags: ['legumbre', 'invierno'],
       ingredients: [
-        { name: 'Lentejas', quantity: 300, unit: 'g', sensitive: false },
-        { name: 'Chorizo', quantity: 150, unit: 'g', sensitive: false },
-        { name: 'Sal', quantity: 5, unit: 'g', sensitive: true },
+        { name: 'Lentejas', quantity: 300, unit: 'g', to_taste: false, sensitive: false },
+        { name: 'Chorizo', quantity: 150, unit: 'g', to_taste: false, sensitive: false },
+        { name: 'Sal', quantity: 5, unit: 'g', to_taste: false, sensitive: true },
       ],
       steps: [
         { text: 'Sofreír el chorizo.', timer_minutes: 5 },
@@ -42,6 +42,28 @@ describe('buildSaveRecipePayload', () => {
       ],
       photo_path: null,
     });
+  });
+
+  it('sends null quantity/unit and to_taste=true for "to taste" ingredients', () => {
+    const input: RecipeInput = {
+      title: 'Ensalada',
+      description: '',
+      baseServings: 2,
+      minutes: 10,
+      kcalPerServing: 200,
+      difficulty: 'easy',
+      tags: [],
+      ingredients: [
+        { name: 'Lechuga', quantity: 200, unit: 'g' },
+        { name: 'Sal', toTaste: true },
+      ],
+      steps: [{ text: 'Mezclar.' }],
+    };
+
+    expect(buildSaveRecipePayload(input, null).ingredients).toEqual([
+      { name: 'Lechuga', quantity: 200, unit: 'g', to_taste: false, sensitive: false },
+      { name: 'Sal', quantity: null, unit: null, to_taste: true, sensitive: true },
+    ]);
   });
 
   it('reuses an existing id when updating', () => {

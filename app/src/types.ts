@@ -27,8 +27,11 @@ export interface Ingredient {
 
 export interface RecipeIngredient {
   ingredientId: string;
-  quantity: number;
-  unit: Unit;
+  /** `null` cuando `toTaste`: "sal al gusto" no lleva cantidad. */
+  quantity: number | null;
+  unit: Unit | null;
+  /** Sin cantidad fija (sal, pimienta...). Ausente = false. */
+  toTaste?: boolean;
 }
 
 export interface RecipeStep {

@@ -4,6 +4,7 @@ import { isCovered } from '../coverage';
 import { formatFractionalQuantity, formatQuantity, roundNice } from '../units';
 import { defaultLocationFor, findIngredientByName, inferFoodGroup, textMentions } from '../recipeText';
 import { shoppingNeeds } from '../shopping';
+import { createStoreDerivations } from '../deriveStore';
 import { dateKey, mondayOf, setClock, slotForNow, todayKey } from '../dates';
 import type { Ingredient, PantryItem, PlanEntry, Recipe } from '../../types';
 
@@ -122,6 +123,69 @@ describe('lista de la compra', () => {
       { id: 'p1', date: '2026-02-01', slot: 'lunch', recipeId: 'r1', servings: 2, cooked: false },
     ];
     expect(shoppingNeeds({ ...base, plan, pantry: [] })).toHaveLength(0);
+  });
+});
+
+describe('ingredientes "al gusto"', () => {
+  const ingredients = new Map<string, Ingredient>([
+    ['i1', { id: 'i1', name: { es: 'Lentejas', en: 'Lentils' }, group: 'seco', sensitive: false, defaultUnit: 'g' }],
+    ['i2', { id: 'i2', name: { es: 'Sal', en: 'Salt' }, group: 'seco', sensitive: true, defaultUnit: 'g' }],
+  ]);
+  const recipe: Recipe = {
+    id: 'r1',
+    name: { es: 'Lentejas', en: 'Lentils' },
+    description: { es: '', en: '' },
+    baseServings: 2,
+    minutes: 35,
+    difficulty: 'easy',
+    kcalPerServing: 552,
+    tags: [],
+    ingredients: [
+      { ingredientId: 'i1', quantity: 300, unit: 'g' },
+      { ingredientId: 'i2', quantity: null, unit: null, toTaste: true },
+    ],
+    steps: [{ text: { es: 'Cuece', en: 'Simmer' } }],
+    cookedCount: 0,
+  };
+
+  it('no entra en la lista de la compra', () => {
+    const plan: PlanEntry[] = [
+      { id: 'p1', date: '2026-01-05', slot: 'lunch', recipeId: 'r1', servings: 4, cooked: false },
+    ];
+    const needs = shoppingNeeds({
+      dates: ['2026-01-05'],
+      plan,
+      recipes: new Map([['r1', recipe]]),
+      pantry: [],
+      ingredients,
+      locale: 'es',
+    });
+    expect(needs.find((n) => n.ingredientId === 'i2')).toBeUndefined();
+    expect(needs.find((n) => n.ingredientId === 'i1')?.quantity).toBe(600);
+  });
+
+  it('needOf devuelve null, y no cuenta en la cobertura', () => {
+    const derivations = createStoreDerivations({
+      pantry: [],
+      recipeById: new Map([['r1', recipe]]),
+      ingredientById: ingredients,
+      plan: [],
+      locale: 'es',
+    });
+    expect(derivations.needOf(recipe, 1, 4)).toBeNull();
+    const coverage = derivations.coverageOf(recipe, 4);
+    expect(coverage.total).toBe(1);
+  });
+
+  it('no genera carencia al cocinar', () => {
+    const derivations = createStoreDerivations({
+      pantry: [],
+      recipeById: new Map([['r1', recipe]]),
+      ingredientById: ingredients,
+      plan: [],
+      locale: 'es',
+    });
+    expect(derivations.shortagesFor(recipe, 4).find((s) => s.name === 'Sal')).toBeUndefined();
   });
 });
 

@@ -16,17 +16,27 @@ export const weekOffset = z
   .default(0)
   .describe('0 = current week (Mon-Sun), 1 = next week, -1 = last week');
 
-export const recipeIngredientInput = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .describe(
-      'Ingredient name in Spanish as the household uses it (matched case-insensitively against existing ingredients; created if missing)',
-    ),
-  quantity: z.number().positive(),
-  unit: z.enum(UNITS),
-});
+export const recipeIngredientInput = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1)
+      .describe(
+        'Ingredient name in Spanish as the household uses it (matched case-insensitively against existing ingredients; created if missing)',
+      ),
+    quantity: z.number().positive().optional(),
+    unit: z.enum(UNITS).optional(),
+    toTaste: z
+      .boolean()
+      .optional()
+      .describe(
+        '"To taste" ingredient with no fixed amount (salt, pepper...). When true, omit quantity and unit.',
+      ),
+  })
+  .refine((v) => v.toTaste === true || (v.quantity != null && v.unit != null), {
+    message: 'quantity and unit are required unless toTaste is true',
+  });
 export const recipeStepInput = z.object({
   text: z.string().trim().min(1),
   timerMinutes: z.number().int().positive().optional(),

@@ -62,7 +62,14 @@ interface RecipeRow {
   cooked_count: number;
   photo_path: string | null;
   recipe_tag: Array<{ tag: { name: string } }>;
-  recipe_ingredient: Array<{ id: string; ingredient_id: string; quantity: number; unit: Unit; position: number }>;
+  recipe_ingredient: Array<{
+    id: string;
+    ingredient_id: string;
+    quantity: number | null;
+    unit: Unit | null;
+    to_taste: boolean;
+    position: number;
+  }>;
   recipe_step: Array<{
     id: string;
     position: number;
@@ -92,8 +99,9 @@ function mapRecipe(row: RecipeRow): Recipe {
       : {}),
     ingredients: ingredients.map((ri) => ({
       ingredientId: ri.ingredient_id,
-      quantity: Number(ri.quantity),
+      quantity: ri.quantity == null ? null : Number(ri.quantity),
       unit: ri.unit,
+      toTaste: ri.to_taste,
     })),
     steps: steps.map((s) => {
       const ingredientIds = s.recipe_step_ingredient
@@ -147,7 +155,7 @@ function mapPlanEntry(row: {
 const RECIPE_SELECT = `
   id, name, description, base_servings, minutes, difficulty, kcal_per_serving, cooked_count, photo_path,
   recipe_tag ( tag ( name ) ),
-  recipe_ingredient ( id, ingredient_id, quantity, unit, position ),
+  recipe_ingredient ( id, ingredient_id, quantity, unit, to_taste, position ),
   recipe_step ( id, position, text, timer_minutes, recipe_step_ingredient ( recipe_ingredient_id ) )
 `;
 
@@ -418,8 +426,9 @@ export function SupabaseDataProvider({
         ingredients: ingredients.length
           ? ingredients.map((ri) => ({
               name: ri.name.trim(),
-              quantity: parseFloat(ri.quantity.replace(',', '.')) || 1,
-              unit: ri.unit,
+              quantity: ri.toTaste ? null : parseFloat(ri.quantity.replace(',', '.')) || 1,
+              unit: ri.toTaste ? null : ri.unit,
+              to_taste: ri.toTaste,
               sensitive: SENSITIVE_RE.test(ri.name),
             }))
           : [{ name: 'Sin especificar', quantity: 1, unit: 'ud', sensitive: false }],

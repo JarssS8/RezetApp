@@ -30,6 +30,8 @@ export function shoppingNeeds(args: {
     if (!recipe) continue;
 
     for (const ri of recipe.ingredients) {
+      // "Al gusto": no hay cantidad que comprar, no entra en la lista.
+      if (ri.toTaste || ri.quantity == null || ri.unit == null) continue;
       const ing = ingredients.get(ri.ingredientId);
       if (!ing) continue;
       const key = `${ri.ingredientId}|${ri.unit}`;
