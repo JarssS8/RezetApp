@@ -26,9 +26,11 @@ interface Prefs {
   theme: Theme;
   accent: Accent;
   units: UnitSystem;
+  /** Pestaña Ideas en Recetas. Por dispositivo, como tema/idioma/unidades — no sincroniza entre hogar. */
+  showIdeas: boolean;
 }
 
-const DEFAULTS: Prefs = { locale: 'es', theme: 'system', accent: 'green', units: 'metric' };
+const DEFAULTS: Prefs = { locale: 'es', theme: 'system', accent: 'green', units: 'metric', showIdeas: true };
 
 interface PrefsContext extends Prefs {
   t: Dictionary;
@@ -36,6 +38,7 @@ interface PrefsContext extends Prefs {
   setTheme: (v: Theme) => void;
   setAccent: (v: Accent) => void;
   setUnits: (v: UnitSystem) => void;
+  setShowIdeas: (v: boolean) => void;
   /** Resuelve un texto bilingüe al idioma activo. */
   loc: (value: Localized) => string;
 }
@@ -82,6 +85,7 @@ export function PrefsProvider({ children }: { children: React.ReactNode }) {
       setTheme: (theme) => patch({ theme }),
       setAccent: (accent) => patch({ accent }),
       setUnits: (units) => patch({ units }),
+      setShowIdeas: (showIdeas) => patch({ showIdeas }),
       loc: (v) => v[prefs.locale] || v.es,
     };
   }, [prefs, patch]);

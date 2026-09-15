@@ -14,6 +14,7 @@ import { Onboarding } from './screens/Onboarding';
 import { Today } from './screens/Today';
 import { Recipes } from './screens/Recipes';
 import { RecipeDetail } from './screens/RecipeDetail';
+import { IdeaDetail } from './screens/IdeaDetail';
 import { RecipeForm } from './screens/RecipeForm';
 import { Plan } from './screens/Plan';
 import { Pantry } from './screens/Pantry';
@@ -44,6 +45,7 @@ type Push =
   | { kind: 'recipe'; recipeId: string; servings: number }
   | { kind: 'new' }
   | { kind: 'edit'; recipeId: string }
+  | { kind: 'idea'; ideaId: string }
   | null;
 type SheetState =
   | { kind: 'settings' }
@@ -302,7 +304,11 @@ function MainApp({
           />
         )}
         {tab === 'recipes' && (
-          <Recipes onOpenRecipe={openRecipe} onNewRecipe={() => setPush({ kind: 'new' })} />
+          <Recipes
+            onOpenRecipe={openRecipe}
+            onNewRecipe={() => setPush({ kind: 'new' })}
+            onOpenIdea={(ideaId) => setPush({ kind: 'idea', ideaId })}
+          />
         )}
         {tab === 'plan' && (
           <Plan
@@ -319,6 +325,17 @@ function MainApp({
         )}
         {tab === 'pantry' && <Pantry onAdd={() => setSheet({ kind: 'pantryAdd' })} />}
       </AppShell>
+
+      {push?.kind === 'idea' && (
+        <IdeaDetail
+          ideaId={push.ideaId}
+          onClose={() => setPush(null)}
+          onSaved={(recipeId) =>
+            setPush({ kind: 'recipe', recipeId, servings: recipeById.get(recipeId)?.baseServings ?? 2 })
+          }
+          onAddToPlan={(recipeId) => setSheet({ kind: 'picker', target: { kind: 'recipe', recipeId } })}
+        />
+      )}
 
       {push?.kind === 'recipe' && (
         <RecipeDetail

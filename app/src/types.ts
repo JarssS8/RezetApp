@@ -54,6 +54,8 @@ export interface Recipe {
   steps: RecipeStep[];
   cookedCount: number;
   photoUrl?: string;
+  /** Presente si esta receta viene de guardar una idea del catálogo (pestaña Ideas). */
+  sourceIdeaId?: string;
 }
 
 export interface PantryItem {

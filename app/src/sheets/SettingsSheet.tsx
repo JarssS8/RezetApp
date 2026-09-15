@@ -41,7 +41,8 @@ export function SettingsSheet({
   onAccountHousehold?: () => void;
   onToast?: (msg: string) => void;
 }) {
-  const { t, theme, accent, locale, units, setTheme, setAccent, setLocale, setUnits } = usePrefs();
+  const { t, theme, accent, locale, units, showIdeas, setTheme, setAccent, setLocale, setUnits, setShowIdeas } =
+    usePrefs();
   const { profile } = useAuth();
   const [notifBusy, setNotifBusy] = useState(false);
   const [notifOn, setNotifOn] = useState(false);
@@ -135,6 +136,17 @@ export function SettingsSheet({
             {unitOptions.map(([id, label]) => (
               <OptionChip key={id} label={label} active={units === id} onClick={() => setUnits(id)} />
             ))}
+          </div>
+        </div>
+
+        <div>
+          <Eyebrow style={{ marginBottom: 9 }}>{t.ideasRecipes}</Eyebrow>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <OptionChip label={t.show} active={showIdeas} onClick={() => setShowIdeas(true)} />
+            <OptionChip label={t.hide} active={!showIdeas} onClick={() => setShowIdeas(false)} />
+          </div>
+          <div style={{ marginTop: 8, fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
+            {t.ideasRecipesHelp}
           </div>
         </div>
 

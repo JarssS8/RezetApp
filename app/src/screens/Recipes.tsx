@@ -6,18 +6,25 @@ import { Chip } from '../ui/Chip';
 import { Icon } from '../ui/Icon';
 import { Pressable } from '../ui/Pressable';
 import { ScreenBody, ScreenHeader, SearchField } from '../ui/Fields';
+import { SegmentedControl } from '../ui/SegmentedControl';
+import { IdeasBrowser } from './IdeasBrowser';
 import { maxW, radius, tabular, text as T } from '../ui/tokens';
+
+type Segment = 'mine' | 'ideas';
 
 export function Recipes({
   onOpenRecipe,
   onNewRecipe,
+  onOpenIdea,
 }: {
   onOpenRecipe: (recipeId: string, servings: number) => void;
   onNewRecipe: () => void;
+  onOpenIdea: (ideaId: string) => void;
 }) {
-  const { t, loc } = usePrefs();
+  const { t, loc, showIdeas } = usePrefs();
   const { recipes, ingredientById, coverageOf, knownTags } = useData();
 
+  const [segment, setSegment] = useState<Segment>('mine');
   const [query, setQuery] = useState('');
   const [tag, setTag] = useState<string | null>(null);
   const [haveOnly, setHaveOnly] = useState(false);
@@ -56,6 +63,23 @@ export function Recipes({
         }
       />
 
+      {showIdeas && (
+        <div style={{ margin: '2px 0 14px' }}>
+          <SegmentedControl
+            value={segment}
+            onChange={setSegment}
+            options={[
+              { value: 'mine', label: t.myRecipes },
+              { value: 'ideas', label: t.ideas },
+            ]}
+          />
+        </div>
+      )}
+
+      {segment === 'ideas' && showIdeas ? (
+        <IdeasBrowser onOpenIdea={onOpenIdea} />
+      ) : (
+        <>
       <SearchField value={query} onChange={setQuery} placeholder={t.searchRecipes} />
 
       <div
@@ -278,6 +302,8 @@ export function Recipes({
             </Button>
           </div>
         </div>
+      )}
+        </>
       )}
     </ScreenBody>
   );

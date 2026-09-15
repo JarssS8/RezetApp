@@ -230,6 +230,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           minutes: parseInt(draft.minutes, 10) || 20,
           difficulty: draft.difficulty,
           kcalPerServing: parseInt(draft.kcal, 10) || 450,
+          ...(draft.sourceIdeaId ? { sourceIdeaId: draft.sourceIdeaId } : {}),
           tags: draft.tags,
           ingredients: recipeIngredients.length
             ? recipeIngredients

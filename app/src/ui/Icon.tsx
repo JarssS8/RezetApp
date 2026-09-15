@@ -23,6 +23,7 @@ const PATHS = {
   logout: 'M16 6H5v16h11M16 6l5 6-5 6M20 12H10',
   link: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
   account: 'M5 20c0-3.87 3.13-7 7-7s7 3.13 7 7',
+  bookmark: 'M6 4h12v16l-6-4-6 4Z',
 } as const;
 
 export type IconName = keyof typeof PATHS;

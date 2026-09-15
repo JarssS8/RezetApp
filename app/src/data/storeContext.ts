@@ -48,6 +48,8 @@ export interface RecipeDraft {
   tags: string[];
   /** Ruta ya subida a Storage (bucket `recipe-photos`). Solo en modo real. */
   photoPath?: string;
+  /** Al guardar una idea del catálogo: enlaza la copia con su origen (ver `Recipe.sourceIdeaId`). */
+  sourceIdeaId?: string;
 }
 
 export interface Coverage {

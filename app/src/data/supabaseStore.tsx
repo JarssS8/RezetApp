@@ -61,6 +61,7 @@ interface RecipeRow {
   kcal_per_serving: number;
   cooked_count: number;
   photo_path: string | null;
+  source_idea_id: string | null;
   recipe_tag: Array<{ tag: { name: string } }>;
   recipe_ingredient: Array<{
     id: string;
@@ -97,6 +98,7 @@ function mapRecipe(row: RecipeRow): Recipe {
     ...(row.photo_path
       ? { photoUrl: supabase.storage.from('recipe-photos').getPublicUrl(row.photo_path).data.publicUrl }
       : {}),
+    ...(row.source_idea_id ? { sourceIdeaId: row.source_idea_id } : {}),
     ingredients: ingredients.map((ri) => ({
       ingredientId: ri.ingredient_id,
       quantity: ri.quantity == null ? null : Number(ri.quantity),
@@ -153,7 +155,7 @@ function mapPlanEntry(row: {
 }
 
 const RECIPE_SELECT = `
-  id, name, description, base_servings, minutes, difficulty, kcal_per_serving, cooked_count, photo_path,
+  id, name, description, base_servings, minutes, difficulty, kcal_per_serving, cooked_count, photo_path, source_idea_id,
   recipe_tag ( tag ( name ) ),
   recipe_ingredient ( id, ingredient_id, quantity, unit, to_taste, position ),
   recipe_step ( id, position, text, timer_minutes, recipe_step_ingredient ( recipe_ingredient_id ) )
@@ -422,6 +424,7 @@ export function SupabaseDataProvider({
         minutes: parseInt(draft.minutes, 10) || 20,
         difficulty: draft.difficulty,
         kcal_per_serving: parseInt(draft.kcal, 10) || 450,
+        source_idea_id: draft.sourceIdeaId ?? null,
         tags: draft.tags,
         ingredients: ingredients.length
           ? ingredients.map((ri) => ({
