@@ -34,3 +34,4 @@ mcp/worker-configuration.d.ts
 
 # tools/cecotec (sharp, used only by make-thumbs.mjs)
 tools/cecotec/node_modules/
+.worktrees/
