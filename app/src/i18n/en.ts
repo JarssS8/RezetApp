@@ -354,6 +354,7 @@ export const en: Dictionary = {
   shopEmptyBody: "Your pantry covers everything in this week's plan.",
   moveToPantry: 'Move checked to pantry',
   boughtOk: 'Moved to the pantry',
+  shareToKomprapp: 'Share with komprapp',
   dry: 'Dry',
   fresh: 'Fresh',
   tinned: 'Tinned',

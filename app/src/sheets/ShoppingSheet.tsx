@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
+import { buildKomprappImportUrl, KOMPRAPP_BASE_URL } from '../domain/komprappExport';
 import { SHOPPING_GROUP_ORDER } from '../domain/shopping';
 import { formatQuantity } from '../domain/units';
 import { Button } from '../ui/Button';
@@ -30,6 +31,17 @@ export function ShoppingSheet({
   })).filter((g) => g.items.length > 0);
 
   const anyChecked = needs.some((n) => shoppingChecked[n.key]);
+
+  const shareWithKomprapp = async () => {
+    const selected = needs.filter((n) => shoppingChecked[n.key]);
+    const url = buildKomprappImportUrl(selected, KOMPRAPP_BASE_URL);
+    try {
+      await navigator.clipboard.writeText(url);
+      onToast(t.copiedLink);
+    } catch {
+      /* portapapeles no disponible en este navegador */
+    }
+  };
 
   return (
     <Sheet title={t.shoppingList} onClose={onClose}>
@@ -102,6 +114,17 @@ export function ShoppingSheet({
               >
                 {t.moveToPantry}
               </Button>
+              <div style={{ marginTop: 10 }}>
+                <Button
+                  full
+                  variant="secondary"
+                  disabled={!anyChecked}
+                  onClick={() => void shareWithKomprapp()}
+                  style={{ borderRadius: radius.button }}
+                >
+                  {t.shareToKomprapp}
+                </Button>
+              </div>
             </div>
           </>
         ) : (

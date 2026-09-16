@@ -356,6 +356,7 @@ export const es = {
   shopEmptyBody: 'Tienes en la despensa todo lo del plan de esta semana.',
   moveToPantry: 'Pasar lo marcado a la despensa',
   boughtOk: 'Pasado a la despensa',
+  shareToKomprapp: 'Compartir con komprapp',
   dry: 'Seco',
   fresh: 'Fresco',
   tinned: 'Conserva',
