@@ -3,6 +3,24 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.4.0] - 2026-09-16
+
+### Español
+
+**Nuevo**
+- Ideas ahora carga por tandas con un botón "Ver más", en vez de las 722 de golpe.
+
+**Mejorado**
+- Las fotos de Ideas cargan mucho más rápido, sobre todo en el móvil.
+
+### English
+
+**New**
+- Ideas now loads in batches with a "Show more" button, instead of all 722 at once.
+
+**Improved**
+- Ideas photos load much faster, especially on mobile.
+
 ## [1.3.1] - 2026-09-15
 
 ### Español
