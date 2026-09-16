@@ -134,6 +134,7 @@ export const es = {
   originalRecipeAt: 'Receta original en',
   ideaSavedToast: 'Añadida a tus recetas',
   ideaRemovedToast: 'Quitada de tus recetas',
+  loadMoreIdeas: (remaining: number) => `Ver más (quedan ${remaining})`,
   ideasRecipes: 'Ideas de recetas',
   ideasRecipesHelp: 'Recetas de Cecofry y Olla GM que puedes guardar en tu hogar. Se guardan por dispositivo.',
   show: 'Mostrar',

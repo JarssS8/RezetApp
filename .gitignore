@@ -31,3 +31,6 @@ mcp/session*.json
 mcp/.dev.vars
 mcp/.wrangler/
 mcp/worker-configuration.d.ts
+
+# tools/cecotec (sharp, used only by make-thumbs.mjs)
+tools/cecotec/node_modules/

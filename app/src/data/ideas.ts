@@ -19,7 +19,9 @@ export interface IdeaSummary {
   difficulty: Difficulty;
   appliances: Appliance[];
   course: string;
-  photoUrl: string;
+  /** Miniatura propia (`app/public/ideas/photos/`, generada por tools/cecotec/make-thumbs.mjs).
+   * `null` cuando la foto de origen ya no existía en Cecotec al generar el catálogo. */
+  photoUrl: string | null;
 }
 
 export interface IdeaIngredient {
@@ -49,7 +51,7 @@ export interface IdeaDetail {
   servingsUnit: 'comensales' | 'unidades' | null;
   minutes: number | null;
   difficulty: Difficulty;
-  photoUrl: string;
+  photoUrl: string | null;
   ingredients: IdeaIngredient[];
   steps: IdeaStep[];
 }
@@ -67,7 +69,7 @@ interface RawIdea {
   minutes: number | null;
   timeBucket: string | null;
   difficulty: Difficulty;
-  photoUrl: string;
+  photoUrl: string | null;
   ingredients: Array<{
     ingredientId: string;
     quantity: number | null;

@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/storeContext';
 import { useIdeasIndex, type Appliance, type IdeaSummary } from '../data/ideas';
+import { Button } from '../ui/Button';
 import { Chip } from '../ui/Chip';
 import { Icon } from '../ui/Icon';
 import { Pressable } from '../ui/Pressable';
@@ -11,6 +12,10 @@ import { radius, tabular, text as T } from '../ui/tokens';
 type TimeFilter = 'all' | 'le15' | 'le30' | 'le60' | 'gt60';
 const TIME_ORDER: Exclude<TimeFilter, 'all'>[] = ['le15', 'le30', 'le60', 'gt60'];
 const APPLIANCES: Appliance[] = ['cecofry', 'olla-gm'];
+// Pintar los 722 a la vez no aporta nada (el usuario nunca los recorre
+// enteros) y multiplica las peticiones de imagen de golpe. Se crece de
+// PAGE_SIZE en PAGE_SIZE bajo demanda.
+const PAGE_SIZE = 30;
 
 /**
  * Rejilla del catálogo Cecotec (pestaña Ideas dentro de Recetas). No muestra
@@ -29,6 +34,7 @@ export function IdeasBrowser({ onOpenIdea }: { onOpenIdea: (ideaId: string) => v
   const [query, setQuery] = useState('');
   const [time, setTime] = useState<TimeFilter>('all');
   const [appliance, setAppliance] = useState<Appliance | null>(null);
+  const [shown, setShown] = useState(PAGE_SIZE);
 
   const savedIdeaIds = useMemo(
     () => new Set(recipes.map((r) => r.sourceIdeaId).filter((x): x is string => Boolean(x))),
@@ -50,6 +56,11 @@ export function IdeasBrowser({ onOpenIdea }: { onOpenIdea: (ideaId: string) => v
       return true;
     });
   }, [ideas, query, time, appliance, loc]);
+
+  // Cambiar de filtro es en la práctica una lista nueva: siempre empieza por la primera página.
+  useEffect(() => setShown(PAGE_SIZE), [query, time, appliance]);
+
+  const page = visible.slice(0, shown);
 
   if (isLoading) {
     return <div style={{ padding: '40px 4px', textAlign: 'center', color: 'var(--muted)' }}>…</div>;
@@ -84,12 +95,21 @@ export function IdeasBrowser({ onOpenIdea }: { onOpenIdea: (ideaId: string) => v
         {visible.length} {t.ideasResults}
       </div>
 
-      {visible.length > 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14 }}>
-          {visible.map((idea) => (
-            <IdeaCard key={idea.id} idea={idea} saved={savedIdeaIds.has(idea.id)} onOpen={() => onOpenIdea(idea.id)} />
-          ))}
-        </div>
+      {page.length > 0 ? (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14 }}>
+            {page.map((idea) => (
+              <IdeaCard key={idea.id} idea={idea} saved={savedIdeaIds.has(idea.id)} onOpen={() => onOpenIdea(idea.id)} />
+            ))}
+          </div>
+          {shown < visible.length && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 22 }}>
+              <Button variant="secondary" onClick={() => setShown((s) => s + PAGE_SIZE)}>
+                {t.loadMoreIdeas(visible.length - shown)}
+              </Button>
+            </div>
+          )}
+        </>
       ) : (
         <div style={{ padding: '40px 4px', textAlign: 'center', color: 'var(--muted)', fontSize: 14.5 }}>
           {t.noResults}
@@ -117,7 +137,7 @@ function IdeaCard({ idea, saved, onOpen }: { idea: IdeaSummary; saved: boolean; 
       }}
     >
       <div style={{ position: 'relative', height: 104, background: 'var(--soft)' }}>
-        {broken ? (
+        {broken || !idea.photoUrl ? (
           <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'var(--accent-ink)' }}>
             <Icon name="bowl" size={26} strokeWidth={1.6} />
           </div>

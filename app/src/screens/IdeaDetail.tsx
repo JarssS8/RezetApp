@@ -41,19 +41,27 @@ function draftFromIdea(idea: IdeaDetailData, servings: number, loc: (v: { es: st
 }
 
 /**
- * Descarga la foto de la idea y la sube al `recipe-photos` del hogar (vía la
- * función de servidor `import-idea-photo` — el bucket de Cecotec no manda
- * CORS, así que un `fetch()` directo desde aquí fallaría). Best-effort a
- * propósito: si falla (sin sesión real, red, host no permitido…) la receta
- * se guarda igual, sin foto, como hasta ahora — nunca bloquea "Guardar".
+ * Sube la miniatura propia de la idea (ya en `/ideas/photos/`, mismo origen
+ * que la app) al `recipe-photos` del hogar — mismo `fetch()`+`upload()` que
+ * `RecipeForm.tsx::onPickPhoto`. Ya no hace falta la función de servidor que
+ * esto usaba antes: esa existía solo para saltarse el CORS del bucket de
+ * Cecotec, y la miniatura local no tiene ese problema. Best-effort a
+ * propósito: si falla (sin sesión real, red…) la receta se guarda igual,
+ * sin foto — nunca bloquea "Guardar".
  */
-async function importIdeaPhoto(photoUrl: string): Promise<string | undefined> {
+async function importIdeaPhoto(photoUrl: string, householdId: string): Promise<string | undefined> {
   try {
-    const { data, error } = await supabase.functions.invoke<{ path?: string }>('import-idea-photo', {
-      body: { url: photoUrl },
+    const res = await fetch(photoUrl);
+    if (!res.ok) return undefined;
+    const blob = await res.blob();
+    const path = `${householdId}/${crypto.randomUUID()}.jpg`;
+    const { error } = await supabase.storage.from('recipe-photos').upload(path, blob, {
+      contentType: 'image/jpeg',
+      cacheControl: '3600',
+      upsert: false,
     });
-    if (error || !data?.path) return undefined;
-    return data.path;
+    if (error) return undefined;
+    return path;
   } catch {
     return undefined;
   }
@@ -71,7 +79,7 @@ export function IdeaDetail({
   onAddToPlan: (recipeId: string) => void;
 }) {
   const { t, locale, units, loc } = usePrefs();
-  const { recipes, ingredients: ownIngredients, stockOf, saveRecipe, deleteRecipe } = useData();
+  const { recipes, ingredients: ownIngredients, stockOf, saveRecipe, deleteRecipe, household } = useData();
   const { data: idea, isLoading, isError } = useIdeaDetail(ideaId);
   const [servings, setServings] = useState(2);
   const [saving, setSaving] = useState(false);
@@ -90,7 +98,8 @@ export function IdeaDetail({
     if (!idea) throw new Error('idea not loaded');
     setSaving(true);
     try {
-      const photoPath = idea.photoUrl ? await importIdeaPhoto(idea.photoUrl) : undefined;
+      const photoPath =
+        idea.photoUrl && household ? await importIdeaPhoto(idea.photoUrl, household.id) : undefined;
       return await saveRecipe({ ...draftFromIdea(idea, servings, loc), photoPath });
     } finally {
       setSaving(false);
@@ -141,7 +150,7 @@ export function IdeaDetail({
       <PushHeader onBack={stack.dismiss} title={loc(idea.name)} backLabel={t.back} />
 
       <div style={{ maxWidth: maxW.detail, margin: '0 auto', padding: '18px 20px 140px' }}>
-        {photoBroken ? (
+        {photoBroken || !idea.photoUrl ? (
           <div
             style={{
               height: 170,

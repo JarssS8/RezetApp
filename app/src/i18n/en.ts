@@ -134,6 +134,7 @@ export const en: Dictionary = {
   originalRecipeAt: 'Original recipe at',
   ideaSavedToast: 'Added to your recipes',
   ideaRemovedToast: 'Removed from your recipes',
+  loadMoreIdeas: (remaining: number) => `Show more (${remaining} left)`,
   ideasRecipes: 'Recipe ideas',
   ideasRecipesHelp: 'Cecofry and Olla GM recipes you can save to your household. Saved per device.',
   show: 'Show',
