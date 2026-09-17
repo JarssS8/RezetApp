@@ -313,6 +313,18 @@ export const en: Dictionary = {
   connectAiStep2: 'Paste this URL.',
   connectAiStep3: 'Sign in with your Google or Apple account — it’ll ask you to confirm access to your household.',
   connectAiNote: 'Real accounts only, not available in demo mode. To revoke access, sign out of the app.',
+  komprappLinkRow: 'Link komprapp',
+  komprappLinkSheetTitle: 'Link komprapp',
+  komprappLinkSheetBody:
+    "Paste the share link or code for a komprapp list. Anyone in your household will be able to import the shopping list there with one tap.",
+  komprappLinkPlaceholder: 'komprapp link or code',
+  komprappLinkSave: 'Link',
+  komprappLinkSaved: 'List linked',
+  komprappLinkUnlink: 'Unlink',
+  komprappLinkUnlinked: 'List unlinked',
+  komprappLinkCurrentLabel: 'Linked',
+  komprappLinkNote: 'Only available with a real account, not in demo mode.',
+  komprappLinkAdminOnly: 'Only a household admin can link or unlink komprapp.',
 
   reset: 'Reset',
   startTimer: 'Start',

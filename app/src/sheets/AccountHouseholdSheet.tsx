@@ -28,6 +28,7 @@ export function AccountHouseholdSheet({
   onHousehold,
   onInvite,
   onConnectMcp,
+  onKomprappLink,
   onDeleteAccount,
   onToast,
 }: {
@@ -35,6 +36,7 @@ export function AccountHouseholdSheet({
   onHousehold: () => void;
   onInvite: () => void;
   onConnectMcp: () => void;
+  onKomprappLink: () => void;
   onDeleteAccount: () => void;
   onToast?: (msg: string) => void;
 }) {
@@ -74,6 +76,14 @@ export function AccountHouseholdSheet({
           >
             <Icon name="link" size={18} strokeWidth={1.8} />
             {t.connectAiRow}
+          </Pressable>
+          <Pressable
+            onClick={onKomprappLink}
+            scale={0.98}
+            style={{ ...rowStyle, display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}
+          >
+            <Icon name="link" size={18} strokeWidth={1.8} />
+            {t.komprappLinkRow}
           </Pressable>
         </div>
 

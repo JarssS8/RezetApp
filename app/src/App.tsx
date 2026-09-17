@@ -28,6 +28,7 @@ import { RecipePickerSheet, type PickerTarget } from './sheets/RecipePickerSheet
 import { CookFinishSheet } from './sheets/CookFinishSheet';
 import { InviteSheet } from './sheets/InviteSheet';
 import { ConnectMcpSheet } from './sheets/ConnectMcpSheet';
+import { KomprappLinkSheet } from './sheets/KomprappLinkSheet';
 import { AccountHouseholdSheet } from './sheets/AccountHouseholdSheet';
 import { HouseholdSheet } from './sheets/HouseholdSheet';
 import { LeaveConfirmDialog, LeaveLastMemberDialog, LeaveLastAdminDialog } from './sheets/LeaveHouseholdDialogs';
@@ -55,6 +56,7 @@ type SheetState =
   | { kind: 'finish' }
   | { kind: 'invite' }
   | { kind: 'connectMcp' }
+  | { kind: 'komprappLink' }
   | { kind: 'accountHousehold' }
   | { kind: 'household' }
   | { kind: 'leaveConfirm' }
@@ -418,12 +420,17 @@ function MainApp({
         <ConnectMcpSheet onClose={() => setSheet({ kind: 'accountHousehold' })} onToast={show} />
       )}
 
+      {sheet?.kind === 'komprappLink' && (
+        <KomprappLinkSheet onClose={() => setSheet({ kind: 'accountHousehold' })} onToast={show} />
+      )}
+
       {sheet?.kind === 'accountHousehold' && (
         <AccountHouseholdSheet
           onClose={() => setSheet(null)}
           onHousehold={() => setSheet({ kind: 'household' })}
           onInvite={() => setSheet({ kind: 'invite' })}
           onConnectMcp={() => setSheet({ kind: 'connectMcp' })}
+          onKomprappLink={() => setSheet({ kind: 'komprappLink' })}
           onDeleteAccount={() => setSheet({ kind: 'deleteAccountIntro' })}
           onToast={show}
         />

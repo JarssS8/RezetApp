@@ -314,6 +314,18 @@ export const es = {
   connectAiStep2: 'Pega esta URL.',
   connectAiStep3: 'Inicia sesión con tu cuenta de Google o Apple — te pedirá confirmar el acceso a tu hogar.',
   connectAiNote: 'Solo disponible con cuenta real, no en modo demo. Revocar el acceso: cierra sesión en la app.',
+  komprappLinkRow: 'Vincular komprapp',
+  komprappLinkSheetTitle: 'Vincular komprapp',
+  komprappLinkSheetBody:
+    'Pega el enlace para compartir o el código de una lista de komprapp. Cualquiera en tu hogar podrá importar la lista de la compra ahí con un toque.',
+  komprappLinkPlaceholder: 'Enlace o código de komprapp',
+  komprappLinkSave: 'Vincular',
+  komprappLinkSaved: 'Lista vinculada',
+  komprappLinkUnlink: 'Desvincular',
+  komprappLinkUnlinked: 'Lista desvinculada',
+  komprappLinkCurrentLabel: 'Vinculada',
+  komprappLinkNote: 'Solo disponible con cuenta real, no en modo demo.',
+  komprappLinkAdminOnly: 'Solo un administrador del hogar puede vincular o desvincular komprapp.',
 
   reset: 'Reiniciar',
   startTimer: 'Empezar',
