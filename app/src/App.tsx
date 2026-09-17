@@ -189,7 +189,12 @@ function MainApp({
     sheet?.kind === 'deleteConfirm' ||
     sheet?.kind === 'deleteAccountIntro' ||
     sheet?.kind === 'deleteAccountConfirm' ||
-    sheet?.kind === 'deleteAccountLastAdmin';
+    sheet?.kind === 'deleteAccountLastAdmin' ||
+    // KomprappLinkSheet necesita household.members (isAdmin) para gatear
+    // vincular/desvincular — sin esto householdMembersQ nunca se pide y
+    // household.members se queda en [], así que amIAdmin da false incluso
+    // para un admin real.
+    sheet?.kind === 'komprappLink';
   useEffect(() => {
     setHouseholdSheetOpen(householdFlowOpen);
   }, [householdFlowOpen, setHouseholdSheetOpen]);
