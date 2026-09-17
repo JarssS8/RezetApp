@@ -45,13 +45,11 @@ export function InviteSheet({
   const generate = async () => {
     if (!profile || busy) return;
     setBusy(true);
-    const { data, error } = await supabase
-      .from('household_invite')
-      .insert({ household_id: profile.householdId })
-      .select('code')
-      .single();
+    // El código y la caducidad los fija el servidor (create_invite): antes se
+    // insertaba en la tabla y el cliente podía elegir ambos.
+    const { data, error } = await supabase.rpc('create_invite');
     setBusy(false);
-    if (!error && data) setCode(data.code as string);
+    if (!error && data) setCode(data as string);
   };
 
   const copyText = async (value: string, message: string) => {

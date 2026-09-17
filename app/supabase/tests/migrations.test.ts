@@ -48,11 +48,13 @@ describe('migraciones', () => {
     await db.close();
   }, 120_000);
 
-  // redeem_invite() todavía no tiene una RPC propia para minar invitaciones
-  // (eso llega en la Task 3): hoy el cliente inserta la fila directamente en
-  // household_invite, con código y caducidad por defecto de columna. Este test
-  // cubre que redeem_invite() sigue funcionando (ya era SECURITY DEFINER antes
-  // de esta tarea, y esta tarea no lo toca) tras revocar el INSERT en profile.
+  // Este test nació en la Task 1 insertando household_invite directamente,
+  // como hacía entonces el cliente (código y caducidad por defecto de
+  // columna). Desde la Task 3 ese insert directo pasa por el trigger de
+  // compatibilidad `household_invite_server_mint_trg`, que reescribe código,
+  // caducidad y autoría igual que create_invite(); el resultado observable
+  // -que redeem_invite() sigue funcionando tras revocar el INSERT en
+  // profile- no cambia, así que el test se deja tal cual.
   it('redeem_invite sigue funcionando tras revocar el INSERT directo en profile', async () => {
     const db = await applyMigrations();
     const ana = await createAuthUser(db);
@@ -78,6 +80,66 @@ describe('migraciones', () => {
       `select count(*)::int as n from public.profile where household_id = '${householdId}'`,
     );
     expect(perfiles.rows[0].n).toBe(2);
+    await db.close();
+  }, 120_000);
+
+  it('create_invite genera el código en el servidor y redeem_invite lo acepta', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const code = await asUser(db, ana, 'select public.create_invite() as code');
+    const value = (code as { rows: { code: string }[] }).rows[0].code;
+    expect(value).toMatch(/^[0-9A-F]{10}$/);
+
+    await asUser(db, bruno, `select public.redeem_invite('${value}', 'Bruno')`);
+    const n = await db.query<{ n: number }>('select count(*)::int as n from public.profile');
+    expect(n.rows[0].n).toBe(2);
+    await db.close();
+  }, 120_000);
+
+  it('una invitación de quien ya salió del hogar deja de servir', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+    const carla = await createAuthUser(db);
+
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const first = await asUser(db, ana, 'select public.create_invite() as code');
+    const firstCode = (first as { rows: { code: string }[] }).rows[0].code;
+    await asUser(db, bruno, `select public.redeem_invite('${firstCode}', 'Bruno')`);
+
+    // Bruno mintea un código y se va del hogar.
+    const stash = await asUser(db, bruno, 'select public.create_invite() as code');
+    const stashed = (stash as { rows: { code: string }[] }).rows[0].code;
+    await asUser(db, bruno, 'select public.leave_household()');
+
+    await expect(asUser(db, carla, `select public.redeem_invite('${stashed}', 'Carla')`)).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('el insert directo del cliente antiguo produce un código válido igualmente', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+
+    const h = await db.query<{ household_id: string }>('select household_id from public.profile limit 1');
+    await asUser(
+      db,
+      ana,
+      `insert into public.household_invite (household_id) values ('${h.rows[0].household_id}')`,
+    );
+    // household_invite no tiene `created_at`; como el trigger de compatibilidad
+    // fija `expires_at = now() + 7 días` en cada insert y esta es la única fila
+    // del hogar en este test, ordenar por `expires_at` desc basta para coger la
+    // recién minada.
+    const row = await db.query<{ code: string; created_by: string | null }>(
+      'select code, created_by from public.household_invite order by expires_at desc limit 1',
+    );
+    expect(row.rows[0].created_by).toBe(ana);
+    await asUser(db, bruno, `select public.redeem_invite('${row.rows[0].code}', 'Bruno')`);
     await db.close();
   }, 120_000);
 });
