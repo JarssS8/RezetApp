@@ -3,6 +3,18 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.5.1] - 2026-09-17
+
+### Español
+
+**Arreglado**
+- El botón "Vincular" de komprapp ya no se queda bloqueado para quien sí es administrador del hogar.
+
+### English
+
+**Fixed**
+- The "Link" button for komprapp no longer stays stuck for someone who is actually a household admin.
+
 ## [1.5.0] - 2026-09-17
 
 ### Español
