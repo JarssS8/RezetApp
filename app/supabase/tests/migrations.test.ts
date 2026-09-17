@@ -204,4 +204,23 @@ describe('migraciones', () => {
     ).rejects.toThrow(/REZET_ATTRIBUTION_FOREIGN_HOUSEHOLD/);
     await db.close();
   }, 120_000);
+
+  it('shopping_check tiene clave subrogada y sigue siendo único por hogar y artículo', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ household_id: string }>('select household_id from public.profile limit 1');
+    const hid = h.rows[0].household_id;
+
+    const pk = await db.query<{ def: string }>(
+      `select pg_get_constraintdef(oid) as def from pg_constraint where conname = 'shopping_check_pkey'`,
+    );
+    expect(pk.rows[0].def).toBe('PRIMARY KEY (id)');
+
+    await asUser(db, ana, `insert into public.shopping_check (household_id, item_key) values ('${hid}', 'x|g')`);
+    await expect(
+      asUser(db, ana, `insert into public.shopping_check (household_id, item_key) values ('${hid}', 'x|g')`),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
 });
