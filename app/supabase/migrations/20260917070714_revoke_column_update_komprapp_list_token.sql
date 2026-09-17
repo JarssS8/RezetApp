@@ -1,0 +1,18 @@
+-- household.komprapp_list_token must only be settable via the admin-gated
+-- set_komprapp_list_token RPC (SECURITY DEFINER). The household_update RLS
+-- policy (USING (id = private.current_household())) has no admin check, and
+-- authenticated/anon hold column-level UPDATE on komprapp_list_token from
+-- the table's default grants — so any signed-in household member could
+-- PATCH /rest/v1/household directly and bypass the RPC's admin check
+-- entirely. Revoke UPDATE on just this column; name/kcal_target keep their
+-- existing grants untouched for whatever already relies on member-level
+-- updates to those.
+--
+-- NOTE: verified after applying (see next migration) that this REVOKE alone
+-- has NO effect, because authenticated/anon also hold a blanket table-level
+-- UPDATE grant on household (Supabase's default `GRANT ALL ... TO anon,
+-- authenticated` at project setup), and a table-level grant subsumes a
+-- column-level REVOKE in Postgres. Kept here, unmodified, as the applied
+-- migration history is append-only; the follow-up migration does the part
+-- that actually blocks the column.
+REVOKE UPDATE (komprapp_list_token) ON public.household FROM anon, authenticated;

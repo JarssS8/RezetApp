@@ -8,6 +8,11 @@ import { Button } from '../ui/Button';
 import { TextField } from '../ui/Fields';
 import { radius, tabular } from '../ui/tokens';
 
+// Espejo del formato que exige `set_komprapp_list_token` en el servidor
+// (tras lower/trim del token) — ver
+// app/supabase/migrations/20260917063503_add_komprapp_list_token.sql.
+const KOMPRAPP_TOKEN_RE = /^[a-z0-9-]{3,64}$/;
+
 /**
  * Vincula la lista de la compra de komprapp del hogar (README §4.10). La RPC
  * `set_komprapp_list_token` rechaza la llamada si quien la hace no es
@@ -34,13 +39,21 @@ export function KomprappLinkSheet({
   const save = async () => {
     const token = extractKomprappToken(draft);
     if (!token || busy || !amIAdmin) return;
+    // Mismo formato que exige la RPC `set_komprapp_list_token` en el
+    // servidor (tras lower/trim) — comprobarlo aquí evita una llamada de
+    // red que el servidor solo va a rechazar, sin ningún aviso para quien
+    // pegó algo mal formado.
+    if (!KOMPRAPP_TOKEN_RE.test(token)) {
+      onToast(t.komprappLinkError);
+      return;
+    }
     setBusy(true);
     try {
       await setKomprappListToken(token);
       setDraft('');
       onToast(t.komprappLinkSaved);
     } catch {
-      /* la hoja se queda abierta; el usuario puede reintentar */
+      onToast(t.komprappLinkError);
     } finally {
       setBusy(false);
     }
@@ -53,7 +66,7 @@ export function KomprappLinkSheet({
       await setKomprappListToken(null);
       onToast(t.komprappLinkUnlinked);
     } catch {
-      /* idem */
+      onToast(t.komprappLinkError);
     } finally {
       setBusy(false);
     }

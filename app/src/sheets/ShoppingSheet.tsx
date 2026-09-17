@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
-import { importToKomprapp } from '../data/komprapp';
+import { importToKomprapp, isKomprappConfigured } from '../data/komprapp';
 import { buildKomprappImportUrl, KOMPRAPP_BASE_URL } from '../domain/komprappExport';
 import { SHOPPING_GROUP_ORDER } from '../domain/shopping';
 import { formatQuantity } from '../domain/units';
@@ -25,6 +25,12 @@ export function ShoppingSheet({
   const { needsForWeek, shoppingChecked, toggleShoppingCheck, buyChecked, household } = useData();
   const needs = useMemo(() => needsForWeek(weekOffset), [needsForWeek, weekOffset]);
   const komprappToken = household?.komprappListToken ?? null;
+  // Un token vinculado no basta: si este build no tiene las env vars de
+  // komprapp configuradas (VITE_KOMPRAPP_SUPABASE_URL/_ANON_KEY), no hay
+  // forma de llamar a su RPC — cae al flujo de copiar enlace, igual que si
+  // no hubiera token vinculado. Lo que SÍ solo se sabe al intentarlo (la RPC
+  // de komprapp aún no desplegada) sigue mostrando el error real al usuario.
+  const canImport = !!komprappToken && isKomprappConfigured();
 
   const labels: Record<FoodGroup, string> = { fresco: t.fresh, seco: t.dry, conserva: t.tinned };
   const groups = SHOPPING_GROUP_ORDER.map((group) => ({
@@ -36,7 +42,7 @@ export function ShoppingSheet({
 
   const shareWithKomprapp = async () => {
     const selected = needs.filter((n) => shoppingChecked[n.key]);
-    if (komprappToken) {
+    if (canImport && komprappToken) {
       try {
         const count = await importToKomprapp(komprappToken, selected);
         onToast(t.komprappImported(count));
@@ -133,7 +139,7 @@ export function ShoppingSheet({
                   onClick={() => void shareWithKomprapp()}
                   style={{ borderRadius: radius.button }}
                 >
-                  {komprappToken ? t.importToKomprapp : t.shareToKomprapp}
+                  {canImport ? t.importToKomprapp : t.shareToKomprapp}
                 </Button>
               </div>
             </div>

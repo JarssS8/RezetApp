@@ -325,6 +325,7 @@ export const en: Dictionary = {
   komprappLinkCurrentLabel: 'Linked',
   komprappLinkNote: 'Only available with a real account, not in demo mode.',
   komprappLinkAdminOnly: 'Only a household admin can link or unlink komprapp.',
+  komprappLinkError: 'Could not link komprapp',
 
   reset: 'Reset',
   startTimer: 'Start',

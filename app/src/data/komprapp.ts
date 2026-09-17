@@ -26,6 +26,18 @@ function getKomprappClient(): SupabaseClient | null {
   return _komprappClient;
 }
 
+/**
+ * True si las env vars de komprapp están presentes en este build. No
+ * garantiza que la RPC `import_shopping_items` ya exista en komprapp (eso
+ * solo se sabe intentando la llamada) — solo descarta el caso "config
+ * ausente", que sí se conoce de antemano en el cliente. `ShoppingSheet`
+ * usa esto junto con `household.komprappListToken` para decidir si
+ * ofrece importación directa o cae al flujo de enlace-para-copiar.
+ */
+export function isKomprappConfigured(): boolean {
+  return Boolean(KOMPRAPP_URL && KOMPRAPP_ANON_KEY);
+}
+
 const MAX_ITEMS_PER_CALL = 100; // debe coincidir con el tope de la RPC (Tarea 1)
 
 function chunk<T>(items: T[], size: number): T[][] {

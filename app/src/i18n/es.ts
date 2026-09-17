@@ -326,6 +326,7 @@ export const es = {
   komprappLinkCurrentLabel: 'Vinculada',
   komprappLinkNote: 'Solo disponible con cuenta real, no en modo demo.',
   komprappLinkAdminOnly: 'Solo un administrador del hogar puede vincular o desvincular komprapp.',
+  komprappLinkError: 'No se pudo vincular komprapp',
 
   reset: 'Reiniciar',
   startTimer: 'Empezar',
