@@ -40,18 +40,24 @@ export function ShoppingSheet({
 
   const anyChecked = needs.some((n) => shoppingChecked[n.key]);
 
+  // A diferencia de "Mover a despensa" (que sí depende de marcar lo que
+  // realmente compraste), importar/compartir manda SIEMPRE todo lo que
+  // falta de la semana — la propia lista ya es "lo que necesitas" (la
+  // despensa ya está restada en needsForWeek), así que no hace falta un
+  // paso de selección aparte ni compartir el estado de marcado con la otra
+  // acción (evita marcar sin querer todo como comprado, o mandar solo una
+  // parte a komprapp por olvido).
   const shareWithKomprapp = async () => {
-    const selected = needs.filter((n) => shoppingChecked[n.key]);
     if (canImport && komprappToken) {
       try {
-        const count = await importToKomprapp(komprappToken, selected);
+        const count = await importToKomprapp(komprappToken, needs);
         onToast(t.komprappImported(count));
       } catch {
         onToast(t.komprappImportError);
       }
       return;
     }
-    const url = buildKomprappImportUrl(selected, KOMPRAPP_BASE_URL);
+    const url = buildKomprappImportUrl(needs, KOMPRAPP_BASE_URL);
     try {
       await navigator.clipboard.writeText(url);
       onToast(t.copiedLink);
@@ -76,6 +82,14 @@ export function ShoppingSheet({
             >
               {t.shopIntro}
             </div>
+            <Button
+              full
+              size="primary"
+              onClick={() => void shareWithKomprapp()}
+              style={{ borderRadius: radius.button, marginBottom: 18 }}
+            >
+              {canImport ? t.importToKomprapp : t.shareToKomprapp}
+            </Button>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {groups.map(({ group, items }) => (
                 <div key={group}>
@@ -120,7 +134,7 @@ export function ShoppingSheet({
             <div style={{ marginTop: 18 }}>
               <Button
                 full
-                size="primary"
+                variant="secondary"
                 disabled={!anyChecked}
                 onClick={() => {
                   buyChecked(needs);
@@ -131,17 +145,6 @@ export function ShoppingSheet({
               >
                 {t.moveToPantry}
               </Button>
-              <div style={{ marginTop: 10 }}>
-                <Button
-                  full
-                  variant="secondary"
-                  disabled={!anyChecked}
-                  onClick={() => void shareWithKomprapp()}
-                  style={{ borderRadius: radius.button }}
-                >
-                  {canImport ? t.importToKomprapp : t.shareToKomprapp}
-                </Button>
-              </div>
             </div>
           </>
         ) : (
