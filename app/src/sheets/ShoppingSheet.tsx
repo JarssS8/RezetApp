@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
+import { importToKomprapp } from '../data/komprapp';
 import { buildKomprappImportUrl, KOMPRAPP_BASE_URL } from '../domain/komprappExport';
 import { SHOPPING_GROUP_ORDER } from '../domain/shopping';
 import { formatQuantity } from '../domain/units';
@@ -21,8 +22,9 @@ export function ShoppingSheet({
   onToast: (message: string) => void;
 }) {
   const { t, locale, units } = usePrefs();
-  const { needsForWeek, shoppingChecked, toggleShoppingCheck, buyChecked } = useData();
+  const { needsForWeek, shoppingChecked, toggleShoppingCheck, buyChecked, household } = useData();
   const needs = useMemo(() => needsForWeek(weekOffset), [needsForWeek, weekOffset]);
+  const komprappToken = household?.komprappListToken ?? null;
 
   const labels: Record<FoodGroup, string> = { fresco: t.fresh, seco: t.dry, conserva: t.tinned };
   const groups = SHOPPING_GROUP_ORDER.map((group) => ({
@@ -34,6 +36,15 @@ export function ShoppingSheet({
 
   const shareWithKomprapp = async () => {
     const selected = needs.filter((n) => shoppingChecked[n.key]);
+    if (komprappToken) {
+      try {
+        const count = await importToKomprapp(komprappToken, selected);
+        onToast(t.komprappImported(count));
+      } catch {
+        onToast(t.komprappImportError);
+      }
+      return;
+    }
     const url = buildKomprappImportUrl(selected, KOMPRAPP_BASE_URL);
     try {
       await navigator.clipboard.writeText(url);
@@ -122,7 +133,7 @@ export function ShoppingSheet({
                   onClick={() => void shareWithKomprapp()}
                   style={{ borderRadius: radius.button }}
                 >
-                  {t.shareToKomprapp}
+                  {komprappToken ? t.importToKomprapp : t.shareToKomprapp}
                 </Button>
               </div>
             </div>
