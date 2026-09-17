@@ -3,6 +3,26 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.5.0] - 2026-09-17
+
+### Español
+
+**Nuevo**
+- Botón "Compartir con komprapp" en la lista de la compra: copia un enlace con los productos marcados para importarlos en la app komprapp.
+- En Ajustes → Cuenta y hogar, un administrador puede vincular una lista de komprapp al hogar. Una vez vinculada, cualquier persona del hogar puede importar la lista de la compra con un toque, sin enlaces ni pasos extra.
+
+**Mejorado**
+- Si vincular o importar a komprapp falla, ahora se avisa con un mensaje claro en vez de no pasar nada.
+
+### English
+
+**New**
+- "Share with komprapp" button in the shopping list: copies a link with the checked items to import into the komprapp app.
+- In Settings → Account & household, an admin can link a komprapp list to the household. Once linked, anyone in the household can import the shopping list with one tap, no links or extra steps.
+
+**Improved**
+- If linking or importing to komprapp fails, you now get a clear message instead of nothing happening.
+
 ## [1.4.0] - 2026-09-16
 
 ### Español
