@@ -62,6 +62,8 @@ function page(title: string, body: string): string {
   .provider:hover { background: #f5f5f5; }
   .cancel { display: inline-block; margin-top: 1rem; color: #666; }
   .scope { color: #444; }
+  .warn { background: #fff4e5; color: #6b3f00; border: 1px solid #f0c68a; border-radius: 8px; padding: 0.75rem 1rem; }
+  .warn code { word-break: break-all; }
 </style>
 </head>
 <body>
@@ -70,9 +72,25 @@ ${body}
 </html>`;
 }
 
-export function consentPage(opts: { clientName: string; redirectHost: string; csrf: string; cancelUrl: string }): string {
+// Hosts we recognize as belonging to a client we (or the person authorizing) actually know.
+// Anyone can register an OAuth client with any `clientName`, so that name alone proves nothing —
+// the redirect host is the one thing an attacker can't spoof without controlling that domain.
+const KNOWN_CLIENT_HOSTS = ['claude.ai', 'claude.com', 'localhost', '127.0.0.1'];
+
+function isKnownClientHost(host: string): boolean {
+  return KNOWN_CLIENT_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+}
+
+export function consentPage(opts: {
+  clientName: string;
+  redirectHost: string;
+  redirectUri: string;
+  csrf: string;
+  cancelUrl: string;
+}): string {
   const clientName = sanitizeText(opts.clientName);
   const redirectHost = sanitizeText(opts.redirectHost);
+  const redirectUri = sanitizeText(opts.redirectUri);
   const csrf = sanitizeText(opts.csrf);
   const cancelUrl = sanitizeUrl(opts.cancelUrl);
   return page(
@@ -80,6 +98,7 @@ export function consentPage(opts: { clientName: string; redirectHost: string; cs
     `<h1>${clientName} wants access to your Rezet household</h1>
 <p class="scope">It will redirect to <strong>${redirectHost}</strong> and will be able to read and change your
 household's recipes, weekly plan, pantry and shopping list as you.</p>
+${isKnownClientHost(opts.redirectHost) ? '' : `<p class="warn">Este cliente no está verificado: cualquiera puede registrar uno con el nombre que quiera. Continúa solo si reconoces esta dirección: <code>${redirectUri}</code></p>`}
 <form method="POST" action="/authorize">
   <input type="hidden" name="csrf" value="${csrf}">
   <button class="provider" type="submit" name="provider" value="google">Continue with Google</button>
