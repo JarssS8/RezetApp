@@ -95,6 +95,21 @@ jobs:
           version: 2.117.0
       - name: Deploy Edge Functions
         run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api
+      - name: Check for orphaned deployed functions
+        run: |
+          # `supabase functions deploy` nunca borra: si se elimina una función del
+          # repositorio, sigue viva y servida en producción, fuera de revisión.
+          supabase functions list --project-ref "$SUPABASE_PROJECT_REF" -o json \
+            | jq -r '.[] | select(.status == "ACTIVE") | .slug' | LC_ALL=C sort > /tmp/deployed.txt
+          find supabase/functions -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
+            | LC_ALL=C sort > /tmp/insource.txt
+          if comm -23 /tmp/deployed.txt /tmp/insource.txt | grep -q .; then
+            echo "::error::Estas funciones están desplegadas pero no existen en el repositorio:"
+            comm -23 /tmp/deployed.txt /tmp/insource.txt
+            echo "::error::Bórralas con 'supabase functions delete <slug>' o restaura su código."
+            exit 1
+          fi
+          echo "Sin funciones huérfanas."
 
   app:
     needs: [changes, migrations]
