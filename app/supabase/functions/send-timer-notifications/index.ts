@@ -1,6 +1,27 @@
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
+const ALLOWED_PUSH_HOSTS = [
+  "fcm.googleapis.com",
+  "push.services.mozilla.com",
+  "notify.windows.com",
+  "push.apple.com",
+];
+const MAX_SENDS_PER_RUN = 200;
+const SEND_TIMEOUT_MS = 10_000;
+
+function isAllowedEndpoint(endpoint: string): boolean {
+  try {
+    const url = new URL(endpoint);
+    return (
+      url.protocol === "https:" &&
+      ALLOWED_PUSH_HOSTS.some((h) => url.hostname === h || url.hostname.endsWith(`.${h}`))
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * M8b — disparada por pg_cron cada minuto (ver migración
  * rezet_web_push_cron). Busca cook_timer vencidos y sin avisar, manda un
@@ -42,6 +63,11 @@ Deno.serve(async () => {
 
   let sent = 0;
   for (const timer of due ?? []) {
+    // El tope se comprueba antes de empezar un temporizador, nunca a medias: la
+    // marca de `notified_at` de más abajo daría por avisado un temporizador que
+    // solo llegó a la mitad de sus dispositivos, y el cron no vuelve a él.
+    if (sent >= MAX_SENDS_PER_RUN) break;
+
     const { data: subs } = await supabase
       .from("push_subscription")
       .select("endpoint, p256dh, auth")
@@ -53,10 +79,17 @@ Deno.serve(async () => {
     });
 
     for (const sub of subs ?? []) {
+      if (!isAllowedEndpoint(sub.endpoint)) {
+        // Solo puede ser un resto anterior al CHECK de la base de datos.
+        console.warn("send-timer-notifications: endpoint no permitido, se descarta");
+        continue;
+      }
+
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           payload,
+          { timeout: SEND_TIMEOUT_MS },
         );
         sent++;
       } catch (err) {

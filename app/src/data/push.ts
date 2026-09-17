@@ -1,3 +1,4 @@
+import { isAllowedPushEndpoint } from '../domain/push';
 import { supabase } from './supabaseClient';
 
 function urlBase64ToUint8Array(base64Url: string): Uint8Array<ArrayBuffer> {
@@ -60,6 +61,12 @@ export async function subscribeToPush(profileId: string): Promise<PushSubscribeR
     });
     const json = subscription.toJSON();
     if (!json.keys?.p256dh || !json.keys?.auth || !subscription.endpoint) return 'error';
+
+    if (!isAllowedPushEndpoint(subscription.endpoint)) {
+      // El navegador siempre da un endpoint de un servicio conocido; si no lo es,
+      // no lo guardamos en vez de dejar que el cron lo visite.
+      return 'error';
+    }
 
     const { error } = await supabase.from('push_subscription').upsert(
       {
