@@ -317,7 +317,15 @@ export function SupabaseDataProvider({
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'shopping_check', filter: `household_id=eq.${householdId}` },
+        { event: 'INSERT', schema: 'public', table: 'shopping_check', filter: `household_id=eq.${householdId}` },
+        () => queryClient.invalidateQueries({ queryKey: shoppingKey }),
+      )
+      .on(
+        // Los DELETE no se pueden filtrar salvo con `replica identity full`, y
+        // tras el cambio de clave primaria household_id ya no viaja en el evento.
+        // Se invalida sin filtrar: el refetch pasa por RLS.
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'shopping_check' },
         () => queryClient.invalidateQueries({ queryKey: shoppingKey }),
       )
       .on(
