@@ -466,17 +466,34 @@ export function SupabaseDataProvider({
     (id: string) => {
       const prev = queryClient.getQueryData<Recipe[]>(recipesKey);
       queryClient.setQueryData<Recipe[]>(recipesKey, (old = []) => old.filter((r) => r.id !== id));
-      void supabase
-        .from('recipe')
-        .delete()
-        .eq('id', id)
-        .then(({ error }) => {
-          if (error && prev) {
-            queryClient.setQueryData(recipesKey, prev);
-            return;
+      void (async () => {
+        // El objeto `Recipe` solo trae `photoUrl` (la URL pública ya
+        // derivada), no la ruta cruda del bucket, así que se lee de la fila
+        // antes de borrarla. El bucket es público: si la fila se va y el
+        // objeto se queda, la foto sigue sirviéndose por URL para siempre.
+        // El borrado del objeto va primero pero nunca debe impedir el de la
+        // fila — es lo que el usuario pidió — así que cualquier fallo aquí
+        // (red, objeto ya no existe…) se ignora.
+        try {
+          const { data: photoRow } = await supabase
+            .from('recipe')
+            .select('photo_path')
+            .eq('id', id)
+            .maybeSingle();
+          if (photoRow?.photo_path) {
+            await supabase.storage.from('recipe-photos').remove([photoRow.photo_path]);
           }
-          void queryClient.invalidateQueries({ queryKey: planKey });
-        });
+        } catch {
+          // Best-effort: ver comentario de arriba.
+        }
+
+        const { error } = await supabase.from('recipe').delete().eq('id', id);
+        if (error && prev) {
+          queryClient.setQueryData(recipesKey, prev);
+          return;
+        }
+        void queryClient.invalidateQueries({ queryKey: planKey });
+      })();
     },
     [queryClient, recipesKey, planKey],
   );
