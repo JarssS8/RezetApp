@@ -142,4 +142,21 @@ describe('migraciones', () => {
     await asUser(db, bruno, `select public.redeem_invite('${row.rows[0].code}', 'Bruno')`);
     await db.close();
   }, 120_000);
+
+  it('la cuota de reconocimiento corta al llegar al límite', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+
+    const call = () =>
+      db.query<{ ok: boolean }>(
+        `select public.consume_recognition_quota('${ana}'::uuid, 3, interval '1 hour') as ok`,
+      );
+
+    expect((await call()).rows[0].ok).toBe(true);
+    expect((await call()).rows[0].ok).toBe(true);
+    expect((await call()).rows[0].ok).toBe(true);
+    expect((await call()).rows[0].ok).toBe(false);
+    await db.close();
+  }, 120_000);
 });

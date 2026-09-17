@@ -29,6 +29,9 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+const MAX_IMAGE_B64 = 2_000_000; // ~1,5 MB; el cliente manda <=1024px q0.85
+const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
+
 const PROMPT = `Analiza la foto de un producto de alimentación y devuelve SOLO un JSON con esta forma exacta, sin texto adicional ni backticks:
 {"name": string | null, "quantity": number | null, "unit": "g" | "ml" | "ud" | null, "expiresOn": string | null}
 - "name": el nombre del producto tal como aparece en el envase.
@@ -56,14 +59,31 @@ Deno.serve(async (req) => {
     return json({ error: "unauthorized" }, 401);
   }
 
+  // Pertenencia a hogar: el mismo límite que aplican todas las RPC. Sin esto,
+  // cualquiera con sesión y sin hogar llegaba a la clave de pago del operador.
+  const { data: profileRow } = await callerClient
+    .from("profile")
+    .select("household_id")
+    .eq("id", userData.user.id)
+    .maybeSingle();
+  if (!profileRow?.household_id) {
+    return json({ error: "forbidden" }, 403);
+  }
+
   let body: { image?: string; mimeType?: string };
   try {
     body = await req.json();
   } catch {
     return json({ error: "invalid body" }, 400);
   }
-  if (!body.image || !body.mimeType) {
+  if (typeof body.image !== "string" || !body.image) {
     return json({ error: "missing image or mimeType" }, 400);
+  }
+  if (body.image.length > MAX_IMAGE_B64) {
+    return json({ error: "image too large" }, 413);
+  }
+  if (typeof body.mimeType !== "string" || !ALLOWED_MIME.has(body.mimeType)) {
+    return json({ error: "unsupported mimeType" }, 415);
   }
 
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -77,6 +97,19 @@ Deno.serve(async (req) => {
     return json({ error: "missing GEMINI_API_KEY secret" }, 500);
   }
   const geminiKey = secretRows[0].value as string;
+
+  const { data: allowed, error: quotaError } = await serviceClient.rpc("consume_recognition_quota", {
+    p_profile: userData.user.id,
+    p_limit: 30,
+    p_window: "1 hour",
+  });
+  if (quotaError) {
+    console.error("recognize-pantry-item: quota check failed", quotaError);
+    return json({ error: "quota check failed" }, 500);
+  }
+  if (!allowed) {
+    return json({ error: "rate limited" }, 429);
+  }
 
   // Errores de red/DNS al llamar a Gemini no estaban capturados: sin este
   // try/catch, una excepción aquí se escapaba de Deno.serve sin cabeceras
