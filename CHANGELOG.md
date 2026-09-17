@@ -7,10 +7,16 @@ Published Rezet versions. Every entry in Spanish and English.
 
 ### Español
 
+**Mejorado**
+- "Importar/Compartir a komprapp" ahora es el botón principal de la lista de la compra y manda todo lo que falta con un solo toque, sin tener que marcar nada — "Pasar a la despensa" sigue funcionando igual, con su propia selección.
+
 **Arreglado**
 - El botón "Vincular" de komprapp ya no se queda bloqueado para quien sí es administrador del hogar.
 
 ### English
+
+**Improved**
+- "Import/Share to komprapp" is now the main button in the shopping list and sends everything missing with one tap, no checking required — "Move to pantry" still works the same, with its own selection.
 
 **Fixed**
 - The "Link" button for komprapp no longer stays stuck for someone who is actually a household admin.
