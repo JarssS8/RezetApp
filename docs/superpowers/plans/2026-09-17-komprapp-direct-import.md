@@ -95,12 +95,30 @@ BEGIN
     RAISE EXCEPTION 'payload too large';
   END IF;
 
-  -- Límite de tasa barato, en profundidad: no arregla el problema real
-  -- (la RLS pública de `lists`/`products` ya permite lo mismo sin pasar por
-  -- aquí — ver nota en el plan), pero evita que ESTA función en concreto se
-  -- use para spamear una lista de forma automatizada y silenciosa una vez
-  -- que alguien tenga el token. Ventana de 10 minutos, máx. 20 llamadas o
-  -- 500 filas por lista.
+  -- El límite de tasa va AQUÍ (tras las comprobaciones de forma/tamaño,
+  -- justo antes del bucle) y no antes, a propósito — esto NO es solo orden
+  -- estético, es semántica de transacciones de Postgres: toda esta función
+  -- corre en una única transacción (una llamada RPC = una transacción), así
+  -- que un `RAISE EXCEPTION` posterior deshace TODO lo escrito antes en la
+  -- misma llamada, incluido un `INSERT`/`UPDATE` sobre esta tabla. Contar la
+  -- llamada antes de las comprobaciones de forma/tamaño (como se probó en un
+  -- borrador anterior) no protege nada: cualquier `RAISE` posterior por
+  -- forma inválida deshace el incremento igual, así que el contador nunca
+  -- llega a persistir para esas llamadas de todos modos — solo parece
+  -- contarlas.
+  --
+  -- Puesto aquí, el incremento SOLO se descarta si la llamada falla por
+  -- forma/tamaño — y esas llamadas no llegan a tocar `products` ni ninguna
+  -- fila real: son una comprobación barata en memoria (tipo/longitud de
+  -- JSON), sin trabajo de E/S significativo, exactamente igual de gratis
+  -- que golpear cualquier RPC pública sin token válido — un problema de
+  -- capa de infraestructura (límites de peticiones de Supabase/PostgREST),
+  -- no algo que el contador de esta función deba resolver. Lo que SÍ importa
+  -- rate-limitar es el trabajo real: cualquier llamada que llega hasta aquí
+  -- ya pasó todas las comprobaciones que pueden lanzar una excepción — el
+  -- bucle de items que sigue nunca lanza (salta items inválidos en vez de
+  -- abortar), así que el incremento de abajo persiste siempre que se llega
+  -- a él. Ventana de 10 minutos, máx. 20 llamadas o 500 filas por lista.
   INSERT INTO public.import_rate_limit (list_id, window_start, calls, rows_inserted)
   VALUES (v_list_id, date_trunc('hour', now()) + (extract(minute from now())::int / 10) * interval '10 min', 1, 0)
   ON CONFLICT (list_id, window_start)
@@ -129,7 +147,7 @@ BEGIN
     EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN
       v_quantity := NULL;
     END;
-    IF v_quantity IS NOT NULL AND (v_quantity <= 0 OR v_quantity != v_quantity OR v_quantity > 100000) THEN
+    IF v_quantity IS NOT NULL AND (v_quantity <= 0 OR v_quantity = 'NaN'::numeric OR v_quantity > 100000) THEN
       v_quantity := NULL;
     END IF;
 
@@ -176,11 +194,22 @@ CREATE TABLE IF NOT EXISTS import_rate_limit (
   rows_inserted integer NOT NULL DEFAULT 0,
   PRIMARY KEY (list_id, window_start)
 );
--- Sin RLS pública a propósito: solo la función SECURITY DEFINER de arriba
--- la toca. No conceder acceso a anon/authenticated sobre esta tabla.
+-- Sin RLS habilitada, esta tabla NO está protegida: los proyectos Supabase
+-- conceden por defecto ALL a anon/authenticated sobre las tablas nuevas
+-- creadas desde el SQL Editor. Sin esto, cualquier cliente anónimo podría
+-- escribir/borrar filas aquí directo por REST y anular el límite de tasa
+-- por completo (o, al revés, sembrar `calls` altos para bloquear a un
+-- hogar legítimo). Mismo patrón que ya siguen `lists`
+-- (SUPABASE_MIGRATION_AUTH.sql) y `history_logs`
+-- (SUPABASE_MIGRATION_HISTORY.sql) en este mismo repo: SIEMPRE habilitar
+-- RLS en una tabla nueva, incluso sin políticas — la función
+-- SECURITY DEFINER de abajo la toca igual porque corre con los privilegios
+-- de su dueño, que sí puede saltarse RLS.
+ALTER TABLE import_rate_limit ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON import_rate_limit FROM PUBLIC, anon, authenticated;
 ```
 
-`v_quantity != v_quantity` is the standard SQL idiom for "is NaN" (NaN is the only value not equal to itself); `'Infinity'::numeric > 100000` is caught by the existing upper-bound check.
+**Note on NaN**: unlike IEEE754, PostgreSQL defines `NaN = NaN` as **true** for `numeric` (so it can be sorted/indexed) — `v_quantity != v_quantity` would be dead code here, always false, and would silently stop protecting against NaN if anyone "simplified" it later believing it worked. Use `v_quantity = 'NaN'::numeric` instead (this works precisely because Postgres treats NaN as equal to itself), kept alongside the `> 100000` upper bound as two independent, correctly-reasoned checks — not one check papering over the other. `'Infinity'::numeric > 100000` is caught by the upper-bound check either way.
 
 **`SET search_path = ''`** (not `public`) plus explicit `public.` qualification on every table reference — this is what actually closes the search-path-hijacking risk `SECURITY DEFINER` functions are prone to (an empty search path can't be poisoned by a same-named object created in another schema, whereas `SET search_path = public` still resolves unqualified names through `public` on the caller's terms). `delete_my_data()` in this repo uses the older, weaker `SET search_path = public` pattern — don't copy that part of it, even though the rest of its shape (REVOKE/GRANT, `SECURITY DEFINER`, exception handling) is the right precedent to follow.
 
