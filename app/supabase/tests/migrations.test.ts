@@ -159,4 +159,49 @@ describe('migraciones', () => {
     expect((await call()).rows[0].ok).toBe(false);
     await db.close();
   }, 120_000);
+
+  it('guardar una receta propia y salir del hogar siguen funcionando', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const code = await asUser(db, ana, 'select public.create_invite() as code');
+    await asUser(db, bruno, `select public.redeem_invite('${(code as { rows: { code: string }[] }).rows[0].code}', 'Bruno')`);
+
+    const h = await db.query<{ household_id: string }>('select household_id from public.profile limit 1');
+    const householdId = h.rows[0].household_id;
+
+    // Inserción normal con autoría propia: el trigger no debe estorbar.
+    await asUser(
+      db,
+      bruno,
+      `insert into public.recipe (household_id, name, base_servings, created_by)
+       values ('${householdId}', 'Tortilla', 2, '${bruno}')`,
+    );
+    // Y salir del hogar (que pone created_by a null) tampoco.
+    await asUser(db, bruno, 'select public.leave_household()');
+    await db.close();
+  }, 120_000);
+
+  it('no se puede atribuir una fila a un perfil de otro hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+    await asUser(db, mallory, "select public.create_household('Casa de Mallory', 'Mallory')");
+
+    const m = await db.query<{ household_id: string }>(
+      `select household_id from public.profile where id = '${mallory}'`,
+    );
+
+    await expect(
+      asUser(
+        db,
+        mallory,
+        `insert into public.recipe (household_id, name, base_servings, created_by)
+         values ('${m.rows[0].household_id}', 'Trampa', 2, '${ana}')`,
+      ),
+    ).rejects.toThrow(/REZET_ATTRIBUTION_FOREIGN_HOUSEHOLD/);
+    await db.close();
+  }, 120_000);
 });
