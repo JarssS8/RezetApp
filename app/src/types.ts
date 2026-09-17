@@ -143,4 +143,6 @@ export interface HouseholdDetail {
    * erróneo.
    */
   membersLoaded: boolean;
+  /** Token de una lista de komprapp (repo `ShoppingList`) vinculada a este hogar, o `null` si no hay ninguna. */
+  komprappListToken: string | null;
 }

@@ -80,6 +80,7 @@ const DEMO_HOUSEHOLD: HouseholdDetail = {
   name: 'Demo',
   members: [{ id: 'demo-user', displayName: 'Tú', isAdmin: true }],
   membersLoaded: true,
+  komprappListToken: null,
 };
 
 async function demoHouseholdActionUnavailable(): Promise<never> {
@@ -434,6 +435,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       leaveHousehold: demoHouseholdActionUnavailable,
       deleteHousehold: demoHouseholdActionUnavailable,
       promoteAdmin: demoPromoteAdminUnavailable,
+      setKomprappListToken: demoHouseholdActionUnavailable,
       deleteAccount: demoHouseholdActionUnavailable,
       setHouseholdSheetOpen: demoSetHouseholdSheetOpen,
     }),

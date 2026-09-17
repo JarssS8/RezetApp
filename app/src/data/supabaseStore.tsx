@@ -255,13 +255,14 @@ export function SupabaseDataProvider({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('household')
-        .select('kcal_target, name')
+        .select('kcal_target, name, komprapp_list_token')
         .eq('id', householdId)
         .single();
       if (error) throw error;
       return {
         kcalTarget: data.kcal_target as number,
         name: data.name as string,
+        komprappListToken: data.komprapp_list_token as string | null,
       };
     },
   });
@@ -341,6 +342,7 @@ export function SupabaseDataProvider({
       name: householdQ.data.name,
       members: householdMembersQ.data ?? [],
       membersLoaded: householdMembersQ.data !== undefined,
+      komprappListToken: householdQ.data?.komprappListToken ?? null,
     };
   }, [householdId, householdQ.data, householdMembersQ.data]);
 
@@ -707,6 +709,26 @@ export function SupabaseDataProvider({
   );
 
   /**
+   * `set_komprapp_list_token(p_token)`: solo un ADMIN puede vincular o
+   * desvincular la lista de komprapp del hogar. Un token vacío cuenta como
+   * desvincular (`NULLIF(trim(...), '')` en la migración), así que aquí
+   * `null` se manda como cadena vacía para cubrir ambos casos. Invalida
+   * `householdKey` para que `household.komprappListToken` refleje el cambio
+   * sin recargar.
+   */
+  const setKomprappListTokenMut = useMutation({
+    mutationFn: async (token: string | null) => {
+      const { error } = await supabase.rpc('set_komprapp_list_token', { p_token: token ?? '' });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: householdKey }),
+  });
+  const setKomprappListToken = useCallback(
+    (token: string | null) => setKomprappListTokenMut.mutateAsync(token),
+    [setKomprappListTokenMut],
+  );
+
+  /**
    * `delete_account()`: borra la cuenta de Auth de verdad, no solo el
    * profile. Igual que `leaveHousehold`/`deleteHousehold`, no hace falta
    * invalidar nada aquí — quien llama hace el cierre de sesión real (ver
@@ -758,6 +780,7 @@ export function SupabaseDataProvider({
       leaveHousehold,
       deleteHousehold,
       promoteAdmin,
+      setKomprappListToken,
       deleteAccount,
       setHouseholdSheetOpen,
     }),
@@ -790,6 +813,7 @@ export function SupabaseDataProvider({
       leaveHousehold,
       deleteHousehold,
       promoteAdmin,
+      setKomprappListToken,
       deleteAccount,
     ],
   );

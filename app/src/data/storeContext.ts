@@ -134,6 +134,16 @@ export interface Store {
    */
   promoteAdmin: (memberId: string) => Promise<void>;
   /**
+   * Contrato: `rpc/set_komprapp_list_token`. Vincula (token no nulo) o
+   * desvincula (`null`) la lista de komprapp del hogar actual. Solo un
+   * ADMIN del hogar puede llamarlo — mismo nivel que `deleteHousehold`,
+   * porque redirige la lista de la compra de todo el hogar. La RPC rechaza
+   * la llamada (error) si quien la hace no es admin; la UI (Tarea 5) debe
+   * ocultar o deshabilitar el botón para no-admins en vez de dejar que
+   * fallen al intentarlo.
+   */
+  setKomprappListToken: (token: string | null) => Promise<void>;
+  /**
    * Contrato: `rpc/delete_account`. Borra la cuenta de Auth de quien llama
    * de verdad (no solo el profile): irreversible, sin recuperación. Rechaza
    * si eres el único administrador y quedan otros miembros. Si eres el
