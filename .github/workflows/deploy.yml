@@ -32,11 +32,11 @@ jobs:
       migrations: ${{ steps.filter.outputs.migrations }}
       functions: ${{ steps.filter.outputs.functions }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           fetch-depth: 0
       - id: filter
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d  # v4
         with:
           predicate-quantifier: some-with-excludes
           filters: |
@@ -53,29 +53,35 @@ jobs:
 
   migrations:
     needs: changes
-    if: needs.changes.outputs.migrations == 'true' || github.event.inputs.force_all == 'true'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (needs.changes.outputs.migrations == 'true' || github.event.inputs.force_all == 'true')
     runs-on: ubuntu-latest
-    env:
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     defaults:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - name: Check secrets
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: test -n "$SUPABASE_DB_URL" || { echo "::error::Missing secret SUPABASE_DB_URL"; exit 1; }
-      - uses: supabase/setup-cli@v3
+      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520  # v3
         with:
           version: 2.117.0
       - name: Pending migrations
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
       - name: Apply migrations
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: supabase db push --db-url "$SUPABASE_DB_URL"
 
   functions:
     needs: [changes, migrations]
     if: >-
-      !cancelled() && needs.changes.result == 'success' && needs.migrations.result != 'failure' &&
+      !cancelled() && github.ref == 'refs/heads/main' && needs.changes.result == 'success' && needs.migrations.result != 'failure' &&
       (needs.changes.outputs.functions == 'true' || github.event.inputs.force_all == 'true')
     runs-on: ubuntu-latest
     env:
@@ -85,12 +91,12 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - name: Check secrets
         run: |
           test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::Missing secret SUPABASE_ACCESS_TOKEN"; exit 1; }
           test -n "$SUPABASE_PROJECT_REF" || { echo "::error::Missing variable SUPABASE_PROJECT_REF"; exit 1; }
-      - uses: supabase/setup-cli@v3
+      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520  # v3
         with:
           version: 2.117.0
       - name: Deploy Edge Functions
@@ -114,15 +120,15 @@ jobs:
   app:
     needs: [changes, migrations]
     if: >-
-      !cancelled() && needs.changes.result == 'success' && needs.migrations.result != 'failure' &&
+      !cancelled() && github.ref == 'refs/heads/main' && needs.changes.result == 'success' && needs.migrations.result != 'failure' &&
       (needs.changes.outputs.app == 'true' || github.event.inputs.force_all == 'true')
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7
         with:
           node-version: 22
           cache: npm
@@ -139,7 +145,7 @@ jobs:
           VITE_KOMPRAPP_SUPABASE_URL: ${{ secrets.VITE_KOMPRAPP_SUPABASE_URL }}
           VITE_KOMPRAPP_SUPABASE_ANON_KEY: ${{ secrets.VITE_KOMPRAPP_SUPABASE_ANON_KEY }}
       - name: Deploy Worker rezet
-        uses: cloudflare/wrangler-action@v4
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0  # v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -150,15 +156,15 @@ jobs:
   mcp:
     needs: [changes, migrations]
     if: >-
-      !cancelled() && needs.changes.result == 'success' && needs.migrations.result != 'failure' &&
+      !cancelled() && github.ref == 'refs/heads/main' && needs.changes.result == 'success' && needs.migrations.result != 'failure' &&
       (needs.changes.outputs.mcp == 'true' || github.event.inputs.force_all == 'true')
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: mcp
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7
         with:
           node-version: 22
           cache: npm
@@ -168,7 +174,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - name: Deploy Worker rezet-mcp
-        uses: cloudflare/wrangler-action@v4
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0  # v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -181,12 +187,12 @@ jobs:
   release:
     needs: [changes, migrations, functions, app, mcp]
     if: >-
-      !cancelled() && needs.changes.result == 'success' && !contains(needs.*.result, 'failure')
+      !cancelled() && github.ref == 'refs/heads/main' && needs.changes.result == 'success' && !contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           fetch-depth: 0
       - name: Tag and publish the release

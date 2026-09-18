@@ -4,6 +4,7 @@ dist-ssr
 dev-dist
 *.tsbuildinfo
 *.local
+.env
 .env.local
 .env.*.local
 .DS_Store
