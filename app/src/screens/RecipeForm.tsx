@@ -23,6 +23,18 @@ const UNITS: Unit[] = ['g', 'ml', 'ud', 'tbsp'];
 const emptyIngredient = () => ({ name: '', quantity: '', unit: 'g' as Unit, toTaste: false });
 const emptyStep = () => ({ text: '', timerMinutes: '' });
 
+// Extensión a partir del MIME real del archivo, no de su nombre: storage-js
+// mete la ruta en la URL pública sin codificar, así que un nombre como
+// "x.jp?g" guardaría bajo una clave distinta a la que photo_path recuerda —
+// y el barrido de cleanup-orphan-photos (Edge Function) lo trataría como
+// "sin referencia" y borraría el objeto real. Estos son los únicos tipos que
+// admite el bucket `recipe-photos` (migración rezet_recipe_photos_storage).
+const PHOTO_MIME_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
 const EMPTY: RecipeDraft = {
   title: '',
   description: '',
@@ -131,9 +143,13 @@ export function RecipeForm({
 
   const onPickPhoto = async (file: File) => {
     if (!profile) return;
+    const ext = PHOTO_MIME_EXTENSIONS[file.type];
+    if (!ext) {
+      setPhotoError(t.photoUploadError);
+      return;
+    }
     setPhotoBusy(true);
     setPhotoError(null);
-    const ext = file.name.split('.').pop() ?? 'jpg';
     const path = `${profile.householdId}/${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from('recipe-photos').upload(path, file, {
       cacheControl: '3600',
