@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
+import { unsubscribeFromPush } from './push';
+import { consumePendingInvite } from './pendingInvite';
 
 export interface Profile {
   id: string;
@@ -142,8 +144,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Diseño §3.8: cerrar sesión debe dejar el dispositivo limpio, no solo
+    // invalidar el token. Cada paso va en su propio try/catch: un fallo aquí
+    // (red caída, sesión ya inválida…) no debe impedir cerrar sesión.
+    try {
+      await unsubscribeFromPush();
+    } catch {
+      /* no bloquea el cierre de sesión */
+    }
+    if (session) {
+      try {
+        // Los temporizadores son de este dispositivo/perfil; no tiene sentido
+        // que sigan vivos (y que el cron los notifique) tras cerrar sesión.
+        await supabase.from('cook_timer').delete().eq('profile_id', session.user.id);
+      } catch {
+        /* no bloquea el cierre de sesión */
+      }
+    }
+    try {
+      localStorage.removeItem('rezet.cook');
+      localStorage.removeItem('rezet.tab');
+      // rezet.pendingInvite es de un flujo de alta (crear/unirse a hogar) que
+      // ya no aplica una vez hay sesión y hogar: no tiene sentido conservarlo
+      // para la siguiente. rezet.prefs y rezet.seenScanTutorial sí se
+      // conservan: son preferencias del dispositivo, no de la sesión.
+      consumePendingInvite();
+    } catch {
+      /* almacenamiento no disponible: no bloquea el cierre de sesión */
+    }
     await supabase.auth.signOut();
-  }, []);
+  }, [session]);
 
   const createHousehold = useCallback(
     async (name: string, displayName: string) => {
