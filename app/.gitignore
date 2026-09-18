@@ -8,3 +8,6 @@ dev-dist
 .env.local
 .env.*.local
 .DS_Store
+
+# Lo genera `deno check` (tests locales y CI): no es parte del proyecto.
+deno.lock
