@@ -147,19 +147,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Diseño §3.8: cerrar sesión debe dejar el dispositivo limpio, no solo
     // invalidar el token. Cada paso va en su propio try/catch: un fallo aquí
     // (red caída, sesión ya inválida…) no debe impedir cerrar sesión.
+    //
+    // Los `cook_timer` NO se borran: son del perfil, no del dispositivo, y el
+    // cierre de sesión es local, así que borrarlos cortaría un temporizador que
+    // sigue corriendo en otro dispositivo con la sesión abierta. Basta con dar
+    // de baja el push de este, para que aquí no llegue ningún aviso.
     try {
       await unsubscribeFromPush();
     } catch {
       /* no bloquea el cierre de sesión */
-    }
-    if (session) {
-      try {
-        // Los temporizadores son de este dispositivo/perfil; no tiene sentido
-        // que sigan vivos (y que el cron los notifique) tras cerrar sesión.
-        await supabase.from('cook_timer').delete().eq('profile_id', session.user.id);
-      } catch {
-        /* no bloquea el cierre de sesión */
-      }
     }
     try {
       localStorage.removeItem('rezet.cook');
@@ -172,8 +168,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* almacenamiento no disponible: no bloquea el cierre de sesión */
     }
-    await supabase.auth.signOut();
-  }, [session]);
+    // scope 'local': cierra solo esta sesión (e invalida su token en el
+    // servidor). El valor por defecto de auth-js es 'global', que cerraba la
+    // sesión en todos los dispositivos de la cuenta, incluido el MCP.
+    await supabase.auth.signOut({ scope: 'local' });
+  }, []);
 
   const createHousehold = useCallback(
     async (name: string, displayName: string) => {
