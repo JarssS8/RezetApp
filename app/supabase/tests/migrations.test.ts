@@ -281,4 +281,67 @@ describe('migraciones', () => {
     ).rejects.toThrow();
     await db.close();
   }, 120_000);
+
+  // Task C2 — el alta y el canje de invitación siguen pasando por sus RPC
+  // SECURITY DEFINER (current_user = postgres) aunque se cierre el UPDATE de
+  // tabla sobre profile/household.
+  it('create_household y redeem_invite siguen funcionando tras cerrar el UPDATE de tabla', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const code = await asUser(db, ana, 'select public.create_invite() as code');
+    await asUser(
+      db,
+      bruno,
+      `select public.redeem_invite('${(code as { rows: { code: string }[] }).rows[0].code}', 'Bruno')`,
+    );
+
+    const n = await db.query<{ n: number }>('select count(*)::int as n from public.profile');
+    expect(n.rows[0].n).toBe(2);
+    await db.close();
+  }, 120_000);
+
+  it('el cliente sigue pudiendo actualizar name y kcal_target del hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ household_id: string }>('select household_id from public.profile limit 1');
+    const hid = h.rows[0].household_id;
+
+    await asUser(db, ana, `update public.household set name = 'Casa nueva' where id = '${hid}'`);
+    await asUser(db, ana, `update public.household set kcal_target = 2200 where id = '${hid}'`);
+    const row = await db.query<{ name: string; kcal_target: number }>(
+      `select name, kcal_target from public.household where id = '${hid}'`,
+    );
+    expect(row.rows[0]).toEqual({ name: 'Casa nueva', kcal_target: 2200 });
+    await db.close();
+  }, 120_000);
+
+  // Comprobación de privilegios, no de comportamiento: un `update ... set
+  // is_admin` fallaría igual aunque el revoke fuera inocuo, porque lo
+  // bloquea el trigger guardián desde 20260907181314. Lo que detecta que el
+  // revoke de tabla realmente surtió efecto es has_column_privilege().
+  it('el rol authenticated solo tiene UPDATE columna a columna sobre profile', async () => {
+    const db = await applyMigrations();
+    const priv = await db.query<{ h: boolean; a: boolean; d: boolean }>(
+      `select has_column_privilege('authenticated','public.profile','household_id','UPDATE') as h,
+              has_column_privilege('authenticated','public.profile','is_admin','UPDATE') as a,
+              has_column_privilege('authenticated','public.profile','display_name','UPDATE') as d`,
+    );
+    expect(priv.rows[0]).toEqual({ h: false, a: false, d: true });
+    await db.close();
+  }, 120_000);
+
+  it('el rol authenticated solo tiene UPDATE columna a columna sobre household', async () => {
+    const db = await applyMigrations();
+    const priv = await db.query<{ n: boolean; k: boolean; t: boolean }>(
+      `select has_column_privilege('authenticated','public.household','name','UPDATE') as n,
+              has_column_privilege('authenticated','public.household','kcal_target','UPDATE') as k,
+              has_column_privilege('authenticated','public.household','komprapp_list_token','UPDATE') as t`,
+    );
+    expect(priv.rows[0]).toEqual({ n: true, k: true, t: false });
+    await db.close();
+  }, 120_000);
 });
