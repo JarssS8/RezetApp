@@ -3,6 +3,24 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.7.3] - 2026-09-18
+
+### Español
+
+**Importante**
+- Si tienes la aplicación instalada desde hace tiempo y no la has actualizado, el botón de invitar puede dejar de responder. Abre Rezet, acepta la actualización que te ofrece y volverá a funcionar.
+
+**Mejorado**
+- Los códigos de invitación solo pueden nacer desde la propia aplicación y con la caducidad de siete días: ya no hay ninguna otra forma de crear uno.
+
+### English
+
+**Important**
+- If you have had the app installed for a while without updating it, the invite button may stop responding. Open Rezet, accept the update it offers, and it will work again.
+
+**Improved**
+- Invite codes can only be created from the app itself, with the seven-day expiry: there is no longer any other way to create one.
+
 ## [1.7.2] - 2026-09-18
 
 ### Español
