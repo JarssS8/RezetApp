@@ -153,7 +153,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // sigue corriendo en otro dispositivo con la sesión abierta. Basta con dar
     // de baja el push de este, para que aquí no llegue ningún aviso.
     try {
-      await unsubscribeFromPush();
+      // unsubscribeFromPush() espera a navigator.serviceWorker.ready, una promesa que en dev (o si
+      // el registro del service worker falló) nunca se resuelve — el try/catch no ayuda con una
+      // promesa que nunca liquida, así que se corre contra un timeout para que el cierre de sesión
+      // avance siempre, con o sin push.
+      await Promise.race([
+        unsubscribeFromPush(),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ]);
     } catch {
       /* no bloquea el cierre de sesión */
     }
