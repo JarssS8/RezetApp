@@ -201,6 +201,83 @@ describe('migraciones', () => {
     await db.close();
   }, 120_000);
 
+  // Revisión (reviewer): el trigger de compatibilidad reescribía código/
+  // caducidad/autoría de cualquier insert directo sin comprobar admin, así
+  // que un miembro cualquiera podía minar un código válido para su propio
+  // hogar. Desde 20260918110000_rezet_admin_only_invite_trigger_and_select
+  // el propio trigger exige admin.
+  it('el insert directo de un no admin es rechazado', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const code = await asUser(db, ana, 'select public.create_invite() as code');
+    await asUser(
+      db,
+      bruno,
+      `select public.redeem_invite('${(code as { rows: { code: string }[] }).rows[0].code}', 'Bruno')`,
+    );
+
+    const h = await db.query<{ household_id: string }>(
+      `select household_id from public.profile where id = '${bruno}'`,
+    );
+    await expect(
+      asUser(
+        db,
+        bruno,
+        `insert into public.household_invite (household_id) values ('${h.rows[0].household_id}')`,
+      ),
+    ).rejects.toThrow(/REZET_NOT_ADMIN/);
+    await db.close();
+  }, 120_000);
+
+  it('solo un admin puede leer las invitaciones pendientes del hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const code = await asUser(db, ana, 'select public.create_invite() as code');
+    await asUser(
+      db,
+      bruno,
+      `select public.redeem_invite('${(code as { rows: { code: string }[] }).rows[0].code}', 'Bruno')`,
+    );
+
+    const asNonAdmin = await asUser(db, bruno, 'select * from public.household_invite');
+    expect((asNonAdmin as { rows: unknown[] }).rows.length).toBe(0);
+
+    const asAdmin = await asUser(db, ana, 'select * from public.household_invite');
+    expect((asAdmin as { rows: unknown[] }).rows.length).toBeGreaterThan(0);
+    await db.close();
+  }, 120_000);
+
+  it('el insert directo de un admin sigue funcionando y caduca el código pendiente anterior', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+
+    const first = await asUser(db, ana, 'select public.create_invite() as code');
+    const firstCode = (first as { rows: { code: string }[] }).rows[0].code;
+
+    const h = await db.query<{ household_id: string }>('select household_id from public.profile limit 1');
+    await asUser(
+      db,
+      ana,
+      `insert into public.household_invite (household_id) values ('${h.rows[0].household_id}')`,
+    );
+
+    // El código anterior queda caducado por el propio insert directo.
+    await expect(asUser(db, bruno, `select public.redeem_invite('${firstCode}', 'Bruno')`)).rejects.toThrow();
+
+    const row = await db.query<{ code: string; created_by: string | null }>(
+      'select code, created_by from public.household_invite order by expires_at desc limit 1',
+    );
+    expect(row.rows[0].created_by).toBe(ana);
+    await asUser(db, bruno, `select public.redeem_invite('${row.rows[0].code}', 'Bruno')`);
+    await db.close();
+  }, 120_000);
+
   it('la cuota de reconocimiento corta al llegar al límite', async () => {
     const db = await applyMigrations();
     const ana = await createAuthUser(db);
