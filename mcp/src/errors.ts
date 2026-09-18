@@ -1,6 +1,6 @@
 import { ProtocolError } from '@modelcontextprotocol/server';
 import type { CallToolResult } from '@modelcontextprotocol/server';
-import { isAuthError, PostgrestError } from '@supabase/supabase-js';
+import { isAuthError } from '@supabase/supabase-js';
 import { NoSessionError } from './context.js';
 
 function errorText(text: string): CallToolResult {
@@ -18,6 +18,36 @@ function sessionMessage(): string {
   return `rezet: session expired or missing.${reauthHint ? ` ${reauthHint}` : ''}`;
 }
 
+/**
+ * postgrest-js 2.115 returns `error` as a plain object parsed straight out of the JSON response body —
+ * never a `PostgrestError` class instance (only `throwOnError` builds one, and no tool here uses it).
+ * `e instanceof PostgrestError` is therefore always false, so duck-type instead: anything with a string
+ * `code` is treated as a PostgREST-shaped error, same as every tool's `if (error) throw error;` does.
+ */
+interface PostgrestLikeError {
+  code: string;
+  message?: unknown;
+  status?: unknown;
+}
+
+function isPostgrestLikeError(e: unknown): e is PostgrestLikeError {
+  return typeof e === 'object' && e !== null && typeof (e as { code?: unknown }).code === 'string';
+}
+
+/** PostgREST's own JWT-rejection codes — see https://postgrest.org/en/stable/references/errors.html */
+const JWT_ERROR_CODES = new Set(['PGRST301', 'PGRST302', 'PGRST303']);
+
+function isJwtOrAuthError(e: PostgrestLikeError): boolean {
+  if (JWT_ERROR_CODES.has(e.code)) return true;
+  // Some auth failures surface with an HTTP-401-shaped status instead of (or alongside) a PGRST3xx code.
+  return e.status === 401 || e.status === '401';
+}
+
+// `raise exception 'REZET_TAG: prose'` inside our own plpgsql RPCs — the tag lets the UI branch on the
+// case without depending on the exact wording; the prose is what the AI needs to recover, so it's the
+// only part of a P0001 message that's safe (and meant) to reach the model verbatim.
+const P0001_TAG = /^REZET_[A-Z_]+:\s*/;
+
 export function toolError(e: unknown): CallToolResult {
   if (e instanceof NoSessionError) {
     return errorText(sessionMessage());
@@ -27,10 +57,16 @@ export function toolError(e: unknown): CallToolResult {
     return errorText(sessionMessage());
   }
 
-  if (e instanceof PostgrestError) {
+  if (isPostgrestLikeError(e)) {
     // El texto de Postgres (e.message/e.details) puede filtrar nombres de columna, restricciones u
-    // otros detalles internos del esquema — nunca sale hacia el modelo. El código sí, en el log,
-    // porque ayuda a depurar sin exponer nada al cliente.
+    // otros detalles internos del esquema — nunca sale hacia el modelo, salvo el caso deliberado de
+    // P0001 (nuestras propias RPCs) más abajo. El código sí, en el log, porque ayuda a depurar sin
+    // exponer nada al cliente.
+    if (isJwtOrAuthError(e)) {
+      console.error('[rezet-mcp] jwt/auth error', e.code);
+      return errorText(sessionMessage());
+    }
+
     switch (e.code) {
       case '42501':
         console.error('[rezet-mcp] not allowed (42501)', e.code);
@@ -38,9 +74,12 @@ export function toolError(e: unknown): CallToolResult {
       case 'PGRST116':
         console.error('[rezet-mcp] not found (PGRST116)', e.code);
         return errorText('rezet: not found');
-      case 'P0001':
+      case 'P0001': {
         console.error('[rezet-mcp] database rule violation (P0001)', e.code);
-        return errorText('rezet: database rule violation');
+        const raw = typeof e.message === 'string' ? e.message : '';
+        const stripped = raw.replace(P0001_TAG, '').trim();
+        return errorText(stripped ? `rezet: ${stripped}` : 'rezet: database rule violation');
+      }
       case '22P02':
         console.error('[rezet-mcp] invalid input value (22P02)', e.code);
         return errorText('rezet: invalid value. Allowed units: g, ml, ud, tbsp');
