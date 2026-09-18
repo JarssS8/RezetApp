@@ -52,6 +52,8 @@ export const es = {
   inviteExpiresOn: (date: string) => `Caduca el ${date}`,
   revokeInvite: 'Anular invitación',
   inviteRevoked: 'Invitación anulada',
+  invitePendingLoadError: 'No se pudieron cargar las invitaciones pendientes.',
+  inviteRegenerateWarning: 'Generar una invitación nueva anula la pendiente.',
 
   skip: 'Saltar',
   next: 'Siguiente',

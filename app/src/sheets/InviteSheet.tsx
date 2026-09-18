@@ -47,7 +47,12 @@ export function InviteSheet({
       .is('used_at', null)
       .gt('expires_at', new Date().toISOString())
       .order('expires_at', { ascending: false });
-    if (error) return;
+    if (error) {
+      // Antes se tragaba el error y una carga fallida se veía igual que "sin
+      // invitaciones pendientes" — con toast, al menos se distingue de la nada.
+      onToast(t.invitePendingLoadError);
+      return;
+    }
     setPending(
       (data ?? []).map((row) => ({
         id: row.id as string,
@@ -55,7 +60,7 @@ export function InviteSheet({
         expiresAt: row.expires_at as string,
       })),
     );
-  }, []);
+  }, [onToast, t]);
 
   useEffect(() => {
     void loadPending();
@@ -182,9 +187,16 @@ export function InviteSheet({
             )}
           </div>
         ) : (
-          <Button full onClick={generate} disabled={busy}>
-            {t.generateInvite}
-          </Button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {pending.length > 0 && (
+              <div style={{ fontSize: 13, color: 'var(--muted)', textWrap: 'pretty' }}>
+                {t.inviteRegenerateWarning}
+              </div>
+            )}
+            <Button full onClick={generate} disabled={busy}>
+              {t.generateInvite}
+            </Button>
+          </div>
         )}
 
         {pending.length > 0 && (

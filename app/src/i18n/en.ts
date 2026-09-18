@@ -53,6 +53,8 @@ export const en: Dictionary = {
   inviteExpiresOn: (date: string) => `Expires on ${date}`,
   revokeInvite: 'Revoke invite',
   inviteRevoked: 'Invite revoked',
+  invitePendingLoadError: 'Could not load pending invites.',
+  inviteRegenerateWarning: 'Generating a new invite cancels the pending one.',
 
   skip: 'Skip',
   next: 'Next',
