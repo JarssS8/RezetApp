@@ -344,4 +344,117 @@ describe('migraciones', () => {
     expect(priv.rows[0]).toEqual({ n: true, k: true, t: false });
     await db.close();
   }, 120_000);
+
+  // Task C3 — save_recipe valida photo_path dentro del jsonb: solo se acepta
+  // dentro de la carpeta del propio hogar, sin `..`. Los bloqueos `for update`
+  // de finish_cook/leave_household/delete_account son de concurrencia y no
+  // tienen una prueba razonable en PGlite (banco de un solo cliente a la vez).
+  it('save_recipe rechaza un photo_path de la carpeta de otro hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+    await asUser(db, mallory, "select public.create_household('Casa de Mallory', 'Mallory')");
+
+    const mHousehold = await db.query<{ household_id: string }>(
+      `select household_id from public.profile where id = '${mallory}'`,
+    );
+    const otherHouseholdId = mHousehold.rows[0].household_id;
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `select public.save_recipe(jsonb_build_object(
+           'name', 'Trampa',
+           'base_servings', 2,
+           'photo_path', '${otherHouseholdId}/foto.jpg'
+         )) as id`,
+      ),
+    ).rejects.toThrow(/REZET_INVALID_PHOTO_PATH/);
+    await db.close();
+  }, 120_000);
+
+  it('save_recipe rechaza un photo_path con ".."', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+    const h = await db.query<{ household_id: string }>('select household_id from public.profile limit 1');
+    const householdId = h.rows[0].household_id;
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `select public.save_recipe(jsonb_build_object(
+           'name', 'Trampa',
+           'base_servings', 2,
+           'photo_path', '${householdId}/../secreto.jpg'
+         )) as id`,
+      ),
+    ).rejects.toThrow(/REZET_INVALID_PHOTO_PATH/);
+    await db.close();
+  }, 120_000);
+
+  it('save_recipe acepta un photo_path dentro de la carpeta del propio hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+    const h = await db.query<{ household_id: string }>('select household_id from public.profile limit 1');
+    const householdId = h.rows[0].household_id;
+
+    const res = (await asUser(
+      db,
+      ana,
+      `select public.save_recipe(jsonb_build_object(
+         'name', 'Tortilla',
+         'base_servings', 2,
+         'photo_path', '${householdId}/foto.jpg'
+       )) as id`,
+    )) as { rows: { id: string }[] };
+    expect(res.rows[0].id).toBeTruthy();
+
+    const row = await db.query<{ photo_path: string }>(
+      `select photo_path from public.recipe where id = '${res.rows[0].id}'`,
+    );
+    expect(row.rows[0].photo_path).toBe(`${householdId}/foto.jpg`);
+    await db.close();
+  }, 120_000);
+
+  it('save_recipe sigue funcionando sin photo_path (cadena vacía no dispara el guardia)', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+
+    const res = (await asUser(
+      db,
+      ana,
+      `select public.save_recipe(jsonb_build_object(
+         'name', 'Sin foto',
+         'base_servings', 2,
+         'photo_path', ''
+       )) as id`,
+    )) as { rows: { id: string }[] };
+    expect(res.rows[0].id).toBeTruthy();
+    await db.close();
+  }, 120_000);
+
+  // `create or replace function` reinicia cualquier atributo que se omita al
+  // redeclarar: si esta migración hubiera añadido `security definer` al
+  // copiar save_recipe/finish_cook por error, saltarían las políticas RLS de
+  // las que dependen. prosecdef = false confirma que se quedaron INVOKER.
+  it('save_recipe y finish_cook siguen siendo SECURITY INVOKER tras la Task C3', async () => {
+    const db = await applyMigrations();
+    const res = await db.query<{ proname: string; prosecdef: boolean }>(
+      `select proname, prosecdef from pg_proc
+       where pronamespace = 'public'::regnamespace
+         and proname in ('save_recipe', 'finish_cook')
+       order by proname`,
+    );
+    expect(res.rows).toEqual([
+      { proname: 'finish_cook', prosecdef: false },
+      { proname: 'save_recipe', prosecdef: false },
+    ]);
+    await db.close();
+  }, 120_000);
 });
