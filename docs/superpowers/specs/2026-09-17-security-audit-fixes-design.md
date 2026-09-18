@@ -150,6 +150,8 @@ Invariante: ninguna fila de un hogar puede referenciar el perfil de otro hogar, 
 Y dos desviaciones más pequeñas, del mismo origen (el plan complementario, no este diseño):
 
 - **`create_invite()` devuelve solo `code`**, mientras §3.2 pedía `code`, `id` y `expires_at`. La lista de invitaciones pendientes se obtiene con una consulta aparte contra `household_invite`, no del valor de retorno de la RPC.
+- **`signOut` no borra los `cook_timer` propios**, aunque §3.8 y la tarea C7 lo pedían. `app/src/data/auth.tsx:151-154` lo descarta a propósito y lo razona: el temporizador es del perfil, no del navegador, y borrarlo al cerrar sesión en un dispositivo mataría el aviso en los demás. Sí se borran la suscripción push y las claves locales.
+- **`revoke_invite()` caduca la invitación** (`expires_at = now()`) en vez de marcarla como usada, que es lo que dejaba entender §3.2. El efecto es el mismo para `redeem_invite`, y así `used_at` sigue significando solo "alguien la canjeó".
 - **Los tests de dominio que pedía §4 para `photo_path` y la ventana de cuota no se escribieron.** Esa lógica vive en SQL (la validación de `photo_path` en `save_recipe`) y en la Edge Function (la cuota de `recognize-pantry-item`), no en `domain/`; se cubre desde el banco de migraciones en el caso de `photo_path`, y no se cubre en absoluto en el caso de la Edge Function (queda como prueba manual tras desplegar).
 
 ### Sobre la auditoría
@@ -158,9 +160,18 @@ La auditoría `security-audit` **run-2** (`~/security-audit-skill/Rezet/run-2/`)
 
 ### Pendiente, acción del propietario
 
-1. **Antes del próximo push a `main`**: borrar la función huérfana `import-idea-photo` (`cd app && npx supabase functions delete import-idea-photo --project-ref raepigwmunhguzkmzukd`) — si no, la comprobación de CI que compara funciones desplegadas contra carpetas del repositorio falla a propósito y no se etiqueta la versión.
+*(Estado a 2026-09-18, comprobado contra producción con consultas de solo lectura.)*
+
+1. ~~**Antes del próximo push a `main`**: borrar la función huérfana `import-idea-photo`.~~ **Hecho**: solo quedan `send-timer-notifications`, `recognize-pantry-item` y `cleanup-orphan-photos`.
 2. **Después de desplegar**: copiar el valor de `timer_cron_secret` del Vault al secreto `TIMER_CRON_SECRET` de **ambas** funciones, `send-timer-notifications` y `cleanup-orphan-photos` (se lee con `select decrypted_secret from vault.decrypted_secrets where name = 'timer_cron_secret';`). Hasta entonces, `send-timer-notifications` acepta todo (con aviso en el log) y `cleanup-orphan-photos` no borra nada.
 3. **Definir `APP_ORIGIN`** en los secretos de la función `recognize-pantry-item`, para que la lista blanca de CORS apunte al origen de producción real en vez de solo al valor por defecto.
-4. **Invocar `cleanup-orphan-photos?dryRun=1` una vez**, a mano, antes de que el cron diario (`17 4 * * *`) la ejecute de verdad — es la única forma de comprobar esta función, que no tiene test ni tipado que la cubra.
+4. **Invocar `cleanup-orphan-photos?dryRun=1` una vez**, a mano, antes de que el cron diario (`17 4 * * *`) la ejecute de verdad — es la única forma de comprobar esta función, que no tiene test ni tipado que la cubra. **Sigue pendiente**: `cron.job_run_details` no tiene ninguna ejecución suya y quedan 4 objetos huérfanos de 6. Ojo con cómo falla: si le falta `TIMER_CRON_SECRET` responde 503, pero el cron se anota como `succeeded` igualmente, porque lo que triunfa es el `net.http_post`. Después de la primera ejecución real, comprobar el código de respuesta con `select status_code, count(*) from net._http_response group by 1`.
 5. **Leer** la lista de redirecciones permitidas de Supabase Auth (un comodín ahí es un problema real).
 6. **Comprobar el tope de facturación** de la clave de Gemini.
+7. **Avisos del linter de Supabase**, ninguno detectado por la auditoría y todos menores:
+   - `public.rls_auto_enable()` es `SECURITY DEFINER` y `anon`/`authenticated` pueden ejecutarla. No está en ninguna migración del repositorio: vive solo en producción. Devuelve `event_trigger`, y Postgres no deja invocar esas funciones ni por `select` ni por PostgREST, así que es un falso positivo; aun así, `revoke execute on function public.rls_auto_enable() from public, anon, authenticated;` calla el aviso.
+   - `pg_net` instalada en el esquema `public`.
+   - Protección de contraseñas filtradas desactivada en Auth (un interruptor del dashboard).
+   - `app_secret` y `recognition_usage` con RLS y sin políticas: **es lo buscado**, solo las toca la service role.
+
+Los puntos 2 y 3 no se pueden comprobar con SQL: los secretos de las Edge Functions solo se ven en el dashboard. Las 362 respuestas registradas de `send-timer-notifications` son todas 200, lo que encaja tanto con "secreto configurado" como con "modo tolerante porque falta".

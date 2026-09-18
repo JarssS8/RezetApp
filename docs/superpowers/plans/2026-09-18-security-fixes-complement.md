@@ -28,7 +28,7 @@ Lo ya implementado cubre los 7 hallazgos confirmados. Este plan añade lo que el
 - **Gate de cada tarea:** `cd app && npm run lint && npm test`. Para tareas del MCP, además `cd mcp && npx tsc --noEmit -p tsconfig.worker.json`.
 - **Comentarios en castellano**, explicando el porqué. Tokens de color en `app/src/` (no en `mcp/src/worker/html.ts`).
 - **Commits:** uno por tarea, `fix(ámbito): …` / `feat(ámbito): …`, con `Co-Authored-By:` según la atribución activa de tu sesión.
-- **Las Edge Functions no entran en ningún gate.** `app/tsconfig.json` incluye solo `src`, y no hay tests de Deno, así que `npm run lint && npm test` pasa escribas lo que escribas en `app/supabase/functions/`. Para C4, C5 y C6 intenta además `npx --yes deno@2 check supabase/functions/<fn>/index.ts` desde `app/`; si Deno no se puede instalar en esta máquina, **dilo en el informe**: significa que ese código va a producción sin comprobar y solo lo cubre la prueba manual.
+- **Las Edge Functions no entran en `npm run lint && npm test`.** `app/tsconfig.json` incluye solo `src`, y no hay tests de Deno, así que ese gate pasa escribas lo que escribas en `app/supabase/functions/`. *(Actualización posterior a este plan: desde `038d6d9` el job `test` de CI sí hace `npx deno check` de cada función antes de desplegar — `deploy.yml:83-87`. Sigue sin haber tests de Deno.)* Para C4, C5 y C6 intenta además `npx --yes deno@2 check supabase/functions/<fn>/index.ts` desde `app/`; si Deno no se puede instalar en esta máquina, **dilo en el informe**: significa que ese código va a producción sin comprobar y solo lo cubre la prueba manual.
 - **Si algo no encaja con lo que dice el plan, para y repórtalo.** No improvises.
 
 ## Orden
