@@ -141,7 +141,7 @@ Invariante: ninguna fila de un hogar puede referenciar el perfil de otro hogar, 
 
 ### Las cinco desviaciones deliberadas respecto a este diseño
 
-1. **Dos fases en vez de una sola versión** (§5 pedía una). El usuario lo eligió explícitamente después de escribirse este diseño: una PWA cacheada no puede quedarse con las invitaciones rotas a medio desplegar. Lo único que queda para la Fase B es revocar el `INSERT` directo sobre `household_invite`.
+1. **Dos fases en vez de una sola versión** (§5 pedía una). El usuario lo eligió explícitamente después de escribirse este diseño: una PWA cacheada no puede quedarse con las invitaciones rotas a medio desplegar. **La Fase B se ejecutó el 2026-09-18** (`20260918214500_rezet_phase_b_revoke_invite_insert.sql`, commit `b43840d`): ningún rol conserva `INSERT` sobre `household_invite` y el andamio de compatibilidad ha desaparecido.
 2. **El trigger de atribución rechaza en vez de forzar** (§3.3 pedía forzar `created_by`/`cooked_by = auth.uid()`). Lo implementado lanza `REZET_ATTRIBUTION_FOREIGN_HOUSEHOLD` cuando la atribución es de otro hogar: protege lo mismo, falla de forma visible en vez de silenciosa, y ya tiene tests. Por lo mismo, no se revocaron las columnas `created_by`/`cooked_by` del grant de INSERT/UPDATE que pedía §3.3.
 3. **Las pruebas de base de datos van contra PGlite, no contra producción con `ROLLBACK`** (§4 pedía lo segundo). El banco de pruebas no toca producción y corre en cada `npm test`, pero es Postgres 18 mientras producción no lo es: un banco en verde no es prueba sobre producción, solo detecta errores de SQL y de lógica.
 4. **No se escribió migración de reversión** (§4 la pedía). Cada migración es aditiva y reversible a mano con las definiciones que guardan los ficheros anteriores; si el usuario la quiere, es trabajo aparte.
@@ -152,7 +152,7 @@ Y dos desviaciones más pequeñas, del mismo origen (el plan complementario, no 
 - **`create_invite()` devuelve solo `code`**, mientras §3.2 pedía `code`, `id` y `expires_at`. La lista de invitaciones pendientes se obtiene con una consulta aparte contra `household_invite`, no del valor de retorno de la RPC.
 - **`signOut` no borra los `cook_timer` propios**, aunque §3.8 y la tarea C7 lo pedían. `app/src/data/auth.tsx:151-154` lo descarta a propósito y lo razona: el temporizador es del perfil, no del navegador, y borrarlo al cerrar sesión en un dispositivo mataría el aviso en los demás. Sí se borran la suscripción push y las claves locales.
 - **`revoke_invite()` caduca la invitación** (`expires_at = now()`) en vez de marcarla como usada, que es lo que dejaba entender §3.2. El efecto es el mismo para `redeem_invite`, y así `used_at` sigue significando solo "alguien la canjeó".
-- **Los tests de dominio que pedía §4 para `photo_path` y la ventana de cuota no se escribieron.** Esa lógica vive en SQL (la validación de `photo_path` en `save_recipe`) y en la Edge Function (la cuota de `recognize-pantry-item`), no en `domain/`; se cubre desde el banco de migraciones en el caso de `photo_path`, y no se cubre en absoluto en el caso de la Edge Function (queda como prueba manual tras desplegar).
+- **Los tests de dominio que pedía §4 para `photo_path` y la ventana de cuota no se escribieron**, porque esa lógica no vive en `domain/` sino en SQL. Ambas acabaron cubiertas igualmente desde el banco de migraciones: "save_recipe rechaza un photo_path de la carpeta de otro hogar" (y sus tres hermanos) y "la cuota de reconocimiento corta al llegar al límite". Lo que sigue sin test es el código Deno de las Edge Functions, que solo pasa `deno check`.
 
 ### Sobre la auditoría
 
@@ -169,9 +169,9 @@ La auditoría `security-audit` **run-2** (`~/security-audit-skill/Rezet/run-2/`)
 5. **Leer** la lista de redirecciones permitidas de Supabase Auth (un comodín ahí es un problema real).
 6. **Comprobar el tope de facturación** de la clave de Gemini.
 7. **Avisos del linter de Supabase**, ninguno detectado por la auditoría y todos menores:
-   - `public.rls_auto_enable()` es `SECURITY DEFINER` y `anon`/`authenticated` pueden ejecutarla. No está en ninguna migración del repositorio: vive solo en producción. Devuelve `event_trigger`, y Postgres no deja invocar esas funciones ni por `select` ni por PostgREST, así que es un falso positivo; aun así, `revoke execute on function public.rls_auto_enable() from public, anon, authenticated;` calla el aviso.
-   - `pg_net` instalada en el esquema `public`.
-   - Protección de contraseñas filtradas desactivada en Auth (un interruptor del dashboard).
+   - ~~`public.rls_auto_enable()` ejecutable por `anon`/`authenticated`.~~ **Hecho** en la migración de la Fase B, con guarda porque la función solo existe en producción. Era un falso positivo (devuelve `event_trigger`, así que no se puede invocar por RPC), pero deja el linter limpio.
+   - **Pendiente, interruptor del dashboard:** protección de contraseñas filtradas desactivada en Auth (**Authentication → Policies / Password protection**).
+   - `pg_net` instalada en el esquema `public`: **se deja como está**. La gestiona la plataforma y moverla puede romper `pg_cron` y las dos funciones que dependen de `net.http_post`.
    - `app_secret` y `recognition_usage` con RLS y sin políticas: **es lo buscado**, solo las toca la service role.
 
 Los puntos 2 y 3 no se pueden comprobar con SQL: los secretos de las Edge Functions solo se ven en el dashboard. Las 362 respuestas registradas de `send-timer-notifications` son todas 200, lo que encaja tanto con "secreto configurado" como con "modo tolerante porque falta".

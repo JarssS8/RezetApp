@@ -1630,7 +1630,9 @@ git commit -m "Release X.Y.Z"
 
 ---
 
-## FASE B — versión posterior, no en esta sesión
+## FASE B — EJECUTADA el 2026-09-18 (migración `20260918214500_rezet_phase_b_revoke_invite_insert.sql`, commit `b43840d`)
+
+> **Cerrada.** Las casillas de abajo quedan como registro. Dos notas de la ejecución: el `revoke` incluyó `service_role` y los grants sueltos de `update`/`delete`/`truncate`, y el propio banco de pruebas destapó un **quinto** test que la revisión previa no había visto — "redeem_invite sigue funcionando tras revocar el INSERT directo en profile" también usaba el insert directo para conseguir un código; ahora usa `create_invite()`. De paso se revocó el `EXECUTE` de `public.rls_auto_enable()`, con guarda porque esa función solo existe en producción.
 
 Requiere que la Fase A esté desplegada y que los clientes instalados se hayan actualizado (`UpdatePrompt` se lo ofrece al abrir la app). Espera al menos unos días.
 
@@ -1640,8 +1642,8 @@ Requiere que la Fase A esté desplegada y que los clientes instalados se hayan a
 
 **Riesgo asumido, decidido antes de ejecutar B1:** un cliente PWA **anterior a la 1.6.0** todavía crea invitaciones con un `insert` directo, y esa versión no mostraba errores (`if (!error && data) setCode(...)`; el aviso llegó en la 1.7.2, `InviteSheet.tsx:97-102`). Tras B1, en ese cliente el botón "Generar invitación" **no hace nada y no avisa de nada**. No hay forma de saber desde SQL si queda algún cliente así vivo: los códigos de esa época se caducaron en `20260917220200_rezet_server_minted_invites.sql:106-109`. Se acepta porque `UpdatePrompt` lleva ofreciendo la actualización desde la 1.6.0 y el arreglo es abrir la app otra vez. Clientes ≥ 1.6.0 no se ven afectados: ya usan la RPC.
 
-- [ ] Confirmar que ningún cliente inserta ya: `grep -rn "household_invite" app/src mcp/src` → solo lecturas y RPC.
-- [ ] Crear la migración (nótese que también hay que borrar la función `private.force_server_minted_invite()`, que a partir de aquí queda sin ningún trigger que la use):
+- [x] Confirmar que ningún cliente inserta ya: `grep -rn "household_invite" app/src mcp/src` → solo lecturas y RPC.
+- [x] Crear la migración (nótese que también hay que borrar la función `private.force_server_minted_invite()`, que a partir de aquí queda sin ningún trigger que la use):
 
 ```sql
 -- Fase B de la auditoría run-2. La app ya genera invitaciones con
@@ -1660,13 +1662,13 @@ drop function if exists private.force_server_minted_invite();
 
   El orden importa: el `drop function` va después del `drop trigger`, o falla por dependencia. No hacen falta `revoke` por columna: `household_invite` no tiene `attacl` en ninguna columna (al contrario que `profile` y `household`, ver `20260918100100`), así que el `revoke` de tabla se lo lleva todo.
 
-- [ ] **Actualizar los tests que la revocación rompe** (si no, el job `test` de CI falla y no se despliega ni se etiqueta *nada*, ni Worker ni funciones — `deploy.yml:77-81`):
+- [x] **Actualizar los tests que la revocación rompe** (si no, el job `test` de CI falla y no se despliega ni se etiqueta *nada*, ni Worker ni funciones — `deploy.yml:77-81`):
   - `app/supabase/tests/migrations.test.ts:180` "el insert directo del cliente antiguo produce un código válido igualmente" → pasa a esperar el fallo, o se borra por obsoleto.
   - `:209` "el insert directo de un no admin es rechazado" → ya no falla con `REZET_NOT_ADMIN` sino con `permission denied for table household_invite`; ajustar la aserción.
   - `:254` "el insert directo de un admin sigue funcionando y caduca el código pendiente anterior" → la parte de "sigue funcionando" desaparece; lo que queda vivo (crear invitación caduca la pendiente anterior) ya lo cubre el test de `create_invite()`.
-- [ ] **Convertir el test de simulación en test real**: quitar el bloque `db.exec` que revoca y borra a mano en `migrations.test.ts:289` (si se deja, el test se vuelve una tautología que no prueba la migración).
-- [ ] Añadir un test que compruebe que un insert directo como `authenticated` ahora falla.
-- [ ] `npm run lint && npm test`, commit y nueva versión, igual que en la Fase A.
+- [x] **Convertir el test de simulación en test real**: quitar el bloque `db.exec` que revoca y borra a mano en `migrations.test.ts:289` (si se deja, el test se vuelve una tautología que no prueba la migración).
+- [x] Añadir un test que compruebe que un insert directo como `authenticated` ahora falla.
+- [x] `npm run lint && npm test`, commit y nueva versión, igual que en la Fase A.
 
 ---
 
