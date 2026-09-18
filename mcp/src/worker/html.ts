@@ -72,33 +72,49 @@ ${body}
 </html>`;
 }
 
-// Hosts we recognize as belonging to a client we (or the person authorizing) actually know.
-// Anyone can register an OAuth client with any `clientName`, so that name alone proves nothing —
-// the redirect host is the one thing an attacker can't spoof without controlling that domain.
-const KNOWN_CLIENT_HOSTS = ['claude.ai', 'claude.com', 'localhost', '127.0.0.1'];
+// Domains we recognize as belonging to a client we (or the person authorizing) actually know.
+// Anyone can register an OAuth client with any `clientName`, so that name alone proves nothing — the
+// redirect URI is the one thing an attacker can't spoof without controlling that domain, and judging it
+// needs the *whole* URL, not just `.host`: a non-http(s) scheme (`evilapp://claude.ai/cb`,
+// `intent://claude.ai/...`) can carry any hostname it likes with no real ownership check behind it, and
+// `.host` alone can't tell `https://claude.ai.evil.com` or `https://claude.ai@evil.com` apart from the
+// genuine thing either — only `protocol` + `hostname` together can.
+const KNOWN_HTTPS_DOMAINS = ['claude.ai', 'claude.com'];
+const KNOWN_HTTP_LOOPBACK_HOSTS = ['localhost', '127.0.0.1'];
 
-function isKnownClientHost(host: string): boolean {
-  return KNOWN_CLIENT_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+/** Known only for a real `https://claude.ai`/`claude.com` (or subdomain) redirect, or an `http://` loopback one — anything else, including every non-http(s) scheme, is unverified. */
+export function isKnownRedirectUri(redirectUri: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(redirectUri);
+  } catch {
+    return false;
+  }
+  if (url.protocol === 'https:') {
+    return KNOWN_HTTPS_DOMAINS.some((domain) => url.hostname === domain || url.hostname.endsWith(`.${domain}`));
+  }
+  if (url.protocol === 'http:') {
+    return KNOWN_HTTP_LOOPBACK_HOSTS.includes(url.hostname);
+  }
+  return false;
 }
 
 export function consentPage(opts: {
   clientName: string;
-  redirectHost: string;
   redirectUri: string;
   csrf: string;
   cancelUrl: string;
 }): string {
   const clientName = sanitizeText(opts.clientName);
-  const redirectHost = sanitizeText(opts.redirectHost);
   const redirectUri = sanitizeText(opts.redirectUri);
   const csrf = sanitizeText(opts.csrf);
   const cancelUrl = sanitizeUrl(opts.cancelUrl);
   return page(
     'Connect to Rezet',
     `<h1>${clientName} wants access to your Rezet household</h1>
-<p class="scope">It will redirect to <strong>${redirectHost}</strong> and will be able to read and change your
+<p class="scope">It will redirect to <strong>${redirectUri}</strong> and will be able to read and change your
 household's recipes, weekly plan, pantry and shopping list as you.</p>
-${isKnownClientHost(opts.redirectHost) ? '' : `<p class="warn">Este cliente no está verificado: cualquiera puede registrar uno con el nombre que quiera. Continúa solo si reconoces esta dirección: <code>${redirectUri}</code></p>`}
+${isKnownRedirectUri(opts.redirectUri) ? '' : `<p class="warn">Este cliente no está verificado: cualquiera puede registrar uno con el nombre que quiera. Continúa solo si reconoces esta dirección: <code>${redirectUri}</code></p>`}
 <form method="POST" action="/authorize">
   <input type="hidden" name="csrf" value="${csrf}">
   <button class="provider" type="submit" name="provider" value="google">Continue with Google</button>

@@ -63,7 +63,6 @@ async function handleGetAuthorize(request: Request, env: Env): Promise<Response>
 
   const body = consentPage({
     clientName,
-    redirectHost: new URL(authReq.redirectUri).host,
     redirectUri: authReq.redirectUri,
     csrf: pending.csrf,
     cancelUrl: cancelUrl.toString(),

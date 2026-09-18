@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { zonedNow } from '../worker/clock.js';
+import { consentPage, isKnownRedirectUri } from '../worker/html.js';
 import { s256Challenge } from '../worker/pkce.js';
 import { isRezetProps, type RezetProps } from '../worker/props.js';
 
@@ -78,5 +79,69 @@ describe('isRezetProps', () => {
     expect(isRezetProps(null)).toBe(false);
     expect(isRezetProps('nope')).toBe(false);
     expect(isRezetProps(undefined)).toBe(false);
+  });
+});
+
+describe('isKnownRedirectUri', () => {
+  it('knows a real https://claude.ai redirect', () => {
+    expect(isKnownRedirectUri('https://claude.ai/api/mcp/auth_callback')).toBe(true);
+  });
+
+  it('knows an http://localhost loopback redirect regardless of port', () => {
+    expect(isKnownRedirectUri('http://localhost:33418/callback')).toBe(true);
+  });
+
+  it('knows an http://127.0.0.1 loopback redirect', () => {
+    expect(isKnownRedirectUri('http://127.0.0.1:8080/cb')).toBe(true);
+  });
+
+  it('knows a claude.com subdomain over https', () => {
+    expect(isKnownRedirectUri('https://api.claude.com/callback')).toBe(true);
+  });
+
+  it('treats a non-http(s) scheme carrying claude.ai as unverified, no warning skipped for it', () => {
+    // `.host`/`.hostname` alone can't be trusted here: any scheme can claim any hostname with no
+    // ownership check behind it, unlike a real https:// origin.
+    expect(isKnownRedirectUri('evilapp://claude.ai/cb')).toBe(false);
+  });
+
+  it('treats an intent:// URI carrying claude.ai as unverified', () => {
+    expect(isKnownRedirectUri('intent://claude.ai/callback#Intent;scheme=https;end')).toBe(false);
+  });
+
+  it('treats a look-alike subdomain (claude.ai.evil.com) as unverified', () => {
+    expect(isKnownRedirectUri('https://claude.ai.evil.com/x')).toBe(false);
+  });
+
+  it('treats claude.ai appearing only in the path as unverified', () => {
+    expect(isKnownRedirectUri('https://evil.com/claude.ai')).toBe(false);
+  });
+
+  it('treats claude.ai used as userinfo (before @) as unverified', () => {
+    expect(isKnownRedirectUri('https://claude.ai@evil.com/')).toBe(false);
+  });
+
+  it('treats a loopback host over https (not http) as unverified', () => {
+    expect(isKnownRedirectUri('https://localhost:33418/callback')).toBe(false);
+  });
+
+  it('treats a malformed URI as unverified rather than throwing', () => {
+    expect(isKnownRedirectUri('not a url')).toBe(false);
+  });
+});
+
+describe('consentPage', () => {
+  const base = { clientName: 'Claude', csrf: 'csrf-token', cancelUrl: 'https://example.com/cancel' };
+
+  it('shows no warning and the full redirect URI for a known client', () => {
+    const html = consentPage({ ...base, redirectUri: 'https://claude.ai/api/mcp/auth_callback' });
+    expect(html).not.toContain('class="warn"');
+    expect(html).toContain('https://claude.ai/api/mcp/auth_callback');
+  });
+
+  it('shows the warning and the full redirect URI for an unverified client', () => {
+    const html = consentPage({ ...base, redirectUri: 'evilapp://claude.ai/cb' });
+    expect(html).toContain('class="warn"');
+    expect(html).toContain('evilapp://claude.ai/cb');
   });
 });
