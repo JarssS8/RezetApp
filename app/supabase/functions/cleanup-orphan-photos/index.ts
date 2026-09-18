@@ -54,25 +54,49 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceKey);
 
-  // 1) Referencias vigentes: todos los photo_path no nulos de `recipe`,
-  // paginados explícitamente. Cualquier fallo de página aborta sin borrar
-  // nada — un borrado por ruta es irreversible, así que ante la duda no se
-  // borra.
+  // 1) Recuento exacto de referencias vigentes, con el mismo filtro que la
+  // lectura paginada de abajo, para poder comprobar después que ninguna
+  // página se saltó una fila.
+  const { count: expectedCount, error: countError } = await supabase
+    .from("recipe")
+    .select("photo_path", { count: "exact", head: true })
+    .not("photo_path", "is", null);
+  if (countError || expectedCount === null) {
+    console.error("cleanup-orphan-photos: failed to count recipe photo_path");
+    return json({ error: "failed to count recipe photo_path" }, 500);
+  }
+
+  // 2) Referencias vigentes: todos los photo_path no nulos de `recipe`,
+  // paginadas explícitamente y en orden estable (`id`) — sin `order()` el
+  // orden de `.range()` no está garantizado entre páginas y una fila podría
+  // saltarse de una página a otra, y una referencia saltada es una foto VIVA
+  // borrada sin vuelta atrás. Por eso además se cuentan las filas leídas y se
+  // comparan contra el recuento exacto de arriba: si no coinciden, algo falló
+  // entre páginas y se aborta sin borrar nada. Cualquier fallo de página
+  // también aborta sin borrar, por la misma razón.
   const referenced = new Set<string>();
+  let rowsRead = 0;
   for (let from = 0; ; from += RECIPE_PAGE_SIZE) {
     const { data, error } = await supabase
       .from("recipe")
       .select("photo_path")
       .not("photo_path", "is", null)
+      .order("id")
       .range(from, from + RECIPE_PAGE_SIZE - 1);
     if (error) {
       console.error("cleanup-orphan-photos: failed to read recipe photo_path");
       return json({ error: "failed to read recipe photo_path" }, 500);
     }
     for (const row of data ?? []) {
+      rowsRead++;
       if (row.photo_path) referenced.add(row.photo_path as string);
     }
     if (!data || data.length < RECIPE_PAGE_SIZE) break;
+  }
+
+  if (rowsRead !== expectedCount) {
+    console.error("cleanup-orphan-photos: paginated row count does not match exact count, aborting");
+    return json({ error: "reference count mismatch" }, 500);
   }
 
   // 2) Objetos del bucket, carpeta a carpeta: el primer nivel son los
