@@ -129,3 +129,38 @@ Invariante: ninguna fila de un hogar puede referenciar el perfil de otro hogar, 
 - **La CSP** puede romper la app en silencio si falta un origen. Se prueba en local y se revisa la consola antes de publicar.
 - **El `CHECK` sobre `endpoint`** rechazaría un servicio push nuevo; por eso la lista también vive en la función, que se actualiza sin migración.
 - **La limpieza de fotos** borra por path: si alguna vez se guarda una foto sin referencia en `recipe.photo_path`, se la llevaría. El margen de 24 h cubre el alta en curso.
+
+## 7. Estado de ejecución
+
+*(Añadido después de escribir el diseño, sin tocar las secciones anteriores — quedan como registro de las decisiones tomadas en su momento.)*
+
+### Qué se implementó y en qué versión
+
+- **1.6.0** (`docs/superpowers/plans/2026-09-17-security-fixes.md`, 12 commits `5d6041c`..`bb1bd9b`): los 7 hallazgos confirmados por la auditoría run-2 — invitaciones server-minted con caducidad de 7 días, `create_household`/`redeem_invite` como `SECURITY DEFINER`, atribución protegida por trigger, `recipe_photos_read` retirada, cuota y validaciones en `recognize-pantry-item`, `shopping_check` con clave primaria opaca, y refuerzos varios.
+- **1.7.0** (`docs/superpowers/plans/2026-09-18-security-fixes-complement.md`, tareas C1-C9, commits `91ccd64`..`e25524f`): lo que este diseño pedía y 1.6.0 dejó fuera — invitaciones restringidas a admins con lista y revocación (§3.2), cierre de los `UPDATE` de columna sobre `profile`/`household` (§3.1, §3.3), validación de `photo_path` y bloqueo de filas en `save_recipe`/`finish_cook`/`leave_household`/`delete_account` (§3.3), cuota de IA realineada a 50/día y CORS/logs acotados en `recognize-pantry-item` (§3.5), secreto de cron y límite de filas por perfil en `send-timer-notifications` (§3.6), limpieza diaria de fotos huérfanas (§3.4), cabeceras de seguridad y limpieza de `signOut` (§3.8), higiene del servidor MCP (§3.8) y endurecimiento de CI (§3.9).
+
+### Las cinco desviaciones deliberadas respecto a este diseño
+
+1. **Dos fases en vez de una sola versión** (§5 pedía una). El usuario lo eligió explícitamente después de escribirse este diseño: una PWA cacheada no puede quedarse con las invitaciones rotas a medio desplegar. Lo único que queda para la Fase B es revocar el `INSERT` directo sobre `household_invite`.
+2. **El trigger de atribución rechaza en vez de forzar** (§3.3 pedía forzar `created_by`/`cooked_by = auth.uid()`). Lo implementado lanza `REZET_ATTRIBUTION_FOREIGN_HOUSEHOLD` cuando la atribución es de otro hogar: protege lo mismo, falla de forma visible en vez de silenciosa, y ya tiene tests. Por lo mismo, no se revocaron las columnas `created_by`/`cooked_by` del grant de INSERT/UPDATE que pedía §3.3.
+3. **Las pruebas de base de datos van contra PGlite, no contra producción con `ROLLBACK`** (§4 pedía lo segundo). El banco de pruebas no toca producción y corre en cada `npm test`, pero es Postgres 18 mientras producción no lo es: un banco en verde no es prueba sobre producción, solo detecta errores de SQL y de lógica.
+4. **No se escribió migración de reversión** (§4 la pedía). Cada migración es aditiva y reversible a mano con las definiciones que guardan los ficheros anteriores; si el usuario la quiere, es trabajo aparte.
+5. **La cuota vive en `recognition_usage` con ventana móvil**, no en `ai_usage(profile_id, day, count)` como decía §3.5. Equivalente, y ya estaba desplegada en 1.6.0.
+
+Y dos desviaciones más pequeñas, del mismo origen (el plan complementario, no este diseño):
+
+- **`create_invite()` devuelve solo `code`**, mientras §3.2 pedía `code`, `id` y `expires_at`. La lista de invitaciones pendientes se obtiene con una consulta aparte contra `household_invite`, no del valor de retorno de la RPC.
+- **Los tests de dominio que pedía §4 para `photo_path` y la ventana de cuota no se escribieron.** Esa lógica vive en SQL (la validación de `photo_path` en `save_recipe`) y en la Edge Function (la cuota de `recognize-pantry-item`), no en `domain/`; se cubre desde el banco de migraciones en el caso de `photo_path`, y no se cubre en absoluto en el caso de la Edge Function (queda como prueba manual tras desplegar).
+
+### Sobre la auditoría
+
+La auditoría `security-audit` **run-2** (`~/security-audit-skill/Rezet/run-2/`) es **posterior** a este diseño (que se escribió a partir de run-1) y validó los hallazgos contra la configuración real de producción — políticas, grants y triggers comprobados en vivo, no solo trazados en código.
+
+### Pendiente, acción del propietario
+
+1. **Antes del próximo push a `main`**: borrar la función huérfana `import-idea-photo` (`cd app && npx supabase functions delete import-idea-photo --project-ref raepigwmunhguzkmzukd`) — si no, la comprobación de CI que compara funciones desplegadas contra carpetas del repositorio falla a propósito y no se etiqueta la versión.
+2. **Después de desplegar**: copiar el valor de `timer_cron_secret` del Vault al secreto `TIMER_CRON_SECRET` de **ambas** funciones, `send-timer-notifications` y `cleanup-orphan-photos` (se lee con `select decrypted_secret from vault.decrypted_secrets where name = 'timer_cron_secret';`). Hasta entonces, `send-timer-notifications` acepta todo (con aviso en el log) y `cleanup-orphan-photos` no borra nada.
+3. **Definir `APP_ORIGIN`** en los secretos de la función `recognize-pantry-item`, para que la lista blanca de CORS apunte al origen de producción real en vez de solo al valor por defecto.
+4. **Invocar `cleanup-orphan-photos?dryRun=1` una vez**, a mano, antes de que el cron diario (`17 4 * * *`) la ejecute de verdad — es la única forma de comprobar esta función, que no tiene test ni tipado que la cubra.
+5. **Leer** la lista de redirecciones permitidas de Supabase Auth (un comodín ahí es un problema real).
+6. **Comprobar el tope de facturación** de la clave de Gemini.

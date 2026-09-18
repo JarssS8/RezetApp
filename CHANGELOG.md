@@ -3,6 +3,36 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.7.0] - 2026-09-18
+
+### Español
+
+**Importante**
+- Invitar a alguien a tu hogar pasa a ser cosa solo de los administradores.
+- Al crear una invitación nueva, cualquier invitación anterior sin usar caduca automáticamente.
+
+**Nuevo**
+- Los administradores pueden ver las invitaciones pendientes del hogar y anularlas antes de que se usen.
+- Las fotos de recetas que ya no se usan se limpian automáticamente.
+
+**Mejorado**
+- Límites más estrictos en el servidor para los avisos de temporizador y el reconocimiento de productos por foto.
+- Cabeceras de seguridad añadidas para proteger la app frente a contenido no autorizado.
+
+### English
+
+**Important**
+- Inviting someone to your household is now limited to household admins.
+- Creating a new invitation automatically expires any previous unused one.
+
+**New**
+- Admins can see the household's pending invitations and cancel them before they're used.
+- Recipe photos that are no longer used are cleaned up automatically.
+
+**Improved**
+- Stricter server-side limits for timer notifications and photo-based pantry recognition.
+- Security headers added to protect the app against unauthorized content.
+
 ## [1.6.0] - 2026-09-18
 
 ### Español
