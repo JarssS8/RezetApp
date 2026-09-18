@@ -278,6 +278,41 @@ describe('migraciones', () => {
     await db.close();
   }, 120_000);
 
+  // Revisión (reviewer): create_invite() insertaba solo `household_id` y
+  // confiaba en el trigger de compatibilidad para rellenar `created_by`/
+  // `expires_at`. La Fase B (docs/superpowers/plans/2026-09-17-security-fixes.md,
+  // sección "Fase B") retira ese trigger junto con el INSERT directo del
+  // cliente antiguo; este test simula justo eso dentro del banco de pruebas
+  // (mismas sentencias que documenta el plan) y comprueba que create_invite()
+  // + redeem_invite() siguen funcionando de punta a punta sin él, gracias a
+  // 20260918110100_rezet_create_invite_independent_of_trigger.
+  it('create_invite y redeem_invite siguen funcionando si se simula la Fase B (sin INSERT directo ni trigger de compatibilidad)', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+
+    await db.exec(`
+      revoke insert on public.household_invite from anon, authenticated;
+      drop policy if exists household_invite_insert on public.household_invite;
+      drop trigger if exists household_invite_server_mint_trg on public.household_invite;
+    `);
+
+    const code = await asUser(db, ana, 'select public.create_invite() as code');
+    const value = (code as { rows: { code: string }[] }).rows[0].code;
+    expect(value).toMatch(/^[0-9A-F]{10}$/);
+
+    const row = await db.query<{ created_by: string | null }>(
+      `select created_by from public.household_invite where code = '${value}'`,
+    );
+    expect(row.rows[0].created_by).toBe(ana);
+
+    await asUser(db, bruno, `select public.redeem_invite('${value}', 'Bruno')`);
+    const n = await db.query<{ n: number }>('select count(*)::int as n from public.profile');
+    expect(n.rows[0].n).toBe(2);
+    await db.close();
+  }, 120_000);
+
   it('la cuota de reconocimiento corta al llegar al límite', async () => {
     const db = await applyMigrations();
     const ana = await createAuthUser(db);

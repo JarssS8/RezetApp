@@ -1634,15 +1634,17 @@ git commit -m "Release X.Y.Z"
 
 Requiere que la Fase A esté desplegada y que los clientes instalados se hayan actualizado (`UpdatePrompt` se lo ofrece al abrir la app). Espera al menos unos días.
 
+**Actualización (revisión posterior a la Fase A):** el riesgo que motivaba esperar a esta fase con cuidado — que `create_invite()` dependiera del trigger de compatibilidad para rellenar `created_by`/`expires_at`, y que por tanto borrar ese trigger dejara todo código nuevo inservible — **ya está resuelto**. `create_invite()` y `revoke_invite()` (`20260918110100_rezet_create_invite_independent_of_trigger.sql`) ponen `created_by`/`expires_at` explícitos en su propio insert y dejan que el valor por defecto de la columna genere `code`; ya no leen nada de lo que el trigger reescriba. Un test del banco de pruebas simula la Fase B completa (revoca el INSERT, borra la política y el trigger) y confirma que `create_invite()` + `redeem_invite()` siguen funcionando de punta a punta (`migrations.test.ts`, "create_invite y redeem_invite siguen funcionando si se simula la Fase B"). La Task B1 de abajo sigue siendo necesaria — sigue habiendo que revocar el INSERT y borrar la política/el trigger/la función en producción, y actualizar el test de "sigue funcionando" con la versión real de las migraciones aplicadas — pero ya no hay que rediseñar `create_invite()` al hacerlo.
+
 ### Task B1: Revocar el INSERT directo en `household_invite`
 
 - [ ] Confirmar que ningún cliente inserta ya: `grep -rn "household_invite" app/src mcp/src` → solo lecturas y RPC.
-- [ ] Crear la migración:
+- [ ] Crear la migración (nótese que también hay que borrar la función `private.force_server_minted_invite()`, que a partir de aquí queda sin ningún trigger que la use):
 
 ```sql
 -- Fase B de la auditoría run-2. La app ya genera invitaciones con
 -- create_invite(), así que el INSERT directo del cliente deja de hacer falta y
--- el trigger de compatibilidad sobra.
+-- el trigger de compatibilidad (y la función que lo respalda) sobran.
 revoke insert on public.household_invite from anon, authenticated;
 drop policy if exists household_invite_insert on public.household_invite;
 drop trigger if exists household_invite_server_mint_trg on public.household_invite;
