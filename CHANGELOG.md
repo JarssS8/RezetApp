@@ -3,6 +3,36 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.7.2] - 2026-09-18
+
+### Español
+
+**Mejorado**
+- Tu asistente de IA recibe ahora mensajes de error claros (por ejemplo, que una receta no existe o que tiene que volver a iniciar sesión), en vez de un error sin sentido.
+- Solo los administradores del hogar pueden ver los códigos de invitación pendientes, y al generar uno nuevo se avisa de que anula el anterior.
+- Al conectar tu asistente de IA, la pantalla de permiso avisa mejor cuando la aplicación que lo pide no es de confianza.
+
+**Arreglado**
+- Borrar algo de la despensa, del plan o una receta se refleja al momento en los demás dispositivos del hogar.
+- La regla de que solo los administradores invitan se cumple también desde versiones antiguas de la app.
+- Cerrar sesión ya no se queda colgado en algunos navegadores.
+- Si falla el borrado de una receta, ya no se pierde su foto.
+- Las fotos de recetas con nombres de archivo poco habituales se guardan correctamente.
+
+### English
+
+**Improved**
+- Your AI assistant now gets clear error messages (for example, that a recipe doesn't exist or that it needs to sign in again) instead of a meaningless error.
+- Only household admins can see pending invitation codes, and generating a new one now warns that it cancels the previous one.
+- When connecting your AI assistant, the permission screen now warns more reliably when the app asking isn't trusted.
+
+**Fixed**
+- Deleting something from the pantry, the plan or a recipe now shows up immediately on the household's other devices.
+- The rule that only admins can invite now also holds for older versions of the app.
+- Signing out no longer hangs in some browsers.
+- If deleting a recipe fails, its photo is no longer lost.
+- Recipe photos with unusual file names are now saved correctly.
+
 ## [1.7.1] - 2026-09-18
 
 ### Español
