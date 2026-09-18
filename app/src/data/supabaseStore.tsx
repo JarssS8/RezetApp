@@ -512,29 +512,39 @@ export function SupabaseDataProvider({
       void (async () => {
         // El objeto `Recipe` solo trae `photoUrl` (la URL pública ya
         // derivada), no la ruta cruda del bucket, así que se lee de la fila
-        // antes de borrarla. El bucket es público: si la fila se va y el
-        // objeto se queda, la foto sigue sirviéndose por URL para siempre.
-        // El borrado del objeto va primero pero nunca debe impedir el de la
-        // fila — es lo que el usuario pidió — así que cualquier fallo aquí
-        // (red, objeto ya no existe…) se ignora.
+        // antes de borrarla — esto es solo una lectura, no hay nada que
+        // deshacer si falla. El borrado de la fila va PRIMERO: si se borrara
+        // antes el objeto de Storage y luego el borrado de la fila fallara,
+        // el rollback dejaría la receta restaurada sin foto para siempre. El
+        // borrado del objeto es best-effort y solo se intenta si la fila se
+        // borró de verdad — un objeto huérfano en Storage es inofensivo, un
+        // job diario limpia las fotos que ninguna receta referencia ya.
+        let photoPath: string | null = null;
         try {
           const { data: photoRow } = await supabase
             .from('recipe')
             .select('photo_path')
             .eq('id', id)
             .maybeSingle();
-          if (photoRow?.photo_path) {
-            await supabase.storage.from('recipe-photos').remove([photoRow.photo_path]);
-          }
+          photoPath = (photoRow?.photo_path as string | null) ?? null;
         } catch {
           // Best-effort: ver comentario de arriba.
         }
 
         const { error } = await supabase.from('recipe').delete().eq('id', id);
-        if (error && prev) {
-          queryClient.setQueryData(recipesKey, prev);
+        if (error) {
+          if (prev) queryClient.setQueryData(recipesKey, prev);
           return;
         }
+
+        if (photoPath) {
+          try {
+            await supabase.storage.from('recipe-photos').remove([photoPath]);
+          } catch {
+            // Best-effort: ver comentario de arriba.
+          }
+        }
+
         void queryClient.invalidateQueries({ queryKey: planKey });
       })();
     },
