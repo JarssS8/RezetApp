@@ -64,15 +64,13 @@ describe('migraciones', () => {
     const h = await db.query<{ household_id: string }>('select household_id from public.profile limit 1');
     const householdId = h.rows[0].household_id;
 
-    await asUser(
-      db,
-      ana,
-      `insert into public.household_invite (household_id) values ('${householdId}')`,
-    );
-    const invite = await db.query<{ code: string }>(
-      'select code from public.household_invite limit 1',
-    );
-    const code = invite.rows[0].code;
+    // La invitación se crea por la RPC: desde la Fase B
+    // (20260918214500_rezet_phase_b_revoke_invite_insert) el insert directo ya
+    // no está permitido. Lo que prueba este test es lo de siempre: que
+    // redeem_invite() puede crear el perfil aunque el cliente no tenga INSERT
+    // sobre `profile`.
+    const invite = await asUser(db, ana, 'select public.create_invite() as code');
+    const code = (invite as { rows: { code: string }[] }).rows[0].code;
 
     await asUser(db, bruno, `select public.redeem_invite('${code}', 'Bruno')`);
 
@@ -177,27 +175,24 @@ describe('migraciones', () => {
     await db.close();
   }, 120_000);
 
-  it('el insert directo del cliente antiguo produce un código válido igualmente', async () => {
+  // Fase B (20260918214500_rezet_phase_b_revoke_invite_insert): hasta aquí el
+  // insert directo del cliente antiguo se aceptaba y el trigger de
+  // compatibilidad lo reescribía en un código válido. Ahora el permiso ya no
+  // existe, así que ni admins ni nadie puede crear invitaciones fuera de
+  // create_invite().
+  it('el insert directo ya no está permitido ni para un admin', async () => {
     const db = await applyMigrations();
     const ana = await createAuthUser(db);
-    const bruno = await createAuthUser(db);
     await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
 
     const h = await db.query<{ household_id: string }>('select household_id from public.profile limit 1');
-    await asUser(
-      db,
-      ana,
-      `insert into public.household_invite (household_id) values ('${h.rows[0].household_id}')`,
-    );
-    // household_invite no tiene `created_at`; como el trigger de compatibilidad
-    // fija `expires_at = now() + 7 días` en cada insert y esta es la única fila
-    // del hogar en este test, ordenar por `expires_at` desc basta para coger la
-    // recién minada.
-    const row = await db.query<{ code: string; created_by: string | null }>(
-      'select code, created_by from public.household_invite order by expires_at desc limit 1',
-    );
-    expect(row.rows[0].created_by).toBe(ana);
-    await asUser(db, bruno, `select public.redeem_invite('${row.rows[0].code}', 'Bruno')`);
+    await expect(
+      asUser(
+        db,
+        ana,
+        `insert into public.household_invite (household_id) values ('${h.rows[0].household_id}')`,
+      ),
+    ).rejects.toThrow(/permission denied/i);
     await db.close();
   }, 120_000);
 
@@ -205,7 +200,11 @@ describe('migraciones', () => {
   // caducidad/autoría de cualquier insert directo sin comprobar admin, así
   // que un miembro cualquiera podía minar un código válido para su propio
   // hogar. Desde 20260918110000_rezet_admin_only_invite_trigger_and_select
-  // el propio trigger exige admin.
+  // el propio trigger exigía admin, y desde la Fase B
+  // (20260918214500_rezet_phase_b_revoke_invite_insert) el permiso de INSERT ya
+  // no existe: el rechazo pasa de ser del trigger (REZET_NOT_ADMIN) a ser del
+  // propio Postgres. Se deja el caso porque el no admin es el escenario que
+  // motivó el arreglo.
   it('el insert directo de un no admin es rechazado', async () => {
     const db = await applyMigrations();
     const ana = await createAuthUser(db);
@@ -227,7 +226,9 @@ describe('migraciones', () => {
         bruno,
         `insert into public.household_invite (household_id) values ('${h.rows[0].household_id}')`,
       ),
-    ).rejects.toThrow(/REZET_NOT_ADMIN/);
+    ).rejects.toThrow(/permission denied/i);
+    // Y por la vía buena tampoco: create_invite() sigue exigiendo admin.
+    await expect(asUser(db, bruno, 'select public.create_invite()')).rejects.toThrow(/REZET_NOT_ADMIN/);
     await db.close();
   }, 120_000);
 
@@ -251,52 +252,55 @@ describe('migraciones', () => {
     await db.close();
   }, 120_000);
 
-  it('el insert directo de un admin sigue funcionando y caduca el código pendiente anterior', async () => {
+  // El caso "el insert directo de un admin sigue funcionando y caduca el código
+  // pendiente anterior" desaparece con la Fase B: esa vía ya no existe. Lo que
+  // seguía importando de él — que crear una invitación caduca la anterior sin
+  // usar — lo cubre "crear una invitación nueva caduca la anterior sin usar"
+  // por la vía de create_invite().
+
+  it('el andamio de compatibilidad de la Fase A ya no existe', async () => {
     const db = await applyMigrations();
-    const ana = await createAuthUser(db);
-    const bruno = await createAuthUser(db);
-    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
 
-    const first = await asUser(db, ana, 'select public.create_invite() as code');
-    const firstCode = (first as { rows: { code: string }[] }).rows[0].code;
-
-    const h = await db.query<{ household_id: string }>('select household_id from public.profile limit 1');
-    await asUser(
-      db,
-      ana,
-      `insert into public.household_invite (household_id) values ('${h.rows[0].household_id}')`,
+    const trg = await db.query<{ n: number }>(
+      `select count(*)::int as n from pg_trigger
+       where tgrelid = 'public.household_invite'::regclass and not tgisinternal`,
     );
+    expect(trg.rows[0].n).toBe(0);
 
-    // El código anterior queda caducado por el propio insert directo.
-    await expect(asUser(db, bruno, `select public.redeem_invite('${firstCode}', 'Bruno')`)).rejects.toThrow();
-
-    const row = await db.query<{ code: string; created_by: string | null }>(
-      'select code, created_by from public.household_invite order by expires_at desc limit 1',
+    const fn = await db.query<{ n: number }>(
+      `select count(*)::int as n from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'private' and p.proname = 'force_server_minted_invite'`,
     );
-    expect(row.rows[0].created_by).toBe(ana);
-    await asUser(db, bruno, `select public.redeem_invite('${row.rows[0].code}', 'Bruno')`);
+    expect(fn.rows[0].n).toBe(0);
+
+    const pol = await db.query<{ n: number }>(
+      `select count(*)::int as n from pg_policies
+       where schemaname = 'public' and tablename = 'household_invite' and cmd = 'INSERT'`,
+    );
+    expect(pol.rows[0].n).toBe(0);
+
+    // El revoke alcanza también a service_role, que se salta RLS.
+    const priv = await db.query<{ anon: boolean; auth: boolean; svc: boolean }>(
+      `select has_table_privilege('anon', 'public.household_invite', 'INSERT') as anon,
+              has_table_privilege('authenticated', 'public.household_invite', 'INSERT') as auth,
+              has_table_privilege('service_role', 'public.household_invite', 'INSERT') as svc`,
+    );
+    expect(priv.rows[0]).toEqual({ anon: false, auth: false, svc: false });
     await db.close();
   }, 120_000);
 
   // Revisión (reviewer): create_invite() insertaba solo `household_id` y
   // confiaba en el trigger de compatibilidad para rellenar `created_by`/
-  // `expires_at`. La Fase B (docs/superpowers/plans/2026-09-17-security-fixes.md,
-  // sección "Fase B") retira ese trigger junto con el INSERT directo del
-  // cliente antiguo; este test simula justo eso dentro del banco de pruebas
-  // (mismas sentencias que documenta el plan) y comprueba que create_invite()
-  // + redeem_invite() siguen funcionando de punta a punta sin él, gracias a
-  // 20260918110100_rezet_create_invite_independent_of_trigger.
-  it('create_invite y redeem_invite siguen funcionando si se simula la Fase B (sin INSERT directo ni trigger de compatibilidad)', async () => {
+  // `expires_at`; 20260918110100_rezet_create_invite_independent_of_trigger lo
+  // hizo independiente. Este test lo simulaba revocando y borrando a mano; con
+  // la Fase B aplicada (20260918214500_rezet_phase_b_revoke_invite_insert) esa
+  // simulación sobra y el banco prueba el estado real.
+  it('create_invite y redeem_invite siguen funcionando sin el trigger de compatibilidad (Fase B aplicada)', async () => {
     const db = await applyMigrations();
     const ana = await createAuthUser(db);
     const bruno = await createAuthUser(db);
     await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
-
-    await db.exec(`
-      revoke insert on public.household_invite from anon, authenticated;
-      drop policy if exists household_invite_insert on public.household_invite;
-      drop trigger if exists household_invite_server_mint_trg on public.household_invite;
-    `);
 
     const code = await asUser(db, ana, 'select public.create_invite() as code');
     const value = (code as { rows: { code: string }[] }).rows[0].code;
