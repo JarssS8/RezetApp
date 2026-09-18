@@ -3,6 +3,22 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.7.1] - 2026-09-18
+
+### Español
+
+**Arreglado**
+- Cerrar sesión ya solo te saca del dispositivo en el que lo haces; antes te sacaba también de los demás, incluido tu asistente de IA.
+- Cerrar sesión en un dispositivo ya no cancela un temporizador que tengas en marcha en otro.
+- Al exportar la lista de la compra a komprapp, lo que se cuenta por unidades llega como "ud" y no como "paq".
+
+### English
+
+**Fixed**
+- Signing out now only signs you out of the device you're using; before, it also signed you out of your other devices, including your AI assistant.
+- Signing out on one device no longer cancels a timer you have running on another.
+- When exporting the shopping list to komprapp, items counted by unit now arrive as "ud" instead of "paq".
+
 ## [1.7.0] - 2026-09-18
 
 ### Español
