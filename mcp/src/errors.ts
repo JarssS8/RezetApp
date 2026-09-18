@@ -28,22 +28,31 @@ export function toolError(e: unknown): CallToolResult {
   }
 
   if (e instanceof PostgrestError) {
+    // El texto de Postgres (e.message/e.details) puede filtrar nombres de columna, restricciones u
+    // otros detalles internos del esquema — nunca sale hacia el modelo. El código sí, en el log,
+    // porque ayuda a depurar sin exponer nada al cliente.
     switch (e.code) {
       case '42501':
-        return errorText(`rezet: not allowed / not found in this household (${e.message})`);
+        console.error('[rezet-mcp] not allowed (42501)', e.code);
+        return errorText('rezet: not allowed / not found in this household');
       case 'PGRST116':
-        return errorText(`rezet: not found (${e.message})`);
+        console.error('[rezet-mcp] not found (PGRST116)', e.code);
+        return errorText('rezet: not found');
       case 'P0001':
-        return errorText(`rezet: ${e.message}`);
+        console.error('[rezet-mcp] database rule violation (P0001)', e.code);
+        return errorText('rezet: database rule violation');
       case '22P02':
-        return errorText(`rezet: invalid value: ${e.message}. Allowed units: g, ml, ud, tbsp`);
+        console.error('[rezet-mcp] invalid input value (22P02)', e.code);
+        return errorText('rezet: invalid value. Allowed units: g, ml, ud, tbsp');
       case '23514':
-        return errorText(`rezet: constraint violated: ${e.details || e.message}`);
+        console.error('[rezet-mcp] constraint violated (23514)', e.code);
+        return errorText('rezet: constraint violated');
       case '23505':
-        return errorText(`rezet: already exists: ${e.details || e.message}`);
+        console.error('[rezet-mcp] already exists (23505)', e.code);
+        return errorText('rezet: already exists');
       default:
-        console.error('[rezet-mcp] unhandled PostgrestError', e);
-        return errorText(`rezet: unexpected database error: ${e.message}`);
+        console.error('[rezet-mcp] unhandled PostgrestError', e.code, e);
+        return errorText('rezet: unexpected database error');
     }
   }
 

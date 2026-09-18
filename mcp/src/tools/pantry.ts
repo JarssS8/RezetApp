@@ -78,6 +78,7 @@ export function register(server: McpServer, ctx: Ctx): void {
         .from('pantry_item')
         .select('id, ingredient_id, quantity, unit, location, expires_on')
         .eq('id', id)
+        .eq('household_id', ctx.householdId)
         .single();
       if (rowError) throw rowError;
 

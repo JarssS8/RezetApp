@@ -52,6 +52,16 @@ function parseArgs(argv: string[]): Args {
   return { provider, port, logout };
 }
 
+/** Escapes text for use inside HTML content. Apply to every value taken from the OAuth callback query string. */
+function sanitizeText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function openBrowser(url: string): void {
   const attempts: [string, string[]][] = [
     ['wslview', [url]],
@@ -87,7 +97,7 @@ async function waitForCallback(
       const errorDescription = url.searchParams.get('error_description');
       if (error) {
         res.writeHead(400, { 'content-type': 'text/html' }).end(
-          `<p>Rezet MCP: sign-in failed — ${error}: ${errorDescription ?? ''}</p>`
+          `<p>Rezet MCP: sign-in failed — ${sanitizeText(error)}: ${sanitizeText(errorDescription ?? '')}</p>`
         );
         server.close();
         reject(new Error(`OAuth callback error: ${error} ${errorDescription ?? ''}`));
