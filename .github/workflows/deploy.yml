@@ -51,10 +51,53 @@ jobs:
             functions:
               - 'app/supabase/functions/**'
 
-  migrations:
+  # Puerta de calidad ANTES de tocar producción. Antes los tests solo corrían
+  # dentro de los jobs `app` y `mcp`, que dependen de `migrations`: una
+  # migración rota se aplicaba en producción y los tests la detectaban después,
+  # con el daño hecho. `npm test` en app/ incluye el banco de migraciones
+  # (PGlite), y las Edge Functions no entran en ningún tsc, así que se
+  # comprueban con `deno check`.
+  test:
     needs: changes
     if: >-
       github.ref == 'refs/heads/main' &&
+      (needs.changes.outputs.migrations == 'true' || needs.changes.outputs.functions == 'true' ||
+       needs.changes.outputs.app == 'true' || needs.changes.outputs.mcp == 'true' ||
+       github.event.inputs.force_all == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            app/package-lock.json
+            mcp/package-lock.json
+      - name: App — lint y tests (incluye el banco de migraciones)
+        working-directory: app
+        run: |
+          npm ci
+          npm run lint
+          npm test
+      - name: Edge Functions — deno check
+        working-directory: app
+        run: |
+          for fn in supabase/functions/*/index.ts; do
+            npx --yes deno@2 check --node-modules-dir=none "$fn"
+          done
+      - name: MCP — tipos, lint y tests
+        working-directory: mcp
+        run: |
+          npm ci
+          npm run types:worker
+          npm run lint
+          npm test
+
+  migrations:
+    needs: [changes, test]
+    if: >-
+      !cancelled() && github.ref == 'refs/heads/main' && needs.test.result == 'success' &&
       (needs.changes.outputs.migrations == 'true' || github.event.inputs.force_all == 'true')
     runs-on: ubuntu-latest
     defaults:
@@ -79,9 +122,9 @@ jobs:
         run: supabase db push --db-url "$SUPABASE_DB_URL"
 
   functions:
-    needs: [changes, migrations]
+    needs: [changes, test, migrations]
     if: >-
-      !cancelled() && github.ref == 'refs/heads/main' && needs.changes.result == 'success' && needs.migrations.result != 'failure' &&
+      !cancelled() && github.ref == 'refs/heads/main' && needs.changes.result == 'success' && needs.test.result == 'success' && needs.migrations.result != 'failure' &&
       (needs.changes.outputs.functions == 'true' || github.event.inputs.force_all == 'true')
     runs-on: ubuntu-latest
     env:
@@ -118,9 +161,9 @@ jobs:
           echo "Sin funciones huérfanas."
 
   app:
-    needs: [changes, migrations]
+    needs: [changes, test, migrations]
     if: >-
-      !cancelled() && github.ref == 'refs/heads/main' && needs.changes.result == 'success' && needs.migrations.result != 'failure' &&
+      !cancelled() && github.ref == 'refs/heads/main' && needs.changes.result == 'success' && needs.test.result == 'success' && needs.migrations.result != 'failure' &&
       (needs.changes.outputs.app == 'true' || github.event.inputs.force_all == 'true')
     runs-on: ubuntu-latest
     defaults:
@@ -154,9 +197,9 @@ jobs:
           command: deploy
 
   mcp:
-    needs: [changes, migrations]
+    needs: [changes, test, migrations]
     if: >-
-      !cancelled() && github.ref == 'refs/heads/main' && needs.changes.result == 'success' && needs.migrations.result != 'failure' &&
+      !cancelled() && github.ref == 'refs/heads/main' && needs.changes.result == 'success' && needs.test.result == 'success' && needs.migrations.result != 'failure' &&
       (needs.changes.outputs.mcp == 'true' || github.event.inputs.force_all == 'true')
     runs-on: ubuntu-latest
     defaults:
@@ -185,9 +228,11 @@ jobs:
   # Tags vX.Y.Z (app/package.json) and publishes its CHANGELOG.md section, only once
   # every deploy job has succeeded, so a tag always matches what is live.
   release:
-    needs: [changes, migrations, functions, app, mcp]
+    # `test` va en needs aunque no despliegue nada: si falla, los despliegues se
+    # SALTAN (no fallan), y sin esta dependencia se publicaría la versión igual.
+    needs: [changes, test, migrations, functions, app, mcp]
     if: >-
-      !cancelled() && github.ref == 'refs/heads/main' && needs.changes.result == 'success' && !contains(needs.*.result, 'failure')
+      !cancelled() && github.ref == 'refs/heads/main' && needs.changes.result == 'success' && needs.test.result == 'success' && !contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     permissions:
       contents: write
