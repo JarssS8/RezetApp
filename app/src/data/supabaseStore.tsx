@@ -307,12 +307,36 @@ export function SupabaseDataProvider({
       .channel(`household-${householdId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'pantry_item', filter: `household_id=eq.${householdId}` },
+        { event: 'INSERT', schema: 'public', table: 'pantry_item', filter: `household_id=eq.${householdId}` },
         () => queryClient.invalidateQueries({ queryKey: pantryKey }),
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'plan_entry', filter: `household_id=eq.${householdId}` },
+        { event: 'UPDATE', schema: 'public', table: 'pantry_item', filter: `household_id=eq.${householdId}` },
+        () => queryClient.invalidateQueries({ queryKey: pantryKey }),
+      )
+      .on(
+        // Los DELETE no se pueden filtrar salvo con `replica identity full`, que ninguna de estas
+        // tablas tiene — por defecto el evento de borrado no lleva household_id (solo la clave
+        // primaria). Se invalida sin filtrar y sin leer el payload: el refetch pasa por RLS.
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'pantry_item' },
+        () => queryClient.invalidateQueries({ queryKey: pantryKey }),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'plan_entry', filter: `household_id=eq.${householdId}` },
+        () => queryClient.invalidateQueries({ queryKey: planKey }),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'plan_entry', filter: `household_id=eq.${householdId}` },
+        () => queryClient.invalidateQueries({ queryKey: planKey }),
+      )
+      .on(
+        // Mismo motivo que pantry_item arriba.
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'plan_entry' },
         () => queryClient.invalidateQueries({ queryKey: planKey }),
       )
       .on(
@@ -330,7 +354,18 @@ export function SupabaseDataProvider({
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'recipe', filter: `household_id=eq.${householdId}` },
+        { event: 'INSERT', schema: 'public', table: 'recipe', filter: `household_id=eq.${householdId}` },
+        () => queryClient.invalidateQueries({ queryKey: recipesKey }),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'recipe', filter: `household_id=eq.${householdId}` },
+        () => queryClient.invalidateQueries({ queryKey: recipesKey }),
+      )
+      .on(
+        // Mismo motivo que pantry_item arriba.
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'recipe' },
         () => queryClient.invalidateQueries({ queryKey: recipesKey }),
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'recipe_ingredient' }, () =>
