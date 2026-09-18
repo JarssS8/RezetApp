@@ -47,6 +47,11 @@ export const es = {
   copiedLink: 'Enlace copiado',
   generateInvite: 'Generar invitación',
   scanToJoin: 'O escanea para unirse',
+  inviteNotAdminError: 'Solo un administrador de este hogar puede gestionar las invitaciones.',
+  pendingInvitesTitle: 'Invitaciones pendientes',
+  inviteExpiresOn: (date: string) => `Caduca el ${date}`,
+  revokeInvite: 'Anular invitación',
+  inviteRevoked: 'Invitación anulada',
 
   skip: 'Saltar',
   next: 'Siguiente',

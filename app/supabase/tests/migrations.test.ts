@@ -110,12 +110,70 @@ describe('migraciones', () => {
     const firstCode = (first as { rows: { code: string }[] }).rows[0].code;
     await asUser(db, bruno, `select public.redeem_invite('${firstCode}', 'Bruno')`);
 
+    // create_invite ahora exige admin: Bruno entró por redeem_invite, que lo
+    // crea con is_admin = false, así que Ana lo promueve antes de que mintee.
+    await asUser(db, ana, `select public.promote_admin('${bruno}'::uuid)`);
     // Bruno mintea un código y se va del hogar.
     const stash = await asUser(db, bruno, 'select public.create_invite() as code');
     const stashed = (stash as { rows: { code: string }[] }).rows[0].code;
     await asUser(db, bruno, 'select public.leave_household()');
 
     await expect(asUser(db, carla, `select public.redeem_invite('${stashed}', 'Carla')`)).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('un miembro no admin no puede crear invitaciones', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const code = await asUser(db, ana, 'select public.create_invite() as code');
+    await asUser(db, bruno, `select public.redeem_invite('${(code as { rows: { code: string }[] }).rows[0].code}', 'Bruno')`);
+
+    await expect(asUser(db, bruno, 'select public.create_invite() as code')).rejects.toThrow(/REZET_NOT_ADMIN/);
+    await db.close();
+  }, 120_000);
+
+  it('un admin sí puede crear invitaciones', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const result = await asUser(db, ana, 'select public.create_invite() as code');
+    expect((result as { rows: { code: string }[] }).rows[0].code).toMatch(/^[0-9A-F]{10}$/);
+    await db.close();
+  }, 120_000);
+
+  it('crear una invitación nueva caduca la anterior sin usar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const first = await asUser(db, ana, 'select public.create_invite() as code');
+    const firstCode = (first as { rows: { code: string }[] }).rows[0].code;
+    // La segunda invitación caduca la primera antes de crearse.
+    await asUser(db, ana, 'select public.create_invite() as code');
+
+    await expect(asUser(db, bruno, `select public.redeem_invite('${firstCode}', 'Bruno')`)).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('revoke_invite de un no admin falla', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const code = await asUser(db, ana, 'select public.create_invite() as code');
+    await asUser(db, bruno, `select public.redeem_invite('${(code as { rows: { code: string }[] }).rows[0].code}', 'Bruno')`);
+
+    const invite = await db.query<{ id: string }>('select id from public.household_invite limit 1');
+
+    await expect(
+      asUser(db, bruno, `select public.revoke_invite('${invite.rows[0].id}'::uuid)`),
+    ).rejects.toThrow(/REZET_NOT_ADMIN/);
     await db.close();
   }, 120_000);
 

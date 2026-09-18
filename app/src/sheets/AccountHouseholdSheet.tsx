@@ -41,7 +41,7 @@ export function AccountHouseholdSheet({
   onToast?: (msg: string) => void;
 }) {
   const { t } = usePrefs();
-  const { registerPasskey } = useAuth();
+  const { registerPasskey, profile } = useAuth();
   const [passkeyBusy, setPasskeyBusy] = useState(false);
 
   const addPasskey = async () => {
@@ -101,9 +101,11 @@ export function AccountHouseholdSheet({
               </span>
               <Icon name="chevronRight" size={16} strokeWidth={2.2} />
             </Pressable>
-            <Pressable onClick={onInvite} scale={0.98} style={rowStyle}>
-              {t.inviteSomeone}
-            </Pressable>
+            {profile?.isAdmin && (
+              <Pressable onClick={onInvite} scale={0.98} style={rowStyle}>
+                {t.inviteSomeone}
+              </Pressable>
+            )}
           </div>
         </div>
 

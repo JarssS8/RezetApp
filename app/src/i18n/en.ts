@@ -48,6 +48,11 @@ export const en: Dictionary = {
   copiedLink: 'Link copied',
   generateInvite: 'Generate invite',
   scanToJoin: 'Or scan to join',
+  inviteNotAdminError: 'Only an admin of this household can manage invites.',
+  pendingInvitesTitle: 'Pending invites',
+  inviteExpiresOn: (date: string) => `Expires on ${date}`,
+  revokeInvite: 'Revoke invite',
+  inviteRevoked: 'Invite revoked',
 
   skip: 'Skip',
   next: 'Next',

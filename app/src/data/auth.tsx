@@ -7,6 +7,8 @@ export interface Profile {
   householdId: string;
   displayName: string;
   onboardedAt: string | null;
+  /** Admin del hogar propio: decide si `AccountHouseholdSheet` enseña la fila de invitar. */
+  isAdmin: boolean;
 }
 
 /**
@@ -47,7 +49,7 @@ const Ctx = createContext<AuthContextValue | null>(null);
 async function loadProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profile')
-    .select('id, household_id, display_name, onboarded_at')
+    .select('id, household_id, display_name, onboarded_at, is_admin')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw error;
@@ -57,6 +59,7 @@ async function loadProfile(userId: string): Promise<Profile | null> {
     householdId: data.household_id as string,
     displayName: data.display_name as string,
     onboardedAt: (data.onboarded_at as string | null) ?? null,
+    isAdmin: data.is_admin as boolean,
   };
 }
 
