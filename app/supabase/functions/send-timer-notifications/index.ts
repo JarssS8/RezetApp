@@ -31,7 +31,21 @@ function isAllowedEndpoint(endpoint: string): boolean {
  * toda Edge Function) para saltarse RLS — esta función necesita ver los
  * temporizadores y suscripciones de TODOS los hogares, no solo uno.
  */
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  // Diseño §3.6: el cron manda un secreto propio (`x-rezet-cron`), no solo la
+  // publishable key (pública, viaja en el bundle del cliente). Despliegue
+  // tolerante: mientras `TIMER_CRON_SECRET` no esté configurado en el entorno
+  // de la función, no se rechaza nada, para no cortar los avisos en silencio
+  // el día que se active esta comprobación.
+  const cronSecret = Deno.env.get("TIMER_CRON_SECRET");
+  if (cronSecret) {
+    if (req.headers.get("x-rezet-cron") !== cronSecret) {
+      return new Response("unauthorized", { status: 401 });
+    }
+  } else {
+    console.warn("send-timer-notifications: TIMER_CRON_SECRET sin configurar");
+  }
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceKey);
@@ -40,7 +54,9 @@ Deno.serve(async () => {
     .from("app_secret")
     .select("key, value");
   if (secretError) {
-    return new Response(JSON.stringify({ error: secretError.message }), { status: 500 });
+    // Sin volcar secretError.message: puede llevar detalle interno de Postgres.
+    console.error("send-timer-notifications: failed to read app_secret");
+    return new Response(JSON.stringify({ error: "failed to read secrets" }), { status: 500 });
   }
   const secrets = Object.fromEntries((secretRows ?? []).map((s) => [s.key, s.value]));
   if (!secrets.VAPID_PUBLIC_KEY || !secrets.VAPID_PRIVATE_KEY) {
@@ -58,7 +74,8 @@ Deno.serve(async () => {
     .lte("ends_at", new Date().toISOString())
     .is("notified_at", null);
   if (dueError) {
-    return new Response(JSON.stringify({ error: dueError.message }), { status: 500 });
+    console.error("send-timer-notifications: failed to read cook_timer");
+    return new Response(JSON.stringify({ error: "failed to read cook_timer" }), { status: 500 });
   }
 
   let sent = 0;

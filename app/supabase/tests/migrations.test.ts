@@ -463,4 +463,104 @@ describe('migraciones', () => {
     ]);
     await db.close();
   }, 120_000);
+
+  // Task C5 — límite de filas por perfil (private.limit_rows_per_profile).
+  it('push_subscription no admite más de 10 filas por perfil', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+
+    await asUser(
+      db,
+      ana,
+      `insert into public.push_subscription (profile_id, endpoint, p256dh, auth)
+       select '${ana}'::uuid, 'https://fcm.googleapis.com/send/' || g, 'p256dh', 'auth'
+       from generate_series(1, 10) as g`,
+    );
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `insert into public.push_subscription (profile_id, endpoint, p256dh, auth)
+         values ('${ana}'::uuid, 'https://fcm.googleapis.com/send/11', 'p256dh', 'auth')`,
+      ),
+    ).rejects.toThrow(/REZET_TOO_MANY_ROWS/);
+    await db.close();
+  }, 120_000);
+
+  it('cook_timer no admite más de 50 filas por perfil', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ household_id: string }>(
+      `select household_id from public.profile where id = '${ana}'`,
+    );
+    const householdId = h.rows[0].household_id;
+    const recipeRes = (await asUser(
+      db,
+      ana,
+      `insert into public.recipe (household_id, name, base_servings, created_by)
+       values ('${householdId}', 'Tortilla', 2, '${ana}') returning id`,
+    )) as { rows: { id: string }[] };
+    const recipeId = recipeRes.rows[0].id;
+
+    await asUser(
+      db,
+      ana,
+      `insert into public.cook_timer (household_id, profile_id, recipe_id, step_index, ends_at)
+       select '${householdId}'::uuid, '${ana}'::uuid, '${recipeId}'::uuid, g, now() + interval '10 minutes'
+       from generate_series(0, 49) as g`,
+    );
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `insert into public.cook_timer (household_id, profile_id, recipe_id, step_index, ends_at)
+         values ('${householdId}'::uuid, '${ana}'::uuid, '${recipeId}'::uuid, 50, now() + interval '10 minutes')`,
+      ),
+    ).rejects.toThrow(/REZET_TOO_MANY_ROWS/);
+    await db.close();
+  }, 120_000);
+
+  // El motivo de usar AFTER en vez de BEFORE: `useCookTimerSync.ts:26` hace
+  // upsert con `onConflict: 'profile_id,recipe_id,step_index'`. Con el perfil
+  // ya en el tope, reenviar un temporizador que YA existe (camino UPDATE del
+  // upsert) no debe fallar, aunque no libere ninguna fila nueva.
+  it('con el perfil en el tope de cook_timer, re-sincronizar un temporizador existente sigue funcionando', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ household_id: string }>(
+      `select household_id from public.profile where id = '${ana}'`,
+    );
+    const householdId = h.rows[0].household_id;
+    const recipeRes = (await asUser(
+      db,
+      ana,
+      `insert into public.recipe (household_id, name, base_servings, created_by)
+       values ('${householdId}', 'Tortilla', 2, '${ana}') returning id`,
+    )) as { rows: { id: string }[] };
+    const recipeId = recipeRes.rows[0].id;
+
+    await asUser(
+      db,
+      ana,
+      `insert into public.cook_timer (household_id, profile_id, recipe_id, step_index, ends_at)
+       select '${householdId}'::uuid, '${ana}'::uuid, '${recipeId}'::uuid, g, now() + interval '10 minutes'
+       from generate_series(0, 49) as g`,
+    );
+
+    // No debe lanzar REZET_TOO_MANY_ROWS: la fila con step_index 0 ya existe,
+    // así que el conflicto la actualiza en vez de insertarla.
+    await asUser(
+      db,
+      ana,
+      `insert into public.cook_timer (household_id, profile_id, recipe_id, step_index, ends_at)
+       values ('${householdId}'::uuid, '${ana}'::uuid, '${recipeId}'::uuid, 0, now() + interval '20 minutes')
+       on conflict (profile_id, recipe_id, step_index) do update set ends_at = excluded.ends_at`,
+    );
+    await db.close();
+  }, 120_000);
 });
