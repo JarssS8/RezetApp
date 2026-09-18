@@ -7,7 +7,7 @@
 
 export const KOMPRAPP_BASE_URL = 'https://shop.jarsss8.es';
 
-export type KomprappUnit = 'g' | 'ml' | 'paq';
+export type KomprappUnit = 'g' | 'ml' | 'ud' | 'paq';
 
 export interface KomprappExportItem {
   name: string;
@@ -21,12 +21,12 @@ interface ExportableNeed {
   unit: string;
 }
 
-const UNIT_MAP: Record<string, KomprappUnit> = { g: 'g', ml: 'ml', ud: 'paq' };
+const UNIT_MAP: Record<string, KomprappUnit> = { g: 'g', ml: 'ml', ud: 'ud' };
 
 /**
  * `shoppingNeeds()` no redondea su `gap` (resta de despensa sobre una
  * cantidad ya escalada con el exponente 0.55) — puede llegar como 333.3 o
- * 0.7. komprapp trunca hacia abajo (`Math.floor`) para g/ml/paq y convierte
+ * 0.7. komprapp trunca hacia abajo (`Math.floor`) para g/ml/ud/paq y convierte
  * cualquier resultado <= 0 en cadena vacía (item sin cantidad, silencioso).
  * Redondeamos hacia arriba aquí para no comprar de menos ni perder el dato.
  */

@@ -48,9 +48,10 @@ import_shopping_items(p_token text, p_items jsonb) RETURNS integer
   - Cada item requiere `name` no vacío, recortado a 200 caracteres.
   - `quantity`: numérico positivo o `null`.
   - `unit`: solo se acepta si está en el vocabulario real de komprapp
-    (`g`,`kg`,`ml`,`L`,`paq` — ver `UNITS` en `src/data.jsx:958`); cualquier
-    otro valor se guarda como `null`. Nunca se mete texto libre del cliente en
-    la columna `unit`.
+    (`g`,`kg`,`ml`,`L`,`ud`,`paq` — ver `UNITS` en `src/data.jsx:958`; komprapp
+    añadió `ud` para unidades sueltas, por lo que Rezet ya no traduce
+    `ud → 'paq'` al exportar); cualquier otro valor se guarda como `null`.
+    Nunca se mete texto libre del cliente en la columna `unit`.
 - Inserta una fila por item en `products` (`id` generado con
   `gen_random_uuid()`, `category NULL` — se autoinfiere del lado de komprapp
   igual que en el flujo de enlace, no aquí), y devuelve cuántas insertó.

@@ -65,8 +65,9 @@ No colisiona con el flujo existente de "unirse a lista por token"
 - **`src/domain/komprappExport.ts`** (puro, con test) — dado un
   `ShoppingNeed[]`, produce el payload:
   - `unit` se traduce al vocabulario de komprapp: `g → g`, `ml → ml`,
-    `ud → 'paq'` (unidad más cercana que tiene komprapp). `tbsp` no tiene
-    equivalente en komprapp — se funde en el nombre como texto
+    `ud → 'ud'` (komprapp ya tiene unidad de unidades; `'paq'` se deja en el
+    tipo por si algún día vuelve a hacer falta, pero ya no se usa desde aquí).
+    `tbsp` no tiene equivalente en komprapp — se funde en el nombre como texto
     (`"Sal (2 cucharadas)"`) y el item va sin `unit`/`quantity` numérica
     separada.
   - `category` no se manda nunca: los ~25 rubros de supermercado de

@@ -22,11 +22,11 @@ describe('toKomprappItem', () => {
     });
   });
 
-  it('mapea unidad suelta (ud) a paq redondeando hacia arriba', () => {
+  it('mapea unidad suelta (ud) a ud redondeando hacia arriba', () => {
     expect(toKomprappItem({ name: 'Huevos', quantity: 6, unit: 'ud' })).toEqual({
       name: 'Huevos',
       quantity: 6,
-      unit: 'paq',
+      unit: 'ud',
     });
     // 0.7 ud sin redondear llegaría a komprapp como 0 (su normalizeQty hace
     // Math.floor y convierte <=0 en cadena vacía) — el item desaparecería
@@ -34,7 +34,7 @@ describe('toKomprappItem', () => {
     expect(toKomprappItem({ name: 'Aguacate', quantity: 0.7, unit: 'ud' })).toEqual({
       name: 'Aguacate',
       quantity: 1,
-      unit: 'paq',
+      unit: 'ud',
     });
   });
 
@@ -76,11 +76,12 @@ describe('buildKomprappImportUrl', () => {
   // Fixture dorado: el mismo objeto y el mismo base64url están hardcodeados
   // también en el test de `import-core.js` (komprapp, Task 3). Si algún día
   // cambia el formato del payload en un lado y no en el otro, este test (o
-  // su gemelo del otro repo) lo detecta.
+  // su gemelo del otro repo) lo detecta. Actualizado a `unit: 'ud'` porque
+  // komprapp ya tiene unidad de unidades y Rezet dejó de traducir a 'paq'.
   it('produce exactamente el payload del fixture dorado compartido con komprapp', () => {
     const url = buildKomprappImportUrl([{ name: 'Piña', quantity: 1, unit: 'ud' }], KOMPRAPP_BASE_URL);
     const payload = url.split('/#/import/')[1];
-    expect(payload).toBe('eyJ2IjoxLCJpdGVtcyI6W3sibmFtZSI6IlBpw7FhIiwicXVhbnRpdHkiOjEsInVuaXQiOiJwYXEifV19');
+    expect(payload).toBe('eyJ2IjoxLCJpdGVtcyI6W3sibmFtZSI6IlBpw7FhIiwicXVhbnRpdHkiOjEsInVuaXQiOiJ1ZCJ9XX0');
   });
 
   it('soporta nombres con acentos/eñes sin corromper el UTF-8', () => {
