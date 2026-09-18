@@ -16,16 +16,30 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
  */
 const GEMINI_MODEL = "gemini-3.6-flash";
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// Diseño §3.5: CORS por lista, no `*`. Una lista (no un origen único) para no
+// dejar sin función el `npm run dev` de quien siga trabajando en esto: el
+// origen de producción se define en el secreto `APP_ORIGIN` y el de Vite en
+// desarrollo se deja fijo.
+const ALLOWED_ORIGINS = new Set([
+  Deno.env.get("APP_ORIGIN") ?? "https://rezet.jarsss8.es",
+  "http://localhost:5173", // vite dev
+]);
 
-function json(body: unknown, status = 200): Response {
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin");
+  const allowOrigin = origin && ALLOWED_ORIGINS.has(origin) ? origin : [...ALLOWED_ORIGINS][0];
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    Vary: "Origin",
+  };
+}
+
+function json(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    headers: { ...corsHeaders(req), "Content-Type": "application/json" },
   });
 }
 
@@ -41,12 +55,12 @@ Si no reconoces el producto, devuelve todos los campos como null.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS_HEADERS });
+    return new Response("ok", { headers: corsHeaders(req) });
   }
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return json({ error: "unauthorized" }, 401);
+    return json(req, { error: "unauthorized" }, 401);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -56,7 +70,7 @@ Deno.serve(async (req) => {
   });
   const { data: userData, error: userError } = await callerClient.auth.getUser();
   if (userError || !userData.user) {
-    return json({ error: "unauthorized" }, 401);
+    return json(req, { error: "unauthorized" }, 401);
   }
 
   // Pertenencia a hogar: el mismo límite que aplican todas las RPC. Sin esto,
@@ -67,23 +81,23 @@ Deno.serve(async (req) => {
     .eq("id", userData.user.id)
     .maybeSingle();
   if (!profileRow?.household_id) {
-    return json({ error: "forbidden" }, 403);
+    return json(req, { error: "forbidden" }, 403);
   }
 
   let body: { image?: string; mimeType?: string };
   try {
     body = await req.json();
   } catch {
-    return json({ error: "invalid body" }, 400);
+    return json(req, { error: "invalid body" }, 400);
   }
   if (typeof body.image !== "string" || !body.image) {
-    return json({ error: "missing image or mimeType" }, 400);
+    return json(req, { error: "missing image or mimeType" }, 400);
   }
   if (body.image.length > MAX_IMAGE_B64) {
-    return json({ error: "image too large" }, 413);
+    return json(req, { error: "image too large" }, 413);
   }
   if (typeof body.mimeType !== "string" || !ALLOWED_MIME.has(body.mimeType)) {
-    return json({ error: "unsupported mimeType" }, 415);
+    return json(req, { error: "unsupported mimeType" }, 415);
   }
 
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -93,22 +107,24 @@ Deno.serve(async (req) => {
     .select("value")
     .eq("key", "GEMINI_API_KEY");
   if (secretError || !secretRows?.[0]) {
-    console.error("recognize-pantry-item: missing GEMINI_API_KEY secret", secretError);
-    return json({ error: "missing GEMINI_API_KEY secret" }, 500);
+    // Sin cuerpo del error: message de Postgres puede incluir detalle interno.
+    console.error("recognize-pantry-item: missing GEMINI_API_KEY secret");
+    return json(req, { error: "missing GEMINI_API_KEY secret" }, 500);
   }
   const geminiKey = secretRows[0].value as string;
 
+  // Diseño §3.5: 50 llamadas al día por usuario (antes 30/hora).
   const { data: allowed, error: quotaError } = await serviceClient.rpc("consume_recognition_quota", {
     p_profile: userData.user.id,
-    p_limit: 30,
-    p_window: "1 hour",
+    p_limit: 50,
+    p_window: "1 day",
   });
   if (quotaError) {
-    console.error("recognize-pantry-item: quota check failed", quotaError);
-    return json({ error: "quota check failed" }, 500);
+    console.error("recognize-pantry-item: quota check failed");
+    return json(req, { error: "quota check failed" }, 500);
   }
   if (!allowed) {
-    return json({ error: "rate limited" }, 429);
+    return json(req, { error: "rate limited" }, 429);
   }
 
   // Errores de red/DNS al llamar a Gemini no estaban capturados: sin este
@@ -132,29 +148,32 @@ Deno.serve(async (req) => {
       },
     );
     if (!geminiRes.ok) {
-      const detail = await geminiRes.text().catch(() => "");
-      console.error(`recognize-pantry-item: gemini request failed (${geminiRes.status})`, detail);
-      return json({ error: "gemini request failed", status: geminiRes.status }, 502);
+      // Sin volcar el cuerpo de la respuesta de Gemini: puede llevar detalle
+      // interno de la API del operador. El código de estado basta para depurar.
+      console.error(`recognize-pantry-item: gemini request failed (${geminiRes.status})`);
+      return json(req, { error: "gemini request failed", status: geminiRes.status }, 502);
     }
 
     const geminiJson = await geminiRes.json();
     const text = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
     if (typeof text !== "string") {
-      console.error("recognize-pantry-item: empty gemini response", JSON.stringify(geminiJson));
-      return json({ error: "empty gemini response" }, 502);
+      console.error("recognize-pantry-item: empty gemini response");
+      return json(req, { error: "empty gemini response" }, 502);
     }
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(text);
     } catch {
-      console.error("recognize-pantry-item: gemini returned invalid json", text);
-      return json({ error: "gemini returned invalid json" }, 502);
+      // Sin volcar `text`: es texto generado por el modelo a partir de la
+      // foto del usuario, no algo que deba acabar en los logs del operador.
+      console.error("recognize-pantry-item: gemini returned invalid json");
+      return json(req, { error: "gemini returned invalid json" }, 502);
     }
 
-    return json(parsed);
+    return json(req, parsed);
   } catch (err) {
     console.error("recognize-pantry-item: unexpected error calling gemini", err);
-    return json({ error: "unexpected error" }, 500);
+    return json(req, { error: "unexpected error" }, 500);
   }
 });

@@ -215,6 +215,12 @@ describe('migraciones', () => {
     expect((await call()).rows[0].ok).toBe(true);
     expect((await call()).rows[0].ok).toBe(true);
     expect((await call()).rows[0].ok).toBe(false);
+
+    // La ventana se reinicia: con un día, una llamada de hace 25 h ya no cuenta.
+    await db.query(
+      `update public.recognition_usage set window_start = now() - interval '25 hours' where profile_id = '${ana}'`,
+    );
+    expect((await call()).rows[0].ok).toBe(true);
     await db.close();
   }, 120_000);
 
