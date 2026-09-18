@@ -13,19 +13,23 @@ A design-and-implementation package for **Rezet**, a household recipe/meal-plan/
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # vitest run — domain rule tests
+npm test         # vitest run — domain rule tests + migration test bank (PGlite, ~25 s)
 npm run test:watch
 npm run build     # tsc -b && vite build
 npm run lint      # tsc --noEmit
 ```
 
 Single test file: `npx vitest run src/domain/__tests__/domain.test.ts`
+Migration bank only: `npx vitest run supabase/tests/migrations.test.ts`
+Edge Functions (outside every `tsc`): `npx --yes deno@2 check --node-modules-dir=none supabase/functions/<fn>/index.ts`
 
 Needs `app/.env` (see `app/.env.example`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY`. Without it the real (non-demo) login path throws on boot. The "Demo" button on the login screen skips all of this (local `DataProvider`, no network, no account).
 
-Deploy: **pushing to `main` on GitHub (`JarssS8/RezetApp`) deploys to production** via `.github/workflows/deploy.yml`, only what changed — Supabase migrations first (`supabase db push`), then Edge Functions, the `rezet` Worker (`app/`, `rezet.jarsss8.es`) and the `rezet-mcp` Worker (`mcp/` or `app/src/domain/`). Never push to `main` without the `deploying-to-main` skill: a PreToolUse hook (`.claude/hooks/guard-push-main.mjs`) blocks it until the user runs the confirmation for that exact commit. CI needs repo secrets `CLOUDFLARE_API_TOKEN`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY` and variables `CLOUDFLARE_ACCOUNT_ID`, `SUPABASE_PROJECT_REF`. A manual `npm run build && npx wrangler deploy` from `app/` still works for emergencies, but it bypasses the report and the next push to `main` will overwrite it.
+Deploy: **pushing to `main` on GitHub (`JarssS8/RezetApp`) deploys to production** via `.github/workflows/deploy.yml`, only what changed — a `test` job first (app lint + tests incl. the migration bank, `deno check` of every Edge Function, MCP types/lint/tests; nothing deploys or gets tagged unless it passes), then Supabase migrations (`supabase db push`), then Edge Functions, the `rezet` Worker (`app/`, `rezet.jarsss8.es`) and the `rezet-mcp` Worker (`mcp/` or `app/src/domain/`). Never push to `main` without the `deploying-to-main` skill: a PreToolUse hook (`.claude/hooks/guard-push-main.mjs`) blocks it until the user runs the confirmation for that exact commit. CI needs repo secrets `CLOUDFLARE_API_TOKEN`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY` and variables `CLOUDFLARE_ACCOUNT_ID`, `SUPABASE_PROJECT_REF`. A manual `npm run build && npx wrangler deploy` from `app/` still works for emergencies, but it bypasses the report and the next push to `main` will overwrite it.
 
 Migrations: a migration file's version prefix must equal the version recorded in production (`mcp__supabase__list_migrations`). `apply_migration` records the time it ran, not your file name — rename the file to that version right after applying, or CI's `supabase db push` will try to apply it again.
+
+**Test SQL in the migration bank, never against production.** `app/supabase/tests/harness.ts` replays every migration on PGlite (real Postgres, WASM, no Docker) with stubs for Supabase-only objects (`auth.uid()` reads the `rezet.test_uid` setting). `asUser(db, uid, sql)` runs as `authenticated` so RLS applies; anything else runs as superuser and bypasses RLS, so RLS assertions must go through `asUser`. Every new migration must apply cleanly there and come with a test in `migrations.test.ts`. It caught two production-breaking bugs during the security fixes. It is Postgres 18 while production is not, so a green bank proves SQL and logic, not production parity.
 
 Versions: Rezet has one SemVer version — `app/package.json`, mirrored in `mcp/package.json` and reported by the MCP server. Every deploy that changes something users run gets a new version through the `releasing-versions` skill (`node tools/release/bump-version.mjs <major|minor|patch>` plus a bilingual `CHANGELOG.md` entry, committed as `Release X.Y.Z`). Once every deploy job succeeds, CI tags `vX.Y.Z` and publishes the GitHub Release from that CHANGELOG section. The build bakes `__APP_VERSION__`/`__APP_COMMIT__` (shown at the bottom of Settings), and `app/UpdatePrompt.tsx` offers installed PWAs an "Actualizar" prompt when a new service worker is waiting (never during Cook mode). Release script tests: `node --test tools/release/version.test.mjs`.
 
@@ -57,8 +61,11 @@ src/
   sw.ts      Service worker (vite-plugin-pwa, injectManifest) — precaches the shell, listens for `push` (timer
              notifications); Supabase data itself is never cached, always fetched over the network
 supabase/
-  migrations/  Schema + RLS + the transactional RPCs (applied via Supabase CLI/dashboard, not tracked by app tests)
-  functions/   recognize-pantry-item (Gemini vision for pantry photo add), send-timer-notifications (pg_cron → Web Push)
+  migrations/  Schema + RLS + the transactional RPCs (applied by CI's `supabase db push`)
+  tests/       PGlite migration test bank — `harness.ts` + `migrations.test.ts`, run by `npm test`
+  functions/   recognize-pantry-item (Gemini vision for pantry photo add; household + size/type check, 50/day quota),
+               send-timer-notifications (pg_cron → Web Push; host allowlist, per-run cap),
+               cleanup-orphan-photos (daily pg_cron; deletes unreferenced recipe photos >24 h; `?dryRun=1` counts only)
 ```
 
 ### Two data providers, one contract
@@ -70,7 +77,7 @@ supabase/
 
 `saveRecipe`, `pantryAdd`, `buyChecked`, and `finishCook` are `Promise`-returning in both (the real one does a network round-trip; the demo one resolves immediately) — screens `await`/`void` them the same way either way.
 
-Auth: Google, Apple, and Passkey sign-in via Supabase Auth (`auth.tsx`). A signed-in user without a `profile` row lands on `CreateOrJoinHousehold` (create a household or redeem an invite code) before reaching the app — see `household`/`household_invite`/`redeem_invite` in the schema.
+Auth: Google, Apple, and Passkey sign-in via Supabase Auth (`auth.tsx`), PKCE flow (`flowType: 'pkce'` in `supabaseClient.ts`; auth-js defaults to implicit, which returns tokens in the URL fragment). A signed-in user without a `profile` row lands on `CreateOrJoinHousehold` (create a household or redeem an invite code) before reaching the app — see `household`/`household_invite`/`redeem_invite` in the schema. Only household admins can create or revoke invites (`profile.isAdmin`, loaded by `auth.tsx`); creating one expires the previous pending one. Sign-out is `scope: 'local'` — the auth-js default `'global'` signs the account out of every device, MCP included.
 
 Three actions are transactional server RPCs (contract in `BUILD_FROM_ZERO.md` §5) because they touch multiple tables — implemented in `supabase/migrations/20260905132555_rezet_transactional_rpcs.sql` and later fix-up migrations:
 
@@ -81,6 +88,7 @@ Three actions are transactional server RPCs (contract in `BUILD_FROM_ZERO.md` §
 | `saveRecipe` | `rpc/save_recipe` | Upserts recipe + ingredients + steps + tags atomically, resolving/creating ingredients by name |
 | `pantryAdd` | `rpc/pantry_add` | Adds/merges one pantry item (manual or "Foto" add) |
 | — | `rpc/create_household`, `rpc/redeem_invite` | Household bootstrap / invite-code join, called from `auth.tsx`, not from `Store` |
+| — | `rpc/create_invite`, `rpc/revoke_invite` | Admin-only; server generates the code and 7-day expiry. Called from `InviteSheet.tsx`, not from `Store` |
 
 Stack per `BUILD_FROM_ZERO.md` §2: Supabase (Postgres + Auth + RLS + Storage) + TanStack Query (`supabaseStore.tsx` uses it for every query/mutation) — swappable for any backend that honors the §5 API contract, but the tokens, type scale, motion constants, nav architecture, and domain rules are **not** negotiable. React Router is also named in `BUILD_FROM_ZERO.md` §2 as target stack, but the app has no router — navigation is plain tab/sheet state in `App.tsx` — a gap between that doc and the code, not yet reconciled.
 
@@ -122,6 +130,9 @@ troubleshooting.
 - **Cook timers store an absolute end instant (`endsAt`, epoch ms), never remaining seconds** — this is what keeps them correct across screen-off/reload. See `CookTimer` in `src/types.ts`.
 - **Color tokens only, no stray hex in components.** `--accent`/`--warn` are *fills*; text on a light/tinted background uses `--accent-ink`/`--warn-ink`; text on an accent-filled background uses `--onaccent`. Mixing these breaks 4.5:1 contrast app-wide.
 - **No themed component libraries** (Material, Ant, Chakra, Bootstrap, shadcn as-is). They bring their own radii/heights/shadows that fight the design tokens. All primitives are hand-written in `src/ui/`.
+- **Household membership and the admin flag are only ever written by `SECURITY DEFINER` RPCs** (`create_household`, `redeem_invite`, `promote_admin`). Clients hold no INSERT on `profile`, and `profile`/`household` UPDATE is granted column by column. Never re-grant table-level INSERT/UPDATE on them: that is exactly the hole the security audit found (any signed-in user could join any household as admin).
+- **`revoke update (col) … ` alone does nothing** while a table-level UPDATE grant exists: revoke the table grant and re-grant the columns that should stay writable. This repo got it wrong once (`20260917070714` → fixed in `20260917070845`). A new user-editable column needs an explicit column grant.
+- **The CSP in `app/public/_headers` blocks every origin not listed there, silently.** Adding a `fetch`, image host, font or websocket to a new origin requires adding it to the right directive, or the feature fails with no visible error (barcode lookup to `world.openfoodfacts.org` and the demo photos on `*.wikimedia.org` are why those are listed).
 - Ingredients are referenced by id everywhere (pantry, recipes) — never by free-text name; `resolveIngredient` in `store.tsx` (demo) / the `save_recipe`/`pantry_add` RPCs (real) are the only places names get matched/created.
 - Step→ingredient linkage (`RecipeStep.ingredientIds`) is inferred from step text as a heuristic (`domain/recipeText.ts::stepIngredientMap`) in **both** data layers today. The `recipe_step_ingredient` join table already exists in the schema and `supabaseStore.tsx` already reads it into `ingredientIds` when present — but the `save_recipe` RPC never writes rows there, so it's always empty and the heuristic is still the live path. Populating it (from `RecipeForm`'s structured per-step rows, which already know per-step text) is the way to retire the heuristic for real recipes; don't assume it's already exact just because the table exists.
 
@@ -139,5 +150,9 @@ Design and behavior disputes are resolved in this order: **`RezetApp.dc.html` (w
 - **Capacitor isn't installed** — only `capacitor.config.ts` is scaffolded; no native shells yet.
 - Real dish photos exist for the 8 demo recipes; user-created recipes support photo upload to Storage (`recipe-photos` bucket) but nothing enforces it — a recipe can still be saved with no photo.
 - No router (`BUILD_FROM_ZERO.md` §2 names React Router; the app doesn't have one).
+- **Security "Fase B" is pending.** Clients still hold INSERT on `household_invite` so cached pre-1.7 PWAs keep working; the `household_invite_server_mint_trg` trigger rewrites anything inserted that way. Once installed clients have updated: revoke that INSERT, drop its policy and the trigger — and at the same time put `created_by = auth.uid()` and `expires_at` back into `create_invite()`'s insert, or every new code is born unredeemable. Plan: `docs/superpowers/plans/2026-09-17-security-fixes.md`, section "Fase B".
+- Edge Function secrets `TIMER_CRON_SECRET` (must equal the Vault secret `timer_cron_secret`) and `APP_ORIGIN` are set in the dashboard, not in the repo. `send-timer-notifications` tolerates a missing secret (warns); `cleanup-orphan-photos` refuses to run without it (503).
+
+Security audit reports live outside the repo in `~/security-audit-skill/Rezet/run-{1,2}/` (`REPORT.md` first); the fixes design is `docs/superpowers/specs/2026-09-17-security-audit-fixes-design.md`.
 
 Already done, despite what older docs in this repo say: real Supabase backend + RLS, Google/Apple/Passkey auth with multi-user households + invites, PWA (`vite-plugin-pwa`, installable), background timer notifications via real Web Push (Edge Function + `pg_cron`, not local notifications), "Foto" pantry add via `recognize-pantry-item` (`GEMINI_API_KEY` is set in `app_secret`; model `gemini-3.6-flash` — `gemini-2.0-flash` is shut down, so don't revert to it), and deployed live at `rezet.jarsss8.es`.
