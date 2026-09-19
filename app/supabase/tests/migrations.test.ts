@@ -737,4 +737,100 @@ describe('migraciones', () => {
     );
     await db.close();
   }, 120_000);
+
+  // ── Auditoría run-3: expulsar miembros y quitar el rol de admin ──────────
+  // (app/supabase/migrations:household-membership:no-member-removal-or-admin-demotion)
+  const householdWith = async (db: Awaited<ReturnType<typeof applyMigrations>>, names: string[]) => {
+    const ids: string[] = [];
+    for (const _ of names) ids.push(await createAuthUser(db));
+    await asUser(db, ids[0], `select public.create_household('Casa', '${names[0]}')`);
+    for (let i = 1; i < ids.length; i++) {
+      const code = ((await asUser(db, ids[0], 'select public.create_invite() as c')) as { rows: { c: string }[] }).rows[0].c;
+      await asUser(db, ids[i], `select public.redeem_invite('${code}', '${names[i]}')`);
+    }
+    return ids;
+  };
+  const count = async (db: Awaited<ReturnType<typeof applyMigrations>>, uid: string, sql: string) =>
+    ((await asUser(db, uid, sql)) as { rows: { n: number }[] }).rows[0].n;
+
+  it('un admin puede expulsar a un miembro y este pierde el acceso', async () => {
+    const db = await applyMigrations();
+    const [ana, mallory] = await householdWith(db, ['Ana', 'Mallory']);
+    await asUser(db, ana, "insert into public.recipe (household_id, name) select household_id, 'Privada' from public.profile where id = auth.uid()");
+    expect(await count(db, mallory, 'select count(*)::int as n from public.recipe')).toBe(1);
+
+    await asUser(db, ana, `select public.remove_member('${mallory}')`);
+
+    expect(await count(db, mallory, 'select count(*)::int as n from public.recipe')).toBe(0);
+    const left = await db.query<{ n: number }>(`select count(*)::int as n from public.profile where id = '${mallory}'`);
+    expect(left.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
+
+  it('quien no es admin no puede expulsar a nadie', async () => {
+    const db = await applyMigrations();
+    const [, bea, carl] = await householdWith(db, ['Ana', 'Bea', 'Carl']);
+    await expect(asUser(db, bea, `select public.remove_member('${carl}')`)).rejects.toThrow(/REZET_NOT_ADMIN/);
+    await db.close();
+  }, 120_000);
+
+  it('no se puede expulsar a alguien de otro hogar ni a uno mismo', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana', 'Bea']);
+    const [, zoe] = await householdWith(db, ['Yan', 'Zoe']);
+    await expect(asUser(db, ana, `select public.remove_member('${zoe}')`)).rejects.toThrow(/REZET_NOT_A_MEMBER/);
+    await expect(asUser(db, ana, `select public.remove_member('${ana}')`)).rejects.toThrow(/REZET_NOT_A_MEMBER/);
+    await db.close();
+  }, 120_000);
+
+  it('a un admin hay que quitarle el rol antes de expulsarlo', async () => {
+    const db = await applyMigrations();
+    const [ana, bruno] = await householdWith(db, ['Ana', 'Bruno']);
+    await asUser(db, ana, `select public.promote_admin('${bruno}')`);
+    await expect(asUser(db, ana, `select public.remove_member('${bruno}')`)).rejects.toThrow(/REZET_TARGET_IS_ADMIN/);
+
+    await asUser(db, ana, `select public.demote_admin('${bruno}')`);
+    await asUser(db, ana, `select public.remove_member('${bruno}')`);
+    const left = await db.query<{ n: number }>(`select count(*)::int as n from public.profile where id = '${bruno}'`);
+    expect(left.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
+
+  it('quitar el rol de admin deja al miembro sin poder de admin y anula sus invitaciones', async () => {
+    const db = await applyMigrations();
+    const [ana, bruno] = await householdWith(db, ['Ana', 'Bruno']);
+    await asUser(db, ana, `select public.promote_admin('${bruno}')`);
+    const code = ((await asUser(db, bruno, 'select public.create_invite() as c')) as { rows: { c: string }[] }).rows[0].c;
+
+    await asUser(db, ana, `select public.demote_admin('${bruno}')`);
+
+    await expect(asUser(db, bruno, 'select public.create_invite()')).rejects.toThrow(/REZET_NOT_ADMIN/);
+    await expect(asUser(db, bruno, 'select public.delete_household()')).rejects.toThrow();
+    const carl = await createAuthUser(db);
+    await expect(asUser(db, carl, `select public.redeem_invite('${code}', 'Carl')`)).rejects.toThrow(/inválido o caducado/);
+    await db.close();
+  }, 120_000);
+
+  it('quien no es admin no puede quitar el rol, y nadie se lo quita a sí mismo por aquí', async () => {
+    const db = await applyMigrations();
+    const [ana, bruno, carl] = await householdWith(db, ['Ana', 'Bruno', 'Carl']);
+    await asUser(db, ana, `select public.promote_admin('${bruno}')`);
+    await expect(asUser(db, carl, `select public.demote_admin('${bruno}')`)).rejects.toThrow(/REZET_NOT_ADMIN/);
+    await expect(asUser(db, ana, `select public.demote_admin('${ana}')`)).rejects.toThrow(/REZET_NOT_A_MEMBER/);
+    await db.close();
+  }, 120_000);
+
+  // (app/supabase/migrations:redeem_invite:invite-creator-admin-not-rechecked)
+  it('una invitación cuyo creador no es admin ya no se puede canjear', async () => {
+    const db = await applyMigrations();
+    const [, bea] = await householdWith(db, ['Ana', 'Bea']);
+    // Fila heredada de la ventana 1.6.0–1.7.2, cuando cualquier miembro acuñaba invitaciones.
+    await db.query(
+      `insert into public.household_invite (household_id, created_by, code, expires_at)
+       select household_id, id, 'LEGACY0001', now() + interval '5 days' from public.profile where id = '${bea}'`,
+    );
+    const zoe = await createAuthUser(db);
+    await expect(asUser(db, zoe, "select public.redeem_invite('LEGACY0001', 'Zoe')")).rejects.toThrow(/inválido o caducado/);
+    await db.close();
+  }, 120_000);
 });
