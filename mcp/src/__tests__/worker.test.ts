@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { zonedNow } from '../worker/clock.js';
-import { consentPage, isKnownRedirectUri } from '../worker/html.js';
+import { authorizationErrorRedirect, consentPage, isKnownRedirectUri } from '../worker/html.js';
 import { s256Challenge } from '../worker/pkce.js';
 import { isRezetProps, type RezetProps } from '../worker/props.js';
 
@@ -143,5 +143,30 @@ describe('consentPage', () => {
     const html = consentPage({ ...base, redirectUri: 'evilapp://claude.ai/cb' });
     expect(html).toContain('class="warn"');
     expect(html).toContain('evilapp://claude.ai/cb');
+  });
+});
+
+describe('authorizationErrorRedirect', () => {
+  const err = { code: 'unsupported_response_type', description: 'bad response_type', state: 's1', issuer: 'https://mcp.test' };
+
+  it('builds the error redirect for a known client redirect URI', () => {
+    const to = authorizationErrorRedirect({ ...err, redirectUri: 'https://claude.ai/api/mcp/auth_callback' });
+    expect(to).not.toBeNull();
+    const url = new URL(to!);
+    expect(url.origin + url.pathname).toBe('https://claude.ai/api/mcp/auth_callback');
+    expect(url.searchParams.get('error')).toBe('unsupported_response_type');
+    expect(url.searchParams.get('state')).toBe('s1');
+    expect(url.searchParams.get('iss')).toBe('https://mcp.test');
+  });
+
+  // Auditoría run-3 (mcp/src/worker/authHandler:dcr-error-redirect-open-redirector): con registro
+  // dinámico abierto, un redirect_uri "registrado" lo elige cualquiera, así que un error de
+  // autorización no puede rebotar solo hacia él (RFC 9700 §4.11.2).
+  it('refuses to redirect an authorization error to an unverified, self-registered URI', () => {
+    expect(authorizationErrorRedirect({ ...err, redirectUri: 'https://evil.example/phish' })).toBeNull();
+  });
+
+  it('refuses when there is no redirect URI at all', () => {
+    expect(authorizationErrorRedirect({ ...err, redirectUri: undefined })).toBeNull();
   });
 });

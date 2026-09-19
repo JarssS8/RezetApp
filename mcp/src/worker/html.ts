@@ -99,6 +99,28 @@ export function isKnownRedirectUri(redirectUri: string): boolean {
   return false;
 }
 
+/**
+ * Where an authorization error may bounce the browser, or `null` to render it locally instead.
+ * Registration is open, so a client's "registered" redirect URI is whatever its registrant chose:
+ * bouncing every error there would make /authorize an open redirector on our origin (RFC 9700
+ * §4.11.2). Only a redirect URI we already trust gets the standard error redirect.
+ */
+export function authorizationErrorRedirect(e: {
+  code: string;
+  description: string;
+  redirectUri?: string;
+  state?: string;
+  issuer?: string;
+}): string | null {
+  if (!e.redirectUri || !isKnownRedirectUri(e.redirectUri)) return null;
+  const redirect = new URL(e.redirectUri);
+  redirect.searchParams.set('error', e.code);
+  redirect.searchParams.set('error_description', e.description);
+  if (e.state) redirect.searchParams.set('state', e.state);
+  if (e.issuer) redirect.searchParams.set('iss', e.issuer);
+  return redirect.toString();
+}
+
 export function consentPage(opts: {
   clientName: string;
   redirectUri: string;

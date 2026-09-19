@@ -1,6 +1,6 @@
 import { AuthorizationError, type AuthRequest } from '@cloudflare/workers-oauth-provider';
 import type { Env } from './env.js';
-import { consentPage, errorPage, noHouseholdPage, securityHeaders } from './html.js';
+import { authorizationErrorRedirect, consentPage, errorPage, noHouseholdPage, securityHeaders } from './html.js';
 import { clearCookie, cookieName, createPending, readPending, setCookie, takePending, updatePending } from './pending.js';
 import { randomVerifier, s256Challenge } from './pkce.js';
 import type { RezetProps } from './props.js';
@@ -40,13 +40,9 @@ async function handleGetAuthorize(request: Request, env: Env): Promise<Response>
     authReq = await env.OAUTH_PROVIDER.parseAuthRequest(request);
   } catch (e) {
     if (e instanceof AuthorizationError) {
-      if (!e.redirectUri) return text(e.description, 400);
-      const redirect = new URL(e.redirectUri);
-      redirect.searchParams.set('error', e.code);
-      redirect.searchParams.set('error_description', e.description);
-      if (e.state) redirect.searchParams.set('state', e.state);
-      if (e.issuer) redirect.searchParams.set('iss', e.issuer);
-      return Response.redirect(redirect.toString(), 302);
+      const to = authorizationErrorRedirect(e);
+      if (!to) return html(env, errorPage({ title: 'Invalid authorization request', message: e.description }), 400);
+      return Response.redirect(to, 302);
     }
     throw e;
   }
