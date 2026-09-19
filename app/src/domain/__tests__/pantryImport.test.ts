@@ -87,3 +87,33 @@ describe('mapGeminiRecognition', () => {
     ).toEqual({ name: 'Leche', quantity: 1, unit: 'ud', expiresOn: null });
   });
 });
+
+// Auditoría run-3 (rezet-app:pantryImport:third-party-product-names-persisted-unbounded-into-mcp-context):
+// el nombre viene de un tercero (Open Food Facts, que edita cualquiera, o el
+// modelo leyendo una etiqueta) y acaba como nombre de ingrediente del hogar y
+// en el contexto del asistente de IA. Se sanea en la frontera.
+describe('saneo de nombres externos', () => {
+  const off = (productName: string) =>
+    mapOpenFoodFactsProduct({ status: 1, product: { product_name: productName, product_quantity: 1, product_quantity_unit: 'l' } });
+  const ZWSP = String.fromCharCode(0x200b);
+  const RLO = String.fromCharCode(0x202e);
+  const BEL = String.fromCharCode(0x07);
+  const LRI = String.fromCharCode(0x2066);
+  const WJ = String.fromCharCode(0x2060);
+  const ZWJ = String.fromCharCode(0x200d);
+
+  it('quita saltos de línea, caracteres invisibles y de control, y junta espacios', () => {
+    expect(off(`Leche\n\nentera${ZWSP} ${RLO}oculto${BEL}   fin`)?.name).toBe('Leche entera oculto fin');
+    expect(mapGeminiRecognition({ name: `Yogur\r\n\tnatural${LRI}` })?.name).toBe('Yogur natural');
+  });
+
+  it('corta los nombres larguísimos a 120 caracteres', () => {
+    expect(off('Leche ' + 'x'.repeat(4000))?.name).toHaveLength(120);
+    expect(mapGeminiRecognition({ name: 'y'.repeat(500) })?.name).toHaveLength(120);
+  });
+
+  it('un nombre que solo tiene caracteres invisibles cuenta como vacío', () => {
+    expect(off(`${ZWSP}${ZWJ}\n`)).toBeNull();
+    expect(mapGeminiRecognition({ name: `${RLO} ${WJ}` })).toBeNull();
+  });
+});
