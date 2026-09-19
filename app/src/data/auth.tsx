@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 import { unsubscribeFromPush } from './push';
 import { consumePendingInvite } from './pendingInvite';
+import { performSignOut, type SignOutScope } from './signOut';
 
 export interface Profile {
   id: string;
@@ -31,6 +32,8 @@ interface AuthContextValue {
   signInWithPasskey: () => Promise<void>;
   registerPasskey: () => Promise<'ok' | 'error'>;
   signOut: () => Promise<void>;
+  /** Cierra la sesión en todos los dispositivos y asistentes IA conectados. */
+  signOutEverywhere: () => Promise<void>;
   createHousehold: (name: string, displayName: string) => Promise<void>;
   redeemInvite: (code: string, displayName: string) => Promise<void>;
   markOnboarded: () => Promise<void>;
@@ -143,43 +146,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return err ? 'error' : 'ok';
   }, []);
 
-  const signOut = useCallback(async () => {
-    // Diseño §3.8: cerrar sesión debe dejar el dispositivo limpio, no solo
-    // invalidar el token. Cada paso va en su propio try/catch: un fallo aquí
-    // (red caída, sesión ya inválida…) no debe impedir cerrar sesión.
-    //
-    // Los `cook_timer` NO se borran: son del perfil, no del dispositivo, y el
-    // cierre de sesión es local, así que borrarlos cortaría un temporizador que
-    // sigue corriendo en otro dispositivo con la sesión abierta. Basta con dar
-    // de baja el push de este, para que aquí no llegue ningún aviso.
-    try {
-      // unsubscribeFromPush() espera a navigator.serviceWorker.ready, una promesa que en dev (o si
-      // el registro del service worker falló) nunca se resuelve — el try/catch no ayuda con una
-      // promesa que nunca liquida, así que se corre contra un timeout para que el cierre de sesión
-      // avance siempre, con o sin push.
-      await Promise.race([
-        unsubscribeFromPush(),
-        new Promise((resolve) => setTimeout(resolve, 3000)),
-      ]);
-    } catch {
-      /* no bloquea el cierre de sesión */
-    }
-    try {
-      localStorage.removeItem('rezet.cook');
-      localStorage.removeItem('rezet.tab');
-      // rezet.pendingInvite es de un flujo de alta (crear/unirse a hogar) que
-      // ya no aplica una vez hay sesión y hogar: no tiene sentido conservarlo
-      // para la siguiente. rezet.prefs y rezet.seenScanTutorial sí se
-      // conservan: son preferencias del dispositivo, no de la sesión.
-      consumePendingInvite();
-    } catch {
-      /* almacenamiento no disponible: no bloquea el cierre de sesión */
-    }
-    // scope 'local': cierra solo esta sesión (e invalida su token en el
-    // servidor). El valor por defecto de auth-js es 'global', que cerraba la
-    // sesión en todos los dispositivos de la cuenta, incluido el MCP.
-    await supabase.auth.signOut({ scope: 'local' });
+  const signOutWithScope = useCallback(async (scope: SignOutScope) => {
+    await performSignOut(
+      {
+        unsubscribePush: unsubscribeFromPush,
+        // Los `cook_timer` NO se borran: son del perfil, no del dispositivo, y
+        // borrarlos cortaría un temporizador que sigue corriendo en otro
+        // dispositivo. Basta con dar de baja el push de este.
+        clearDeviceState: () => {
+          localStorage.removeItem('rezet.cook');
+          localStorage.removeItem('rezet.tab');
+          // rezet.pendingInvite es de un flujo de alta que ya no aplica.
+          // rezet.prefs y rezet.seenScanTutorial se conservan: son del
+          // dispositivo, no de la sesión.
+          consumePendingInvite();
+        },
+        authSignOut: (s) => supabase.auth.signOut({ scope: s }),
+      },
+      scope,
+    );
   }, []);
+
+  /** Solo este dispositivo (el valor por defecto de auth-js es 'global'). */
+  const signOut = useCallback(() => signOutWithScope('local'), [signOutWithScope]);
+  /**
+   * Todas las sesiones de la cuenta, incluida la que guarda cada concesión
+   * del MCP remoto: es la forma de revocar un asistente IA o un dispositivo
+   * prestado sin borrar la cuenta.
+   */
+  const signOutEverywhere = useCallback(() => signOutWithScope('global'), [signOutWithScope]);
 
   const createHousehold = useCallback(
     async (name: string, displayName: string) => {
@@ -233,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithPasskey,
       registerPasskey,
       signOut,
+      signOutEverywhere,
       createHousehold,
       redeemInvite,
       markOnboarded,
@@ -249,6 +245,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithPasskey,
       registerPasskey,
       signOut,
+      signOutEverywhere,
       createHousehold,
       redeemInvite,
       markOnboarded,

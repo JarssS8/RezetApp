@@ -134,6 +134,19 @@ export interface Store {
    */
   promoteAdmin: (memberId: string) => Promise<void>;
   /**
+   * Contrato: `rpc/demote_admin(p_member_id)`. Solo un administrador; quita el
+   * rol a otro administrador del mismo hogar (nunca a uno mismo) y anula sus
+   * invitaciones pendientes.
+   */
+  demoteAdmin: (memberId: string) => Promise<void>;
+  /**
+   * Contrato: `rpc/remove_member(p_member_id)`. Solo un administrador; saca
+   * del hogar a otro miembro que no sea admin (a un admin hay que quitarle
+   * antes el rol: rechaza con `REZET_TARGET_IS_ADMIN:`). Mismo resultado que
+   * si esa persona hubiera salido con `leave_household`.
+   */
+  removeMember: (memberId: string) => Promise<void>;
+  /**
    * Contrato: `rpc/set_komprapp_list_token`. Vincula (token no nulo) o
    * desvincula (`null`) la lista de komprapp del hogar actual. Solo un
    * ADMIN del hogar puede llamarlo — mismo nivel que `deleteHousehold`,

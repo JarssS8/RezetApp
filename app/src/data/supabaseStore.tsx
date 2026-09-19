@@ -778,6 +778,30 @@ export function SupabaseDataProvider({
     [promoteAdminMut],
   );
 
+  /** `demote_admin` / `remove_member`: mismo camino de error y de invalidación que `promote_admin`. */
+  const demoteAdminMut = useMutation({
+    mutationFn: async (memberId: string) => {
+      const { error } = await supabase.rpc('demote_admin', { p_member_id: memberId });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: householdMembersKey }),
+  });
+  const demoteAdmin = useCallback(
+    (memberId: string) => demoteAdminMut.mutateAsync(memberId),
+    [demoteAdminMut],
+  );
+  const removeMemberMut = useMutation({
+    mutationFn: async (memberId: string) => {
+      const { error } = await supabase.rpc('remove_member', { p_member_id: memberId });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: householdMembersKey }),
+  });
+  const removeMember = useCallback(
+    (memberId: string) => removeMemberMut.mutateAsync(memberId),
+    [removeMemberMut],
+  );
+
   /**
    * `set_komprapp_list_token(p_token)`: solo un ADMIN puede vincular o
    * desvincular la lista de komprapp del hogar. Un token vacío cuenta como
@@ -850,6 +874,8 @@ export function SupabaseDataProvider({
       leaveHousehold,
       deleteHousehold,
       promoteAdmin,
+      demoteAdmin,
+      removeMember,
       setKomprappListToken,
       deleteAccount,
       setHouseholdSheetOpen,
@@ -883,6 +909,8 @@ export function SupabaseDataProvider({
       leaveHousehold,
       deleteHousehold,
       promoteAdmin,
+      demoteAdmin,
+      removeMember,
       setKomprappListToken,
       deleteAccount,
     ],

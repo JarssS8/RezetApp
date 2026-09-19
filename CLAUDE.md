@@ -77,7 +77,7 @@ supabase/
 
 `saveRecipe`, `pantryAdd`, `buyChecked`, and `finishCook` are `Promise`-returning in both (the real one does a network round-trip; the demo one resolves immediately) — screens `await`/`void` them the same way either way.
 
-Auth: Google, Apple, and Passkey sign-in via Supabase Auth (`auth.tsx`), PKCE flow (`flowType: 'pkce'` in `supabaseClient.ts`; auth-js defaults to implicit, which returns tokens in the URL fragment). A signed-in user without a `profile` row lands on `CreateOrJoinHousehold` (create a household or redeem an invite code) before reaching the app — see `household`/`household_invite`/`redeem_invite` in the schema. Only household admins can create or revoke invites (`profile.isAdmin`, loaded by `auth.tsx`); creating one expires the previous pending one. Sign-out is `scope: 'local'` — the auth-js default `'global'` signs the account out of every device, MCP included.
+Auth: Google, Apple, and Passkey sign-in via Supabase Auth (`auth.tsx`), PKCE flow (`flowType: 'pkce'` in `supabaseClient.ts`; auth-js defaults to implicit, which returns tokens in the URL fragment). A signed-in user without a `profile` row lands on `CreateOrJoinHousehold` (create a household or redeem an invite code) before reaching the app — see `household`/`household_invite`/`redeem_invite` in the schema. Only household admins can create or revoke invites (`profile.isAdmin`, loaded by `auth.tsx`); creating one expires the previous pending one. Plain sign-out is `scope: 'local'` (the auth-js default `'global'` signs the account out of every device, MCP included); "Sign out on all devices" in Account & household is the explicit `'global'` path and the only non-destructive way to revoke a connected AI assistant (`data/signOut.ts`).
 
 Three actions are transactional server RPCs (contract in `BUILD_FROM_ZERO.md` §5) because they touch multiple tables — implemented in `supabase/migrations/20260905132555_rezet_transactional_rpcs.sql` and later fix-up migrations:
 
@@ -89,6 +89,7 @@ Three actions are transactional server RPCs (contract in `BUILD_FROM_ZERO.md` §
 | `pantryAdd` | `rpc/pantry_add` | Adds/merges one pantry item (manual or "Foto" add) |
 | — | `rpc/create_household`, `rpc/redeem_invite` | Household bootstrap / invite-code join, called from `auth.tsx`, not from `Store` |
 | — | `rpc/create_invite`, `rpc/revoke_invite` | Admin-only; server generates the code and 7-day expiry. Called from `InviteSheet.tsx`, not from `Store` |
+| `removeMember` / `demoteAdmin` | `rpc/remove_member`, `rpc/demote_admin` | Admin-only, same household, never on oneself; an admin must be demoted before removal. `redeem_invite` only honours invites whose creator is still an admin |
 
 Stack per `BUILD_FROM_ZERO.md` §2: Supabase (Postgres + Auth + RLS + Storage) + TanStack Query (`supabaseStore.tsx` uses it for every query/mutation) — swappable for any backend that honors the §5 API contract, but the tokens, type scale, motion constants, nav architecture, and domain rules are **not** negotiable. React Router is also named in `BUILD_FROM_ZERO.md` §2 as target stack, but the app has no router — navigation is plain tab/sheet state in `App.tsx` — a gap between that doc and the code, not yet reconciled.
 

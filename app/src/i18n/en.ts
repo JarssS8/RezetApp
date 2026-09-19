@@ -36,6 +36,13 @@ export const en: Dictionary = {
   registerPasskey: 'Add a passkey to this device',
   passkeyRegistered: "Passkey added. You can sign in with it next time.",
   passkeyRegisterError: 'Could not register the passkey.',
+  signOutEverywhereRow: 'Sign out on all devices',
+  signOutEverywhereHint: 'Includes connected AI assistants',
+  signOutEverywhereTitle: 'Sign out on all devices?',
+  signOutEverywhereBody:
+    "You'll be signed out here and on all your devices, and connected AI assistants will lose access to your household. You'll need to sign in and connect them again.",
+  signOutEverywhereConfirm: 'Sign out everywhere',
+  signOutEverywhereError: 'Could not sign out on all devices. Try again.',
   notificationsEnabled: 'Notifications enabled',
   notificationsDenied: 'You blocked notification permission in the browser.',
   notificationsUnsupported: 'This browser does not support push notifications.',
@@ -234,6 +241,14 @@ export const en: Dictionary = {
   makeAdminAction: 'Make admin',
   promotingAdmin: 'Promoting…',
   promotedAdminToast: (name: string) => `${name} is now an admin`,
+  demoteAdminAction: 'Remove admin',
+  demotingAdmin: 'Removing…',
+  demotedAdminToast: (name: string) => `${name} is no longer an admin`,
+  removeMemberAction: 'Remove',
+  removeMemberTitle: (name: string) => `Remove ${name} from the household?`,
+  removeMemberBody:
+    "They'll lose access to this household's recipes, plan and pantry. To come back, they'll need a new invite code.",
+  removedMemberToast: (name: string) => `${name} is no longer in the household`,
 
   leaveConfirmTitle: (name: string) => `Leave ${name}?`,
   leaveConfirmBody:
@@ -319,7 +334,7 @@ export const en: Dictionary = {
   connectAiStep1: 'Open your assistant’s connector settings (in Claude: Settings → Connectors → Add custom connector).',
   connectAiStep2: 'Paste this URL.',
   connectAiStep3: 'Sign in with your Google or Apple account — it’ll ask you to confirm access to your household.',
-  connectAiNote: 'Real accounts only, not available in demo mode. To revoke access, sign out of the app.',
+  connectAiNote: 'Real accounts only, not available in demo mode. To revoke access: Account & household → Sign out on all devices.',
   komprappLinkRow: 'Link komprapp',
   komprappLinkSheetTitle: 'Link komprapp',
   komprappLinkSheetBody:

@@ -32,6 +32,7 @@ import { KomprappLinkSheet } from './sheets/KomprappLinkSheet';
 import { AccountHouseholdSheet } from './sheets/AccountHouseholdSheet';
 import { HouseholdSheet } from './sheets/HouseholdSheet';
 import { LeaveConfirmDialog, LeaveLastMemberDialog, LeaveLastAdminDialog } from './sheets/LeaveHouseholdDialogs';
+import { RemoveMemberDialog, SignOutEverywhereDialog } from './sheets/MemberAndSessionDialogs';
 import { DeleteIntroSheet, DeleteConfirmDialog } from './sheets/DeleteHouseholdFlow';
 import {
   DeleteAccountIntroSheet,
@@ -59,6 +60,8 @@ type SheetState =
   | { kind: 'komprappLink' }
   | { kind: 'accountHousehold' }
   | { kind: 'household' }
+  | { kind: 'removeMember'; member: { id: string; displayName: string } }
+  | { kind: 'signOutEverywhere' }
   | { kind: 'leaveConfirm' }
   | { kind: 'leaveLastMember' }
   | { kind: 'leaveLastAdmin' }
@@ -182,6 +185,7 @@ function MainApp({
    */
   const householdFlowOpen =
     sheet?.kind === 'household' ||
+    sheet?.kind === 'removeMember' ||
     sheet?.kind === 'leaveConfirm' ||
     sheet?.kind === 'leaveLastMember' ||
     sheet?.kind === 'leaveLastAdmin' ||
@@ -437,6 +441,7 @@ function MainApp({
           onConnectMcp={() => setSheet({ kind: 'connectMcp' })}
           onKomprappLink={() => setSheet({ kind: 'komprappLink' })}
           onDeleteAccount={() => setSheet({ kind: 'deleteAccountIntro' })}
+          onSignOutEverywhere={() => setSheet({ kind: 'signOutEverywhere' })}
           onToast={show}
         />
       )}
@@ -446,8 +451,24 @@ function MainApp({
           onClose={() => setSheet({ kind: 'accountHousehold' })}
           onRequestLeave={() => setSheet({ kind: 'leaveConfirm' })}
           onRequestDelete={() => setSheet({ kind: 'deleteIntro' })}
+          onRequestRemove={(member) => setSheet({ kind: 'removeMember', member })}
           onToast={show}
         />
+      )}
+
+      {sheet?.kind === 'removeMember' && (
+        <RemoveMemberDialog
+          member={sheet.member}
+          onCancel={() => setSheet({ kind: 'household' })}
+          onRemoved={() => {
+            show(t.removedMemberToast(sheet.member.displayName));
+            setSheet({ kind: 'household' });
+          }}
+        />
+      )}
+
+      {sheet?.kind === 'signOutEverywhere' && (
+        <SignOutEverywhereDialog onCancel={() => setSheet({ kind: 'accountHousehold' })} />
       )}
 
       {sheet?.kind === 'leaveConfirm' && (

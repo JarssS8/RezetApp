@@ -87,7 +87,7 @@ async function demoHouseholdActionUnavailable(): Promise<never> {
   throw new Error('No disponible en el modo demo.');
 }
 
-async function demoPromoteAdminUnavailable(_memberId: string): Promise<void> {
+async function demoMemberActionUnavailable(_memberId: string): Promise<void> {
   throw new Error('No disponible en el modo demo.');
 }
 
@@ -434,7 +434,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       finishCook,
       leaveHousehold: demoHouseholdActionUnavailable,
       deleteHousehold: demoHouseholdActionUnavailable,
-      promoteAdmin: demoPromoteAdminUnavailable,
+      promoteAdmin: demoMemberActionUnavailable,
+      demoteAdmin: demoMemberActionUnavailable,
+      removeMember: demoMemberActionUnavailable,
       setKomprappListToken: demoHouseholdActionUnavailable,
       deleteAccount: demoHouseholdActionUnavailable,
       setHouseholdSheetOpen: demoSetHouseholdSheetOpen,

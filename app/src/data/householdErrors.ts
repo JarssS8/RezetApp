@@ -14,6 +14,8 @@ export const REZET_LAST_ADMIN = 'REZET_LAST_ADMIN:';
 export const REZET_NOT_ADMIN = 'REZET_NOT_ADMIN:';
 /** `promote_admin()`: el objetivo no pertenece al hogar de quien llama. */
 export const REZET_NOT_A_MEMBER = 'REZET_NOT_A_MEMBER:';
+/** `remove_member()`: el objetivo es admin; hay que quitarle antes el rol con `demote_admin()`. */
+export const REZET_TARGET_IS_ADMIN = 'REZET_TARGET_IS_ADMIN:';
 
 /** Quita el prefijo `REZET_..._TAG: ` de un mensaje de error del backend, si lo tiene. */
 export function stripHouseholdErrorTag(message: string): string {

@@ -3,6 +3,7 @@ import { usePrefs } from '../store/prefs';
 import { useAuth } from '../data/auth';
 import { useData } from '../data/storeContext';
 import { stripHouseholdErrorTag } from '../data/householdErrors';
+import { memberActions } from '../domain/householdRoles';
 import { Sheet } from '../ui/Sheet';
 import { Pressable } from '../ui/Pressable';
 import { Pill } from '../ui/Chip';
@@ -30,9 +31,13 @@ const rowStyle = {
  * número de miembros puede serlo, ver `profile.is_admin`) — ser admin no te
  * quita la opción de simplemente salir si no eres el último.
  *
- * Quien ya es administrador puede además ascender a cualquier otro miembro
- * que todavía no lo sea ("Hacer administrador", `promote_admin`) — quien no
- * es administrador no ve ese control en absoluto, ni siquiera deshabilitado.
+ * Quien ya es administrador puede además gestionar a los demás (reglas en
+ * `domain/householdRoles.ts`): ascender a un miembro ("Hacer administrador",
+ * `promote_admin`), quitarle el rol a otro admin ("Quitar admin",
+ * `demote_admin`, sin confirmación: se deshace ascendiéndolo otra vez) y
+ * sacar del hogar a un miembro que no sea admin ("Quitar", `remove_member`,
+ * que sí pide confirmación vía `onRequestRemove`). Quien no es administrador
+ * no ve esos controles en absoluto, ni siquiera deshabilitados.
  *
  * No abre los diálogos de confirmación ella misma — solo avisa hacia
  * arriba (`onRequestLeave`/`onRequestDelete`). Quien monta esta hoja
@@ -45,16 +50,20 @@ export function HouseholdSheet({
   onClose,
   onRequestLeave,
   onRequestDelete,
+  onRequestRemove,
   onToast,
 }: {
   onClose: () => void;
   onRequestLeave: () => void;
   onRequestDelete: () => void;
+  /** Confirmación de "Quitar" (la abre `App.tsx`, mismo motivo que salir/eliminar). */
+  onRequestRemove: (member: { id: string; displayName: string }) => void;
   onToast?: (msg: string) => void;
 }) {
   const { t } = usePrefs();
   const { profile } = useAuth();
-  const { household, promoteAdmin } = useData();
+  const { household, promoteAdmin, demoteAdmin } = useData();
+  /** Fila con una acción de rol en curso (ascender o quitar admin). */
   const [promotingId, setPromotingId] = useState<string | null>(null);
 
   if (!household) {
@@ -80,6 +89,32 @@ export function HouseholdSheet({
     } finally {
       setPromotingId(null);
     }
+  };
+
+  const demote = async (memberId: string) => {
+    if (promotingId) return;
+    setPromotingId(memberId);
+    try {
+      await demoteAdmin(memberId);
+      const member = household.members.find((m) => m.id === memberId);
+      onToast?.(t.demotedAdminToast(member?.displayName ?? ''));
+    } catch (e) {
+      onToast?.(stripHouseholdErrorTag(e instanceof Error ? e.message : String(e)));
+    } finally {
+      setPromotingId(null);
+    }
+  };
+
+  const actionStyle = {
+    flexShrink: 0,
+    height: 40,
+    padding: '0 12px',
+    borderRadius: radius.chip,
+    background: 'var(--surface2)',
+    color: 'var(--text)',
+    fontSize: 13,
+    fontWeight: 600,
+    opacity: promotingId !== null ? 0.6 : 1,
   };
 
   return (
@@ -120,26 +155,43 @@ export function HouseholdSheet({
                     {t.youTag}
                   </div>
                 )}
-                {amIAdmin && !m.isAdmin && (
-                  <Pressable
-                    onClick={() => void promote(m.id)}
-                    disabled={promotingId !== null}
-                    scale={0.95}
-                    style={{
-                      flexShrink: 0,
-                      height: 40,
-                      padding: '0 12px',
-                      borderRadius: radius.chip,
-                      background: 'var(--surface2)',
-                      color: 'var(--text)',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      opacity: promotingId !== null ? 0.6 : 1,
-                    }}
-                  >
-                    {promotingId === m.id ? t.promotingAdmin : t.makeAdminAction}
-                  </Pressable>
-                )}
+                {(() => {
+                  const can = memberActions({ viewerIsAdmin: amIAdmin, isSelf: profile?.id === m.id, memberIsAdmin: m.isAdmin });
+                  return (
+                    <>
+                      {can.promote && (
+                        <Pressable
+                          onClick={() => void promote(m.id)}
+                          disabled={promotingId !== null}
+                          scale={0.95}
+                          style={actionStyle}
+                        >
+                          {promotingId === m.id ? t.promotingAdmin : t.makeAdminAction}
+                        </Pressable>
+                      )}
+                      {can.demote && (
+                        <Pressable
+                          onClick={() => void demote(m.id)}
+                          disabled={promotingId !== null}
+                          scale={0.95}
+                          style={actionStyle}
+                        >
+                          {promotingId === m.id ? t.demotingAdmin : t.demoteAdminAction}
+                        </Pressable>
+                      )}
+                      {can.remove && (
+                        <Pressable
+                          onClick={() => onRequestRemove({ id: m.id, displayName: m.displayName })}
+                          disabled={promotingId !== null}
+                          scale={0.95}
+                          style={{ ...actionStyle, background: 'var(--warnsoft)', color: 'var(--warn-ink)' }}
+                        >
+                          {t.removeMemberAction}
+                        </Pressable>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               {i < household.members.length - 1 && (
                 <div style={{ height: 1, background: 'var(--line)', marginLeft: 48 }} />

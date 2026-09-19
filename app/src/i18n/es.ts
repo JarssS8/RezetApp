@@ -34,6 +34,13 @@ export const es = {
   registerPasskey: 'Añadir passkey a este dispositivo',
   passkeyRegistered: 'Passkey añadida. Ya puedes entrar con ella la próxima vez.',
   passkeyRegisterError: 'No se pudo registrar la passkey.',
+  signOutEverywhereRow: 'Cerrar sesión en todos los dispositivos',
+  signOutEverywhereHint: 'Incluye los asistentes IA conectados',
+  signOutEverywhereTitle: '¿Cerrar sesión en todos los dispositivos?',
+  signOutEverywhereBody:
+    'Se cerrará la sesión en este y en todos tus dispositivos, y los asistentes IA conectados perderán el acceso a tu hogar. Tendrás que volver a entrar y a conectarlos.',
+  signOutEverywhereConfirm: 'Cerrar sesión en todos',
+  signOutEverywhereError: 'No se pudo cerrar la sesión en todos los dispositivos. Inténtalo de nuevo.',
   notificationsEnabled: 'Notificaciones activadas',
   notificationsDenied: 'Bloqueaste el permiso de notificaciones en el navegador.',
   notificationsUnsupported: 'Este navegador no soporta notificaciones push.',
@@ -234,6 +241,14 @@ export const es = {
   makeAdminAction: 'Hacer administrador',
   promotingAdmin: 'Ascendiendo…',
   promotedAdminToast: (name: string) => `${name} ya es administrador`,
+  demoteAdminAction: 'Quitar admin',
+  demotingAdmin: 'Quitando…',
+  demotedAdminToast: (name: string) => `${name} ya no es administrador`,
+  removeMemberAction: 'Quitar',
+  removeMemberTitle: (name: string) => `¿Quitar a ${name} del hogar?`,
+  removeMemberBody:
+    'Perderá el acceso a las recetas, el plan y la despensa de este hogar. Para volver necesitará un código de invitación nuevo.',
+  removedMemberToast: (name: string) => `${name} ya no está en el hogar`,
 
   leaveConfirmTitle: (name: string) => `¿Salir de ${name}?`,
   leaveConfirmBody:
@@ -320,7 +335,7 @@ export const es = {
   connectAiStep1: 'Abre los ajustes de conectores de tu asistente (en Claude: Ajustes → Conectores → Añadir conector personalizado).',
   connectAiStep2: 'Pega esta URL.',
   connectAiStep3: 'Inicia sesión con tu cuenta de Google o Apple — te pedirá confirmar el acceso a tu hogar.',
-  connectAiNote: 'Solo disponible con cuenta real, no en modo demo. Revocar el acceso: cierra sesión en la app.',
+  connectAiNote: 'Solo disponible con cuenta real, no en modo demo. Para revocar el acceso: Cuenta y hogar → Cerrar sesión en todos los dispositivos.',
   komprappLinkRow: 'Vincular komprapp',
   komprappLinkSheetTitle: 'Vincular komprapp',
   komprappLinkSheetBody:

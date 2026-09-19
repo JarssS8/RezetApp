@@ -19,7 +19,8 @@ const rowStyle = {
 
 /**
  * Un nivel por debajo de Ajustes (README §4.10) — todo lo que Ajustes
- * plano no debe cargar: passkey, conectar un asistente IA, gestión del
+ * plano no debe cargar: passkey, cerrar sesión en todos los dispositivos
+ * (la única forma de revocar un asistente IA conectado), conectar un asistente IA, gestión del
  * hogar (que a su vez abre `HouseholdSheet`), invitar, y "Eliminar cuenta"
  * al fondo bajo su propia zona de riesgo, separada del resto.
  */
@@ -30,6 +31,7 @@ export function AccountHouseholdSheet({
   onConnectMcp,
   onKomprappLink,
   onDeleteAccount,
+  onSignOutEverywhere,
   onToast,
 }: {
   onClose: () => void;
@@ -38,6 +40,8 @@ export function AccountHouseholdSheet({
   onConnectMcp: () => void;
   onKomprappLink: () => void;
   onDeleteAccount: () => void;
+  /** Pide confirmación (la abre `App.tsx`) y cierra todas las sesiones, asistentes IA incluidos. */
+  onSignOutEverywhere: () => void;
   onToast?: (msg: string) => void;
 }) {
   const { t } = usePrefs();
@@ -64,6 +68,25 @@ export function AccountHouseholdSheet({
             style={{ ...rowStyle, opacity: passkeyBusy ? 0.6 : 1 }}
           >
             {t.registerPasskey}
+          </Pressable>
+          <Pressable
+            onClick={onSignOutEverywhere}
+            scale={0.98}
+            style={{
+              ...rowStyle,
+              height: 'auto',
+              minHeight: 48,
+              padding: '9px 16px',
+              marginTop: 8,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              justifyContent: 'center',
+              gap: 2,
+            }}
+          >
+            <span>{t.signOutEverywhereRow}</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)' }}>{t.signOutEverywhereHint}</span>
           </Pressable>
         </div>
 

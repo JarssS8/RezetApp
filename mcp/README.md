@@ -58,9 +58,10 @@ household. Treat it like a password:
 - Don't copy it to another machine or commit it (it lives outside the repo and is also covered by
   `.gitignore` defensively).
 - `npm run login -- --logout` deletes it and revokes nothing server-side by itself.
-- Signing out of the Rezet web app with the account this server uses (the default sign-out scope is
-  `global`) also revokes this server's session — the next tool call will fail with a session error and you'll
-  need to run `npm run login` again.
+- The web app's plain "Sign out" only ends that device's session (`scope: 'local'`) and does **not** revoke
+  this server. To revoke it, use **Account & household → Sign out on all devices** (`scope: 'global'`) with
+  the account this server uses — the next tool call will fail with a session error and you'll need to run
+  `npm run login` again.
 - One running server instance == one signed-in user == one household. There's no `service_role`, no
   per-call auth, and no multi-tenant support — don't point one instance at multiple households or share the
   session file between users.
@@ -89,7 +90,7 @@ the table right below, and "[Remote server (Cloudflare)](#remote-server-cloudfla
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Client shows `invalid_grant` when it tries to refresh | The underlying Supabase refresh token expired or was revoked (e.g. you signed out of the Rezet web app with that account, `scope: 'global'`) | Reconnect the connector/server in your AI client and sign in again |
+| Client shows `invalid_grant` when it tries to refresh | The underlying Supabase refresh token expired or was revoked (e.g. you used "Sign out on all devices" in the Rezet web app with that account, `scope: 'global'`) | Reconnect the connector/server in your AI client and sign in again |
 | Browser lands on a "no household yet" page after choosing Google/Apple | That account has no `profile` row / household | Open `https://rezet.jarsss8.es`, sign in with the same account, create or join a household, then reconnect |
 | Sign-in fails partway with a Supabase redirect/allowlist error (`redirect_to` not allowed, or similar) | The Worker's `/callback` URL (prod or `localhost:8787`) isn't in Supabase's redirect allow-list | Add it in Supabase Dashboard → Authentication → URL Configuration → Redirect URLs |
 | TLS/certificate error on first visit to `https://rezet-mcp.jarsss8.es` | The custom domain was just created and the certificate is still provisioning | Wait a few minutes and retry; if a different subdomain shape was ever tried for this Worker, see the subdomain-nesting note under "Architecture" below |
