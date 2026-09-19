@@ -3,6 +3,34 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.8.0] - 2026-09-19
+
+### Español
+
+**Nuevo**
+- En Cuenta y hogar puedes cerrar sesión en todos tus dispositivos a la vez. También desconecta a tu asistente de IA: es la forma de quitarle el acceso a tu hogar.
+- Si administras el hogar, puedes quitar a alguien del hogar y quitarle el rol de administrador a otra persona desde Tu hogar.
+
+**Arreglado**
+- La hoja de conectar tu asistente de IA ya no dice que basta con cerrar sesión para quitarle el acceso.
+- Una invitación deja de servir si quien la creó ya no administra el hogar.
+- Las fotos de recetas de otros hogares ya no pueden quedarse guardadas indefinidamente, y la limpieza diaria de fotos ya no puede borrar por error las que siguen en uso.
+- El límite diario de reconocimiento de fotos en la Despensa ya no se reinicia al salir del hogar o volver a crearlo.
+- Varias comprobaciones de seguridad más estrictas entre hogares.
+
+### English
+
+**New**
+- In Account & household you can sign out on all your devices at once. It also disconnects your AI assistant: that's how you remove its access to your household.
+- If you run the household, you can remove someone from it and take the admin role away from another member in Your household.
+
+**Fixed**
+- The sheet for connecting your AI assistant no longer says that signing out is enough to remove its access.
+- An invite stops working when whoever created it no longer runs the household.
+- Recipe photos from other households can no longer be kept around indefinitely, and the daily photo cleanup can no longer delete photos that are still in use by mistake.
+- The daily limit for photo recognition in the Pantry no longer resets when you leave the household or create it again.
+- Several stricter security checks between households.
+
 ## [1.7.3] - 2026-09-18
 
 ### Español
