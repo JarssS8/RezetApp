@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { zonedNow } from '../worker/clock.js';
 import { authorizationErrorRedirect, consentPage, isKnownRedirectUri } from '../worker/html.js';
 import { s256Challenge } from '../worker/pkce.js';
+import { clientDisplayName, registrationRejection } from '../worker/registration.js';
 import { isRezetProps, type RezetProps } from '../worker/props.js';
 
 describe('zonedNow', () => {
@@ -168,5 +169,45 @@ describe('authorizationErrorRedirect', () => {
 
   it('refuses when there is no redirect URI at all', () => {
     expect(authorizationErrorRedirect({ ...err, redirectUri: undefined })).toBeNull();
+  });
+});
+
+// Auditoría run-3 (mcp/src/worker:oauth-kv:anonymous-register-authorize-kv-writes-unthrottled):
+// /register es anónimo y cada registro, y cada GET /authorize de ese cliente,
+// se guarda en OAUTH_KV. Sin límite de tamaño, un client_name de ~1 MiB se
+// copiaba en cada registro pendiente y en la página de consentimiento.
+describe('registrationRejection', () => {
+  const claude = { client_name: 'Claude', redirect_uris: ['https://claude.ai/api/mcp/auth_callback'], token_endpoint_auth_method: 'none' };
+
+  it('acepta el registro normal de un cliente de IA', () => {
+    expect(registrationRejection(claude)).toBeUndefined();
+    expect(registrationRejection({ redirect_uris: ['http://localhost:33418/callback'] })).toBeUndefined();
+  });
+
+  it('rechaza un client_name de más de 100 caracteres', () => {
+    expect(registrationRejection({ ...claude, client_name: 'x'.repeat(101) })).toMatchObject({ code: 'invalid_client_metadata' });
+    expect(registrationRejection({ ...claude, client_name: 'x'.repeat(100) })).toBeUndefined();
+  });
+
+  it('rechaza más de 10 redirect_uris o una de más de 2048 caracteres', () => {
+    const many = Array.from({ length: 11 }, (_, i) => `https://claude.ai/cb${i}`);
+    expect(registrationRejection({ ...claude, redirect_uris: many })).toMatchObject({ code: 'invalid_client_metadata' });
+    expect(registrationRejection({ ...claude, redirect_uris: [`https://claude.ai/${'a'.repeat(2048)}`] })).toMatchObject({
+      code: 'invalid_client_metadata',
+    });
+  });
+
+  it('rechaza metadatos de más de 8 KiB en total', () => {
+    expect(registrationRejection({ ...claude, contacts: ['a'.repeat(9000)] })).toMatchObject({ code: 'invalid_client_metadata' });
+  });
+});
+
+describe('clientDisplayName', () => {
+  it('corta a 100 caracteres el nombre de un cliente registrado antes del límite', () => {
+    expect(clientDisplayName('x'.repeat(5000), 'id')).toHaveLength(100);
+  });
+  it('usa el client_id si no hay nombre', () => {
+    expect(clientDisplayName(undefined, 'abc123')).toBe('abc123');
+    expect(clientDisplayName('Claude', 'abc123')).toBe('Claude');
   });
 });

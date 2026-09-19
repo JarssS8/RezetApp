@@ -7,6 +7,7 @@ import { authHandler } from './authHandler.js';
 import { installClock } from './clock.js';
 import type { Env } from './env.js';
 import { isRezetProps, type RezetProps } from './props.js';
+import { registrationRejection } from './registration.js';
 import { loadProfile, refreshSession } from './supabaseAuth.js';
 
 const ACCESS_TOKEN_TTL = 45 * 60; // must stay below Supabase JWT expiry (§3.6)
@@ -113,6 +114,11 @@ function providerFor(env: Env): OAuthProvider<Env> {
     refreshTokenTTL: REFRESH_TOKEN_TTL,
     allowImplicitFlow: false,
     disallowPublicClientRegistration: false, // Claude clients are public PKCE clients
+    // Registration stays anonymous (that's how Claude connects), but bounded: see registration.ts.
+    // clientRegistrationTTL keeps the library's 90-day default on purpose — the provider never
+    // extends a client's TTL on use, and an expired client fails its next refresh, so a shorter
+    // TTL would force every connected AI client to reconnect that often.
+    clientRegistrationCallback: ({ clientMetadata }) => registrationRejection(clientMetadata),
     tokenExchangeCallback: (options) => onTokenExchange(options, env),
     // NOTE (plan/reality): the plan's §3.1 sketch had `onError: { response: (e) => … }`, but
     // @cloudflare/workers-oauth-provider@0.10.3's real type is a plain function returning

@@ -4,6 +4,7 @@ import { authorizationErrorRedirect, consentPage, errorPage, noHouseholdPage, se
 import { clearCookie, cookieName, createPending, readPending, setCookie, takePending, updatePending } from './pending.js';
 import { randomVerifier, s256Challenge } from './pkce.js';
 import type { RezetProps } from './props.js';
+import { clientDisplayName } from './registration.js';
 import { authorizeUrl, exchangePkce, loadProfile } from './supabaseAuth.js';
 
 function html(env: Env, body: string, status = 200, extraHeaders: Record<string, string> = {}): Response {
@@ -50,7 +51,7 @@ async function handleGetAuthorize(request: Request, env: Env): Promise<Response>
   const client = await env.OAUTH_PROVIDER.lookupClient(authReq.clientId);
   if (!client) return text('unknown client', 400);
 
-  const clientName = client.clientName ?? authReq.clientId;
+  const clientName = clientDisplayName(client.clientName, authReq.clientId);
   const pending = await createPending(env, { authReq, clientName });
 
   const cancelUrl = new URL(authReq.redirectUri);
