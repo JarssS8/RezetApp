@@ -833,4 +833,84 @@ describe('migraciones', () => {
     await expect(asUser(db, zoe, "select public.redeem_invite('LEGACY0001', 'Zoe')")).rejects.toThrow(/inválido o caducado/);
     await db.close();
   }, 120_000);
+
+  // ── Auditoría run-3: hallazgos de severidad baja ─────────────────────────
+  // (rezet-supabase:household:vestigial-insert-policy-allows-unowned-orphan-households)
+  it('nadie crea hogares con INSERT directo; create_household sigue funcionando', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await expect(asUser(db, ana, "insert into public.household (name) values ('huérfano')")).rejects.toThrow();
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const n = await db.query<{ n: number }>('select count(*)::int as n from public.household');
+    expect(n.rows[0].n).toBe(1);
+    await db.close();
+  }, 120_000);
+
+  // (rezet-supabase:recipe.photo_path:direct-dml-bypasses-save_recipe-folder-guard)
+  it('photo_path solo puede apuntar a la carpeta del propio hogar, también por DML directo', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const [yan] = await householdWith(db, ['Yan']);
+    const hYan = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${yan}'`)).rows[0].h;
+    const hAna = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)).rows[0].h;
+    await asUser(db, ana, `insert into public.recipe (household_id, name) values ('${hAna}', 'R')`);
+
+    await expect(
+      asUser(db, ana, `update public.recipe set photo_path = '${hYan}/11111111-1111-4111-8111-111111111111.jpg'`),
+    ).rejects.toThrow();
+    await expect(
+      asUser(db, ana, `update public.recipe set photo_path = '${hAna}/../${hYan}/x.jpg'`),
+    ).rejects.toThrow();
+    await asUser(db, ana, `update public.recipe set photo_path = '${hAna}/11111111-1111-4111-8111-111111111111.jpg'`);
+    await asUser(db, ana, 'update public.recipe set photo_path = null');
+    await db.close();
+  }, 120_000);
+
+  // (rezet-storage:recipe-photos:nested-prefix-objects-escape-orphan-sweep)
+  it('recipe-photos solo acepta nombres planos <hogar>/<uuid>.<ext>', async () => {
+    const db = await applyMigrations();
+    // El stub de storage no trae los grants que Supabase da a authenticated.
+    await db.exec('grant usage on schema storage to authenticated; grant select, insert, update on storage.objects to authenticated;');
+    const [ana] = await householdWith(db, ['Ana']);
+    const hAna = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)).rows[0].h;
+    const put = (name: string) =>
+      asUser(db, ana, `insert into storage.objects (bucket_id, name) values ('recipe-photos', '${name}')`);
+
+    await put(`${hAna}/11111111-1111-4111-8111-111111111111.jpg`);
+    await put(`${hAna}/22222222-2222-4222-8222-222222222222.webp`);
+    await expect(put(`${hAna}/sub/x.jpg`)).rejects.toThrow();
+    await expect(put(`${hAna}/a/b/c/d.jpg`)).rejects.toThrow();
+    await expect(put(`${hAna}/not-a-uuid.jpg`)).rejects.toThrow();
+    await expect(put(`${hAna}/33333333-3333-4333-8333-333333333333.html`)).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  // (rezet-supabase:rls:household-scoped-fk-columns-accept-foreign-household-ids)
+  it('una fila del hogar no puede referenciar recetas, ingredientes ni etiquetas de otro hogar', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const [eve] = await householdWith(db, ['Eve']);
+    const hAna = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)).rows[0].h;
+    const hEve = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${eve}'`)).rows[0].h;
+    const recipeA = ((await asUser(db, ana, `insert into public.recipe (household_id, name) values ('${hAna}', 'A') returning id`)) as { rows: { id: string }[] }).rows[0].id;
+    const ingA = ((await asUser(db, ana, `insert into public.ingredient (household_id, name_es, name_en) values ('${hAna}', 'secreto', 'secret') returning id`)) as { rows: { id: string }[] }).rows[0].id;
+    const tagA = ((await asUser(db, ana, `insert into public.tag (household_id, name) values ('${hAna}', 'privada') returning id`)) as { rows: { id: string }[] }).rows[0].id;
+    const recipeE = ((await asUser(db, eve, `insert into public.recipe (household_id, name) values ('${hEve}', 'E') returning id`)) as { rows: { id: string }[] }).rows[0].id;
+    const globalIng = (await db.query<{ id: string }>("insert into public.ingredient (household_id, name_es, name_en) values (null, 'sal', 'salt') returning id")).rows[0].id;
+
+    const denied = [
+      `insert into public.plan_entry (household_id, on_date, slot, recipe_id, servings) values ('${hEve}', '2026-09-21', 'dinner', '${recipeA}', 2)`,
+      `insert into public.pantry_item (household_id, ingredient_id, quantity, unit) values ('${hEve}', '${ingA}', 1, 'g')`,
+      `insert into public.recipe_ingredient (recipe_id, ingredient_id, quantity, unit, position) values ('${recipeE}', '${ingA}', 1, 'g', 0)`,
+      `insert into public.recipe_tag (recipe_id, tag_id) values ('${recipeE}', '${tagA}')`,
+      `insert into public.cook_log (household_id, recipe_id, servings) values ('${hEve}', '${recipeA}', 2)`,
+    ];
+    for (const sql of denied) await expect(asUser(db, eve, sql)).rejects.toThrow(/row-level security/);
+
+    // Lo propio y el catálogo global siguen permitidos.
+    await asUser(db, eve, `insert into public.plan_entry (household_id, on_date, slot, recipe_id, servings) values ('${hEve}', '2026-09-21', 'dinner', '${recipeE}', 2)`);
+    await asUser(db, eve, `insert into public.pantry_item (household_id, ingredient_id, quantity, unit) values ('${hEve}', '${globalIng}', 1, 'g')`);
+    await asUser(db, eve, `insert into public.recipe_ingredient (recipe_id, ingredient_id, quantity, unit, position) values ('${recipeE}', '${globalIng}', 1, 'g', 0)`);
+    await db.close();
+  }, 120_000);
 });

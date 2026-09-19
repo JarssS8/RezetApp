@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { listTree, readAllByKey, referencedPaths } from "./logic.ts";
 
 /**
  * Diseño §3.4 (segunda mitad) — barrido diario del bucket `recipe-photos`:
@@ -22,12 +23,6 @@ const LIST_PAGE_SIZE = 100; // storage.list() no admite más de 100 por llamada
 const RECIPE_PAGE_SIZE = 1000;
 const MIN_AGE_MS = 24 * 60 * 60 * 1000; // margen para una subida en curso que aún no se ha guardado como receta
 const REMOVE_BATCH = 100;
-
-interface StorageEntry {
-  name: string;
-  id: string | null;
-  created_at: string | null;
-}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -66,84 +61,50 @@ Deno.serve(async (req) => {
     return json({ error: "failed to count recipe photo_path" }, 500);
   }
 
-  // 2) Referencias vigentes: todos los photo_path no nulos de `recipe`,
-  // paginadas explícitamente y en orden estable (`id`) — sin `order()` el
-  // orden de `.range()` no está garantizado entre páginas y una fila podría
-  // saltarse de una página a otra, y una referencia saltada es una foto VIVA
-  // borrada sin vuelta atrás. Por eso además se cuentan las filas leídas y se
-  // comparan contra el recuento exacto de arriba: si no coinciden, algo falló
-  // entre páginas y se aborta sin borrar nada. Cualquier fallo de página
-  // también aborta sin borrar, por la misma razón.
-  const referenced = new Set<string>();
-  let rowsRead = 0;
-  for (let from = 0; ; from += RECIPE_PAGE_SIZE) {
-    const { data, error } = await supabase
-      .from("recipe")
-      .select("photo_path")
-      .not("photo_path", "is", null)
-      .order("id")
-      .range(from, from + RECIPE_PAGE_SIZE - 1);
-    if (error) {
-      console.error("cleanup-orphan-photos: failed to read recipe photo_path");
-      return json({ error: "failed to read recipe photo_path" }, 500);
-    }
-    for (const row of data ?? []) {
-      rowsRead++;
-      if (row.photo_path) referenced.add(row.photo_path as string);
-    }
-    if (!data || data.length < RECIPE_PAGE_SIZE) break;
+  // 2) Referencias vigentes: los photo_path no nulos de `recipe`, leídos con
+  // cursor por `id` (no OFFSET: con OFFSET, mover filas de lado entre dos
+  // páginas desplazaba el resto y se saltaban referencias vivas de otros
+  // hogares). Luego se cuentan las filas leídas contra el recuento exacto de
+  // arriba: si no coinciden (alguien escribió durante el barrido), se aborta
+  // sin borrar nada. Cualquier fallo de página también aborta sin borrar.
+  let rows: { id: string; household_id: string; photo_path: string | null }[];
+  try {
+    rows = await readAllByKey(async (afterId) => {
+      let query = supabase
+        .from("recipe")
+        .select("id, household_id, photo_path")
+        .not("photo_path", "is", null)
+        .order("id")
+        .limit(RECIPE_PAGE_SIZE);
+      if (afterId !== null) query = query.gt("id", afterId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data ?? [];
+    }, RECIPE_PAGE_SIZE);
+  } catch {
+    console.error("cleanup-orphan-photos: failed to read recipe photo_path");
+    return json({ error: "failed to read recipe photo_path" }, 500);
   }
 
-  if (rowsRead !== expectedCount) {
+  if (rows.length !== expectedCount) {
     console.error("cleanup-orphan-photos: paginated row count does not match exact count, aborting");
     return json({ error: "reference count mismatch" }, 500);
   }
 
-  // 2) Objetos del bucket, carpeta a carpeta: el primer nivel son los
-  // household_id, y `list()` solo devuelve como mucho 100 entradas por
-  // llamada, así que cada nivel se pagina por su cuenta.
-  let listFailed = false;
-  async function listAll(path: string): Promise<StorageEntry[]> {
-    const all: StorageEntry[] = [];
-    for (let offset = 0; ; offset += LIST_PAGE_SIZE) {
-      const { data, error } = await supabase.storage.from(BUCKET).list(path, {
-        limit: LIST_PAGE_SIZE,
-        offset,
-      });
-      if (error) {
-        listFailed = true;
-        return all;
-      }
-      all.push(...((data ?? []) as StorageEntry[]));
-      if (!data || data.length < LIST_PAGE_SIZE) break;
-    }
-    return all;
-  }
+  // Solo cuentan las rutas dentro de la carpeta del hogar de cada receta:
+  // una receta no puede mantener viva la foto de otro hogar.
+  const referenced = referencedPaths(rows);
 
-  const folders = await listAll("");
-  if (listFailed) {
-    console.error("cleanup-orphan-photos: failed to list bucket root");
+  // 3) Objetos del bucket, a cualquier profundidad bajo cada carpeta de hogar
+  // (las subcarpetas ya no se pueden crear, pero las antiguas también se
+  // barren). `list()` devuelve como mucho 100 entradas por llamada.
+  const objects = await listTree(async (path, offset) => {
+    const { data, error } = await supabase.storage.from(BUCKET).list(path, { limit: LIST_PAGE_SIZE, offset });
+    return error ? null : (data ?? []);
+  }, LIST_PAGE_SIZE);
+  if (objects === null) {
+    console.error("cleanup-orphan-photos: failed to list bucket");
     return json({ error: "failed to list bucket" }, 500);
-  }
-
-  const objects: { path: string; createdAt: string | null }[] = [];
-  for (const folder of folders) {
-    if (folder.id !== null) {
-      // No se esperan archivos sueltos en la raíz del bucket: el primer nivel
-      // son carpetas de household_id (ver migración rezet_recipe_photos_storage).
-      // Uno ahí sería una anomalía; se ignora en vez de borrarlo sin poder
-      // resolver a qué hogar pertenece.
-      continue;
-    }
-    const entries = await listAll(folder.name);
-    if (listFailed) {
-      console.error("cleanup-orphan-photos: failed to list household folder");
-      return json({ error: "failed to list bucket" }, 500);
-    }
-    for (const entry of entries) {
-      if (entry.id === null) continue; // subcarpeta inesperada dentro de un hogar: se ignora
-      objects.push({ path: `${folder.name}/${entry.name}`, createdAt: entry.created_at });
-    }
   }
 
   // Salvaguarda final: si el bucket tiene objetos pero el conjunto de
