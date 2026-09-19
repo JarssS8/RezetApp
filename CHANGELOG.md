@@ -3,6 +3,22 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.8.1] - 2026-09-19
+
+### Español
+
+**Arreglado**
+- Al añadir a la Despensa con el código de barras o con Foto, el nombre del producto llega limpio: sin saltos de línea ni caracteres invisibles, y nunca más largo de 120 caracteres.
+- Al conectar tu asistente de IA, la pantalla de permiso ya no puede mostrar el nombre de una aplicación desmesuradamente largo.
+- Comprobaciones de seguridad más estrictas en los avisos de temporizador.
+
+### English
+
+**Fixed**
+- When you add to the Pantry by barcode or with Photo, the product name comes in clean: no line breaks or invisible characters, and never longer than 120 characters.
+- When you connect your AI assistant, the permission screen can no longer show an absurdly long app name.
+- Stricter security checks on timer notifications.
+
 ## [1.8.0] - 2026-09-19
 
 ### Español
