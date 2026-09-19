@@ -9,13 +9,10 @@ import { listTree, readAllByKey, referencedPaths } from "./logic.ts";
  * Storage.
  *
  * Solo la llama el cron (`cleanup-orphan-photos-daily`, migración
- * rezet_cleanup_orphan_photos_cron). A diferencia de `send-timer-
- * notifications`, aquí la autenticación **falla cerrado**: allí no reaccionar
- * es inocuo y por eso es tolerante mientras `TIMER_CRON_SECRET` no esté
- * configurado; aquí lo único que hace esta función es borrar, así que no
- * hacer nada es inocuo y borrar sin autenticar no lo es — y la publishable
- * key que llega hasta aquí viaja en el bundle del cliente, así que cualquiera
- * podría invocarla sin este secreto.
+ * rezet_cleanup_orphan_photos_cron). Como `send-timer-notifications`, la
+ * autenticación **falla cerrado**: la publishable key que llega hasta aquí
+ * viaja en el bundle del cliente, así que cualquiera podría invocarla sin
+ * `TIMER_CRON_SECRET`.
  */
 
 const BUCKET = "recipe-photos";
@@ -34,8 +31,6 @@ function json(body: unknown, status = 200): Response {
 Deno.serve(async (req) => {
   const cronSecret = Deno.env.get("TIMER_CRON_SECRET");
   if (!cronSecret) {
-    // Despliegue tolerante en send-timer-notifications, pero no aquí: esta
-    // función solo borra, así que sin secreto configurado se rechaza todo.
     console.warn("cleanup-orphan-photos: TIMER_CRON_SECRET sin configurar, se rechaza");
     return json({ error: "not configured" }, 503);
   }

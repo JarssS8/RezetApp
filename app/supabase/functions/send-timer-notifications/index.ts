@@ -1,5 +1,6 @@
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { cronAuthStatus } from "./logic.ts";
 
 const ALLOWED_PUSH_HOSTS = [
   "fcm.googleapis.com",
@@ -33,18 +34,14 @@ function isAllowedEndpoint(endpoint: string): boolean {
  */
 Deno.serve(async (req) => {
   // Diseño §3.6: el cron manda un secreto propio (`x-rezet-cron`), no solo la
-  // publishable key (pública, viaja en el bundle del cliente). Despliegue
-  // tolerante: mientras `TIMER_CRON_SECRET` no esté configurado en el entorno
-  // de la función, no se rechaza nada, para no cortar los avisos en silencio
-  // el día que se active esta comprobación.
-  const cronSecret = Deno.env.get("TIMER_CRON_SECRET");
-  if (cronSecret) {
-    if (req.headers.get("x-rezet-cron") !== cronSecret) {
-      return new Response("unauthorized", { status: 401 });
-    }
-  } else {
-    console.warn("send-timer-notifications: TIMER_CRON_SECRET sin configurar");
+  // publishable key (pública, viaja en el bundle del cliente). Falla cerrado:
+  // sin `TIMER_CRON_SECRET` configurado se rechaza todo (auditoría run-3).
+  const denied = cronAuthStatus(Deno.env.get("TIMER_CRON_SECRET"), req.headers.get("x-rezet-cron"));
+  if (denied === 503) {
+    console.warn("send-timer-notifications: TIMER_CRON_SECRET sin configurar, se rechaza");
+    return new Response("not configured", { status: 503 });
   }
+  if (denied === 401) return new Response("unauthorized", { status: 401 });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
