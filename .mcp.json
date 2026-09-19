@@ -7,6 +7,10 @@
     "rezet-remote": {
       "type": "http",
       "url": "https://rezet-mcp.jarsss8.es/mcp"
+    },
+    "supabase-kompr": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=oyzrlvqyjevodybzkxfn&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching"
     }
   }
 }
