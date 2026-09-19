@@ -340,6 +340,64 @@ describe('migraciones', () => {
     await db.close();
   }, 120_000);
 
+  it('borrar y recrear el hogar no reinicia la cuota de reconocimiento', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+
+    const call = () =>
+      db.query<{ ok: boolean }>(
+        `select public.consume_recognition_quota('${ana}'::uuid, 2, interval '1 day') as ok`,
+      );
+
+    expect((await call()).rows[0].ok).toBe(true);
+    expect((await call()).rows[0].ok).toBe(true);
+    expect((await call()).rows[0].ok).toBe(false);
+
+    // Auditoría run-3 (recognize-pantry-item/unbounded-gemini-spend): el
+    // contador colgaba de profile con ON DELETE CASCADE y se reiniciaba.
+    await asUser(db, ana, 'select public.delete_household()');
+    await asUser(db, ana, "select public.create_household('Casa 2', 'Ana')");
+    expect((await call()).rows[0].ok).toBe(false);
+    await db.close();
+  }, 120_000);
+
+  it('salir del hogar y volver a entrar no reinicia la cuota de reconocimiento', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const invite = async () =>
+      ((await asUser(db, ana, 'select public.create_invite() as c')) as { rows: { c: string }[] }).rows[0].c;
+    await asUser(db, bea, `select public.redeem_invite('${await invite()}', 'Bea')`);
+
+    const call = () =>
+      db.query<{ ok: boolean }>(
+        `select public.consume_recognition_quota('${bea}'::uuid, 1, interval '1 day') as ok`,
+      );
+    expect((await call()).rows[0].ok).toBe(true);
+    expect((await call()).rows[0].ok).toBe(false);
+
+    await asUser(db, bea, 'select public.leave_household()');
+    await asUser(db, bea, `select public.redeem_invite('${await invite()}', 'Bea')`);
+    expect((await call()).rows[0].ok).toBe(false);
+    await db.close();
+  }, 120_000);
+
+  it('borrar la cuenta sí elimina el contador de reconocimiento', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await db.query(`select public.consume_recognition_quota('${ana}'::uuid, 2, interval '1 day')`);
+
+    await asUser(db, ana, 'select public.delete_account()');
+    const left = await db.query<{ n: number }>(
+      `select count(*)::int as n from public.recognition_usage where profile_id = '${ana}'`,
+    );
+    expect(left.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
+
   it('guardar una receta propia y salir del hogar siguen funcionando', async () => {
     const db = await applyMigrations();
     const ana = await createAuthUser(db);
