@@ -1241,4 +1241,51 @@ describe('migraciones', () => {
     await expect(put(`${hAna}/33333333-3333-4333-8333-333333333333.html`)).rejects.toThrow();
     await db.close();
   }, 120_000);
+
+  // ── Revisión final de fundación de miembro: invariantes de esquema ──────
+  // (20260920090500_rezet_member_schema_invariants)
+
+  it('member: borrar la cuenta por fuera de las RPC (auth.users) también marca deleted_at', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const memberId = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${ana}'`)
+    ).rows[0].id;
+
+    // Nada de asUser aquí a propósito: borrar de auth.users es justo lo que
+    // un panel/Admin API haría por fuera de leave_household/delete_account/
+    // remove_member, sin pasar por ninguna RPC.
+    await db.query(`delete from auth.users where id = '${ana}'`);
+
+    const member = await db.query<{ deleted_at: string | null; auth_user_id: string | null }>(
+      `select deleted_at, auth_user_id from public.member where id = '${memberId}'`,
+    );
+    expect(member.rows[0].auth_user_id).toBeNull();
+    expect(member.rows[0].deleted_at).not.toBeNull();
+    await db.close();
+  }, 120_000);
+
+  it('avatars: leer objetos de otro hogar no devuelve nada (RLS)', async () => {
+    const db = await applyMigrations();
+    // El stub de storage no trae los grants que Supabase da a authenticated.
+    await db.exec('grant usage on schema storage to authenticated; grant select, insert, update on storage.objects to authenticated;');
+    const [ana] = await householdWith(db, ['Ana']);
+    const [yan] = await householdWith(db, ['Yan']);
+    const hAna = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)).rows[0].h;
+
+    await asUser(db, ana, `insert into storage.objects (bucket_id, name) values ('avatars', '${hAna}/11111111-1111-4111-8111-111111111111.jpg')`);
+
+    // asUser, no db.query directo: fuera de asUser eres superusuario y RLS
+    // no se evalúa, así que la lectura de "otro hogar" no probaría nada.
+    const seenByOwner = (await asUser(db, ana, "select * from storage.objects where bucket_id = 'avatars'")) as {
+      rows: unknown[];
+    };
+    expect(seenByOwner.rows.length).toBe(1);
+
+    const seenByOther = (await asUser(db, yan, "select * from storage.objects where bucket_id = 'avatars'")) as {
+      rows: unknown[];
+    };
+    expect(seenByOther.rows.length).toBe(0);
+    await db.close();
+  }, 120_000);
 });
