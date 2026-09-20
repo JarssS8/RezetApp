@@ -917,11 +917,11 @@ describe('migraciones', () => {
   // Nota importante sobre estos tests: el banco aplica las migraciones sobre
   // una base vacía, nunca hay un `profile` previo, así que el backfill de
   // esta migración no se puede probar aquí (se verifica a mano en el
-  // despliegue; son dos filas en producción). Y `create_household` todavía
-  // no inserta en `member` — eso llega en la Tarea 5. Por eso estos tests
-  // insertan la fila `member` como superusuario, fuera de `asUser`, que es
-  // exactamente donde el harness no aplica RLS, y usan `asUser` solo para lo
-  // que quieren comprobar: las políticas y los grants.
+  // despliegue; son dos filas en producción). Desde la Tarea 5,
+  // `create_household`/`redeem_invite` ya crean su propia fila de `member`,
+  // así que estos tests ya no la insertan a mano (duplicaría `auth_user_id`
+  // y violaría `member_auth_uq`); usan `asUser` solo para lo que quieren
+  // comprobar: las políticas y los grants.
 
   it('member: no se puede insertar ni borrar desde el cliente', async () => {
     const db = await applyMigrations();
@@ -950,13 +950,6 @@ describe('migraciones', () => {
     const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
     await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
 
-    // Las filas de `member`, a mano y como superusuario: create_household no
-    // las crea hasta la Tarea 5, y aquí lo que se prueba son las políticas.
-    await db.exec(`
-      insert into public.member (household_id, auth_user_id, display_name)
-      select household_id, id, display_name from public.profile;
-    `);
-
     // La propia: sí.
     await asUser(db, ana, "update public.member set color = 'blue' where auth_user_id = '" + ana + "'");
     const propio = await db.query<{ color: string }>(
@@ -983,10 +976,6 @@ describe('migraciones', () => {
     const db = await applyMigrations();
     const ana = await createAuthUser(db);
     await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
-    await db.exec(`
-      insert into public.member (household_id, auth_user_id, display_name)
-      select household_id, id, display_name from public.profile;
-    `);
 
     await expect(
       asUser(db, ana, `update public.member set kcal_target = 99999 where auth_user_id = '${ana}'`),
@@ -1048,13 +1037,6 @@ describe('migraciones', () => {
     const mallory = await createAuthUser(db);
     await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
 
-    // Las filas de `member` a mano y como superusuario: create_household no
-    // las crea hasta la Tarea 5, y aquí lo que se prueba son las RPC.
-    await db.exec(`
-      insert into public.member (household_id, auth_user_id, display_name)
-      select household_id, id, display_name from public.profile;
-    `);
-
     const yo = await db.query<{ id: string }>(
       `select id from public.member where auth_user_id = '${ana}'`,
     );
@@ -1084,13 +1066,6 @@ describe('migraciones', () => {
     const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
     await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
 
-    // Las filas de `member` a mano y como superusuario: create_household no
-    // las crea hasta la Tarea 5, y aquí lo que se prueba son las RPC.
-    await db.exec(`
-      insert into public.member (household_id, auth_user_id, display_name)
-      select household_id, id, display_name from public.profile;
-    `);
-
     const beaMember = await db.query<{ id: string }>(
       `select id from public.member where auth_user_id = '${bea}'`,
     );
@@ -1107,10 +1082,6 @@ describe('migraciones', () => {
     const mallory = await createAuthUser(db);
     await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
     await asUser(db, mallory, "select public.create_household('Casa de Mallory', 'Mallory')");
-    await db.exec(`
-      insert into public.member (household_id, auth_user_id, display_name)
-      select household_id, id, display_name from public.profile;
-    `);
 
     // La lectura tiene que ir por asUser: db.query es superusuario y no
     // evalúa RLS, así que ahí un `using (true)` pasaría desapercibido.
@@ -1122,6 +1093,69 @@ describe('migraciones', () => {
 
     expect(vistos.rows).toHaveLength(1);
     expect(vistos.rows[0].display_name).toBe('Mallory');
+    await db.close();
+  }, 120_000);
+
+  // ── Tarea 5: `member` enganchado al ciclo de vida del hogar ────────────
+
+  it('crear hogar y canjear invitación crean también el member', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    const res = await db.query<{ n: number }>(
+      'select count(*)::int as n from public.member where deleted_at is null',
+    );
+    expect(res.rows[0].n).toBe(2);
+    await db.close();
+  }, 120_000);
+
+  it('salir del hogar marca el member como borrado, no lo elimina', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    await asUser(db, bea, 'select public.leave_household()');
+
+    const res = await db.query<{ n: number; borrados: number }>(
+      `select count(*)::int as n,
+              count(*) filter (where deleted_at is not null)::int as borrados
+         from public.member`,
+    );
+    expect(res.rows[0].n).toBe(2);
+    expect(res.rows[0].borrados).toBe(1);
+    await db.close();
+  }, 120_000);
+
+  it('quien se va deja de ser tutelable aunque pierda la cuenta', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+    const beaMember = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bea}'`,
+    );
+
+    await asUser(db, bea, 'select public.leave_household()');
+
+    const puede = await asUser(
+      db,
+      ana,
+      `select private.can_act_for('${beaMember.rows[0].id}') as ok`,
+    );
+    expect((puede as { rows: { ok: boolean }[] }).rows[0].ok).toBe(false);
     await db.close();
   }, 120_000);
 });
