@@ -993,4 +993,111 @@ describe('migraciones', () => {
     ).rejects.toThrow();
     await db.close();
   }, 120_000);
+
+  it('tutelados: solo un admin los crea, y quedan en su hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    await asUser(db, ana, "select public.create_ward_member('Nico', 'blue')");
+    const ward = await db.query<{ n: number; is_ward: boolean }>(
+      "select count(*)::int as n, bool_or(is_ward) as is_ward from public.member where display_name = 'Nico'",
+    );
+    expect(ward.rows[0].n).toBe(1);
+    expect(ward.rows[0].is_ward).toBe(true);
+
+    // Bea no es admin.
+    await expect(asUser(db, bea, "select public.create_ward_member('Otro', 'pink')")).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('tutelados: no se pueden editar desde otro hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+    await asUser(db, mallory, "select public.create_household('Casa de Mallory', 'Mallory')");
+
+    await asUser(db, ana, "select public.create_ward_member('Nico', 'blue')");
+    const nico = await db.query<{ id: string }>(
+      "select id from public.member where display_name = 'Nico'",
+    );
+
+    await expect(
+      asUser(
+        db,
+        mallory,
+        `select public.set_member_settings('${nico.rows[0].id}', '{"display_name":"Robado"}'::jsonb)`,
+      ),
+    ).rejects.toThrow();
+
+    const sigue = await db.query<{ display_name: string }>(
+      `select display_name from public.member where id = '${nico.rows[0].id}'`,
+    );
+    expect(sigue.rows[0].display_name).toBe('Nico');
+    await db.close();
+  }, 120_000);
+
+  it('set_member_settings ignora las claves que no están en la lista blanca', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+
+    // Las filas de `member` a mano y como superusuario: create_household no
+    // las crea hasta la Tarea 5, y aquí lo que se prueba son las RPC.
+    await db.exec(`
+      insert into public.member (household_id, auth_user_id, display_name)
+      select household_id, id, display_name from public.profile;
+    `);
+
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+
+    await asUser(
+      db,
+      ana,
+      `select public.set_member_settings('${yo.rows[0].id}',
+         '{"color":"teal","auth_user_id":"${mallory}","is_ward":true}'::jsonb)`,
+    );
+
+    const m = await db.query<{ color: string; auth_user_id: string; is_ward: boolean }>(
+      `select color, auth_user_id, is_ward from public.member where id = '${yo.rows[0].id}'`,
+    );
+    expect(m.rows[0].color).toBe('teal');
+    expect(m.rows[0].auth_user_id).toBe(ana);
+    expect(m.rows[0].is_ward).toBe(false);
+    await db.close();
+  }, 120_000);
+
+  it('delete_ward_member no sirve para expulsar a alguien con cuenta', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    // Las filas de `member` a mano y como superusuario: create_household no
+    // las crea hasta la Tarea 5, y aquí lo que se prueba son las RPC.
+    await db.exec(`
+      insert into public.member (household_id, auth_user_id, display_name)
+      select household_id, id, display_name from public.profile;
+    `);
+
+    const beaMember = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bea}'`,
+    );
+
+    await expect(
+      asUser(db, ana, `select public.delete_ward_member('${beaMember.rows[0].id}')`),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
 });
