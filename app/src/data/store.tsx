@@ -82,9 +82,11 @@ const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 
 /**
  * El modo demo no tiene concepto real de hogar multi-usuario (no hay
  * sesión, no hay otros miembros). `household` se rellena con un valor
- * mínimo de un solo miembro solo para satisfacer el contrato `Store` —
- * nunca se muestra: la fila "Tu hogar" de Ajustes no se renderiza en demo
- * (mismo patrón que `onInvite={demo ? undefined : ...}` en `App.tsx`).
+ * mínimo de un solo miembro solo para satisfacer el contrato `Store` — la
+ * hoja "Tu hogar" SÍ se monta en demo (ver miembros, editarlos, añadir o
+ * quitar tutelados), pero sin "Salir del hogar" ni "Eliminar hogar"
+ * (`HouseholdSheet` no los pinta si `App.tsx` no le pasa esos dos
+ * callbacks, mismo patrón que `onInvite` en `AccountHouseholdSheet`).
  * `leaveHousehold`/`deleteHousehold` son alcanzables solo si algo llama a
  * estas funciones sin pasar por esa UI, así que rechazan con un mensaje
  * claro en vez de fingir que hacen algo.

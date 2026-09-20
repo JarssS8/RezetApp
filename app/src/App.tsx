@@ -402,7 +402,9 @@ function MainApp({
           // sin cerrar sesión en todos los dispositivos) pero sí "Tu hogar"
           // — ver el comentario de `store.tsx` sobre `DEMO_HOUSEHOLD`. Por
           // eso esta fila salta directa a `household` en demo, saltándose
-          // `AccountHouseholdSheet` (que sigue sin montarse en demo).
+          // `AccountHouseholdSheet` (que sigue sin montarse en demo) — y por
+          // eso lleva su propio rótulo: la fila abre "Tu hogar" en demo, no
+          // "Cuenta y hogar".
           onAccountHousehold={
             demo
               ? () => setSheet({ kind: 'household' })
@@ -410,6 +412,7 @@ function MainApp({
                 ? undefined
                 : () => setSheet({ kind: 'accountHousehold' })
           }
+          accountHouseholdLabel={demo ? t.householdRow : undefined}
           onToast={show}
         />
       )}

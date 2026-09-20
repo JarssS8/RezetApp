@@ -92,7 +92,11 @@ export interface Store {
    * cualquier lista que el usuario vaya a tocar.
    */
   members: Member[];
-  /** El miembro que corresponde a la sesión. `null` en demo y mientras carga. */
+  /**
+   * El miembro que corresponde a la sesión. `null` mientras carga en modo
+   * real; en demo vale siempre `MEMBERS[0].id` (Ana, la primera del seed) —
+   * no `null`, porque sí hay "yo" en demo, solo que sin cuenta real detrás.
+   */
   myMemberId: MemberId | null;
 
   /** Contrato: `rpc/create_ward_member`. Solo admins. Devuelve el id nuevo. */
