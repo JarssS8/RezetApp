@@ -31,14 +31,27 @@ interface SweepTarget {
   bucket: string;
   table: string;
   pathColumn: "photo_path" | "avatar_path";
+  /**
+   * Corta con error si el bucket tiene objetos pero el conjunto de
+   * referencias vino vacío (ver la salvaguarda de más abajo). Tiene sentido
+   * para `recipe-photos`: toda receta debería acabar con foto tarde o
+   * temprano, así que "cero referencias con objetos en el bucket" huele a
+   * fallo (RLS, consulta rota…). No tiene sentido para `avatars`: casi nadie
+   * sube uno, así que "un huérfano suelto y ningún miembro con avatar_path"
+   * es el caso normal (alguien subió una foto y luego la quitó), no un
+   * fallo. Exigirlo ahí dejaba el cron en rojo para siempre y los avatares
+   * huérfanos sin barrer — justo lo contrario de para lo que existe esta
+   * función.
+   */
+  requireNonEmptyReferences: boolean;
 }
 
 // El orden importa poco (cada pasada es independiente), pero se listan en el
 // orden en que se añadieron: `recipe-photos` ya existía, `avatars` es de la
 // Tarea 11.
 const TARGETS: SweepTarget[] = [
-  { bucket: "recipe-photos", table: "recipe", pathColumn: "photo_path" },
-  { bucket: "avatars", table: "member", pathColumn: "avatar_path" },
+  { bucket: "recipe-photos", table: "recipe", pathColumn: "photo_path", requireNonEmptyReferences: true },
+  { bucket: "avatars", table: "member", pathColumn: "avatar_path", requireNonEmptyReferences: false },
 ];
 
 type SweepResult =
@@ -66,7 +79,7 @@ function json(body: unknown, status = 200): Response {
  */
 async function sweepBucket(
   supabase: SupabaseClient,
-  { bucket, table, pathColumn }: SweepTarget,
+  { bucket, table, pathColumn, requireNonEmptyReferences }: SweepTarget,
   dryRun: boolean,
 ): Promise<SweepResult> {
   // 1) Recuento exacto de referencias vigentes, con el mismo filtro que la
@@ -129,10 +142,11 @@ async function sweepBucket(
     return { ok: false, error: `failed to list bucket ${bucket}` };
   }
 
-  // Salvaguarda final: si el bucket tiene objetos pero el conjunto de
+  // Salvaguarda final, solo para los buckets que la piden (ver el campo en
+  // `SweepTarget`): si el bucket tiene objetos pero el conjunto de
   // referencias vino vacío, algo fue mal (RLS, consulta rota…) — abortar sin
   // borrar en vez de arriesgarse a vaciar el bucket entero por error.
-  if (objects.length > 0 && referenced.size === 0) {
+  if (requireNonEmptyReferences && objects.length > 0 && referenced.size === 0) {
     console.error(`cleanup-orphan-photos: empty reference set with non-empty bucket ${bucket}, aborting`);
     return { ok: false, error: "empty reference set" };
   }
