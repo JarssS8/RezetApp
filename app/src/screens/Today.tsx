@@ -31,8 +31,15 @@ export function Today({
   isWide: boolean;
 }) {
   const { t, locale, loc } = usePrefs();
-  const { plan, recipes, recipeById, kcalTarget, coverageOf } = useData();
+  const { plan, recipes, recipeById, kcalTarget: householdKcalTarget, coverageOf, members, myMemberId } = useData();
   const today = todayKey();
+
+  // El anillo compara contra el objetivo PROPIO cuando existe (control por
+  // persona, Tarea de fundación de miembro), cayendo al del hogar si no hay
+  // sesión de miembro (demo, o carga inicial antes de que lleguen los
+  // miembros). El consumo que cuenta sigue siendo el de las comidas del
+  // hogar entero — eso no cambia en esta versión, ver CHANGELOG 1.9.0.
+  const kcalTarget = members.find((m) => m.id === myMemberId)?.kcalTarget ?? householdKcalTarget;
 
   const entries = useMemo(() => entriesOfDay(today, plan), [today, plan]);
 
