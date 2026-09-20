@@ -5,6 +5,7 @@ import { createStoreDerivations } from '../domain/deriveStore';
 import { todayKey, slotForNow, resolveExpiry } from '../domain/dates';
 import { SENSITIVE_RE, defaultLocationFor, inferFoodGroup } from '../domain/recipeText';
 import { usePrefs } from '../store/prefs';
+import { useAuth } from './auth';
 import { StoreCtx, type RecipeDraft, type Store } from './storeContext';
 import type {
   HouseholdDetail,
@@ -42,6 +43,7 @@ import {
   type RecipeRow,
 } from './supabaseStore/rows';
 import { storeKeys } from './supabaseStore/keys';
+import { useMembers } from './supabaseStore/useMembers';
 
 const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
 
@@ -54,6 +56,13 @@ export function SupabaseDataProvider({
 }) {
   const { locale } = usePrefs();
   const queryClient = useQueryClient();
+  // `profile.id` es el `auth_user_id` con el que se enlaza la fila de `member`
+  // propia; este proveedor siempre está montado dentro de `AuthProvider`.
+  const { profile } = useAuth();
+  const { members, myMemberId, createWardMember, deleteWardMember, setMemberSettings } = useMembers(
+    householdId,
+    profile?.id ?? null,
+  );
 
   const ingredientsKey = useMemo(() => storeKeys.ingredients(householdId), [householdId]);
   const recipesKey = useMemo(() => storeKeys.recipes(householdId), [householdId]);
@@ -730,6 +739,11 @@ export function SupabaseDataProvider({
       shoppingChecked: shoppingQ.data ?? {},
       kcalTarget: householdQ.data?.kcalTarget ?? 2100,
       household,
+      members,
+      myMemberId,
+      createWardMember,
+      deleteWardMember,
+      setMemberSettings,
       recipeById,
       ingredientById,
       knownTags,
@@ -765,6 +779,11 @@ export function SupabaseDataProvider({
       shoppingQ.data,
       householdQ.data,
       household,
+      members,
+      myMemberId,
+      createWardMember,
+      deleteWardMember,
+      setMemberSettings,
       recipeById,
       ingredientById,
       knownTags,
