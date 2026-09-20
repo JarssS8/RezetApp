@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabaseClient';
 import { storeKeys } from './keys';
-import { asMemberId, asProfileId, type Accent, type Member, type MemberId } from '../../types';
+import { asMemberId, asProfileId, type Accent, type Member, type MemberId, type ProfileId } from '../../types';
 import type { MemberSettingsPatch } from '../storeContext';
 
 interface MemberRow {
@@ -36,7 +36,7 @@ function mapMember(row: MemberRow): Member {
  * esconde, pero sin ellos no hay forma de poner nombre a lo que dejaron
  * hecho quienes ya no están.
  */
-export function useMembers(householdId: string, authUserId: string | null) {
+export function useMembers(householdId: string, authUserId: ProfileId | null) {
   const queryClient = useQueryClient();
   const key = useMemo(() => storeKeys.members(householdId), [householdId]);
 
@@ -46,6 +46,10 @@ export function useMembers(householdId: string, authUserId: string | null) {
       const { data, error } = await supabase
         .from('member')
         .select('id, auth_user_id, is_ward, display_name, avatar_path, color, sort_order, kcal_target, deleted_at')
+        // La RLS ya limita esto al hogar propio; el filtro explícito es
+        // defensa en profundidad y coherencia con el resto de queries de
+        // este fichero (ingredients/recipes/pantry/plan).
+        .eq('household_id', householdId)
         .order('sort_order', { ascending: true });
       if (error) throw error;
       return (data as MemberRow[]).map(mapMember);

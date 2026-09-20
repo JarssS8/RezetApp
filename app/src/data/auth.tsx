@@ -4,9 +4,10 @@ import { supabase } from './supabaseClient';
 import { unsubscribeFromPush } from './push';
 import { consumePendingInvite } from './pendingInvite';
 import { performSignOut, type SignOutScope } from './signOut';
+import { asProfileId, type ProfileId } from '../types';
 
 export interface Profile {
-  id: string;
+  id: ProfileId;
   householdId: string;
   displayName: string;
   onboardedAt: string | null;
@@ -60,7 +61,10 @@ async function loadProfile(userId: string): Promise<Profile | null> {
   if (error) throw error;
   if (!data) return null;
   return {
-    id: data.id as string,
+    // `ProfileId` es la única defensa que queda contra cruzar este id con el
+    // de `member` (`MemberId`): en SQL no se pudieron separar los dos
+    // espacios de identificadores.
+    id: asProfileId(data.id as string),
     householdId: data.household_id as string,
     displayName: data.display_name as string,
     onboardedAt: (data.onboarded_at as string | null) ?? null,
