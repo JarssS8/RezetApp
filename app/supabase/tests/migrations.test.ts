@@ -913,4 +913,84 @@ describe('migraciones', () => {
     await asUser(db, eve, `insert into public.recipe_ingredient (recipe_id, ingredient_id, quantity, unit, position) values ('${recipeE}', '${globalIng}', 1, 'g', 0)`);
     await db.close();
   }, 120_000);
+
+  // Nota importante sobre estos tests: el banco aplica las migraciones sobre
+  // una base vacía, nunca hay un `profile` previo, así que el backfill de
+  // esta migración no se puede probar aquí (se verifica a mano en el
+  // despliegue; son dos filas en producción). Y `create_household` todavía
+  // no inserta en `member` — eso llega en la Tarea 5. Por eso estos tests
+  // insertan la fila `member` como superusuario, fuera de `asUser`, que es
+  // exactamente donde el harness no aplica RLS, y usan `asUser` solo para lo
+  // que quieren comprobar: las políticas y los grants.
+
+  it('member: no se puede insertar ni borrar desde el cliente', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `insert into public.member (household_id, display_name) values ('${h.rows[0].id}', 'Colado')`,
+      ),
+    ).rejects.toThrow();
+
+    await expect(asUser(db, ana, 'delete from public.member')).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('member: solo se pueden actualizar las columnas propias de la fila propia', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    // Las filas de `member`, a mano y como superusuario: create_household no
+    // las crea hasta la Tarea 5, y aquí lo que se prueba son las políticas.
+    await db.exec(`
+      insert into public.member (household_id, auth_user_id, display_name)
+      select household_id, id, display_name from public.profile;
+    `);
+
+    // La propia: sí.
+    await asUser(db, ana, "update public.member set color = 'blue' where auth_user_id = '" + ana + "'");
+    const propio = await db.query<{ color: string }>(
+      `select color from public.member where auth_user_id = '${ana}'`,
+    );
+    expect(propio.rows[0].color).toBe('blue');
+
+    // La de otro: la política no deja ninguna fila que actualizar.
+    await asUser(db, ana, `update public.member set color = 'pink' where auth_user_id = '${bea}'`);
+    const ajeno = await db.query<{ color: string }>(
+      `select color from public.member where auth_user_id = '${bea}'`,
+    );
+    expect(ajeno.rows[0].color).not.toBe('pink');
+
+    // Una columna sin grant: rechazo duro.
+    await expect(
+      asUser(db, ana, `update public.member set is_ward = true where auth_user_id = '${ana}'`),
+    ).rejects.toThrow();
+
+    await db.close();
+  }, 120_000);
+
+  it('member: kcal_target no admite valores absurdos', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await db.exec(`
+      insert into public.member (household_id, auth_user_id, display_name)
+      select household_id, id, display_name from public.profile;
+    `);
+
+    await expect(
+      asUser(db, ana, `update public.member set kcal_target = 99999 where auth_user_id = '${ana}'`),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
 });
