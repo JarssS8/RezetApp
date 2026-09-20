@@ -46,7 +46,7 @@ interface PrefsContext extends Prefs {
    * desde `PrefsBridge`: el dispositivo pinta al instante desde
    * localStorage, y cuando hay sesión el servidor gana.
    */
-  hydrateFromServer: (partial: Partial<Prefs>) => void;
+  hydrateFromServer: (partial: Partial<Omit<Prefs, 'showIdeas'>>) => void;
 }
 
 const Ctx = createContext<PrefsContext | null>(null);

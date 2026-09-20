@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useAuth } from '../data/auth';
 import { usePrefs } from '../store/prefs';
 import { supabase } from '../data/supabaseClient';
+import type { Accent, Locale, Theme, UnitSystem } from '../types';
 
 /**
  * Trae los ajustes de la cuenta al arrancar la sesión, y los devuelve al
@@ -14,33 +15,55 @@ import { supabase } from '../data/supabaseClient';
 export function PrefsBridge() {
   const { profile } = useAuth();
   const { locale, theme, accent, units, hydrateFromServer } = usePrefs();
-  const hydrated = useRef<string | null>(null);
+  /** Id del perfil cuya lectura YA ha terminado. No se marca al empezar. */
+  const hydratedFor = useRef<string | null>(null);
+  /** Lo último que sabemos que hay en el servidor, para no reescribirlo. */
+  const lastSynced = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!profile || hydrated.current === profile.id) return;
-    hydrated.current = profile.id;
+    if (!profile || hydratedFor.current === profile.id) return;
+    let cancelled = false;
     void (async () => {
       const { data } = await supabase
         .from('profile')
         .select('locale, theme, accent, units')
         .eq('id', profile.id)
         .maybeSingle();
+      if (cancelled) return;
       if (data) {
-        hydrateFromServer({
-          locale: data.locale as typeof locale,
-          theme: data.theme as typeof theme,
-          accent: data.accent as typeof accent,
-          units: data.units as typeof units,
-        });
+        const next = {
+          locale: data.locale as Locale,
+          theme: data.theme as Theme,
+          accent: data.accent as Accent,
+          units: data.units as UnitSystem,
+        };
+        lastSynced.current = JSON.stringify(next);
+        hydrateFromServer(next);
       }
+      // Se marca al TERMINAR, nunca al empezar: si se marcara antes, el
+      // efecto de escritura pasaría su guarda mientras la lectura sigue en
+      // vuelo y subiría los ajustes del dispositivo encima de los de la
+      // cuenta, que es justo lo que este puente existe para evitar.
+      hydratedFor.current = profile.id;
     })();
-  }, [profile, hydrateFromServer, locale, theme, accent, units]);
+    return () => {
+      cancelled = true;
+    };
+  }, [profile, hydrateFromServer]);
 
   useEffect(() => {
-    if (!profile || hydrated.current !== profile.id) return;
-    // Reintento silencioso: que falle la escritura no debe romper la
-    // interfaz, el dispositivo ya tiene el valor bueno en localStorage.
-    void supabase.from('profile').update({ locale, theme, accent, units }).eq('id', profile.id);
+    if (!profile || hydratedFor.current !== profile.id) return;
+    const payload = { locale, theme, accent, units };
+    const serialized = JSON.stringify(payload);
+    // Nada que subir si es exactamente lo que acabamos de leer: evita un
+    // UPDATE redundante en cada inicio de sesión que traiga valores
+    // distintos a los locales.
+    if (lastSynced.current === serialized) return;
+    lastSynced.current = serialized;
+    // Escritura de mejor esfuerzo: si falla (sin red), el dispositivo
+    // conserva el valor bueno en localStorage y no se reintenta hasta el
+    // próximo cambio de preferencia.
+    void supabase.from('profile').update(payload).eq('id', profile.id);
   }, [profile, locale, theme, accent, units]);
 
   return null;
