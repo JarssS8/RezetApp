@@ -13,10 +13,16 @@ import { Eyebrow } from '../ui/Card';
 import { radius } from '../ui/tokens';
 import type { Accent, MemberId } from '../types';
 
-/** Objetivo diario en pasos de 50 kcal, entre 500 y 6000 — evita valores absurdos sin imponer una cifra "correcta". */
+/**
+ * Objetivo diario en pasos de 50 kcal. El rango tiene que coincidir con el
+ * `check (kcal_target between 1000 and 5000)` de la columna
+ * (`20260920090000_rezet_member_foundation.sql`): salirse de él en el
+ * cliente dispara en modo real una violación de CHECK cruda de Postgres,
+ * sin prefijo `REZET_`, que `stripHouseholdErrorTag` no sabe traducir.
+ */
 const KCAL_STEP = 50;
-const KCAL_MIN = 500;
-const KCAL_MAX = 6000;
+const KCAL_MIN = 1000;
+const KCAL_MAX = 5000;
 
 /**
  * Hoja de un miembro (`HouseholdSheet` la abre al tocar una fila): nombre,
@@ -68,9 +74,17 @@ export function MemberSheet({
   const me = members.find((m) => m.id === myMemberId);
   const myAccount = me?.authUserId ? household?.members.find((hm) => hm.id === me.authUserId) : undefined;
   const amIAdmin = myAccount?.isAdmin ?? false;
+  const isSelf = member.id === myMemberId;
+  /**
+   * Espejo de `private.can_act_for` en el servidor: solo tu propia fila o la
+   * de un tutelado se puede editar; cualquier otra rechaza con
+   * `REZET_FORBIDDEN`. Sin este gate el formulario se dejaba escribir sobre
+   * la ficha de cualquier adulto y "Guardar" fallaba siempre.
+   */
+  const canEdit = isSelf || member.isWard;
 
   const save = async () => {
-    if (!displayName.trim() || saving) return;
+    if (!canEdit || !displayName.trim() || saving) return;
     setSaving(true);
     try {
       await setMemberSettings(memberId, { displayName: displayName.trim(), color, kcalTarget });
@@ -103,47 +117,76 @@ export function MemberSheet({
           <Avatar member={{ ...member, displayName, color }} size={64} />
         </div>
 
-        <div>
-          <Eyebrow style={{ marginBottom: 9 }}>{t.memberName}</Eyebrow>
-          <TextField value={displayName} onChange={setDisplayName} placeholder={t.memberName} />
-        </div>
-
-        <div>
-          <Eyebrow style={{ marginBottom: 9 }}>{t.memberColor}</Eyebrow>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {(Object.keys(ACCENTS) as Accent[]).map((key) => (
-              <Pressable
-                key={key}
-                onClick={() => setColor(key)}
-                ariaLabel={key}
-                scale={0.9}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: radius.pill,
-                  background: ACCENTS[key],
-                  border: `2px solid ${color === key ? 'var(--text)' : 'transparent'}`,
-                }}
-              />
-            ))}
+        {!canEdit && (
+          <div
+            style={{
+              fontSize: 13.5,
+              lineHeight: 1.45,
+              color: 'var(--warn-ink)',
+              background: 'var(--warnsoft)',
+              borderRadius: radius.chip,
+              padding: '10px 12px',
+            }}
+          >
+            {t.memberCannotEdit}
           </div>
-        </div>
+        )}
 
-        <div>
-          <Eyebrow style={{ marginBottom: 9 }}>{t.memberKcalTarget}</Eyebrow>
-          <Stepper
-            value={kcalTarget}
-            formatted={`${formatKcal(kcalTarget, locale)} ${t.kcal}`}
-            valueWidth={110}
-            onDecrement={() => setKcalTarget((v) => Math.max(KCAL_MIN, v - KCAL_STEP))}
-            onIncrement={() => setKcalTarget((v) => Math.min(KCAL_MAX, v + KCAL_STEP))}
-            label={t.memberKcalTarget}
-          />
+        {/* El servidor rechaza esta edición con `REZET_FORBIDDEN` para quien
+            no sea la propia persona o un admin sobre su tutelado
+            (`private.can_act_for`) — deshabilitar el formulario entero evita
+            que se pueda escribir y pulsar Guardar solo para ver ese error. */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 20,
+            opacity: canEdit ? 1 : 0.55,
+            pointerEvents: canEdit ? 'auto' : 'none',
+          }}
+        >
+          <div>
+            <Eyebrow style={{ marginBottom: 9 }}>{t.memberName}</Eyebrow>
+            <TextField value={displayName} onChange={setDisplayName} placeholder={t.memberName} />
+          </div>
+
+          <div>
+            <Eyebrow style={{ marginBottom: 9 }}>{t.memberColor}</Eyebrow>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {(Object.keys(ACCENTS) as Accent[]).map((key) => (
+                <Pressable
+                  key={key}
+                  onClick={() => setColor(key)}
+                  ariaLabel={key}
+                  scale={0.9}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: radius.pill,
+                    background: ACCENTS[key],
+                    border: `2px solid ${color === key ? 'var(--text)' : 'transparent'}`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Eyebrow style={{ marginBottom: 9 }}>{t.memberKcalTarget}</Eyebrow>
+            <Stepper
+              value={kcalTarget}
+              formatted={`${formatKcal(kcalTarget, locale)} ${t.kcal}`}
+              valueWidth={110}
+              onDecrement={() => setKcalTarget((v) => Math.max(KCAL_MIN, v - KCAL_STEP))}
+              onIncrement={() => setKcalTarget((v) => Math.min(KCAL_MAX, v + KCAL_STEP))}
+              label={t.memberKcalTarget}
+            />
+          </div>
         </div>
 
         <Button
           full
-          disabled={!displayName.trim() || saving}
+          disabled={!canEdit || !displayName.trim() || saving}
           onClick={() => void save()}
           style={{ borderRadius: radius.button }}
         >

@@ -247,6 +247,7 @@ export const es = {
   addWardMemberAction: 'Añadir',
   removeWardMember: 'Quitar del hogar',
   memberInactive: 'Ya no está en el hogar',
+  memberCannotEdit: 'Solo esta persona puede cambiar sus datos.',
   settingsSynced: 'Sincronizado con tu cuenta',
   settingsLocalOnly: 'Solo en este dispositivo',
   memberActionError: 'No se pudo guardar. Inténtalo de nuevo.',

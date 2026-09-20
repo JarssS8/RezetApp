@@ -247,6 +247,7 @@ export const en: Dictionary = {
   addWardMemberAction: 'Add',
   removeWardMember: 'Remove from household',
   memberInactive: 'No longer in the household',
+  memberCannotEdit: 'Only this person can change their own details.',
   settingsSynced: 'Synced with your account',
   settingsLocalOnly: 'On this device only',
   memberActionError: "Couldn't save. Please try again.",
