@@ -5,6 +5,7 @@ import { clearCookie, cookieName, createPending, readPending, setCookie, takePen
 import { randomVerifier, s256Challenge } from './pkce.js';
 import type { RezetProps } from './props.js';
 import { clientDisplayName } from './registration.js';
+import { COPY, pickLocale } from './strings.js';
 import { authorizeUrl, exchangePkce, loadProfile } from './supabaseAuth.js';
 
 function html(env: Env, body: string, status = 200, extraHeaders: Record<string, string> = {}): Response {
@@ -36,13 +37,14 @@ function handleInfo(env: Env): Response {
 
 async function handleGetAuthorize(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
+  const locale = pickLocale(request.headers.get('accept-language'));
   let authReq: AuthRequest;
   try {
     authReq = await env.OAUTH_PROVIDER.parseAuthRequest(request);
   } catch (e) {
     if (e instanceof AuthorizationError) {
       const to = authorizationErrorRedirect(e);
-      if (!to) return html(env, errorPage({ title: 'Invalid authorization request', message: e.description }), 400);
+      if (!to) return html(env, errorPage({ title: COPY[locale].errorInvalidRequest, message: e.description, locale }), 400);
       return Response.redirect(to, 302);
     }
     throw e;
@@ -63,6 +65,7 @@ async function handleGetAuthorize(request: Request, env: Env): Promise<Response>
     redirectUri: authReq.redirectUri,
     csrf: pending.csrf,
     cancelUrl: cancelUrl.toString(),
+    locale,
   });
 
   return html(env, body, 200, { 'set-cookie': setCookie(url, pending.id) });
@@ -93,11 +96,12 @@ async function handlePostAuthorize(request: Request, env: Env): Promise<Response
 
 async function handleCallback(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
+  const locale = pickLocale(request.headers.get('accept-language'));
 
   const upstreamError = url.searchParams.get('error');
   if (upstreamError) {
     const description = url.searchParams.get('error_description') ?? upstreamError;
-    return html(env, errorPage({ title: 'Sign-in failed', message: description }), 400);
+    return html(env, errorPage({ title: COPY[locale].errorSignInFailed, message: description, locale }), 400);
   }
 
   const id = readCookie(request, cookieName(url));
@@ -117,14 +121,14 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
 
   const exchange = await exchangePkce(env, code, pending.codeVerifier);
   if (!exchange.ok) {
-    return html(env, errorPage({ title: 'Sign-in failed', message: exchange.description }), 400, clearHeader);
+    return html(env, errorPage({ title: COPY[locale].errorSignInFailed, message: exchange.description, locale }), 400, clearHeader);
   }
 
   const profile = await loadProfile(env, exchange.session.accessToken, exchange.userId);
   if (!profile) {
     // Deliberately do not call completeAuthorization: no grant, no props, the Supabase tokens
     // above simply die with this response.
-    return html(env, noHouseholdPage({ appUrl: env.APP_URL }), 200, clearHeader);
+    return html(env, noHouseholdPage({ appUrl: env.APP_URL, locale }), 200, clearHeader);
   }
 
   const props: RezetProps = {

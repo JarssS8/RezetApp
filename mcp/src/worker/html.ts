@@ -1,4 +1,6 @@
 import type { Env } from './env.js';
+import { COPY, type Locale } from './strings.js';
+import { BOWL_SVG, THEME_CSS } from './theme.js';
 
 /**
  * Every HTML response the auth relay serves carries these — no inline scripts, no framing, no caching.
@@ -48,28 +50,43 @@ export function sanitizeUrl(value: string): string {
   }
 }
 
-function page(title: string, body: string): string {
+/**
+ * The shell every page shares: Rezet's Login screen, rebuilt as static HTML — logo mark, wordmark,
+ * tagline, then one card. `card` and `after` are raw HTML the caller has already sanitized.
+ */
+function page(locale: Locale, title: string, card: string, after = ''): string {
+  const copy = COPY[locale];
   return `<!doctype html>
-<html lang="en">
+<html lang="${copy.htmlLang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${sanitizeText(title)}</title>
-<style>
-  body { font: 16px/1.5 system-ui, sans-serif; max-width: 32rem; margin: 4rem auto; padding: 0 1.5rem; color: #1a1a1a; }
-  h1 { font-size: 1.25rem; }
-  .provider { display: block; width: 100%; margin: 0.5rem 0; padding: 0.75rem 1rem; font: inherit; border: 1px solid #ccc; border-radius: 8px; background: #fff; cursor: pointer; }
-  .provider:hover { background: #f5f5f5; }
-  .cancel { display: inline-block; margin-top: 1rem; color: #666; }
-  .scope { color: #444; }
-  .warn { background: #fff4e5; color: #6b3f00; border: 1px solid #f0c68a; border-radius: 8px; padding: 0.75rem 1rem; }
-  .warn code { word-break: break-all; }
-</style>
+<style>${THEME_CSS}</style>
 </head>
 <body>
-${body}
+<div class="wrap">
+  <div class="col">
+    <div class="head">
+      <div class="mark">${BOWL_SVG}</div>
+      <div>
+        <div class="brand">Rezet</div>
+        <p class="tag">${sanitizeText(copy.tagline)}</p>
+      </div>
+    </div>
+    <div class="card">
+${card}
+    </div>
+${after}
+  </div>
+</div>
 </body>
 </html>`;
+}
+
+/** Splits a copy template on its single `{placeholder}`, escaping the literal parts around it. */
+function fill(template: string, token: string, value: string): string {
+  return sanitizeText(template).split(`{${token}}`).join(value);
 }
 
 // Domains we recognize as belonging to a client we (or the person authorizing) actually know.
@@ -126,40 +143,46 @@ export function consentPage(opts: {
   redirectUri: string;
   csrf: string;
   cancelUrl: string;
+  locale: Locale;
 }): string {
+  const copy = COPY[opts.locale];
   const clientName = sanitizeText(opts.clientName);
   const redirectUri = sanitizeText(opts.redirectUri);
   const csrf = sanitizeText(opts.csrf);
   const cancelUrl = sanitizeUrl(opts.cancelUrl);
+  const warn = isKnownRedirectUri(opts.redirectUri)
+    ? ''
+    : `      <p class="warn">${sanitizeText(copy.unverified)} <code>${redirectUri}</code></p>\n`;
   return page(
-    'Connect to Rezet',
-    `<h1>${clientName} wants access to your Rezet household</h1>
-<p class="scope">It will redirect to <strong>${redirectUri}</strong> and will be able to read and change your
-household's recipes, weekly plan, pantry and shopping list as you.</p>
-${isKnownRedirectUri(opts.redirectUri) ? '' : `<p class="warn">Este cliente no está verificado: cualquiera puede registrar uno con el nombre que quiera. Continúa solo si reconoces esta dirección: <code>${redirectUri}</code></p>`}
-<form method="POST" action="/authorize">
-  <input type="hidden" name="csrf" value="${csrf}">
-  <button class="provider" type="submit" name="provider" value="google">Continue with Google</button>
-  <button class="provider" type="submit" name="provider" value="apple">Continue with Apple</button>
-</form>
-<a class="cancel" href="${cancelUrl}">Cancel</a>`,
+    opts.locale,
+    copy.consentTitle,
+    `      <h1>${fill(copy.heading, 'client', clientName)}</h1>
+      <p class="scope">${sanitizeText(copy.redirectsTo)} <strong>${redirectUri}</strong>. ${sanitizeText(copy.scope)}</p>
+${warn}      <form method="POST" action="/authorize">
+        <input type="hidden" name="csrf" value="${csrf}">
+        <button class="provider" type="submit" name="provider" value="google">${sanitizeText(copy.continueGoogle)}</button>
+        <button class="provider secondary" type="submit" name="provider" value="apple">${sanitizeText(copy.continueApple)}</button>
+      </form>`,
+    `    <a class="cancel" href="${cancelUrl}">${sanitizeText(copy.cancel)}</a>`,
   );
 }
 
-export function errorPage(opts: { title: string; message: string }): string {
+export function errorPage(opts: { title: string; message: string; locale: Locale }): string {
   return page(
+    opts.locale,
     opts.title,
-    `<h1>${sanitizeText(opts.title)}</h1>
-<p>${sanitizeText(opts.message)}</p>`,
+    `      <h1>${sanitizeText(opts.title)}</h1>
+      <p class="scope">${sanitizeText(opts.message)}</p>`,
   );
 }
 
-export function noHouseholdPage(opts: { appUrl: string }): string {
+export function noHouseholdPage(opts: { appUrl: string; locale: Locale }): string {
+  const copy = COPY[opts.locale];
+  const link = `<a href="${sanitizeUrl(opts.appUrl)}">${sanitizeText(opts.appUrl)}</a>`;
   return page(
-    "You're signed in, but there's no Rezet household yet",
-    `<h1>No Rezet household yet</h1>
-<p>You're signed in, but this account has no Rezet household. Open <a href="${sanitizeUrl(opts.appUrl)}">${sanitizeText(
-      opts.appUrl,
-    )}</a>, sign in with the same account, create or join a household, then connect again from your AI client.</p>`,
+    opts.locale,
+    copy.noHouseholdTitle,
+    `      <h1>${sanitizeText(copy.noHouseholdTitle)}</h1>
+      <p class="scope">${fill(copy.noHouseholdBody, 'app', link)}</p>`,
   );
 }

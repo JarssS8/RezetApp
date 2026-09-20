@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { zonedNow } from '../worker/clock.js';
 import { authorizationErrorRedirect, consentPage, isKnownRedirectUri } from '../worker/html.js';
+import { pickLocale } from '../worker/strings.js';
 import { s256Challenge } from '../worker/pkce.js';
 import { clientDisplayName, registrationRejection } from '../worker/registration.js';
 import { isRezetProps, type RezetProps } from '../worker/props.js';
@@ -132,7 +133,7 @@ describe('isKnownRedirectUri', () => {
 });
 
 describe('consentPage', () => {
-  const base = { clientName: 'Claude', csrf: 'csrf-token', cancelUrl: 'https://example.com/cancel' };
+  const base = { clientName: 'Claude', csrf: 'csrf-token', cancelUrl: 'https://example.com/cancel', locale: 'es' as const };
 
   it('shows no warning and the full redirect URI for a known client', () => {
     const html = consentPage({ ...base, redirectUri: 'https://claude.ai/api/mcp/auth_callback' });
@@ -209,5 +210,71 @@ describe('clientDisplayName', () => {
   it('usa el client_id si no hay nombre', () => {
     expect(clientDisplayName(undefined, 'abc123')).toBe('abc123');
     expect(clientDisplayName('Claude', 'abc123')).toBe('Claude');
+  });
+});
+
+describe('pickLocale', () => {
+  it('defaults to Spanish when there is no Accept-Language header', () => {
+    expect(pickLocale(null)).toBe('es');
+  });
+
+  it('picks English for an English-only header', () => {
+    expect(pickLocale('en-GB,en;q=0.9')).toBe('en');
+  });
+
+  it('picks Spanish for a Spanish header', () => {
+    expect(pickLocale('es-ES,es;q=0.9,en;q=0.8')).toBe('es');
+  });
+
+  it('honours q-values rather than header order', () => {
+    expect(pickLocale('fr;q=0.9,es;q=0.2,en;q=0.8')).toBe('en');
+  });
+
+  it('falls back to Spanish for a language we do not serve', () => {
+    expect(pickLocale('fr-FR,fr;q=0.9')).toBe('es');
+  });
+
+  it('ignores a malformed header instead of throwing', () => {
+    expect(pickLocale(';;;q=')).toBe('es');
+  });
+});
+
+describe('consentPage copy', () => {
+  const base = {
+    clientName: 'Claude',
+    csrf: 'csrf-token',
+    cancelUrl: 'https://example.com/cancel',
+    redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+  };
+
+  it('offers both providers', () => {
+    const html = consentPage({ ...base, locale: 'es' });
+    expect(html).toContain('value="google"');
+    expect(html).toContain('value="apple"');
+  });
+
+  it('renders Spanish copy for locale es', () => {
+    const html = consentPage({ ...base, locale: 'es' });
+    expect(html).toContain('Continuar con Google');
+    expect(html).toContain('lang="es"');
+  });
+
+  it('renders English copy for locale en', () => {
+    const html = consentPage({ ...base, locale: 'en' });
+    expect(html).toContain('Continue with Google');
+    expect(html).toContain('lang="en"');
+  });
+
+  it('warns about an unverified client in the chosen language', () => {
+    const html = consentPage({ ...base, redirectUri: 'evilapp://claude.ai/cb', locale: 'en' });
+    expect(html).toContain('class="warn"');
+    expect(html).toContain('not verified');
+  });
+
+  it('keeps the design tokens inline so the page needs no external assets', () => {
+    const html = consentPage({ ...base, locale: 'es' });
+    expect(html).toContain('--accent');
+    expect(html).not.toMatch(/<script/i);
+    expect(html).not.toMatch(/https:\/\/fonts\./);
   });
 });
