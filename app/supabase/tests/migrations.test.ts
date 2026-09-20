@@ -1191,4 +1191,54 @@ describe('migraciones', () => {
     expect(res.rows[0].borrados).toBe(1);
     await db.close();
   }, 120_000);
+
+  // ── Tarea 11: avatares en Storage ────────────────────────────────────────
+  // Calcado de los tests de `recipe-photos` (20260919100300): el bucket
+  // `avatars` existe justo para no repetir el fallo de rutas anidadas que se
+  // escapan del barrido de huérfanos.
+
+  it('avatar_path solo puede apuntar a la carpeta del propio hogar, también por DML directo', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const [yan] = await householdWith(db, ['Yan']);
+    const hYan = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${yan}'`)).rows[0].h;
+    const hAna = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)).rows[0].h;
+    const memberAna = (await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${ana}'`)).rows[0].id;
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `update public.member set avatar_path = '${hYan}/11111111-1111-4111-8111-111111111111.jpg' where id = '${memberAna}'`,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      asUser(db, ana, `update public.member set avatar_path = '${hAna}/../${hYan}/x.jpg' where id = '${memberAna}'`),
+    ).rejects.toThrow();
+    await asUser(
+      db,
+      ana,
+      `update public.member set avatar_path = '${hAna}/11111111-1111-4111-8111-111111111111.jpg' where id = '${memberAna}'`,
+    );
+    await asUser(db, ana, `update public.member set avatar_path = null where id = '${memberAna}'`);
+    await db.close();
+  }, 120_000);
+
+  it('avatars solo acepta nombres planos <hogar>/<uuid>.<ext>', async () => {
+    const db = await applyMigrations();
+    // El stub de storage no trae los grants que Supabase da a authenticated.
+    await db.exec('grant usage on schema storage to authenticated; grant select, insert, update on storage.objects to authenticated;');
+    const [ana] = await householdWith(db, ['Ana']);
+    const hAna = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)).rows[0].h;
+    const put = (name: string) =>
+      asUser(db, ana, `insert into storage.objects (bucket_id, name) values ('avatars', '${name}')`);
+
+    await put(`${hAna}/11111111-1111-4111-8111-111111111111.jpg`);
+    await put(`${hAna}/22222222-2222-4222-8222-222222222222.webp`);
+    await expect(put(`${hAna}/sub/x.jpg`)).rejects.toThrow();
+    await expect(put(`${hAna}/a/b/c/d.jpg`)).rejects.toThrow();
+    await expect(put(`${hAna}/not-a-uuid.jpg`)).rejects.toThrow();
+    await expect(put(`${hAna}/33333333-3333-4333-8333-333333333333.html`)).rejects.toThrow();
+    await db.close();
+  }, 120_000);
 });

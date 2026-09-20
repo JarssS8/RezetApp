@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePrefs, ACCENTS } from '../store/prefs';
 import { useData } from '../data/storeContext';
+import { useAuth } from '../data/auth';
+import { supabase } from '../data/supabaseClient';
 import { stripHouseholdErrorTag } from '../data/householdErrors';
 import { formatKcal } from '../domain/units';
 import { Sheet } from '../ui/Sheet';
@@ -25,6 +27,36 @@ const KCAL_MIN = 1000;
 const KCAL_MAX = 5000;
 
 /**
+ * Lado máximo del avatar comprimido, en píxeles: de sobra para el tamaño
+ * mayor en que `Avatar.tsx` lo pinta hoy (64px) más margen de pantallas de
+ * alta densidad, y muy por debajo del límite de 2 MB del bucket `avatars`
+ * (migración `20260920090400_rezet_avatars_storage`) — una foto de móvil sin
+ * comprimir lo supera con facilidad. `RecipeForm.tsx` sube el archivo tal
+ * cual, sin comprimir; el único sitio del código que sí reduce una imagen
+ * antes de mandarla es `PantryScanCapture.tsx` (`canvas.toBlob` a calidad
+ * 0.85), así que se reutiliza esa técnica aquí en vez de inventar una nueva.
+ * Siempre se reencodea a JPEG — de ahí que la ruta subida termine siempre en
+ * `.jpg`, igual que el ejemplo del diseño (`<household_id>/<uuid>.jpg`).
+ */
+const AVATAR_MAX_DIM = 512;
+
+async function compressAvatar(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, AVATAR_MAX_DIM / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.85),
+    );
+  } finally {
+    bitmap.close();
+  }
+}
+
+/**
  * Hoja de un miembro (`HouseholdSheet` la abre al tocar una fila): nombre,
  * color y objetivo de kcal propios, y "Quitar del hogar" cuando corresponde.
  * Sigue el patrón de `PantryAddSheet` — formulario simple con un botón de
@@ -45,6 +77,9 @@ export function MemberSheet({
 }) {
   const { t, locale } = usePrefs();
   const { members, myMemberId, household, setMemberSettings, deleteWardMember } = useData();
+  // `null` en demo (sin `useAuth()` real) y mientras carga — mismo patrón que
+  // `RecipeForm.tsx`, que gatea la subida de foto de receta con `profile &&`.
+  const { profile } = useAuth();
   const member = members.find((m) => m.id === memberId);
 
   const [displayName, setDisplayName] = useState(member?.displayName ?? '');
@@ -52,6 +87,32 @@ export function MemberSheet({
   const [kcalTarget, setKcalTarget] = useState(member?.kcalTarget ?? 2000);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+
+  const [avatarPath, setAvatarPath] = useState<string | null>(member?.avatarPath ?? null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const avatarInput = useRef<HTMLInputElement>(null);
+
+  // El bucket `avatars` NO es público (a diferencia de `recipe-photos`): hace
+  // falta una URL firmada, que caduca, así que se pide de nuevo cada vez que
+  // cambia la ruta en vez de guardarla.
+  useEffect(() => {
+    if (!avatarPath) {
+      setAvatarUrl(null);
+      return;
+    }
+    let cancelled = false;
+    void supabase.storage
+      .from('avatars')
+      .createSignedUrl(avatarPath, 3600)
+      .then(({ data }) => {
+        if (!cancelled) setAvatarUrl(data?.signedUrl ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [avatarPath]);
 
   if (!member) {
     return (
@@ -109,12 +170,77 @@ export function MemberSheet({
     }
   };
 
+  // Ruta plana `<household_id>/<uuid>.jpg`, igual que `RecipeForm.tsx` con
+  // `recipe-photos` — nunca anidada por miembro (ver la migración
+  // `20260920090400_rezet_avatars_storage`, que existe justo para que estas
+  // rutas no se le escapen al barrido de huérfanos). Se guarda con
+  // `setMemberSettings` en cuanto termina la subida, sin esperar al botón
+  // "Guardar" general: el archivo ya está en Storage, no tiene sentido dejar
+  // la referencia sin guardar y arriesgarse a que el barrido la trate como
+  // huérfana.
+  const onPickAvatar = async (file: File) => {
+    if (!profile || !canEdit || avatarBusy) return;
+    setAvatarBusy(true);
+    setAvatarError(null);
+    try {
+      const blob = await compressAvatar(file);
+      const path = `${profile.householdId}/${crypto.randomUUID()}.jpg`;
+      const { error } = await supabase.storage.from('avatars').upload(path, blob, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: 'image/jpeg',
+      });
+      if (error) throw error;
+      await setMemberSettings(memberId, { avatarPath: path });
+      setAvatarPath(path);
+    } catch {
+      setAvatarError(t.photoUploadError);
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
   return (
     <Sheet title={t.memberSheetTitle} onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 6 }}>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          {/* Vista previa en vivo: el avatar refleja nombre/color todavía sin guardar. */}
-          <Avatar member={{ ...member, displayName, color }} size={64} />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          {/* Vista previa en vivo: el avatar refleja nombre/color todavía sin guardar.
+              La foto sí es la ya guardada (URL firmada, el bucket no es público). */}
+          <Avatar member={{ ...member, displayName, color }} size={64} src={avatarUrl} />
+
+          {canEdit && profile && (
+            <>
+              <input
+                ref={avatarInput}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void onPickAvatar(file);
+                  e.target.value = '';
+                }}
+              />
+              <Pressable
+                onClick={() => avatarInput.current?.click()}
+                ariaLabel={avatarUrl ? t.changePhoto : t.addPhoto}
+                disabled={avatarBusy}
+                scale={0.95}
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  // Texto de acento sobre el fondo de la hoja (claro/tintado): --accent-ink.
+                  color: 'var(--accent-ink)',
+                  opacity: avatarBusy ? 0.6 : 1,
+                }}
+              >
+                {avatarBusy ? t.uploadingPhoto : avatarUrl ? t.changePhoto : t.addPhoto}
+              </Pressable>
+              {avatarError && (
+                <div style={{ fontSize: 12.5, color: 'var(--warn-ink)' }}>{avatarError}</div>
+              )}
+            </>
+          )}
         </div>
 
         {!canEdit && (

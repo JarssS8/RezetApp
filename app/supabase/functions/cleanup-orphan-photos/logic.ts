@@ -15,17 +15,26 @@ export interface StoredObject {
 }
 
 /**
- * Rutas que siguen en uso. Una receta solo mantiene viva una foto de su
- * propio hogar: una ruta fuera de `<household_id>/`, o con `..`, no cuenta
- * (auditoría run-3: con un PATCH directo de photo_path se podía fijar la
- * foto de otro hogar para que la limpieza nunca la borrase).
+ * Rutas que siguen en uso. Una receta (o un miembro, para su avatar) solo
+ * mantiene viva una foto de su propio hogar: una ruta fuera de
+ * `<household_id>/`, o con `..`, no cuenta (auditoría run-3: con un PATCH
+ * directo de photo_path se podía fijar la foto de otro hogar para que la
+ * limpieza nunca la borrase; la migración `20260920090400_rezet_avatars_storage`
+ * cierra el mismo agujero en `member.avatar_path` con el mismo CHECK).
+ *
+ * `field` es la columna a leer — `photo_path` para `recipe`/`recipe-photos`,
+ * `avatar_path` para `member`/`avatars`: misma comprobación, dos tablas y dos
+ * buckets con rutas planas `<household_id>/<uuid>.<ext>` idénticas en forma.
+ * Por defecto sigue siendo `photo_path` para no tocar las llamadas ya
+ * existentes desde `index.ts` ni los tests de este fichero.
  */
 export function referencedPaths(
-  rows: { household_id: string; photo_path: string | null }[],
+  rows: { household_id: string; photo_path?: string | null; avatar_path?: string | null }[],
+  field: 'photo_path' | 'avatar_path' = 'photo_path',
 ): Set<string> {
   const refs = new Set<string>();
   for (const row of rows) {
-    const p = row.photo_path;
+    const p = row[field] ?? null;
     if (!p || p.includes('..') || !p.startsWith(`${row.household_id}/`)) continue;
     refs.add(p);
   }
