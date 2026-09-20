@@ -1171,4 +1171,24 @@ describe('migraciones', () => {
     expect(puede.rows[0].ok).toBe(false);
     await db.close();
   }, 120_000);
+
+  // ── Tarea 6: separar los dos espacios de identificadores ────────────────
+
+  it('remove_member marca el member como borrado', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    await asUser(db, ana, `select public.remove_member(p_member_id => '${bea}')`);
+
+    const res = await db.query<{ borrados: number }>(
+      `select count(*) filter (where deleted_at is not null)::int as borrados from public.member`,
+    );
+    expect(res.rows[0].borrados).toBe(1);
+    await db.close();
+  }, 120_000);
 });
