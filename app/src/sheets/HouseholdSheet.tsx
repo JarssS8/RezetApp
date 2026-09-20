@@ -70,8 +70,14 @@ export function HouseholdSheet({
   onToast,
 }: {
   onClose: () => void;
-  onRequestLeave: () => void;
-  onRequestDelete: () => void;
+  /**
+   * Ausentes en modo demo (no hay hogar real del que salir ni que borrar) —
+   * mismo patrón que `onInvite` en `AccountHouseholdSheet`: sin el callback,
+   * ni la fila ni la Zona de peligro se pintan, en vez de pintarse y fallar
+   * al confirmar con "No disponible en el modo demo."
+   */
+  onRequestLeave?: () => void;
+  onRequestDelete?: () => void;
   /** Confirmación de "Quitar" (la abre `App.tsx`, mismo motivo que salir/eliminar). */
   onRequestRemove: (member: { id: string; displayName: string }) => void;
   /** Abre `MemberSheet` para ver/editar nombre, color y objetivo de un miembro (la abre `App.tsx`). */
@@ -324,21 +330,25 @@ export function HouseholdSheet({
           </div>
         )}
 
-        <div style={{ marginTop: 24 }}>
-          <Pressable onClick={onRequestLeave} scale={0.98} style={rowStyle}>
-            {t.leaveHouseholdRow}
-          </Pressable>
-          {amIAdmin && (
-            <>
-              <Eyebrow style={{ marginTop: 20, marginBottom: 9, color: 'var(--warn-ink)' }}>
-                {t.dangerZoneLabel}
-              </Eyebrow>
-              <Pressable onClick={onRequestDelete} scale={0.98} style={rowStyle}>
-                {t.deleteHouseholdRow}
+        {(onRequestLeave || (amIAdmin && onRequestDelete)) && (
+          <div style={{ marginTop: 24 }}>
+            {onRequestLeave && (
+              <Pressable onClick={onRequestLeave} scale={0.98} style={rowStyle}>
+                {t.leaveHouseholdRow}
               </Pressable>
-            </>
-          )}
-        </div>
+            )}
+            {amIAdmin && onRequestDelete && (
+              <>
+                <Eyebrow style={{ marginTop: 20, marginBottom: 9, color: 'var(--warn-ink)' }}>
+                  {t.dangerZoneLabel}
+                </Eyebrow>
+                <Pressable onClick={onRequestDelete} scale={0.98} style={rowStyle}>
+                  {t.deleteHouseholdRow}
+                </Pressable>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </Sheet>
   );

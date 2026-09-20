@@ -475,8 +475,13 @@ function MainApp({
           // directo desde Ajustes, ver más arriba) — "atrás" cierra del
           // todo, en vez de abrir una hoja que nunca se montó.
           onClose={() => setSheet(demo ? null : { kind: 'accountHousehold' })}
-          onRequestLeave={() => setSheet({ kind: 'leaveConfirm' })}
-          onRequestDelete={() => setSheet({ kind: 'deleteIntro' })}
+          // La demo es pública (sin cuenta) — "Salir del hogar" y "Eliminar
+          // hogar" no tienen nada real que hacer ahí. Sin estos dos
+          // callbacks, `HouseholdSheet` no pinta ni la fila ni la Zona de
+          // peligro (ver su comentario), en vez de pintarlas y fallar al
+          // confirmar.
+          onRequestLeave={demo ? undefined : () => setSheet({ kind: 'leaveConfirm' })}
+          onRequestDelete={demo ? undefined : () => setSheet({ kind: 'deleteIntro' })}
           onRequestRemove={(member) => setSheet({ kind: 'removeMember', member })}
           onOpenMember={(memberId) => setSheet({ kind: 'member', memberId })}
           onToast={show}
