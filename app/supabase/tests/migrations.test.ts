@@ -1150,12 +1150,25 @@ describe('migraciones', () => {
 
     await asUser(db, bea, 'select public.leave_household()');
 
-    const puede = await asUser(
+    // Su fila queda marcada, no borrada.
+    const marcada = await db.query<{ deleted_at: string | null }>(
+      `select deleted_at from public.member where id = '${beaMember.rows[0].id}'`,
+    );
+    expect(marcada.rows[0].deleted_at).not.toBeNull();
+
+    // Y ahora lo que de verdad hay que vigilar: forzamos la tutela a mano,
+    // que es el peor caso imaginable (alguien marca como tutelado a quien se
+    // fue). Con `is_ward` a true, lo ÚNICO que impide que el hogar edite sus
+    // datos es el `deleted_at`. Sin esta línea, el test pasaría igual aunque
+    // se quitara el borrado lógico de `leave_household`.
+    await db.exec(`update public.member set is_ward = true where id = '${beaMember.rows[0].id}'`);
+
+    const puede = (await asUser(
       db,
       ana,
       `select private.can_act_for('${beaMember.rows[0].id}') as ok`,
-    );
-    expect((puede as { rows: { ok: boolean }[] }).rows[0].ok).toBe(false);
+    )) as { rows: { ok: boolean }[] };
+    expect(puede.rows[0].ok).toBe(false);
     await db.close();
   }, 120_000);
 });
