@@ -913,4 +913,379 @@ describe('migraciones', () => {
     await asUser(db, eve, `insert into public.recipe_ingredient (recipe_id, ingredient_id, quantity, unit, position) values ('${recipeE}', '${globalIng}', 1, 'g', 0)`);
     await db.close();
   }, 120_000);
+
+  // Nota importante sobre estos tests: el banco aplica las migraciones sobre
+  // una base vacía, nunca hay un `profile` previo, así que el backfill de
+  // esta migración no se puede probar aquí (se verifica a mano en el
+  // despliegue; son dos filas en producción). Desde la Tarea 5,
+  // `create_household`/`redeem_invite` ya crean su propia fila de `member`,
+  // así que estos tests ya no la insertan a mano (duplicaría `auth_user_id`
+  // y violaría `member_auth_uq`); usan `asUser` solo para lo que quieren
+  // comprobar: las políticas y los grants.
+
+  it('member: no se puede insertar ni borrar desde el cliente', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `insert into public.member (household_id, display_name) values ('${h.rows[0].id}', 'Colado')`,
+      ),
+    ).rejects.toThrow();
+
+    await expect(asUser(db, ana, 'delete from public.member')).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('member: solo se pueden actualizar las columnas propias de la fila propia', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    // La propia: sí.
+    await asUser(db, ana, "update public.member set color = 'blue' where auth_user_id = '" + ana + "'");
+    const propio = await db.query<{ color: string }>(
+      `select color from public.member where auth_user_id = '${ana}'`,
+    );
+    expect(propio.rows[0].color).toBe('blue');
+
+    // La de otro: la política no deja ninguna fila que actualizar.
+    await asUser(db, ana, `update public.member set color = 'pink' where auth_user_id = '${bea}'`);
+    const ajeno = await db.query<{ color: string }>(
+      `select color from public.member where auth_user_id = '${bea}'`,
+    );
+    expect(ajeno.rows[0].color).not.toBe('pink');
+
+    // Una columna sin grant: rechazo duro.
+    await expect(
+      asUser(db, ana, `update public.member set is_ward = true where auth_user_id = '${ana}'`),
+    ).rejects.toThrow();
+
+    await db.close();
+  }, 120_000);
+
+  it('member: kcal_target no admite valores absurdos', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+
+    await expect(
+      asUser(db, ana, `update public.member set kcal_target = 99999 where auth_user_id = '${ana}'`),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('tutelados: solo un admin los crea, y quedan en su hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    await asUser(db, ana, "select public.create_ward_member('Nico', 'blue')");
+    const ward = await db.query<{ n: number; is_ward: boolean }>(
+      "select count(*)::int as n, bool_or(is_ward) as is_ward from public.member where display_name = 'Nico'",
+    );
+    expect(ward.rows[0].n).toBe(1);
+    expect(ward.rows[0].is_ward).toBe(true);
+
+    // Bea no es admin.
+    await expect(asUser(db, bea, "select public.create_ward_member('Otro', 'pink')")).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('tutelados: no se pueden editar desde otro hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+    await asUser(db, mallory, "select public.create_household('Casa de Mallory', 'Mallory')");
+
+    await asUser(db, ana, "select public.create_ward_member('Nico', 'blue')");
+    const nico = await db.query<{ id: string }>(
+      "select id from public.member where display_name = 'Nico'",
+    );
+
+    await expect(
+      asUser(
+        db,
+        mallory,
+        `select public.set_member_settings('${nico.rows[0].id}', '{"display_name":"Robado"}'::jsonb)`,
+      ),
+    ).rejects.toThrow();
+
+    const sigue = await db.query<{ display_name: string }>(
+      `select display_name from public.member where id = '${nico.rows[0].id}'`,
+    );
+    expect(sigue.rows[0].display_name).toBe('Nico');
+    await db.close();
+  }, 120_000);
+
+  it('set_member_settings ignora las claves que no están en la lista blanca', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+
+    await asUser(
+      db,
+      ana,
+      `select public.set_member_settings('${yo.rows[0].id}',
+         '{"color":"teal","auth_user_id":"${mallory}","is_ward":true}'::jsonb)`,
+    );
+
+    const m = await db.query<{ color: string; auth_user_id: string; is_ward: boolean }>(
+      `select color, auth_user_id, is_ward from public.member where id = '${yo.rows[0].id}'`,
+    );
+    expect(m.rows[0].color).toBe('teal');
+    expect(m.rows[0].auth_user_id).toBe(ana);
+    expect(m.rows[0].is_ward).toBe(false);
+    await db.close();
+  }, 120_000);
+
+  it('delete_ward_member no sirve para expulsar a alguien con cuenta', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    const beaMember = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bea}'`,
+    );
+
+    await expect(
+      asUser(db, ana, `select public.delete_ward_member('${beaMember.rows[0].id}')`),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('member: un hogar no ve los miembros de otro', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+    await asUser(db, mallory, "select public.create_household('Casa de Mallory', 'Mallory')");
+
+    // La lectura tiene que ir por asUser: db.query es superusuario y no
+    // evalúa RLS, así que ahí un `using (true)` pasaría desapercibido.
+    const vistos = (await asUser(
+      db,
+      mallory,
+      'select display_name from public.member',
+    )) as { rows: { display_name: string }[] };
+
+    expect(vistos.rows).toHaveLength(1);
+    expect(vistos.rows[0].display_name).toBe('Mallory');
+    await db.close();
+  }, 120_000);
+
+  // ── Tarea 5: `member` enganchado al ciclo de vida del hogar ────────────
+
+  it('crear hogar y canjear invitación crean también el member', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    const res = await db.query<{ n: number }>(
+      'select count(*)::int as n from public.member where deleted_at is null',
+    );
+    expect(res.rows[0].n).toBe(2);
+    await db.close();
+  }, 120_000);
+
+  it('salir del hogar marca el member como borrado, no lo elimina', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    await asUser(db, bea, 'select public.leave_household()');
+
+    const res = await db.query<{ n: number; borrados: number }>(
+      `select count(*)::int as n,
+              count(*) filter (where deleted_at is not null)::int as borrados
+         from public.member`,
+    );
+    expect(res.rows[0].n).toBe(2);
+    expect(res.rows[0].borrados).toBe(1);
+    await db.close();
+  }, 120_000);
+
+  it('quien se va deja de ser tutelable aunque pierda la cuenta', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+    const beaMember = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bea}'`,
+    );
+
+    await asUser(db, bea, 'select public.leave_household()');
+
+    // Su fila queda marcada, no borrada.
+    const marcada = await db.query<{ deleted_at: string | null }>(
+      `select deleted_at from public.member where id = '${beaMember.rows[0].id}'`,
+    );
+    expect(marcada.rows[0].deleted_at).not.toBeNull();
+
+    // Y ahora lo que de verdad hay que vigilar: forzamos la tutela a mano,
+    // que es el peor caso imaginable (alguien marca como tutelado a quien se
+    // fue). Con `is_ward` a true, lo ÚNICO que impide que el hogar edite sus
+    // datos es el `deleted_at`. Sin esta línea, el test pasaría igual aunque
+    // se quitara el borrado lógico de `leave_household`.
+    await db.exec(`update public.member set is_ward = true where id = '${beaMember.rows[0].id}'`);
+
+    const puede = (await asUser(
+      db,
+      ana,
+      `select private.can_act_for('${beaMember.rows[0].id}') as ok`,
+    )) as { rows: { ok: boolean }[] };
+    expect(puede.rows[0].ok).toBe(false);
+    await db.close();
+  }, 120_000);
+
+  // ── Tarea 6: separar los dos espacios de identificadores ────────────────
+
+  it('remove_member marca el member como borrado', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    await asUser(db, ana, `select public.remove_member(p_member_id => '${bea}')`);
+
+    const res = await db.query<{ borrados: number }>(
+      `select count(*) filter (where deleted_at is not null)::int as borrados from public.member`,
+    );
+    expect(res.rows[0].borrados).toBe(1);
+    await db.close();
+  }, 120_000);
+
+  // ── Tarea 11: avatares en Storage ────────────────────────────────────────
+  // Calcado de los tests de `recipe-photos` (20260919100300): el bucket
+  // `avatars` existe justo para no repetir el fallo de rutas anidadas que se
+  // escapan del barrido de huérfanos.
+
+  it('avatar_path solo puede apuntar a la carpeta del propio hogar, también por DML directo', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const [yan] = await householdWith(db, ['Yan']);
+    const hYan = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${yan}'`)).rows[0].h;
+    const hAna = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)).rows[0].h;
+    const memberAna = (await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${ana}'`)).rows[0].id;
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `update public.member set avatar_path = '${hYan}/11111111-1111-4111-8111-111111111111.jpg' where id = '${memberAna}'`,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      asUser(db, ana, `update public.member set avatar_path = '${hAna}/../${hYan}/x.jpg' where id = '${memberAna}'`),
+    ).rejects.toThrow();
+    await asUser(
+      db,
+      ana,
+      `update public.member set avatar_path = '${hAna}/11111111-1111-4111-8111-111111111111.jpg' where id = '${memberAna}'`,
+    );
+    await asUser(db, ana, `update public.member set avatar_path = null where id = '${memberAna}'`);
+    await db.close();
+  }, 120_000);
+
+  it('avatars solo acepta nombres planos <hogar>/<uuid>.<ext>', async () => {
+    const db = await applyMigrations();
+    // El stub de storage no trae los grants que Supabase da a authenticated.
+    await db.exec('grant usage on schema storage to authenticated; grant select, insert, update on storage.objects to authenticated;');
+    const [ana] = await householdWith(db, ['Ana']);
+    const hAna = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)).rows[0].h;
+    const put = (name: string) =>
+      asUser(db, ana, `insert into storage.objects (bucket_id, name) values ('avatars', '${name}')`);
+
+    await put(`${hAna}/11111111-1111-4111-8111-111111111111.jpg`);
+    await put(`${hAna}/22222222-2222-4222-8222-222222222222.webp`);
+    await expect(put(`${hAna}/sub/x.jpg`)).rejects.toThrow();
+    await expect(put(`${hAna}/a/b/c/d.jpg`)).rejects.toThrow();
+    await expect(put(`${hAna}/not-a-uuid.jpg`)).rejects.toThrow();
+    await expect(put(`${hAna}/33333333-3333-4333-8333-333333333333.html`)).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  // ── Revisión final de fundación de miembro: invariantes de esquema ──────
+  // (20260920090500_rezet_member_schema_invariants)
+
+  it('member: borrar la cuenta por fuera de las RPC (auth.users) también marca deleted_at', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const memberId = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${ana}'`)
+    ).rows[0].id;
+
+    // Nada de asUser aquí a propósito: borrar de auth.users es justo lo que
+    // un panel/Admin API haría por fuera de leave_household/delete_account/
+    // remove_member, sin pasar por ninguna RPC.
+    await db.query(`delete from auth.users where id = '${ana}'`);
+
+    const member = await db.query<{ deleted_at: string | null; auth_user_id: string | null }>(
+      `select deleted_at, auth_user_id from public.member where id = '${memberId}'`,
+    );
+    expect(member.rows[0].auth_user_id).toBeNull();
+    expect(member.rows[0].deleted_at).not.toBeNull();
+    await db.close();
+  }, 120_000);
+
+  it('avatars: leer objetos de otro hogar no devuelve nada (RLS)', async () => {
+    const db = await applyMigrations();
+    // El stub de storage no trae los grants que Supabase da a authenticated.
+    await db.exec('grant usage on schema storage to authenticated; grant select, insert, update on storage.objects to authenticated;');
+    const [ana] = await householdWith(db, ['Ana']);
+    const [yan] = await householdWith(db, ['Yan']);
+    const hAna = (await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)).rows[0].h;
+
+    await asUser(db, ana, `insert into storage.objects (bucket_id, name) values ('avatars', '${hAna}/11111111-1111-4111-8111-111111111111.jpg')`);
+
+    // asUser, no db.query directo: fuera de asUser eres superusuario y RLS
+    // no se evalúa, así que la lectura de "otro hogar" no probaría nada.
+    const seenByOwner = (await asUser(db, ana, "select * from storage.objects where bucket_id = 'avatars'")) as {
+      rows: unknown[];
+    };
+    expect(seenByOwner.rows.length).toBe(1);
+
+    const seenByOther = (await asUser(db, yan, "select * from storage.objects where bucket_id = 'avatars'")) as {
+      rows: unknown[];
+    };
+    expect(seenByOther.rows.length).toBe(0);
+    await db.close();
+  }, 120_000);
 });

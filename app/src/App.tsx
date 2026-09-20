@@ -8,6 +8,7 @@ import { SupabaseDataProvider } from './data/supabaseStore';
 import { useData } from './data/storeContext';
 import { haptics } from './motion/motion';
 import { AppShell, type Tab } from './app/AppShell';
+import { PrefsBridge } from './app/PrefsBridge';
 import { Login } from './screens/Login';
 import { CreateOrJoinHousehold } from './screens/CreateOrJoinHousehold';
 import { Onboarding } from './screens/Onboarding';
@@ -31,6 +32,7 @@ import { ConnectMcpSheet } from './sheets/ConnectMcpSheet';
 import { KomprappLinkSheet } from './sheets/KomprappLinkSheet';
 import { AccountHouseholdSheet } from './sheets/AccountHouseholdSheet';
 import { HouseholdSheet } from './sheets/HouseholdSheet';
+import { MemberSheet } from './sheets/MemberSheet';
 import { LeaveConfirmDialog, LeaveLastMemberDialog, LeaveLastAdminDialog } from './sheets/LeaveHouseholdDialogs';
 import { RemoveMemberDialog, SignOutEverywhereDialog } from './sheets/MemberAndSessionDialogs';
 import { DeleteIntroSheet, DeleteConfirmDialog } from './sheets/DeleteHouseholdFlow';
@@ -41,7 +43,7 @@ import {
 } from './sheets/DeleteAccountFlow';
 import { Toast } from './ui/Fields';
 import { UpdatePrompt } from './app/UpdatePrompt';
-import type { MealSlot } from './types';
+import type { MealSlot, MemberId } from './types';
 
 type Push =
   | { kind: 'recipe'; recipeId: string; servings: number }
@@ -60,6 +62,7 @@ type SheetState =
   | { kind: 'komprappLink' }
   | { kind: 'accountHousehold' }
   | { kind: 'household' }
+  | { kind: 'member'; memberId: MemberId }
   | { kind: 'removeMember'; member: { id: string; displayName: string } }
   | { kind: 'signOutEverywhere' }
   | { kind: 'leaveConfirm' }
@@ -119,11 +122,17 @@ export function App() {
   const profile = auth.profile!;
 
   if (!profile.onboardedAt) {
-    return <FirstOnboarding householdId={profile.householdId} />;
+    return (
+      <>
+        <PrefsBridge />
+        <FirstOnboarding householdId={profile.householdId} />
+      </>
+    );
   }
 
   return (
     <SupabaseDataProvider householdId={profile.householdId}>
+      <PrefsBridge />
       <MainApp demo={false} onSignOut={() => void auth.signOut()} onInvite />
     </SupabaseDataProvider>
   );
@@ -185,6 +194,9 @@ function MainApp({
    */
   const householdFlowOpen =
     sheet?.kind === 'household' ||
+    // `MemberSheet` deriva "quién soy"/"soy admin" de `household.members`
+    // (ver `HouseholdSheet.tsx`), igual que `HouseholdSheet` misma.
+    sheet?.kind === 'member' ||
     sheet?.kind === 'removeMember' ||
     sheet?.kind === 'leaveConfirm' ||
     sheet?.kind === 'leaveLastMember' ||
@@ -386,7 +398,21 @@ function MainApp({
             cook.endCook();
             onSignOut();
           }}
-          onAccountHousehold={demo || !onInvite ? undefined : () => setSheet({ kind: 'accountHousehold' })}
+          // La demo no tiene "Cuenta y hogar" real (sin passkey, sin invitar,
+          // sin cerrar sesión en todos los dispositivos) pero sí "Tu hogar"
+          // — ver el comentario de `store.tsx` sobre `DEMO_HOUSEHOLD`. Por
+          // eso esta fila salta directa a `household` en demo, saltándose
+          // `AccountHouseholdSheet` (que sigue sin montarse en demo) — y por
+          // eso lleva su propio rótulo: la fila abre "Tu hogar" en demo, no
+          // "Cuenta y hogar".
+          onAccountHousehold={
+            demo
+              ? () => setSheet({ kind: 'household' })
+              : !onInvite
+                ? undefined
+                : () => setSheet({ kind: 'accountHousehold' })
+          }
+          accountHouseholdLabel={demo ? t.householdRow : undefined}
           onToast={show}
         />
       )}
@@ -448,12 +474,25 @@ function MainApp({
 
       {sheet?.kind === 'household' && (
         <HouseholdSheet
-          onClose={() => setSheet({ kind: 'accountHousehold' })}
-          onRequestLeave={() => setSheet({ kind: 'leaveConfirm' })}
-          onRequestDelete={() => setSheet({ kind: 'deleteIntro' })}
+          // En demo no hay `accountHousehold` que enseñar (se llega aquí
+          // directo desde Ajustes, ver más arriba) — "atrás" cierra del
+          // todo, en vez de abrir una hoja que nunca se montó.
+          onClose={() => setSheet(demo ? null : { kind: 'accountHousehold' })}
+          // La demo es pública (sin cuenta) — "Salir del hogar" y "Eliminar
+          // hogar" no tienen nada real que hacer ahí. Sin estos dos
+          // callbacks, `HouseholdSheet` no pinta ni la fila ni la Zona de
+          // peligro (ver su comentario), en vez de pintarlas y fallar al
+          // confirmar.
+          onRequestLeave={demo ? undefined : () => setSheet({ kind: 'leaveConfirm' })}
+          onRequestDelete={demo ? undefined : () => setSheet({ kind: 'deleteIntro' })}
           onRequestRemove={(member) => setSheet({ kind: 'removeMember', member })}
+          onOpenMember={(memberId) => setSheet({ kind: 'member', memberId })}
           onToast={show}
         />
+      )}
+
+      {sheet?.kind === 'member' && (
+        <MemberSheet memberId={sheet.memberId} onClose={() => setSheet({ kind: 'household' })} onToast={show} />
       )}
 
       {sheet?.kind === 'removeMember' && (

@@ -4,13 +4,16 @@ import { scaleQuantity } from '../domain/scaling';
 import { addDays, dateKey, resolveExpiry, slotForNow, todayKey } from '../domain/dates';
 import { SENSITIVE_RE, defaultLocationFor, inferFoodGroup } from '../domain/recipeText';
 import { createStoreDerivations } from '../domain/deriveStore';
-import { INGREDIENTS, KCAL_TARGET, PANTRY, PLAN, RECIPES } from './seed';
+import { INGREDIENTS, KCAL_TARGET, MEMBERS, PANTRY, PLAN, RECIPES } from './seed';
 import { usePrefs } from '../store/prefs';
-import { StoreCtx, type RecipeDraft, type Store } from './storeContext';
+import { asMemberId, type Accent } from '../types';
+import { StoreCtx, type MemberSettingsPatch, type RecipeDraft, type Store } from './storeContext';
 import type {
   HouseholdDetail,
   Ingredient,
   MealSlot,
+  Member,
+  MemberId,
   PantryItem,
   PantryLoc,
   PlanEntry,
@@ -49,6 +52,8 @@ interface Data {
   plan: PlanEntry[];
   shoppingChecked: Record<string, boolean>;
   kcalTarget: number;
+  /** Incluye a los borrados, igual que el contrato `Store` exige — ver storeContext.ts. */
+  members: Member[];
 }
 
 const INITIAL: Data = {
@@ -58,7 +63,16 @@ const INITIAL: Data = {
   plan: PLAN,
   shoppingChecked: {},
   kcalTarget: KCAL_TARGET,
+  members: MEMBERS,
 };
+
+/**
+ * La demo no tiene sesión, así que no hay un `auth.uid()` con el que elegir
+ * "quién soy": se fija a la primera fila del seed, igual que `DEMO_HOUSEHOLD`
+ * fija el hogar. No se deriva de `data.members` en cada render porque el id
+ * nunca cambia (crear/borrar tutelados no toca esta fila).
+ */
+const DEMO_MY_MEMBER_ID: MemberId = MEMBERS[0]!.id;
 
 export type { RecipeDraft, Coverage, Store } from './storeContext';
 export { useData } from './storeContext';
@@ -68,9 +82,11 @@ const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 
 /**
  * El modo demo no tiene concepto real de hogar multi-usuario (no hay
  * sesión, no hay otros miembros). `household` se rellena con un valor
- * mínimo de un solo miembro solo para satisfacer el contrato `Store` —
- * nunca se muestra: la fila "Tu hogar" de Ajustes no se renderiza en demo
- * (mismo patrón que `onInvite={demo ? undefined : ...}` en `App.tsx`).
+ * mínimo de un solo miembro solo para satisfacer el contrato `Store` — la
+ * hoja "Tu hogar" SÍ se monta en demo (ver miembros, editarlos, añadir o
+ * quitar tutelados), pero sin "Salir del hogar" ni "Eliminar hogar"
+ * (`HouseholdSheet` no los pinta si `App.tsx` no le pasa esos dos
+ * callbacks, mismo patrón que `onInvite` en `AccountHouseholdSheet`).
  * `leaveHousehold`/`deleteHousehold` son alcanzables solo si algo llama a
  * estas funciones sin pasar por esa UI, así que rechazan con un mensaje
  * claro en vez de fingir que hacen algo.
@@ -409,11 +425,83 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [recipeById, shortagesFor, setData],
   );
 
+  /**
+   * Contrato: `rpc/create_ward_member`. La UI (`HouseholdSheet`) ya gatea el
+   * botón de añadir tutelado a quien sale administrador, así que aquí solo
+   * se construye la fila sin repetir esa comprobación. El objetivo de kcal
+   * por defecto es el del hogar, igual que hace la RPC real.
+   */
+  const createWardMember = useCallback(
+    async (displayName: string, color: Accent): Promise<MemberId> => {
+      // Generado fuera del updater por el mismo motivo que `pantryAdd`:
+      // <StrictMode> invoca el updater dos veces en desarrollo, y un id
+      // generado dentro daría dos valores distintos entre lo que esta
+      // función devuelve y lo que React acaba guardando.
+      const newId = asMemberId(uid('member'));
+      setData((d) => {
+        const nextSortOrder = d.members.reduce((max, m) => Math.max(max, m.sortOrder), -1) + 1;
+        const member: Member = {
+          id: newId,
+          authUserId: null,
+          isWard: true,
+          displayName: displayName.trim(),
+          avatarPath: null,
+          color,
+          sortOrder: nextSortOrder,
+          kcalTarget: d.kcalTarget,
+          deletedAt: null,
+        };
+        return { ...d, members: [...d.members, member] };
+      });
+      return newId;
+    },
+    [setData],
+  );
+
+  /**
+   * Contrato: `rpc/delete_ward_member`. Borrado lógico (`deletedAt`), nunca
+   * se quita la fila: su historial sigue necesitando un nombre al que
+   * apuntar. Igual que la RPC real, solo actúa sobre tutelados — a quien
+   * tiene cuenta se le saca del hogar por otra vía, inexistente en demo.
+   */
+  const deleteWardMember = useCallback(
+    async (memberId: MemberId): Promise<void> => {
+      setData((d) => {
+        const target = d.members.find((m) => m.id === memberId);
+        if (!target || !target.isWard || target.deletedAt) return d;
+        const members = d.members.map((m) =>
+          m.id === memberId ? { ...m, deletedAt: new Date().toISOString() } : m,
+        );
+        return { ...d, members };
+      });
+    },
+    [setData],
+  );
+
+  /**
+   * Contrato: `rpc/set_member_settings`. Solo se tocan las claves presentes
+   * en el patch — enviar `undefined` como si fuera un borrado machacaría
+   * datos que el llamante ni siquiera quería tocar.
+   */
+  const setMemberSettings = useCallback(
+    async (memberId: MemberId, patch: MemberSettingsPatch): Promise<void> => {
+      setData((d) => ({
+        ...d,
+        members: d.members.map((m) => (m.id === memberId ? { ...m, ...patch } : m)),
+      }));
+    },
+    [setData],
+  );
+
   const value = useMemo<Store>(
     () => ({
       ...data,
       pantry: pantryExposed,
       household: DEMO_HOUSEHOLD,
+      myMemberId: DEMO_MY_MEMBER_ID,
+      createWardMember,
+      deleteWardMember,
+      setMemberSettings,
       recipeById,
       ingredientById,
       knownTags,
@@ -462,6 +550,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toggleShoppingCheck,
       buyChecked,
       finishCook,
+      createWardMember,
+      deleteWardMember,
+      setMemberSettings,
     ],
   );
 

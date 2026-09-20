@@ -1,5 +1,6 @@
 import { offsetKey } from '../domain/dates';
-import type { Ingredient, PantryItem, PlanEntry, Recipe } from '../types';
+import { asMemberId, asProfileId } from '../types';
+import type { Ingredient, Member, PantryItem, PlanEntry, Recipe } from '../types';
 
 /**
  * Datos de arranque de la demo.
@@ -268,3 +269,19 @@ export const PLAN: PlanEntry[] = [
 ];
 
 export const KCAL_TARGET = 2100;
+
+/**
+ * Tres miembros para que la demo enseñe de qué va la personalización: tú
+ * (con cuenta) y dos personas a tu cargo. `authUserId: null` sin `isWard`
+ * no es un estado real del esquema — quien no tiene cuenta o es tutelado, o
+ * se fue y entonces lleva `deletedAt` — así que Jars también es tutelado,
+ * igual que Nico: la demo solo modela una cuenta.
+ */
+export const MEMBERS: Member[] = [
+  { id: asMemberId('demo-ana'), authUserId: asProfileId('demo-user'), isWard: false,
+    displayName: 'Ana', avatarPath: null, color: 'green', sortOrder: 0, kcalTarget: 2000, deletedAt: null },
+  { id: asMemberId('demo-jars'), authUserId: null, isWard: true,
+    displayName: 'Jars', avatarPath: null, color: 'blue', sortOrder: 1, kcalTarget: 2500, deletedAt: null },
+  { id: asMemberId('demo-nico'), authUserId: null, isWard: true,
+    displayName: 'Nico', avatarPath: null, color: 'amber', sortOrder: 2, kcalTarget: 1600, deletedAt: null },
+];

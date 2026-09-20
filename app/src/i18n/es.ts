@@ -237,6 +237,21 @@ export const es = {
   leaveHouseholdRow: 'Salir del hogar',
   deleteHouseholdRow: 'Eliminar hogar',
 
+  memberSheetTitle: 'Miembro',
+  memberKcalTarget: 'Objetivo diario',
+  memberColor: 'Color',
+  memberName: 'Nombre',
+  addWardMember: 'Añadir a alguien sin cuenta',
+  addWardMemberBody:
+    'Para quien no usa la app: un hijo, un invitado. Sus datos los verán todas las personas con cuenta de este hogar.',
+  addWardMemberAction: 'Añadir',
+  removeWardMember: 'Quitar del hogar',
+  memberInactive: 'Ya no está en el hogar',
+  memberCannotEdit: 'Solo esta persona puede cambiar sus datos.',
+  settingsSynced: 'Sincronizado con tu cuenta',
+  settingsLocalOnly: 'Solo en este dispositivo',
+  memberActionError: 'No se pudo guardar. Inténtalo de nuevo.',
+
   adminBadge: 'Admin',
   makeAdminAction: 'Hacer administrador',
   promotingAdmin: 'Ascendiendo…',

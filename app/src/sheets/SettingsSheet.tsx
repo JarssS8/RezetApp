@@ -24,21 +24,27 @@ const rowStyle = {
  * Una sola lista, sin pestañas — README §4.10 marca explícitamente las
  * pestañas de hogar/miembros/IA apiladas como el antipatrón a evitar aquí:
  * "van en una vista propia de Ajustes avanzados, un nivel más abajo, no en
- * la primera pantalla." Esa vista es `AccountHouseholdSheet`, alcanzable
- * por la única fila "Cuenta y hogar" (ausente en modo demo).
+ * la primera pantalla." Esa vista es `AccountHouseholdSheet` en modo real;
+ * en demo (sin cuenta real que gestionar) la misma fila salta directa a
+ * `HouseholdSheet` ("Tu hogar" — ver miembros, editarlos, tutelados), así
+ * que `accountHouseholdLabel` deja que `App.tsx` rotule la fila con lo que
+ * de verdad abre en cada modo.
  */
 export function SettingsSheet({
   onClose,
   onReplayTour,
   onSignOut,
   onAccountHousehold,
+  accountHouseholdLabel,
   onToast,
 }: {
   onClose: () => void;
   onReplayTour: () => void;
   onSignOut: () => void;
-  /** Solo en modo real: ausente en el modo demo (no hay cuenta/hogar real que gestionar). */
+  /** Presente en los dos modos: abre `AccountHouseholdSheet` en real, `HouseholdSheet` en demo. */
   onAccountHousehold?: () => void;
+  /** Rótulo de la fila; por defecto `t.accountHouseholdRow` ("Cuenta y hogar"). */
+  accountHouseholdLabel?: string;
   onToast?: (msg: string) => void;
 }) {
   const { t, theme, accent, locale, units, showIdeas, setTheme, setAccent, setLocale, setUnits, setShowIdeas } =
@@ -169,7 +175,7 @@ export function SettingsSheet({
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Icon name="account" size={18} strokeWidth={1.8} />
-                {t.accountHouseholdRow}
+                {accountHouseholdLabel ?? t.accountHouseholdRow}
               </span>
               <Icon name="chevronRight" size={16} strokeWidth={2.2} />
             </Pressable>
@@ -184,6 +190,10 @@ export function SettingsSheet({
           >
             {t.signOut}
           </Pressable>
+        </div>
+
+        <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>
+          {profile ? t.settingsSynced : t.settingsLocalOnly}
         </div>
 
         <div style={{ textAlign: 'center', fontSize: 13.5, color: 'var(--muted)', ...tabular }}>

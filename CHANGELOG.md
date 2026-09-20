@@ -3,6 +3,30 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.9.0] - 2026-09-20
+
+### Español
+
+**Nuevo**
+- Miembros del hogar: cada persona tiene su propio nombre, color, avatar y objetivo de calorías.
+- Se pueden añadir personas sin cuenta (niños, invitados); sus datos los ven todas las personas con cuenta del hogar.
+- Los ajustes (tema, idioma, acento, unidades) se guardan ya en la cuenta y te siguen entre dispositivos.
+
+**Cambio de comportamiento**
+- Como consecuencia de lo anterior, el asistente conectado por MCP responde ahora en el idioma que tengas puesto en la app. Antes contestaba siempre en español, porque el idioma nunca llegaba a guardarse en la cuenta aunque el MCP sí lo leía.
+- El anillo de Hoy ya se compara contra tu propio objetivo de calorías, no el del hogar. Lo que cuenta como consumido sigue siendo el total de las comidas de todo el hogar; repartir ese consumo entre personas llega en una versión posterior.
+
+### English
+
+**New**
+- Household members: everyone gets their own name, colour, avatar and calorie target.
+- You can now add people without an account (kids, guests); their data is visible to every account holder in the household.
+- Settings (theme, language, accent, units) are now saved to the account and follow you across devices.
+
+**Behaviour change**
+- As a consequence of the above, the assistant connected via MCP now replies in whatever language you have set in the app. It used to always answer in Spanish, because the language was never actually saved to the account even though MCP did read it.
+- The Today ring now compares against your own calorie target, not the household's. What counts as eaten is still the total across every meal in the household; splitting that total per person comes in a later version.
+
 ## [1.8.2] - 2026-09-20
 
 ### Español

@@ -41,6 +41,12 @@ interface PrefsContext extends Prefs {
   setShowIdeas: (v: boolean) => void;
   /** Resuelve un texto bilingüe al idioma activo. */
   loc: (value: Localized) => string;
+  /**
+   * Aplica los ajustes que vienen del servidor. Se llama una vez por sesión,
+   * desde `PrefsBridge`: el dispositivo pinta al instante desde
+   * localStorage, y cuando hay sesión el servidor gana.
+   */
+  hydrateFromServer: (partial: Partial<Omit<Prefs, 'showIdeas'>>) => void;
 }
 
 const Ctx = createContext<PrefsContext | null>(null);
@@ -87,8 +93,9 @@ export function PrefsProvider({ children }: { children: React.ReactNode }) {
       setUnits: (units) => patch({ units }),
       setShowIdeas: (showIdeas) => patch({ showIdeas }),
       loc: (v) => v[prefs.locale] || v.es,
+      hydrateFromServer: (partial) => setPrefs((p) => ({ ...p, ...partial })),
     };
-  }, [prefs, patch]);
+  }, [prefs, patch, setPrefs]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

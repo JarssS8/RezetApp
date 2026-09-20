@@ -146,3 +146,34 @@ export interface HouseholdDetail {
   /** Token de una lista de komprapp (repo `ShoppingList`) vinculada a este hogar, o `null` si no hay ninguna. */
   komprappListToken: string | null;
 }
+
+/**
+ * Dos espacios de identificadores distintos que son los dos `uuid`: el de
+ * `profile` (cuenta, hogar, rol de admin) y el de `member` (identidad de
+ * producto, incluidos los que no tienen cuenta). Marcarlos hace que el
+ * compilador se acuerde de la diferencia dentro de seis meses; mezclarlos
+ * escribe en la fila de otra persona sin que nada falle en tiempo de
+ * ejecución.
+ */
+export type ProfileId = string & { readonly __profile: unique symbol };
+export type MemberId = string & { readonly __member: unique symbol };
+
+export const asProfileId = (v: string): ProfileId => v as ProfileId;
+export const asMemberId = (v: string): MemberId => v as MemberId;
+
+/** Miembro del hogar, tenga cuenta o no. */
+export interface Member {
+  id: MemberId;
+  /** `null` si es un miembro sin cuenta (tutelado). */
+  authUserId: ProfileId | null;
+  /** Solo los tutelados se pueden editar y borrar por otros miembros. */
+  isWard: boolean;
+  displayName: string;
+  /** Ruta en el bucket `avatars`, o `null` para pintar la inicial. */
+  avatarPath: string | null;
+  color: Accent;
+  sortOrder: number;
+  kcalTarget: number;
+  /** No null = ya no está en el hogar. Se sigue leyendo para la atribución. */
+  deletedAt: string | null;
+}
