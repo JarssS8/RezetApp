@@ -31,6 +31,7 @@ import { ConnectMcpSheet } from './sheets/ConnectMcpSheet';
 import { KomprappLinkSheet } from './sheets/KomprappLinkSheet';
 import { AccountHouseholdSheet } from './sheets/AccountHouseholdSheet';
 import { HouseholdSheet } from './sheets/HouseholdSheet';
+import { MemberSheet } from './sheets/MemberSheet';
 import { LeaveConfirmDialog, LeaveLastMemberDialog, LeaveLastAdminDialog } from './sheets/LeaveHouseholdDialogs';
 import { RemoveMemberDialog, SignOutEverywhereDialog } from './sheets/MemberAndSessionDialogs';
 import { DeleteIntroSheet, DeleteConfirmDialog } from './sheets/DeleteHouseholdFlow';
@@ -41,7 +42,7 @@ import {
 } from './sheets/DeleteAccountFlow';
 import { Toast } from './ui/Fields';
 import { UpdatePrompt } from './app/UpdatePrompt';
-import type { MealSlot } from './types';
+import type { MealSlot, MemberId } from './types';
 
 type Push =
   | { kind: 'recipe'; recipeId: string; servings: number }
@@ -60,6 +61,7 @@ type SheetState =
   | { kind: 'komprappLink' }
   | { kind: 'accountHousehold' }
   | { kind: 'household' }
+  | { kind: 'member'; memberId: MemberId }
   | { kind: 'removeMember'; member: { id: string; displayName: string } }
   | { kind: 'signOutEverywhere' }
   | { kind: 'leaveConfirm' }
@@ -185,6 +187,9 @@ function MainApp({
    */
   const householdFlowOpen =
     sheet?.kind === 'household' ||
+    // `MemberSheet` deriva "quién soy"/"soy admin" de `household.members`
+    // (ver `HouseholdSheet.tsx`), igual que `HouseholdSheet` misma.
+    sheet?.kind === 'member' ||
     sheet?.kind === 'removeMember' ||
     sheet?.kind === 'leaveConfirm' ||
     sheet?.kind === 'leaveLastMember' ||
@@ -386,7 +391,18 @@ function MainApp({
             cook.endCook();
             onSignOut();
           }}
-          onAccountHousehold={demo || !onInvite ? undefined : () => setSheet({ kind: 'accountHousehold' })}
+          // La demo no tiene "Cuenta y hogar" real (sin passkey, sin invitar,
+          // sin cerrar sesión en todos los dispositivos) pero sí "Tu hogar"
+          // — ver el comentario de `store.tsx` sobre `DEMO_HOUSEHOLD`. Por
+          // eso esta fila salta directa a `household` en demo, saltándose
+          // `AccountHouseholdSheet` (que sigue sin montarse en demo).
+          onAccountHousehold={
+            demo
+              ? () => setSheet({ kind: 'household' })
+              : !onInvite
+                ? undefined
+                : () => setSheet({ kind: 'accountHousehold' })
+          }
           onToast={show}
         />
       )}
@@ -448,12 +464,20 @@ function MainApp({
 
       {sheet?.kind === 'household' && (
         <HouseholdSheet
-          onClose={() => setSheet({ kind: 'accountHousehold' })}
+          // En demo no hay `accountHousehold` que enseñar (se llega aquí
+          // directo desde Ajustes, ver más arriba) — "atrás" cierra del
+          // todo, en vez de abrir una hoja que nunca se montó.
+          onClose={() => setSheet(demo ? null : { kind: 'accountHousehold' })}
           onRequestLeave={() => setSheet({ kind: 'leaveConfirm' })}
           onRequestDelete={() => setSheet({ kind: 'deleteIntro' })}
           onRequestRemove={(member) => setSheet({ kind: 'removeMember', member })}
+          onOpenMember={(memberId) => setSheet({ kind: 'member', memberId })}
           onToast={show}
         />
+      )}
+
+      {sheet?.kind === 'member' && (
+        <MemberSheet memberId={sheet.memberId} onClose={() => setSheet({ kind: 'household' })} onToast={show} />
       )}
 
       {sheet?.kind === 'removeMember' && (

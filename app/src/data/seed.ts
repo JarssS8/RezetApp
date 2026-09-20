@@ -1,5 +1,6 @@
 import { offsetKey } from '../domain/dates';
-import type { Ingredient, PantryItem, PlanEntry, Recipe } from '../types';
+import { asMemberId, asProfileId } from '../types';
+import type { Ingredient, Member, PantryItem, PlanEntry, Recipe } from '../types';
 
 /**
  * Datos de arranque de la demo.
@@ -268,3 +269,13 @@ export const PLAN: PlanEntry[] = [
 ];
 
 export const KCAL_TARGET = 2100;
+
+/** Tres miembros para que la demo enseñe de qué va la personalización. */
+export const MEMBERS: Member[] = [
+  { id: asMemberId('demo-ana'), authUserId: asProfileId('demo-user'), isWard: false,
+    displayName: 'Ana', avatarPath: null, color: 'green', sortOrder: 0, kcalTarget: 2000, deletedAt: null },
+  { id: asMemberId('demo-jars'), authUserId: null, isWard: false,
+    displayName: 'Jars', avatarPath: null, color: 'blue', sortOrder: 1, kcalTarget: 2500, deletedAt: null },
+  { id: asMemberId('demo-nico'), authUserId: null, isWard: true,
+    displayName: 'Nico', avatarPath: null, color: 'amber', sortOrder: 2, kcalTarget: 1600, deletedAt: null },
+];

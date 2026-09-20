@@ -237,6 +237,20 @@ export const en: Dictionary = {
   leaveHouseholdRow: 'Leave household',
   deleteHouseholdRow: 'Delete household',
 
+  memberSheetTitle: 'Member',
+  memberKcalTarget: 'Daily target',
+  memberColor: 'Color',
+  memberName: 'Name',
+  addWardMember: 'Add someone without an account',
+  addWardMemberBody:
+    "For someone who doesn't use the app: a child, a guest. Their data will be visible to everyone with an account in this household.",
+  addWardMemberAction: 'Add',
+  removeWardMember: 'Remove from household',
+  memberInactive: 'No longer in the household',
+  settingsSynced: 'Synced with your account',
+  settingsLocalOnly: 'On this device only',
+  memberActionError: "Couldn't save. Please try again.",
+
   adminBadge: 'Admin',
   makeAdminAction: 'Make admin',
   promotingAdmin: 'Promoting…',

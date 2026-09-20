@@ -186,6 +186,10 @@ export function SettingsSheet({
           </Pressable>
         </div>
 
+        <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>
+          {profile ? t.settingsSynced : t.settingsLocalOnly}
+        </div>
+
         <div style={{ textAlign: 'center', fontSize: 13.5, color: 'var(--muted)', ...tabular }}>
           {t.appVersion} {__APP_VERSION__} · {__APP_COMMIT__}
         </div>
