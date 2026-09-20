@@ -3,6 +3,20 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.8.2] - 2026-09-20
+
+### Español
+
+**Mejorado**
+- La pantalla que da permiso a tu asistente de IA ahora tiene el aspecto de Rezet: mismo logo, mismos colores y modo oscuro automático.
+- Esa pantalla habla tu idioma: sale en español o en inglés según el idioma del navegador.
+
+### English
+
+**Improved**
+- The screen that grants your AI assistant access now looks like Rezet: same logo, same colours, automatic dark mode.
+- That screen speaks your language: it shows in Spanish or English depending on your browser's language.
+
 ## [1.8.1] - 2026-09-19
 
 ### Español
