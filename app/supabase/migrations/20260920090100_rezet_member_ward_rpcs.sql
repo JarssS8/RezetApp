@@ -20,7 +20,7 @@ begin
     from public.profile where id = (select auth.uid());
 
   if v_household_id is null then
-    raise exception 'no perteneces a ningún hogar';
+    raise exception 'REZET_NO_HOUSEHOLD: no perteneces a ningún hogar';
   end if;
   if not v_is_admin then
     raise exception 'REZET_NOT_ADMIN: solo un administrador puede añadir miembros';
@@ -56,6 +56,13 @@ declare
 begin
   select household_id, is_admin into v_household_id, v_is_admin
     from public.profile where id = (select auth.uid());
+
+  -- El predicado común manda: mismo hogar, tutela o fila propia, no borrado.
+  -- Las comprobaciones de abajo lo estrechan (hace falta ser admin y que el
+  -- objetivo sea tutelado), nunca lo relajan.
+  if not (select private.can_act_for(p_member_id)) then
+    raise exception 'REZET_FORBIDDEN: no puedes quitar a ese miembro';
+  end if;
 
   if not coalesce(v_is_admin, false) then
     raise exception 'REZET_NOT_ADMIN: solo un administrador puede quitar miembros';
