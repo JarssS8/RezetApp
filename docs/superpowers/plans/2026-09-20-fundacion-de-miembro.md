@@ -226,22 +226,9 @@ El corazón de la fase. Spec §3.1, §3.2 y §5.1-5.2.
 Añade a `app/supabase/tests/migrations.test.ts`:
 
 ```ts
-  it('member: se crea una fila por cada perfil existente', async () => {
-    const db = await applyMigrations();
-    const ana = await createAuthUser(db);
+**Nota importante sobre estos tests.** El banco aplica las migraciones sobre una base **vacía**: nunca hay un `profile` previo, así que el backfill de esta migración no se puede probar aquí (se verifica a mano en el despliegue; son dos filas en producción). Y `create_household` **todavía no** inserta en `member` — eso llega en la Tarea 5. Por eso estos tests insertan la fila `member` **como superusuario**, fuera de `asUser`, que es exactamente donde el harness no aplica RLS, y usan `asUser` solo para lo que quieren comprobar: las políticas y los grants.
 
-    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
-
-    const res = await db.query<{ n: number; display_name: string; is_ward: boolean }>(
-      `select count(*)::int as n, min(display_name) as display_name, bool_or(is_ward) as is_ward
-         from public.member where auth_user_id = '${ana}'`,
-    );
-    expect(res.rows[0].n).toBe(1);
-    expect(res.rows[0].display_name).toBe('Ana');
-    expect(res.rows[0].is_ward).toBe(false);
-    await db.close();
-  }, 120_000);
-
+```ts
   it('member: no se puede insertar ni borrar desde el cliente', async () => {
     const db = await applyMigrations();
     const ana = await createAuthUser(db);
@@ -269,6 +256,13 @@ Añade a `app/supabase/tests/migrations.test.ts`:
     const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
     await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
 
+    // Las filas de `member`, a mano y como superusuario: create_household no
+    // las crea hasta la Tarea 5, y aquí lo que se prueba son las políticas.
+    await db.exec(`
+      insert into public.member (household_id, auth_user_id, display_name)
+      select household_id, id, display_name from public.profile;
+    `);
+
     // La propia: sí.
     await asUser(db, ana, "update public.member set color = 'blue' where auth_user_id = '" + ana + "'");
     const propio = await db.query<{ color: string }>(
@@ -295,6 +289,10 @@ Añade a `app/supabase/tests/migrations.test.ts`:
     const db = await applyMigrations();
     const ana = await createAuthUser(db);
     await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await db.exec(`
+      insert into public.member (household_id, auth_user_id, display_name)
+      select household_id, id, display_name from public.profile;
+    `);
 
     await expect(
       asUser(db, ana, `update public.member set kcal_target = 99999 where auth_user_id = '${ana}'`),
@@ -436,9 +434,9 @@ grant update (display_name, avatar_path, color, sort_order, kcal_target)
 ```bash
 cd app && npx vitest run supabase/tests/migrations.test.ts
 ```
-Esperado: PASS, los cuatro nuevos incluidos.
+Esperado: PASS, los tres nuevos incluidos.
 
-Si el test de backfill falla con 0 filas, es que `create_household` corre **después** de esta migración y por tanto no hay nada que rellenar: eso lo arregla la Tarea 5, no esta. En ese caso **deja el test fallando y pásalo a la Tarea 5**, anotándolo en tu informe; no lo borres ni lo debilites.
+Si alguno falla con 0 filas en `member`, es que te ha faltado el `insert` como superusuario del Step 1: `create_household` no crea miembros hasta la Tarea 5. **No debilites la aserción para que pase.**
 
 - [ ] **Step 5: Gate y commit**
 
@@ -903,7 +901,39 @@ Esperado: FAIL, `function public.promote_admin(p_profile_id => …) does not exi
 
 - [ ] **Step 3: Escribir la migración**
 
-Para cada una de las tres: declara la versión con `p_profile_id` copiando el cuerpo actual (de `20260919100100_rezet_remove_member_demote_admin.sql` para `remove_member` y `demote_admin`, de `20260907181314` para `promote_admin`; comprueba antes si alguna migración posterior las redefine) y añade el envoltorio.
+Para cada una de las tres: declara la versión con `p_profile_id` copiando el cuerpo actual y añade el envoltorio.
+
+**De dónde copiar cada cuerpo — importa, y la respuesta no es la que parece:**
+
+| Función | Copia de |
+|---|---|
+| `remove_member` | **`20260920090200_rezet_member_lifecycle.sql`** (la Tarea 5), no de `20260919100100` |
+| `demote_admin` | `20260919100100_rezet_remove_member_demote_admin.sql` |
+| `promote_admin` | `20260907181314_rezet_multi_admin_household_and_delete_account.sql` (comprueba antes si `20260918100200` la redefine; si lo hace, esa manda) |
+
+La Tarea 5 le añade a `remove_member` la línea que marca `member.deleted_at`. Copiar de `20260919100100` la perdería **en silencio**: a quien fuera expulsado se le quedaría el `member` sin marcar y, como el `on delete set null` le deja el `auth_user_id` a null, pasaría a ser tutelable por el resto del hogar. Es justo el agujero que `is_ward` existe para cerrar, reintroducido por la puerta de atrás.
+
+Añade este test, que lo vigila:
+
+```ts
+  it('renombrar los parámetros no pierde el borrado lógico del member', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    await asUser(db, ana, `select public.remove_member(p_profile_id => '${bea}')`);
+
+    const res = await db.query<{ borrados: number }>(
+      `select count(*) filter (where deleted_at is not null)::int as borrados from public.member`,
+    );
+    expect(res.rows[0].borrados).toBe(1);
+    await db.close();
+  }, 120_000);
+```
 
 Plantilla, que hay que repetir para las tres:
 
