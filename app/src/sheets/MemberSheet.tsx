@@ -94,6 +94,21 @@ export function MemberSheet({
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const avatarInput = useRef<HTMLInputElement>(null);
 
+  // Si la hoja monta antes de que lleguen los miembros (`members` aún vacío
+  // en la primera carga), los cuatro `useState` de arriba se quedan clavados
+  // en sus valores de fábrica (nombre vacío, verde, 2000, sin avatar) y
+  // guardar escribiría eso. Se resincronizan en cuanto cambia la IDENTIDAD
+  // del miembro — aparece por primera vez, o esta misma hoja se reutiliza
+  // para otro — no en cada cambio de sus campos, para no pisar lo que el
+  // usuario está escribiendo mientras edita.
+  useEffect(() => {
+    if (!member) return;
+    setDisplayName(member.displayName);
+    setColor(member.color);
+    setKcalTarget(member.kcalTarget);
+    setAvatarPath(member.avatarPath);
+  }, [member?.id]);
+
   // El bucket `avatars` NO es público (a diferencia de `recipe-photos`): hace
   // falta una URL firmada, que caduca, así que se pide de nuevo cada vez que
   // cambia la ruta en vez de guardarla.
