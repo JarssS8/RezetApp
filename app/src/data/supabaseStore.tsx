@@ -41,6 +41,7 @@ import {
   mapRecipe,
   type RecipeRow,
 } from './supabaseStore/rows';
+import { storeKeys } from './supabaseStore/keys';
 
 const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
 
@@ -54,13 +55,13 @@ export function SupabaseDataProvider({
   const { locale } = usePrefs();
   const queryClient = useQueryClient();
 
-  const ingredientsKey = useMemo(() => ['ingredients', householdId] as const, [householdId]);
-  const recipesKey = useMemo(() => ['recipes', householdId] as const, [householdId]);
-  const pantryKey = useMemo(() => ['pantry', householdId] as const, [householdId]);
-  const planKey = useMemo(() => ['plan', householdId] as const, [householdId]);
-  const shoppingKey = useMemo(() => ['shopping', householdId] as const, [householdId]);
-  const householdKey = useMemo(() => ['household', householdId] as const, [householdId]);
-  const householdMembersKey = useMemo(() => ['householdMembers', householdId] as const, [householdId]);
+  const ingredientsKey = useMemo(() => storeKeys.ingredients(householdId), [householdId]);
+  const recipesKey = useMemo(() => storeKeys.recipes(householdId), [householdId]);
+  const pantryKey = useMemo(() => storeKeys.pantry(householdId), [householdId]);
+  const planKey = useMemo(() => storeKeys.plan(householdId), [householdId]);
+  const shoppingKey = useMemo(() => storeKeys.shopping(householdId), [householdId]);
+  const householdKey = useMemo(() => storeKeys.household(householdId), [householdId]);
+  const householdMembersKey = useMemo(() => storeKeys.householdMembers(householdId), [householdId]);
 
   const ingredientsQ = useQuery({
     queryKey: ingredientsKey,
