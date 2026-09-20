@@ -1100,4 +1100,28 @@ describe('migraciones', () => {
     ).rejects.toThrow();
     await db.close();
   }, 120_000);
+
+  it('member: un hogar no ve los miembros de otro', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+    await asUser(db, mallory, "select public.create_household('Casa de Mallory', 'Mallory')");
+    await db.exec(`
+      insert into public.member (household_id, auth_user_id, display_name)
+      select household_id, id, display_name from public.profile;
+    `);
+
+    // La lectura tiene que ir por asUser: db.query es superusuario y no
+    // evalúa RLS, así que ahí un `using (true)` pasaría desapercibido.
+    const vistos = (await asUser(
+      db,
+      mallory,
+      'select display_name from public.member',
+    )) as { rows: { display_name: string }[] };
+
+    expect(vistos.rows).toHaveLength(1);
+    expect(vistos.rows[0].display_name).toBe('Mallory');
+    await db.close();
+  }, 120_000);
 });
