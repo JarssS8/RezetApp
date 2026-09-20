@@ -1,24 +1,40 @@
 # Personalización por miembro — diseño
 
 Fecha: 2026-09-20
-Origen: sesión de brainstorming con el usuario. Punto de partida: `main` en `a700359` (1.8.2).
+Origen: sesión de brainstorming con el usuario. Punto de partida: `main` en `b156e40` (1.8.2).
+Revisión: revisado por un agente independiente contra el código real; §16 recoge qué se aceptó y
+qué no. Las correcciones ya están aplicadas en el cuerpo del documento.
 
 ## 1. Contexto
 
-Rezet es hoy una app **de hogar**: el plan, la despensa, las recetas y la lista de la
-compra son de todos, y el único número personal que existe —el objetivo de calorías— no
-es personal en absoluto: vive en `household.kcal_target`
-(`app/supabase/migrations/20260905131217_rezet_core_schema.sql:19`), uno por hogar.
+Rezet es hoy una app **de hogar**: el plan, la despensa, las recetas y la lista de la compra
+son de todos, y el único número personal que existe —el objetivo de calorías— no es personal
+en absoluto: vive en `household.kcal_target`
+(`app/supabase/migrations/20260905131217_rezet_core_schema.sql:18`), uno por hogar.
 
-Eso produce un fallo visible hoy: el anillo de la pantalla Hoy
-(`app/src/screens/Today.tsx:40-52`) suma las kcal de **todas** las comidas planificadas del
-día multiplicadas por sus raciones, y las compara contra ese objetivo único. Una cena de
-4 raciones cuenta como 4 raciones para la única persona que mira la pantalla. El número no
-significa nada para nadie.
+Peor: **ningún cliente lo escribe**. No hay interfaz en Ajustes ni en Onboarding que lo
+cambie, y el MCP tampoco lo toca; solo se lee (`app/src/data/supabaseStore.tsx:258,263`;
+constante de demo en `app/src/data/store.tsx:60`). En producción es la constante 2100 para
+todo el mundo. El objetivo de calorías de Rezet, hoy, es decorativo.
 
-Los ajustes personales tienen el problema simétrico. `profile` ya tiene columnas `locale`,
-`theme`, `accent` y `units` desde el esquema original, y **ninguna se usa**: la app guarda
-todo eso en `localStorage` (`app/src/store/prefs.tsx`). Cambias de móvil y empiezas de cero.
+El anillo de la pantalla Hoy sí funciona como debe dentro de esa limitación: suma las
+comidas **cocinadas** del día, `kcalPerServing × plan_entry.servings`, y lo compara con esa
+constante (`app/src/screens/Today.tsx:39-50`). El fallo real no es que cuente lo planificado
+—no lo hace—, sino que multiplica por las raciones **del plato entero**: una cena de 4
+raciones cuenta como 4 raciones para la única persona que mira la pantalla, contra un
+objetivo que nadie ha elegido.
+
+Los ajustes personales tienen otro problema. `profile` tiene `locale`, `theme`, `accent` y
+`units` desde el esquema original, la migración `20260918100100_rezet_tighten_profile_household_grants.sql`
+concede UPDATE sobre esas cuatro columnas, y **la app nunca las escribe**: guarda todo en
+`localStorage` (`app/src/store/prefs.tsx`). Cambias de móvil y empiezas de cero.
+
+Y esa omisión ya produce un fallo en producción: `profile.locale` **sí se lee** en dos
+sitios —la RPC `finish_cook`, para localizar los nombres de los `shortages`
+(`20260905132618_rezet_fix_finish_cook_shortage_name.sql:33`), y el servidor MCP en sus dos
+entradas (`mcp/src/supabase.ts:31`, `mcp/src/worker/supabaseAuth.ts:96`)—, así que como
+nadie la escribe, **el MCP responde siempre en español** a cualquier usuario que tenga la
+app en inglés. Arreglarlo es parte de este trabajo, no un efecto colateral.
 
 Este documento diseña la capa personal que falta, dentro de un hogar compartido.
 
@@ -30,7 +46,7 @@ Este documento diseña la capa personal que falta, dentro de un hogar compartido
   **una ración por persona**, ajustable en el acto (½ / 1 / 1½ / 2) y descartable ("hoy no
   cené esto").
 - Encima de eso, cada miembro registra **extras**: texto libre con kcal, una receta del
-  hogar, un código de barras, o un favorito guardado.
+  hogar, un código de barras, o un favorito.
 - El dashboard (pantalla Hoy) se compone de **widgets con tamaño**, reordenables, por
   miembro.
 - Identidad: tabla `member` con `auth_user_id` nullable, para que existan **miembros sin
@@ -43,13 +59,12 @@ Este documento diseña la capa personal que falta, dentro de un hogar compartido
 
 Esto son seis subsistemas, no una funcionalidad. Se avisó de que una spec única de los seis
 es grande y envejecerá en las partes que tarden en implementarse; el usuario pidió
-explícitamente el detalle completo de los seis. Se entrega así, y el documento se ordena
-para que cada sub-proyecto pueda convertirse en su propio plan de implementación sin releer
-el resto: §3 y §4 son comunes, §5 a §10 son independientes entre sí.
+explícitamente el detalle completo. §3 y §4 son comunes; §5 a §10 son independientes entre
+sí y cada uno puede convertirse en su propio plan sin releer el resto.
 
-El sub-proyecto 4 (dietas y alérgenos) es, con diferencia, el más caro: exige datos de
-ingredientes que la app no tiene hoy. Está diseñado para degradar con honestidad —
-"sin verificar" nunca se muestra como "apto".
+El sub-proyecto 4 (dietas y alérgenos) es el más caro: exige datos de ingredientes que la
+app no tiene. Está diseñado para degradar con honestidad — "sin verificar" nunca se muestra
+como "apto".
 
 ## 2. Objetivos y no objetivos
 
@@ -57,23 +72,26 @@ ingredientes que la app no tiene hoy. Está diseñado para degradar con honestid
 
 1. Cada persona del hogar ve números que son suyos: su objetivo, su consumo, su progreso.
 2. Registrar lo que comes cuesta un toque en el caso normal y nunca más de tres.
-3. Los datos de salud (sexo, edad, altura, peso) son privados de quien los introduce, incluso
-   frente a su propio hogar.
-4. La pantalla principal la compone cada miembro.
-5. Un hogar puede incluir a quien no tiene cuenta: niños, invitados, personas mayores.
-6. Nada de lo anterior rompe el bucle central **plan − despensa = compra** ni el flujo de
+3. Los datos de salud (sexo, edad, altura, peso) son privados de quien los introduce, frente
+   a su hogar **y frente a su hogar después de irse**.
+4. El registro de consumo de quien tiene cuenta es suyo: la casa no lee tu diario.
+5. La pantalla principal la compone cada miembro.
+6. Un hogar puede incluir a quien no tiene cuenta: niños, invitados, personas mayores.
+7. Nada de lo anterior rompe el bucle central **plan − despensa = compra** ni el flujo de
    cocinar.
-7. El modo demo sigue funcionando entero, sin cuenta y sin red.
+8. El modo demo sigue funcionando entero, sin cuenta y sin red.
 
 **No objetivos**
 
 - No se persiguen macros (proteína/grasa/hidratos), agua ni ejercicio. Solo kcal.
 - No se importa un catálogo nutricional propio: las kcal salen de la receta, del usuario o
   de OpenFoodFacts.
-- No es una app médica. No se dan consejos de salud ni se diagnostica nada; las fórmulas se
-  presentan como estimación y el número siempre se puede escribir a mano.
+- No es una app médica. No se dan consejos de salud; las fórmulas se presentan como
+  estimación y el número siempre se puede escribir a mano.
 - No se cambia la autenticación, el OAuth del MCP ni el modelo de hogares/invitaciones.
 - No se añade router (sigue siendo la brecha conocida con `BUILD_FROM_ZERO.md` §2).
+- No se soportan husos horarios por miembro: el repo es mono-zona por diseño
+  (`setClock` a Madrid en el Worker MCP).
 
 ## 3. Decisiones transversales
 
@@ -87,17 +105,12 @@ create table member (
   id            uuid primary key default gen_random_uuid(),
   household_id  uuid not null references household(id) on delete cascade,
   auth_user_id  uuid unique references profile(id) on delete set null,
+  is_ward       boolean not null default false,
   display_name  text not null,
   avatar_path   text,
   color         text not null default 'green',
   sort_order    int  not null default 0,
-  -- ajustes que te siguen (§3.5)
-  locale        text not null default 'es',
-  theme         text not null default 'system',
-  accent        text not null default 'green',
-  units         text not null default 'metric',
-  -- objetivo visible para el hogar; los datos que lo producen, no (§3.2)
-  kcal_target   int  not null default 2100,
+  kcal_target   int  not null default 2100 check (kcal_target between 1000 and 5000),
   created_at    timestamptz not null default now(),
   deleted_at    timestamptz
 );
@@ -108,16 +121,24 @@ Reglas:
 
 - `profile` **no se toca**. Sigue siendo la fuente de verdad de autenticación, del hogar
   (`private.current_household()`) y del rol de admin. `member` es la capa de producto.
-- `auth_user_id` nullable: nulo = miembro sin cuenta.
+- **`is_ward` es explícito, no inferido.** Un miembro es tutelado porque
+  `create_ward_member` lo creó así, nunca porque `auth_user_id` esté a null. Ver 3.2: es la
+  diferencia entre una regla y un accidente.
 - **Borrado lógico.** Quien se va del hogar deja detrás su registro de consumo y las recetas
-  que creó. Un `delete` real vaciaría el historial de los demás. `deleted_at` lo conserva y
-  lo oculta de toda lista.
+  que creó. Un `delete` real vaciaría el historial de los demás.
 - `color` es uno de los siete acentos ya calibrados en `app/src/store/prefs.tsx::ACCENTS`.
-  Nada de hex suelto (regla no negociable del repo).
+  Nada de hex suelto (regla no negociable del repo). **No hay columna `accent` en `member`**:
+  el acento de la interfaz es un ajuste de cuenta y vive en `profile` (3.5).
+- `kcal_target` lleva `check` en la base de datos: la cota del cliente no protege de un
+  `PATCH` directo a PostgREST.
+- **No se duplican `locale`/`theme`/`accent`/`units` en `member`.** Ya están en `profile`
+  con los grants correctos. Un miembro sin cuenta no tiene tema ni idioma porque no tiene
+  dispositivo.
 
-`display_name` se muda de `profile` a `member`. `profile.display_name` se mantiene como
-espejo de solo lectura (escrito por las mismas RPC) hasta que no queden PWA cacheadas que lo
-lean; su eliminación es una migración posterior, fuera de este diseño.
+`display_name` **se queda en `profile`** para los miembros con cuenta y `member.display_name`
+es su copia mantenida por las mismas RPC. No se revoca el UPDATE de tabla sobre `profile`:
+hacerlo rompería el renombrado de cualquier PWA cacheada, exactamente como rompió el botón
+de invitar en 1.6.0. La unificación queda para cuando esas versiones hayan caducado.
 
 **Todo lo personal apunta a `member_id`, nunca a `profile.id`.** Es la razón de ser de la
 tabla: si el registro de kcal o los gustos apuntaran a `profile`, añadir miembros sin cuenta
@@ -129,27 +150,40 @@ Rezet solo conoce hoy un nivel: "del hogar" (`private.current_household()`). Hac
 
 | Nivel | Quién lo ve | Qué vive ahí |
 |---|---|---|
-| **Hogar** | todos los miembros con cuenta | plan, despensa, recetas, compra, `member` (nombre, avatar, color, `kcal_target`), dietas, gustos agregados, turnos |
-| **Propio** | solo quien lo escribe | `member_body` (sexo, edad, altura, peso, actividad), preferencias de aviso |
-| **Tutelado** | el propio miembro **si tiene cuenta**; si no, cualquier miembro con cuenta del hogar | registro de consumo, favoritos de registro |
+| **Hogar** | todos los miembros con cuenta | plan, despensa, recetas, compra, `member` (nombre, avatar, color, `kcal_target`), gustos, dietas declaradas, turnos |
+| **Propio** | solo quien lo escribe | `member_body`, `intake_share`, `intake_extra`, `member_dashboard`, `member_notify_pref` |
+| **Tutelado** | cualquier miembro con cuenta del hogar, **solo si `is_ward`** | lo mismo, de un miembro sin cuenta |
 
-El nivel *propio* se implementa con RLS sobre el vínculo de cuenta, no sobre el hogar:
+Predicado único, reutilizado por **todas** las tablas personales:
 
 ```sql
-create policy member_body_own on member_body for all to authenticated
-  using (exists (select 1 from member m
-                 where m.id = member_body.member_id
-                   and m.auth_user_id = (select auth.uid())))
-  with check (/* mismo predicado */);
-
--- y, para miembros sin cuenta, tutela del hogar:
-create policy member_body_ward on member_body for all to authenticated
-  using (exists (select 1 from member m
-                 where m.id = member_body.member_id
-                   and m.auth_user_id is null
-                   and m.household_id = (select private.current_household())))
-  with check (/* mismo predicado */);
+create function private.can_act_for(p_member_id uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.member m
+     where m.id = p_member_id
+       and m.deleted_at is null
+       and m.household_id = (select private.current_household())
+       and (m.auth_user_id = (select auth.uid()) or m.is_ward)
+  )
+$$;
 ```
+
+Tres condiciones, las tres necesarias:
+
+- `household_id = current_household()` — sin esto, `is_ward` es una condición **global** y
+  cualquier usuario de cualquier hogar podría escribir en un miembro tutelado ajeno con solo
+  conocer su UUID. Es la misma forma del agujero que cerró
+  `20260919100400_rezet_bind_fk_references_to_household.sql`.
+- `is_ward` explícito — si la tutela se infiriera de `auth_user_id is null`, el
+  `on delete set null` de 3.1 convertiría en tutelado a quien se va del hogar, y su peso
+  pasaría a ser legible por quien se queda. Todas las salidas borran la fila `profile`
+  (`20260907181314:201,245,350,362`; `20260919100100:66`), así que ese caso no es hipotético.
+- `deleted_at is null` — un miembro borrado no es tutelable.
+
+Y, como cinturón además de tirantes, **al salir del hogar se borra `member_body`** en la
+misma transacción que borra el `profile` (5.1). Los datos corporales no sobreviven a la
+salida en ninguna forma.
 
 **Por qué esto no puede ir en `profile`:** `profile_select`
 (`20260905131217_rezet_core_schema.sql:332`) permite `household_id = current_household()`.
@@ -160,52 +194,100 @@ hay column-level security en Postgres para SELECT; la única separación real es
 necesita saber que Ana apunta a 1 900 y Jars a 2 600. Los datos que producen ese número no
 salen de `member_body`.
 
-La contrapartida del nivel *tutelado* es explícita y se dice en la interfaz al crear un
-miembro sin cuenta: **sus datos los ven todos los adultos del hogar.** No hay alternativa —
-alguien tiene que registrar por él.
+La contrapartida del nivel *tutelado* se dice en la interfaz al crear un miembro sin cuenta:
+**sus datos los ven todos los adultos del hogar.** No hay alternativa — alguien tiene que
+registrar por él.
 
-### 3.3 Las reglas nuevas viven en `domain/`
+### 3.3 Contrato de las RPC nuevas
 
-Regla no negociable del repo: la lógica de negocio es pura y está testeada. Tres módulos
-nuevos:
+Toda RPC que reciba un `p_member_id` cumple, sin excepción:
+
+1. `SECURITY DEFINER` + `set search_path = ''` + `revoke all … from public, anon` +
+   `grant execute … to authenticated`, como el resto del repo.
+2. Primera sentencia del cuerpo: comprobar `private.can_act_for(p_member_id)` y abortar si
+   no. La RLS **no** protege una función `SECURITY DEFINER`; el chequeo es explícito o no
+   existe.
+3. Los parches `jsonb` se aplican **columna a columna con asignaciones literales**
+   (`coalesce(p_patch->>'color', color)`), nunca con `execute format()` sobre las claves del
+   jsonb. Una clave `auth_user_id` colada en un patch dinámico es una toma de cuenta.
+4. Ninguna RPC acepta `household_id` como parámetro: siempre lo deriva de
+   `private.current_household()`.
+
+### 3.4 Las reglas nuevas viven en `domain/`
+
+Regla no negociable del repo: la lógica de negocio es pura y está testeada. Tres módulos:
 
 - **`domain/nutrition.ts`** — Mifflin-St Jeor, factores de actividad, ajuste por objetivo,
-  redondeo y cotas de seguridad.
-- **`domain/intake.ts`** — el día de un miembro: comidas del plan cocinadas × ración
-  efectiva, menos exclusiones, más extras. También la semana, la media y la racha.
-- **`domain/dashboard.ts`** — normalización del layout de widgets: ids desconocidos,
-  tamaños inválidos, widgets nuevos tras una actualización, deduplicación.
+  redondeo y cotas.
+- **`domain/intake.ts`** — el día de un miembro, la semana, la media y la racha.
+- **`domain/dashboard.ts`** — normalización del layout de widgets.
+
+Parte de la derivación compartida entre las dos capas de datos ya vive en
+`app/src/domain/deriveStore.ts`; lo nuevo que ambas capas necesiten aterriza ahí, no
+duplicado en cada store.
 
 Cuatro pantallas van a mostrar "cuántas kcal llevo" (Hoy, el registro, el progreso, la hoja
 de miembro). Si cada una lo calcula por su cuenta, divergirán, exactamente como ya advierte
 la regla sobre `scaleQuantity`/`isCovered`.
 
-### 3.4 Compatibilidad con clientes viejos
-
-`household.kcal_target` **no se borra**. Una PWA cacheada anterior a esta versión lo sigue
-leyendo y seguiría mostrando su anillo antiguo. Pasa a cumplir un solo papel nuevo: valor
-por defecto que hereda un `member` recién creado. Su eliminación queda para cuando se
-retiren esas versiones, igual que se hizo con las invitaciones en 1.6.0.
-
-Ningún cliente viejo escribe en las tablas nuevas, así que no hay riesgo de corrupción; el
-único síntoma es un número desactualizado hasta que se acepte la actualización del service
-worker.
-
 ### 3.5 Ajustes: el servidor manda, el dispositivo es caché
 
-`app/src/store/prefs.tsx` sigue siendo el punto de lectura de toda la interfaz —no se
-reescribe ninguna pantalla— pero cambia su origen de datos:
+Los ajustes se quedan donde ya están en el esquema: **`profile`**, con el grant que
+`20260918100100` ya concede sobre `locale`, `theme`, `accent`, `units`. Cero columnas nuevas,
+cero grants nuevos. Lo único que falta es que la app los escriba y los lea.
 
-1. Arranque: lee `localStorage` y pinta (instantáneo, sin parpadeo, funciona sin red).
-2. Con sesión y `member` cargado: si el servidor difiere, **gana el servidor**, se aplica y
-   se reescribe el `localStorage`.
-3. Cada cambio del usuario escribe en los dos sitios; el servidor con reintento silencioso.
-4. Modo demo: nunca hay paso 2 ni 3; todo queda local, como hoy.
+Esto arregla de paso el fallo de §1: en cuanto `profile.locale` refleje el idioma real, el
+MCP y los `shortages` de `finish_cook` dejan de contestar siempre en español.
+
+**El árbol de providers tiene que cambiar.** Hoy `app/src/main.tsx:19-22` monta
+`PrefsProvider` **encima** de `AuthProvider`, y las dos capas de datos consumen prefs
+(`store.tsx:99`, `supabaseStore.tsx:7,178`). Así, `PrefsProvider` no puede leer la sesión y
+no hay dónde aplicar "gana el servidor". La solución, sin invertir el árbol (invertirlo
+rompería a los dos stores):
+
+- `PrefsProvider` sigue arriba y expone, además de lo de hoy, un `hydrateFromServer(prefs)`.
+- Un componente puente montado **dentro** de `AuthProvider` lee el `profile` de la sesión y
+  llama a `hydrateFromServer` una vez por sesión.
+- Cada `set*` de prefs escribe `localStorage` (inmediato) y, si hay sesión, `profile` con
+  reintento silencioso.
+
+Secuencia efectiva: arranque desde `localStorage` (instantáneo, funciona sin red) → con
+sesión, gana el servidor → cada cambio va a los dos sitios. En demo no hay paso 2 ni 3.
 
 `showIdeas` se queda **por dispositivo** (es una preferencia de pantalla, no de persona), y
-se documenta así para que no se "arregle" por error más adelante.
+se documenta así para que no se "arregle" por error más adelante. Igual `activeMemberId`
+(5.5): es estado de dispositivo, vive en `prefs`, no en el contrato `Store`.
 
-### 3.6 La capa de datos se parte
+### 3.6 Dos espacios de identificadores, dos nombres
+
+`p_member_id` ya significa **id de `profile`** en las RPC existentes
+(`remove_member`, `promote_admin`, `demote_admin` —`20260919100100:17,77`—) y
+`HouseholdDetail.members[].id` es un id de perfil (`supabaseStore.tsx:293-298`). Introducir
+`member.id` con el mismo nombre y el mismo tipo `uuid` es una fábrica de escrituras cruzadas
+silenciosas.
+
+Convención, obligatoria a partir de aquí:
+
+- SQL: lo que apunta a `profile` se llama `p_profile_id`; lo que apunta a `member`,
+  `p_member_id`. Las tres RPC existentes se renombran de parámetro en la migración de
+  fundación (renombrar un parámetro con nombre en PostgREST **sí** rompe a los clientes
+  cacheados, así que se declara la nueva y se deja la vieja como envoltorio, marcada como
+  obsoleta).
+- TypeScript: `type ProfileId = string & { readonly __profile: unique symbol }` y
+  `type MemberId = string & { readonly __member: unique symbol }`. El compilador es el único
+  que va a acordarse de esto dentro de seis meses.
+
+### 3.7 Compatibilidad con clientes viejos
+
+`household.kcal_target` **no se borra**, pero su retirada es trivial: nadie lo escribe (§1),
+así que una PWA cacheada seguirá mostrando 2100, que es exactamente lo que muestra hoy. Pasa
+a ser el valor por defecto que hereda un `member` recién creado, y se retira cuando esas
+versiones caduquen.
+
+Ningún cliente viejo escribe en las tablas nuevas. El riesgo real está en las tablas
+**viejas**, y por eso 3.1 no revoca nada de `profile`.
+
+### 3.8 La capa de datos se parte
 
 `app/src/data/supabaseStore.tsx` son 928 líneas y este trabajo le sumaría unas seis consultas
 y ocho mutaciones. Se divide en `app/src/data/supabaseStore/` por dominio
@@ -217,136 +299,167 @@ pantallas actuales no se enteran. Es refactor necesario para que quepa lo nuevo,
 oportunista; se hace **antes** de añadir nada, en su propio commit, con los tests existentes
 en verde como prueba de equivalencia.
 
-### 3.7 Pruebas
+### 3.9 Pruebas
 
 - Cada módulo de `domain/` con su fichero en `app/src/domain/__tests__/`.
-- Cada migración nueva entra en el banco (`app/supabase/tests/migrations.test.ts`), y las que
-  tocan privacidad llevan asserts de RLS vía `asUser`:
-  - un miembro **no** puede leer el `member_body` de otro miembro con cuenta;
-  - sí puede leer el de un miembro sin cuenta de su hogar;
-  - nadie ve nada de otro hogar;
-  - un no-admin no puede crear ni borrar miembros sin cuenta.
+- Cada migración nueva entra en el banco (`app/supabase/tests/migrations.test.ts`). Las que
+  tocan privacidad llevan asserts de RLS vía `asUser`, y estos cuatro son obligatorios:
+  1. A **no** lee el `member_body` de B, teniendo B cuenta, en el mismo hogar.
+  2. A **no** lee el `intake_extra` de B, teniendo B cuenta, en el mismo hogar.
+  3. A **sí** lee y escribe el `member_body` de un tutelado de su hogar.
+  4. Al ejecutar `leave_household`, el `member_body` de quien se va **desaparece**, y su
+     `member` no queda tutelable.
 - Recordatorio del repo: el banco es Postgres 18 y producción no; verde prueba SQL y lógica,
   no paridad con producción.
 
 ## 4. Modelo de datos completo
 
-Resumen de todo lo que se crea. El detalle de uso está en el sub-proyecto de cada una.
+Diez tablas nuevas y dos columnas. Cada una con RLS activada y su política escrita en el
+sub-proyecto correspondiente — ninguna queda con "RLS activada" y el predicado sin decidir.
 
 ```sql
 -- §5 Fundación
-member                      (/* véase 3.1 */)
+member                 (…3.1…)
 
 -- §6 Nutrición personal
 member_body      (member_id pk, sex, birth_year, height_cm, weight_kg,
-                  activity, goal, updated_at)                    -- privado
-intake_share     (member_id, plan_entry_id, servings numeric,
-                  primary key (member_id, plan_entry_id))        -- excepción al "1 ración"
-intake_extra     (id, household_id, member_id, date, label, kcal,
-                  source, recipe_id, servings, barcode, created_by, created_at)
-intake_favorite  (id, household_id, member_id, label, kcal, source,
-                  recipe_id, barcode, used_count, created_at)
+                  activity, goal, updated_at)
+intake_share     (member_id, plan_entry_id, servings, primary key (member_id, plan_entry_id))
+intake_extra     (id, household_id, member_id, date, label, kcal, source,
+                  recipe_id, created_by, created_at)
 
 -- §7 Dashboard
 member_dashboard (member_id pk, layout jsonb, updated_at)
 
 -- §8 Gustos y dietas
-member_recipe_pref (member_id, recipe_id, rating smallint, updated_at,
+member_recipe_pref (member_id, recipe_id, rating, updated_at,
                     primary key (member_id, recipe_id))
-diet_flag          (key pk, name_es, name_en, kind)              -- catálogo global
-ingredient_diet    (ingredient_id, flag_key, source,
+ingredient_diet    (household_id, ingredient_id, flag_key, source,
                     primary key (ingredient_id, flag_key))
 member_diet        (member_id, flag_key, primary key (member_id, flag_key))
 
 -- §9 Avisos
 member_notify_pref (member_id pk, timers, expiring, cook_turn, log_reminder,
-                    log_reminder_at, quiet_from, quiet_to, tz, updated_at)
+                    log_reminder_at, quiet_from, quiet_to, updated_at)
 
 -- §10 Turnos (opcional)
-household.turns_enabled  boolean not null default false
+household.turns_enabled   boolean not null default false
 plan_entry.cook_member_id uuid null references member(id) on delete set null
 shopping_turn    (household_id, week_start, member_id, primary key (household_id, week_start))
 ```
 
-Todas llevan `household_id` directo o alcanzable en un salto, RLS activada, y ningún rol con
-INSERT directo donde haya una RPC (`SECURITY DEFINER`) que deba ser el único camino.
+Patrón común, sin excepciones:
+
+- `household_id` desnormalizado donde haga falta para el borrado en cascada y para anclar la
+  integridad, **nunca como predicado de lectura de una tabla personal** (§3.2).
+- Ningún rol con INSERT de tabla donde exista una RPC que deba ser el único camino.
+- Toda FK que cruce hogares se comprueba con el mismo enfoque de
+  `20260919100400_rezet_bind_fk_references_to_household.sql`.
 
 ## 5. Sub-proyecto 1 — Fundación de miembro
 
 ### 5.1 Migración de fundación
 
-1. Crear `member` (§3.1).
-2. Rellenar una fila por cada `profile` existente: `auth_user_id = profile.id`,
-   `display_name`, `locale`/`theme`/`accent`/`units` copiados de `profile`,
-   `kcal_target = household.kcal_target`, `color` = `accent`.
-3. Índice único parcial:
-   `create unique index member_auth_uq on member (auth_user_id) where auth_user_id is not null`.
-4. RLS: SELECT y UPDATE de campos propios para el hogar; ver 5.2.
-5. Helper `private.current_member()` análogo a `private.current_household()`:
-   `select id from member where auth_user_id = auth.uid() and deleted_at is null`.
-   Marcado `stable`, usado entre paréntesis (`(select private.current_member())`) en cada
-   política, igual que el resto del esquema, para que Postgres lo evalúe una vez por consulta.
+1. Crear `member` (§3.1) y `private.can_act_for` (§3.2).
+2. `private.current_member()`, calco de `private.current_household()`
+   (`20260905131217:193-204`): **`security definer`**, `stable`, `set search_path = ''`,
+   con `limit 1`. Como `SECURITY INVOKER` leería `member` bajo RLS y, en cuanto una política
+   de `member` la usara, Postgres daría recursión infinita (42P17).
+3. Rellenar una fila por cada `profile` existente: `auth_user_id = profile.id`,
+   `display_name`, `color = profile.accent`, `kcal_target = household.kcal_target`,
+   `is_ward = false`.
+4. `create unique index member_auth_uq on member (auth_user_id) where auth_user_id is not null`
+   **o** `unique` en la columna, no ambos: un `UNIQUE` de Postgres ya admite varios NULL.
+   Se elige el índice parcial y la columna se declara sin `unique`.
+5. Renombrar los parámetros de las tres RPC existentes según §3.6, dejando envoltorios.
 
-Las RPC existentes `create_household` y `redeem_invite` pasan a crear también la fila
-`member` en la misma transacción. `leave_household`, `remove_member`, `delete_household` y
-`delete_account` marcan `deleted_at` en vez de dejar huérfana la fila.
+Las RPC `create_household` y `redeem_invite` crean también la fila `member` en la misma
+transacción. `leave_household`, `remove_member`, `delete_household` y `delete_account`:
 
-### 5.2 Grants y RLS
+- marcan `member.deleted_at = now()` en vez de dejar la fila huérfana;
+- **borran `member_body`** del miembro afectado (§3.2);
+- no tocan `intake_extra` ni `intake_share`: el historial se conserva, sin nombre propio si
+  hace falta.
 
-- SELECT: `household_id = current_household() and deleted_at is null`.
-- UPDATE: **columna a columna**, nunca a nivel de tabla (regla no negociable del repo: un
-  `revoke update (col)` no hace nada mientras exista el grant de tabla).
-  - solo sobre la **propia** fila (`auth_user_id = auth.uid()`): `display_name`,
-    `avatar_path`, `color`, `locale`, `theme`, `accent`, `units`, `kcal_target`. Es el
-    camino directo del caso común, sin round-trip de RPC en cada cambio de tema.
-  - **nada** sobre miembros sin cuenta: escribir en la fila de otro solo pasa por
-    `set_member_settings` (5.3), que comprueba la tutela. Un grant de columna no puede
-    expresar "solo si el objetivo no tiene cuenta", así que la política de UPDATE se acota a
-    la propia fila y la tutela vive en la RPC.
-- INSERT y DELETE: **ningún rol**. Solo por RPC (`create_ward_member`, `delete_ward_member`),
-  porque crear miembros es crear identidad dentro de un hogar — el mismo razonamiento que
-  cerró `profile` en `20260917220000_rezet_lock_profile_insert.sql`.
+### 5.2 Grants y RLS de `member`
+
+```sql
+alter table member enable row level security;
+
+-- Lectura: todo el hogar, incluidos los borrados, para poder resolver la
+-- atribución del historial ("lo registró X"). La UI los marca como inactivos.
+create policy member_select on member for select to authenticated
+  using (household_id = (select private.current_household()));
+
+-- Escritura directa: solo sobre la propia fila, columna a columna.
+create policy member_update_self on member for update to authenticated
+  using (auth_user_id = (select auth.uid()) and deleted_at is null)
+  with check (auth_user_id = (select auth.uid()) and deleted_at is null);
+```
+
+```sql
+revoke update on public.member from authenticated;   -- primero la tabla…
+grant update (display_name, avatar_path, color, sort_order, kcal_target)
+  on public.member to authenticated;                 -- …y luego las columnas
+```
+
+El orden importa: `revoke update (col)` **no hace nada** mientras exista el grant de tabla.
+El repo ya se equivocó una vez (`20260917070714` → `20260917070845`).
+
+INSERT y DELETE: **ningún rol**. Solo por RPC, igual que se cerró `profile` en
+`20260917220000_rezet_lock_profile_insert.sql`.
+
+Escribir sobre un **tutelado** no pasa por grants de columna —una política no puede expresar
+"solo si el objetivo es tutelado de mi hogar" sin convertirse en la trampa de §3.2— sino por
+`set_member_settings`.
 
 ### 5.3 RPC nuevas
 
 | RPC | Quién | Hace |
 |---|---|---|
-| `create_ward_member(p_display_name, p_color)` | admin del hogar | crea un `member` sin cuenta. Tope de 12 miembros vivos por hogar. |
-| `delete_ward_member(p_member_id)` | admin del hogar | marca `deleted_at` en un miembro **sin cuenta** del propio hogar. Rechaza si tiene cuenta (para eso está `remove_member`). |
-| `set_member_settings(p_member_id, p_patch jsonb)` | el propio miembro, o cualquiera con cuenta si el objetivo no tiene cuenta | escribe la lista blanca de columnas de 5.2. Evita repartir grants por columna a cada caso. |
+| `create_ward_member(p_display_name, p_color)` | admin del hogar | crea un `member` con `is_ward = true`. Deriva el hogar de `current_household()`. |
+| `delete_ward_member(p_member_id)` | admin del hogar | `deleted_at = now()` sobre un miembro **con `is_ward`** del propio hogar. Rechaza si tiene cuenta (para eso está `remove_member`). |
+| `set_member_settings(p_member_id, p_patch jsonb)` | `private.can_act_for` | escribe la lista blanca `display_name`, `color`, `avatar_path`, `sort_order`, `kcal_target`, con asignaciones literales (§3.3). Mantiene el espejo `profile.display_name` si el miembro tiene cuenta. |
+
+Todas cumplen §3.3. Nada de topes numéricos en el cuerpo: si hacen falta límites, van como
+`check` en la tabla.
 
 ### 5.4 Avatares
 
-Bucket de Storage `avatars`, misma forma que `recipe-photos`: ruta
-`<household_id>/<member_id>/<uuid>.jpg`, lectura acotada al hogar (calco de
-`20260917220100_rezet_scope_recipe_photos_read.sql`), escritura solo dentro del propio hogar
-(calco de `20260919100300_rezet_bound_recipe_photo_paths.sql`).
+Bucket de Storage `avatars`, ruta **plana**: `<household_id>/<uuid>.jpg`. No anidada:
+`20260919100300_rezet_bound_recipe_photo_paths.sql` existe precisamente para prohibir rutas
+anidadas (escapan al barrido de huérfanos), y fija `^<household>/[^/]+$`. La política de
+INSERT se calca de ahí, tal cual.
 
 Sin avatar: inicial sobre el `color` del miembro, generada en el cliente. Es el caso por
 defecto y tiene que verse bien — no es un hueco vacío.
 
-Limpieza: el cron `cleanup-orphan-photos` se extiende para barrer también avatares sin
-referencia con más de 24 h, reusando su estructura y su `?dryRun=1`.
+Limpieza: `cleanup-orphan-photos` se extiende para barrer también avatares sin referencia con
+más de 24 h, reusando su estructura y su `?dryRun=1`.
 
 ### 5.5 Interfaz
 
-- **Hoja "Tu hogar"** (`app/src/sheets/HouseholdSheet.tsx`): la lista pasa a mostrar avatar,
-  color y objetivo de kcal. Botón "Añadir miembro sin cuenta" para admins, con el aviso de
-  privacidad de §3.2 en el propio formulario, no escondido en un enlace.
-- **Hoja de miembro** (nueva): nombre, avatar, color, y —solo si eres tú, o si el miembro no
-  tiene cuenta— objetivo de kcal, datos corporales y dietas.
-- **Ajustes** (`SettingsSheet.tsx`): tema/acento/idioma/unidades siguen donde están; se añade
-  una línea de estado, "Sincronizado con tu cuenta", o "Solo en este dispositivo" en demo.
-- **Selector de "quién eres"**: en un dispositivo compartido hace falta poder registrar
-  como otro miembro. Va en la cabecera de los bloques personales de Hoy, no como cambio de
-  sesión: cambia el sujeto del registro, nunca la identidad de autenticación. Solo lista
-  miembros sin cuenta más el propio, porque registrar por otro adulto con cuenta sería
-  escribir en datos ajenos.
+- **Hoja "Tu hogar"** (`app/src/sheets/HouseholdSheet.tsx`): avatar, color y objetivo por
+  miembro. Botón "Añadir miembro sin cuenta" para admins, con el aviso de privacidad de §3.2
+  **en el propio formulario**, no escondido en un enlace.
+- **Hoja de miembro** (nueva): nombre, avatar, color; y —solo si eres tú o si es tutelado—
+  objetivo de kcal, datos corporales y dietas.
+- **Ajustes** (`SettingsSheet.tsx`): una línea de estado, "Sincronizado con tu cuenta" o
+  "Solo en este dispositivo" en demo.
+- **Selector de "quién eres"**: en un dispositivo compartido hace falta registrar por otro.
+  Lista el propio miembro y los tutelados, nunca otro adulto con cuenta. Vive en `prefs`
+  (estado de dispositivo), no en el contrato `Store`. **La defensa real es la RLS de §3.2**,
+  no este selector: la interfaz no protege nada.
 
 ### 5.6 Modo demo
 
-`app/src/data/seed.ts` pasa a sembrar tres miembros: dos adultos con objetivos distintos y
-un menor sin cuenta. Sin esto, la demo no enseña la funcionalidad principal de esta entrega.
+La demo no tiene concepto de hogar multiusuario y `HouseholdSheet` **nunca se renderiza** en
+ella (`store.tsx:78-95`, patrón `onInvite={demo ? undefined : …}`). Para que la demo enseñe
+esto hay que abrir superficie nueva, no solo sembrar datos:
+
+- `seed.ts` siembra tres miembros: dos adultos con objetivos distintos y un menor tutelado.
+- La demo monta una versión reducida de la hoja de miembro (cambiar objetivo, cambiar de
+  miembro activo) sin las acciones de hogar, que siguen rechazando con el mensaje actual.
 
 ## 6. Sub-proyecto 2 — Nutrición personal
 
@@ -371,21 +484,17 @@ Gasto diario = TMB × factor de actividad:
 
 Objetivo = gasto × ajuste: `lose` −15 %, `maintain` 0, `gain` +10 %.
 
-Detalles que van en el módulo, no en la pantalla:
-
 - **Sexo**: la fórmula solo admite dos constantes. La interfaz ofrece además "prefiero no
   decirlo", que **no usa la fórmula**: pide el número directamente. No se inventa una media
   para no dar una cifra falsa con aire de cálculo.
-- **Edad** se deriva de `birth_year`, no se guarda la fecha completa: menos dato personal
-  para el mismo resultado.
-- **Cotas**: el resultado se acota a [1 200, 4 500] y se redondea a 50. Por debajo de 1 200 la
-  interfaz avisa de que es una estimación fuera de rango habitual y **no** ofrece guardarlo
-  sin escribirlo a mano.
-- **Menores**: Mifflin-St Jeor está validado en adultos. Para un miembro con menos de 18 años
-  la fórmula no se ofrece; se pide el número directamente con una nota de una línea. No es
-  una app médica (§2).
-- El número calculado siempre es editable. `member.kcal_target` guarda la cifra final;
-  `member_body` guarda de dónde salió, para poder recalcular cuando cambie el peso.
+- **Edad** se deriva de `birth_year`: menos dato personal para el mismo resultado.
+- **Cotas**: [1 200, 4 500], redondeo a 50, y el `check` de la tabla en [1 000, 5 000] como
+  última línea. Por debajo de 1 200 la interfaz avisa y no ofrece guardar sin escribirlo a
+  mano.
+- **Menores**: Mifflin-St Jeor está validado en adultos. Con menos de 18 años la fórmula no
+  se ofrece; se pide el número con una nota de una línea.
+- El número siempre es editable. `member.kcal_target` guarda la cifra final; `member_body`
+  guarda de dónde salió, para recalcular cuando cambie el peso.
 
 ```sql
 create table member_body (
@@ -394,36 +503,46 @@ create table member_body (
   birth_year  int  check (birth_year between 1900 and 2100),
   height_cm   numeric(5,1) check (height_cm between 50 and 250),
   weight_kg   numeric(5,1) check (weight_kg between 15 and 400),
-  activity    text not null default 'sedentary',
-  goal        text not null default 'maintain',
+  activity    text not null default 'sedentary'
+              check (activity in ('sedentary','light','moderate','active','very_active')),
+  goal        text not null default 'maintain' check (goal in ('lose','maintain','gain')),
   updated_at  timestamptz not null default now()
 );
+alter table member_body enable row level security;
+
+create policy member_body_rw on member_body for all to authenticated
+  using ((select private.can_act_for(member_body.member_id)))
+  with check ((select private.can_act_for(member_body.member_id)));
 ```
 
-RLS: §3.2. Sin grant de INSERT/UPDATE de tabla; una RPC `set_member_body(p_member_id, p_patch)`
-con la misma regla de tutela, que además recalcula y escribe `member.kcal_target` en la misma
-transacción si el miembro tenía el objetivo enlazado a la fórmula.
+Sin grant de INSERT/UPDATE de tabla: la escritura pasa por
+`set_member_body(p_member_id, p_patch)`, que cumple §3.3 y recalcula `member.kcal_target` en
+la misma transacción si el objetivo estaba enlazado a la fórmula.
 
 ### 6.2 El día de un miembro (`domain/intake.ts`)
-
-La regla, en una línea:
 
 ```
 kcal(miembro, día) = Σ comidas del plan cocinadas ese día · kcalPorRación · raciónEfectiva
                    + Σ extras del miembro ese día
 ```
 
-donde `raciónEfectiva(miembro, entrada) = intake_share.servings ?? 1`, y `0` significa "no lo
-comí". `plan_entry.servings` **no entra en el cálculo personal**: sigue sirviendo solo para
-despensa y compra. Esto es lo que arregla el fallo del anillo descrito en §1.
+con `raciónEfectiva(miembro, entrada) = intake_share.servings ?? 1`, y `0` = "no lo comí".
+`plan_entry.servings` **no entra en el cálculo personal**: sigue sirviendo solo para despensa
+y compra.
+
+La ración por defecto es **1**, decisión explícita del usuario frente a la alternativa
+"raciones ÷ miembros". Coste conocido y aceptado: en un hogar de 4 que cocina 2 raciones, la
+suma de los consumos personales supera lo cocinado hasta que alguien corrija. Mitigación, sin
+cambiar la regla: la hoja de fin de cocción (6.6) muestra "2 raciones cocinadas · 4 personas
+marcadas" cuando no cuadra, y ofrece repartir en un toque. Se avisa, no se decide por el
+usuario.
 
 Consecuencias que el módulo fija y testea:
 
 - Una comida planificada pero **no cocinada** no cuenta para nadie. Cocinar es la señal.
-- Marcar cocinado desde el modo Cook suma a todos los miembros a la vez, sin escribir
-  ninguna fila: el valor por defecto es implícito. Solo la **excepción** ocupa espacio.
-- Descocinar (borrar la entrada del plan) hace desaparecer su aportación, incluidas las
-  `intake_share` asociadas (`on delete cascade`).
+- El valor por defecto es implícito: cocinar suma a todos sin escribir ninguna fila. Solo la
+  **excepción** ocupa espacio.
+- Borrar la entrada del plan borra su aportación y sus `intake_share` (`on delete cascade`).
 - Los extras son independientes del plan y sobreviven a cualquier cambio en él.
 
 ```sql
@@ -442,104 +561,113 @@ create table intake_extra (
   date          date not null,
   label         text not null,
   kcal          int  not null check (kcal between 0 and 10000),
-  source        text not null check (source in ('manual','recipe','barcode','favorite')),
+  source        text not null check (source in ('manual','recipe','barcode')),
   recipe_id     uuid references recipe(id) on delete set null,
-  servings      numeric(4,2),
-  barcode       text,
   created_by    uuid references member(id) on delete set null,
   created_at    timestamptz not null default now()
 );
 create index intake_extra_member_date_idx on intake_extra (member_id, date);
 ```
 
-`created_by` distingue "lo registré yo" de "me lo registró mi padre": necesario para el nivel
-tutelado y para que el historial sea legible.
+**RLS por miembro, no por hogar.** El diario de comidas de quien tiene cuenta no lo lee la
+casa:
 
-`household_id` está desnormalizado a propósito en `intake_extra` — es el patrón que ya sigue
-el esquema (`shopping_check`, `pantry_item`) y lo que permite una política RLS de un solo
-predicado, sin subconsulta por fila. La integridad la garantiza el mismo enfoque de
-`20260919100400_rezet_bind_fk_references_to_household.sql`, que hay que replicar: comprobar
-que `member_id` y `recipe_id` pertenecen a ese `household_id`.
+```sql
+alter table intake_share enable row level security;
+alter table intake_extra enable row level security;
+
+create policy intake_share_rw on intake_share for all to authenticated
+  using ((select private.can_act_for(intake_share.member_id)))
+  with check ((select private.can_act_for(intake_share.member_id)));
+
+create policy intake_extra_rw on intake_extra for all to authenticated
+  using ((select private.can_act_for(intake_extra.member_id)))
+  with check ((select private.can_act_for(intake_extra.member_id)));
+```
+
+`household_id` en `intake_extra` es ancla de integridad y cascada, **no** predicado de
+lectura. Se comprueba con trigger, como en `20260919100400`, que `member_id` y `recipe_id`
+pertenezcan a ese hogar.
+
+No hay tabla de favoritos. Los "favoritos" son una **derivación**:
+
+```sql
+select label, kcal, count(*) as n
+  from intake_extra
+ where member_id = … and source = 'manual'
+ group by label, kcal order by n desc limit 8
+```
+
+Una consulta en lugar de una tabla, un contador de uso, una RPC y una cuota. La experiencia
+—"tus extras repetidos a un toque"— es idéntica.
 
 ### 6.3 Registrar: los cuatro caminos
 
 El bloque "Tu día" de Hoy lista las comidas del plan de hoy con su ración, y debajo tus
-extras. Cada comida del plan tiene un stepper ½ / 1 / 1½ / 2 y un "no lo comí" — un toque,
-sin abrir nada.
+extras. Cada comida tiene un stepper ½ / 1 / 1½ / 2 y un "no lo comí" — un toque, sin abrir
+nada.
 
-El botón "Añadir" abre una hoja con cuatro pestañas, en este orden:
+"Añadir" abre una hoja con cuatro pestañas:
 
-1. **Favoritos** — lo más usado primero, ordenado por `used_count`. Un toque y listo. Es la
-   pestaña por defecto en cuanto haya al menos un favorito.
-2. **Rápido** — nombre + kcal. Dos campos, teclado numérico, guardar. Casilla "guardar como
-   favorito".
-3. **Receta** — reusa `RecipePickerSheet.tsx`; eliges raciones y las kcal salen de
-   `kcalPerServing`. Registra una receta del hogar que no estaba planificada.
-4. **Código** — reusa el escáner de `app/src/sheets/PantryScanCapture.tsx`. La llamada a
-   OpenFoodFacts añade `nutriments` a los campos pedidos (hoy pide
+1. **Favoritos** — los derivados de 6.2, los más usados primero. Un toque. Es la pestaña por
+   defecto en cuanto haya al menos uno.
+2. **Rápido** — nombre + kcal. Dos campos, teclado numérico.
+3. **Receta** — reusa `RecipePickerSheet.tsx`; eliges raciones, las kcal salen de
+   `kcalPerServing`.
+4. **Código** — reusa el escáner de `app/src/sheets/PantryScanCapture.tsx`. Se añade
+   `nutriments` a los campos pedidos a OpenFoodFacts (hoy pide
    `product_name,quantity,product_quantity,product_quantity_unit`,
-   `PantryScanCapture.tsx:129`) y se lee `energy-kcal_100g`. Pides gramos consumidos y se
-   calcula. Si el producto no trae kcal, cae a la pestaña "Rápido" con el nombre ya puesto —
-   nunca un callejón sin salida.
+   `PantryScanCapture.tsx:129`) y se lee `energy-kcal_100g`. Pides gramos y se calcula. Si el
+   producto no trae kcal, cae a "Rápido" con el nombre puesto — nunca un callejón sin salida.
+   El código de barras no se guarda: solo sirve para calcular una vez.
 
-El CSP no cambia: `world.openfoodfacts.org` ya está en `connect-src`
-(`app/public/_headers:5`). Pedir un campo más de la misma API no abre ningún origen nuevo.
-
-```sql
-create table intake_favorite (
-  id            uuid primary key default gen_random_uuid(),
-  household_id  uuid not null references household(id) on delete cascade,
-  member_id     uuid not null references member(id) on delete cascade,
-  label         text not null,
-  kcal          int  not null check (kcal between 0 and 10000),
-  source        text not null,
-  recipe_id     uuid references recipe(id) on delete set null,
-  barcode       text,
-  used_count    int  not null default 0,
-  created_at    timestamptz not null default now()
-);
-```
-
-Tope de 50 favoritos por miembro, comprobado en la RPC. Los favoritos son personales pero
-legibles por el hogar, por la tutela.
+El CSP no cambia: `world.openfoodfacts.org` ya está en `connect-src` (`app/public/_headers:5`).
 
 ### 6.4 El anillo de Hoy
 
-`app/src/screens/Today.tsx` cambia de fuente:
+`app/src/screens/Today.tsx`:
 
 - `kcalTarget` pasa de `household.kcal_target` a `member.kcal_target` del miembro activo.
-- `done` pasa de "kcal de las comidas cocinadas × raciones del plan" a `domain/intake.ts`.
-- `planned` pasa a ser "lo que llevas + lo que te queda planificado hoy", con tu ración, no
-  la del plato entero.
-- Se añade la parte que faltaba: cuánto te queda **para tu objetivo**, y un aviso suave al
-  pasarte, con `--warn` y `--warn-ink` (nunca `--accent` para un aviso: son tokens de
-  papeles distintos).
+- `done` pasa de `kcalPerServing × plan_entry.servings` de las cocinadas a `domain/intake.ts`.
+- `planned` pasa a ser "lo que llevas + lo que te queda planificado hoy", con tu ración.
+- El aviso al pasarse usa `--warn`/`--warn-ink`, nunca `--accent`: son tokens de papeles
+  distintos.
 
-En un hogar de un solo miembro la pantalla se ve exactamente igual que hoy, con el número ya
-correcto.
+"Cuánto te queda" ya existe (`Today.tsx:76-78`) y no es nuevo; lo que cambia es que por fin
+se mide contra un objetivo que alguien ha elegido.
+
+**Aviso de cambio visible:** hoy un hogar que planifica 2 raciones ve `2 × kcal`; a partir de
+ahora verá `1 × kcal`. El número **baja a la mitad** en ese caso. Es la corrección del fallo
+de §1, pero hay que decirlo en el CHANGELOG con esas palabras o parecerá un bug.
 
 ### 6.5 Progreso personal
 
 Bloque "Tu semana": barras por día contra tu objetivo, media, y racha de días consecutivos
-dentro del objetivo (±10 %). Todo derivado en `domain/intake.ts` de datos que ya tienes
-descargados; ninguna consulta nueva más allá de pedir el rango de fechas de la semana.
+dentro del objetivo (±10 %). Derivado en `domain/intake.ts` de datos ya descargados.
 
-La racha se calcula solo sobre días **pasados y completos**: contar el día en curso como
-"dentro del objetivo" a las nueve de la mañana sería mentir.
+La racha se calcula solo sobre días **pasados y completos**: contar el día en curso a las
+nueve de la mañana sería mentir.
 
 ### 6.6 Integración con el modo Cook
 
-Al terminar de cocinar (`CookFinishSheet.tsx`) aparece, bajo lo que ya hay, una línea:
-"Cuenta para: [avatares del hogar]", con todos marcados y la ración por defecto. Desmarcar a
-alguien escribe su `intake_share` a 0. Es la única forma de que "plan auto" no obligue a
-corregir después.
+`finish_cook` **no puede** servir para esto tal como está: devuelve el array de `shortages` y
+nada más (`20260905132555:279`), y cuando `p_plan_entry_id is null` inserta él mismo la
+entrada de plan (`:272`) sin devolver su `id`. El camino "cocinar algo no planificado" —justo
+el que hay que cubrir— se queda sin `plan_entry_id` con el que escribir `intake_share`.
+Cambiar su tipo de retorno rompería a las PWA cacheadas, que lo parsean como array.
 
-Esto **no** toca la RPC `finish_cook` (despensa, `cookedCount`, `shortages` siguen igual);
-son escrituras separadas en `intake_share`, después y sin bloquear el cierre de la hoja.
+Solución: **`finish_cook_v2(…, p_shares jsonb)`**, que devuelve
+`{ "shortages": [...], "plan_entry_id": "…" }` y escribe los `intake_share` **dentro de la
+misma transacción**. `finish_cook` se queda como envoltorio que llama a la nueva y devuelve
+solo `shortages`, para los clientes viejos.
+
+Escribir los shares dentro de la transacción no es cosmético: hacerlo fuera significa perder
+en silencio un "no lo cené" si falla la segunda llamada.
+
+En `CookFinishSheet.tsx`, bajo lo que ya hay: "Cuenta para: [avatares del hogar]", todos
+marcados, ración por defecto, y el aviso de reparto de 6.2 si no cuadra con lo cocinado.
 
 ## 7. Sub-proyecto 3 — Dashboard de widgets
-
-### 7.1 Almacenamiento
 
 ```sql
 create table member_dashboard (
@@ -547,14 +675,20 @@ create table member_dashboard (
   layout      jsonb not null,
   updated_at  timestamptz not null default now()
 );
+alter table member_dashboard enable row level security;
+create policy member_dashboard_rw on member_dashboard for all to authenticated
+  using ((select private.can_act_for(member_dashboard.member_id)))
+  with check ((select private.can_act_for(member_dashboard.member_id)));
 ```
 
-`layout` es una lista ordenada:
-`[{ "id": "kcal_ring", "w": "full" }, { "id": "quick_log", "w": "half" }, …]`.
-Lo ausente está oculto. JSONB y no tabla-por-fila porque se lee y se escribe siempre entero,
-nunca se consulta por dentro.
+`layout`: `[{ "id": "kcal_ring", "w": "full" }, …]`. Lo ausente está oculto. JSONB y no
+tabla-por-fila porque se lee y se escribe siempre entero.
 
-### 7.2 Catálogo de widgets
+Va en tabla y no en `prefs` a propósito, contra la recomendación de simplificar: el usuario
+pidió personalización **por miembro**, y `prefs` es por dispositivo. Un dashboard que no te
+sigue al segundo dispositivo no es lo que se pidió.
+
+### 7.1 Catálogo
 
 | id | Qué muestra | Tamaños | Requiere |
 |---|---|---|---|
@@ -568,39 +702,35 @@ nunca se consulta por dentro.
 | `for_you` | sugerencias según tus gustos | full, half | §8 |
 | `whose_turn` | a quién le toca cocinar | half | §10 |
 
-Un widget cuyo sub-proyecto no esté implementado **no aparece en el catálogo**: no se muestran
-huecos "próximamente".
+Un widget cuyo sub-proyecto no esté implementado **no aparece en el catálogo**.
 
-### 7.3 Rejilla
+### 7.2 Rejilla
 
 - ≥ 600 px: dos columnas. `full` ocupa las dos, `half` una.
-- < 600 px: una columna, todo a ancho completo, **se respeta el orden**. Es el caso
-  mayoritario y hay que decirlo sin adornos: en el móvil el tamaño no se nota, el orden sí.
-- ≥ 900 px (la barra lateral ya existente): tres columnas, `full` ocupa dos.
+- < 600 px: una columna, todo a ancho completo, **se respeta el orden**. En el móvil el
+  tamaño no se nota; el orden sí.
+- ≥ 900 px (barra lateral ya existente): tres columnas, `full` ocupa dos.
 
-### 7.4 Edición
+### 7.3 Edición
 
-Modo "Personalizar" desde la cabecera de Hoy: cada widget muestra un asa de arrastre, un
-control de tamaño y un interruptor. El arrastre usa el motor de `app/src/motion/` —
-el mismo que ya mueve recetas al plan—, no una librería nueva (regla no negociable: nada de
-librerías de componentes con sus propias métricas).
+Modo "Personalizar" desde la cabecera de Hoy: asa de arrastre, control de tamaño e
+interruptor por widget.
 
-Accesibilidad: además del arrastre, cada widget tiene "subir"/"bajar" por teclado y lector de
-pantalla, con `aria-live` anunciando la posición nueva. Un dashboard que solo se puede
-ordenar arrastrando es un dashboard que parte del hogar no puede ordenar.
+**La reordenación es código nuevo.** `app/src/motion/useSlotDrag.ts` es un gesto de *soltar
+sobre un `data-slot`*, no una lista reordenable con reflujo; sirve de base de física
+(springs, proyección de inercia) pero no se reutiliza tal cual. Nada de librerías de
+componentes: primitivas propias, como el resto de `src/ui/`.
 
-### 7.5 Compatibilidad del layout
+Accesibilidad: además del arrastre, "subir"/"bajar" por teclado con `aria-live` anunciando la
+posición. Un dashboard que solo se ordena arrastrando es un dashboard que parte del hogar no
+puede ordenar.
 
-`domain/dashboard.ts` normaliza siempre antes de pintar:
+### 7.4 Compatibilidad del layout
 
-- ids desconocidos (widget retirado en una versión posterior) → se descartan;
-- widgets nuevos que el usuario nunca ha visto → se añaden al final con su tamaño por
-  defecto, visibles, para que una versión nueva no pase desapercibida;
-- tamaño no válido para ese widget → el primero de su lista;
-- lista vacía o JSON corrupto → layout por defecto.
-
-Nada de esto lanza. Un dashboard roto por datos viejos sería una pantalla en blanco al abrir
-la app.
+`domain/dashboard.ts` normaliza siempre antes de pintar: ids desconocidos se descartan;
+widgets nuevos se añaden al final, visibles, con su tamaño por defecto; tamaño inválido → el
+primero de su lista; lista vacía o JSON corrupto → layout por defecto. Nada de esto lanza: un
+dashboard roto por datos viejos sería una pantalla en blanco al abrir la app.
 
 ## 8. Sub-proyecto 4 — Gustos y dietas
 
@@ -616,74 +746,100 @@ create table member_recipe_pref (
   updated_at  timestamptz not null default now(),
   primary key (member_id, recipe_id)
 );
+alter table member_recipe_pref enable row level security;
+-- Nivel HOGAR a propósito: el agregado ("gusta a 3 de 4") es el producto.
+create policy member_recipe_pref_select on member_recipe_pref for select to authenticated
+  using (exists (select 1 from member m where m.id = member_recipe_pref.member_id
+                   and m.household_id = (select private.current_household())));
+create policy member_recipe_pref_write on member_recipe_pref for all to authenticated
+  using ((select private.can_act_for(member_recipe_pref.member_id)))
+  with check ((select private.can_act_for(member_recipe_pref.member_id)));
 ```
 
-En `RecipeDetail` aparecen dos botones (me gusta / no me gusta) y, debajo, el agregado del
-hogar: "gusta a 3 de 4". Quién ha votado qué **sí** es visible dentro del hogar: esconderlo
-crearía una ambigüedad peor ("¿a quién no le gusta?") en un grupo de cuatro personas.
+Leer es del hogar, escribir es tuyo. En `RecipeDetail`: dos botones y el agregado. Quién votó
+qué es visible dentro del hogar — esconderlo crearía una ambigüedad peor en un grupo de
+cuatro.
 
-`for_you` puntúa: +3 tus "me gusta", −10 tus "no me gusta", +2 cobertura completa de despensa,
-+1 no cocinada en las últimas dos semanas. Función pura en `domain/` con test; nada de
-aprendizaje automático ni servicios externos.
+`for_you` puntúa: +3 tus "me gusta", −10 tus "no me gusta", +2 cobertura completa de
+despensa, +1 no cocinada en dos semanas. Función pura con test; nada de aprendizaje
+automático.
 
 ### 8.2 Dietas y alérgenos — el problema de datos
 
-Para decir "esta receta no es apta para Ana" hace falta saber qué hay dentro de cada
-ingrediente. El catálogo actual guarda nombre, grupo (`fresco`/`seco`/`conserva`), unidad y
-`sensitive`. **No hay nada sobre composición.**
+El catálogo actual guarda nombre, grupo, unidad y `sensitive`. **Nada sobre composición.**
+
+Las marcas son una lista cerrada de ~20 claves (los 14 alérgenos de declaración obligatoria
+de la UE más `meat`, `pork`, `fish`, `dairy`, `egg`, `alcohol`), como **`check` de texto** y
+claves de i18n. No hay tabla `diet_flag`: una lista que solo cambia con una migración no
+necesita una tabla para poder cambiar sin desplegar.
 
 ```sql
-create table diet_flag (                 -- catálogo global, sin household_id
-  key      text primary key,             -- 'gluten','lactose','nuts','shellfish','egg',
-  kind     text not null,                --   'fish','soy','sesame','meat','pork','alcohol'…
-  name_es  text not null,
-  name_en  text not null
-);
-
 create table ingredient_diet (
+  household_id  uuid references household(id) on delete cascade,  -- null = catálogo global
   ingredient_id uuid not null references ingredient(id) on delete cascade,
-  flag_key      text not null references diet_flag(key),
+  flag_key      text not null check (flag_key in ( /* …lista cerrada… */ )),
   source        text not null check (source in ('seed','user')),
   primary key (ingredient_id, flag_key)
 );
 
 create table member_diet (
   member_id uuid not null references member(id) on delete cascade,
-  flag_key  text not null references diet_flag(key),
+  flag_key  text not null,
   primary key (member_id, flag_key)
 );
 ```
 
-Los 14 alérgenos de declaración obligatoria de la UE más un puñado de marcas dietéticas
-(`meat`, `pork`, `fish`, `dairy`, `egg`, `alcohol`) cubren vegetariano, vegano, sin gluten,
-sin lactosa y las alergias comunes.
+**El catálogo global es de solo lectura para todos.** `ingredient.household_id is null`
+significa "compartido por todos los hogares" (`20260905131217:34-43`), y el esquema ya lo
+protege: `ingredient_update` (`:348`) exige `household_id = current_household()`. Sus marcas
+se escriben **solo por migración**, con `source = 'seed'`, y ningún rol tiene INSERT, UPDATE
+ni DELETE sobre esas filas.
 
-Los ingredientes del **catálogo global** (`household_id is null`) se etiquetan en la propia
-migración, uno a uno, revisados a mano. Los creados por usuarios llegan sin etiquetar.
+Sin esa regla, un usuario del hogar A cambiaría el resultado de "apta / no apta" en el hogar
+B sobre harina, leche o nueces. En una función cuyo caso de uso declarado es la alergia a los
+frutos secos, eso no es un fallo de multi-tenancy: es un riesgo de seguridad alimentaria con
+superficie remota.
+
+Si un hogar necesita corregir un ingrediente global, lo bifurca a uno propio. Las políticas:
+
+```sql
+alter table ingredient_diet enable row level security;
+create policy ingredient_diet_select on ingredient_diet for select to authenticated
+  using (household_id is null or household_id = (select private.current_household()));
+create policy ingredient_diet_write on ingredient_diet for all to authenticated
+  using (household_id = (select private.current_household()))
+  with check (household_id = (select private.current_household())
+              and source = 'user'
+              and exists (select 1 from ingredient i
+                           where i.id = ingredient_diet.ingredient_id
+                             and i.household_id = (select private.current_household())));
+```
+
+`member_diet`: lectura de hogar (planificar necesita saber quién no puede comer qué),
+escritura por `can_act_for`.
 
 ### 8.3 Tres estados, nunca dos
 
-Aquí está la decisión que importa. Una receta, para un miembro, es:
+Una receta, para un miembro, es:
 
 - **No apta** — algún ingrediente lleva una marca que el miembro evita.
-- **Sin verificar** — ningún ingrediente la lleva, pero **al menos uno no está etiquetado**.
-- **Apta** — todos los ingredientes están etiquetados y ninguno choca.
+- **Sin verificar** — ninguno la lleva, pero **al menos uno no está etiquetado**.
+- **Apta** — todos etiquetados y ninguno choca.
 
-"Sin verificar" no se pinta como "apta" en ningún sitio, ni se cuenta como apta en ningún
-filtro. Una alergia a los frutos secos no admite un "probablemente". El filtro de Recetas
-ofrece "apto para todos" y, aparte, "sin conflictos conocidos", que son cosas distintas y se
-etiquetan distinto.
+"Sin verificar" no se pinta como "apta" en ningún sitio ni cuenta como apta en ningún filtro.
+Una alergia a los frutos secos no admite un "probablemente". El filtro ofrece "apto para
+todos" y, aparte, "sin conflictos conocidos": son cosas distintas y se etiquetan distinto.
 
-Al crear un ingrediente nuevo, `RecipeForm` pide sus marcas si algún miembro del hogar tiene
-dietas declaradas. Es una pregunta más en el formulario, y solo cuando sirve para algo.
+`RecipeForm` pide las marcas de un ingrediente nuevo solo si algún miembro del hogar tiene
+dietas declaradas.
 
 ### 8.4 Dónde se ve
 
-- `RecipeDetail`: fila de avatares con quién puede comerlo, y por qué no quien no puede.
-- `RecipePickerSheet` al planificar: aviso si la receta choca con alguien del hogar. Avisa,
-  no bloquea — el hogar decide, no la app.
+- `RecipeDetail`: quién puede comerlo, y por qué no quien no puede.
+- `RecipePickerSheet` al planificar: avisa si choca con alguien. **Avisa, no bloquea** — el
+  hogar decide.
 - `Recipes`: filtros nuevos.
-- Hoja de miembro: sus dietas, editables por él (o por un adulto si no tiene cuenta).
+- Hoja de miembro: sus dietas.
 
 ## 9. Sub-proyecto 5 — Avisos a tu medida
 
@@ -697,111 +853,110 @@ create table member_notify_pref (
   log_reminder_at time not null default '21:00',
   quiet_from      time,
   quiet_to        time,
-  tz              text not null default 'Europe/Madrid',
   updated_at      timestamptz not null default now()
 );
+alter table member_notify_pref enable row level security;
+create policy member_notify_pref_rw on member_notify_pref for all to authenticated
+  using ((select private.can_act_for(member_notify_pref.member_id)))
+  with check ((select private.can_act_for(member_notify_pref.member_id)));
 ```
 
-Solo los miembros **con cuenta** reciben avisos: el push va contra `push_subscription`, que
-cuelga de `profile`. Un miembro sin cuenta no tiene dispositivo donde recibirlos; su
-recordatorio, si hace falta, llega a quien le tutela.
+**Los temporizadores de cocina quedan exentos de las horas de silencio.** Un temporizador que
+se traga porque son las 23:10 es comida quemada, no una notificación molesta. `quiet_from`/
+`quiet_to` aplican a `expiring`, `cook_turn` y `log_reminder`, nunca a `timers`; `timers` solo
+se apaga con su propio interruptor.
 
-`supabase/functions/send-timer-notifications` filtra por la preferencia del tipo de aviso y
-por las horas de silencio, evaluadas en la `tz` del miembro. El cron ya existe y ya tiene
-tope por ejecución y allowlist de destinos; esta es una condición más en la consulta, no una
-función nueva.
+Sin columna de huso horario: el repo es mono-zona (§2, no objetivos).
 
-El recordatorio de registro (`log_reminder`) sí es un disparador nuevo: un `pg_cron` que, a la
-hora local de cada miembro, avisa si no ha registrado nada ese día. Está **apagado por
-defecto**. Una app que da la lata sin que se lo pidas se desinstala.
+Solo los miembros **con cuenta** reciben avisos: `push_subscription` y `cook_timer` cuelgan de
+`profile` (`send-timer-notifications/index.ts:70,86-88`), así que la consulta del cron hace
+`join` `profile → member (auth_user_id)` y, **si no hay fila `member`, se comporta como hoy**
+(envía): una preferencia que no existe no puede silenciar a nadie.
+
+`log_reminder` es un disparador nuevo (`pg_cron` a la hora local), **apagado por defecto**.
+Una app que da la lata sin que se lo pidas se desinstala.
 
 ## 10. Sub-proyecto 6 — Turnos (opcional)
 
 Apagado por defecto: `household.turns_enabled boolean not null default false`. Mientras esté
-apagado, ni la columna ni la interfaz existen para el usuario — sin esto, un hogar de dos
-personas se come una función de coordinación que no necesita.
+apagado, la interfaz no existe.
 
-- `plan_entry.cook_member_id` — quién cocina esa comida. Se asigna desde `Plan` y desde la
-  hoja de la comida.
-- `shopping_turn(household_id, week_start, member_id)` — a quién le toca comprar esta semana.
-- Chip "te toca" en Hoy y en el widget `whose_turn`; si `cook_turn` está activo en los avisos,
-  notificación la mañana del día que te toca.
+- `plan_entry.cook_member_id` — quién cocina esa comida.
+- `shopping_turn(household_id, week_start, member_id)` — a quién le toca comprar.
+- Chip "te toca" en Hoy y en el widget `whose_turn`; con `cook_turn` activo, aviso la mañana
+  del día.
 
-Ningún cálculo de despensa, compra o kcal depende de esto. Es puramente informativo, y así
-debe quedarse.
+Ningún cálculo de despensa, compra o kcal depende de esto. Es informativo, y así se queda. Va
+el último del plan de entrega precisamente porque es lo más prescindible de todo el
+documento.
 
 ## 11. Cambios en el contrato `Store`
 
-Añadidos a `app/src/data/storeContext.ts`, implementados en las dos capas:
-
 ```ts
-members: Member[];                 // vivos del hogar, ordenados
-activeMemberId: string;            // yo, o el miembro que estoy registrando
-setActiveMember: (id: string) => void;
+members: Member[];                  // vivos + borrados (para resolver atribución)
+myMemberId: MemberId | null;
 
-myBody: MemberBody | null;                                  // null si no tengo acceso
-setMyBody: (patch: Partial<MemberBody>) => Promise<void>;
-setKcalTarget: (memberId: string, kcal: number) => Promise<void>;
+myBody: MemberBody | null;
+setMyBody: (memberId: MemberId, patch: Partial<MemberBody>) => Promise<void>;
+setKcalTarget: (memberId: MemberId, kcal: number) => Promise<void>;
+createWardMember: (displayName: string, color: Accent) => Promise<MemberId>;
+deleteWardMember: (memberId: MemberId) => Promise<void>;
 
-intakeOfDay: (memberId: string, date: string) => DayIntake;  // puro, sobre datos ya cargados
-setShare: (memberId: string, planEntryId: string, servings: number) => Promise<void>;
+intakeOfDay: (memberId: MemberId, date: string) => DayIntake;   // puro
+setShare: (memberId: MemberId, planEntryId: string, servings: number) => Promise<void>;
 addExtra: (input: ExtraInput) => Promise<string>;
 removeExtra: (id: string) => Promise<void>;
-favorites: IntakeFavorite[];
-saveFavorite: (input: FavoriteInput) => Promise<string>;
-removeFavorite: (id: string) => Promise<void>;
+frequentExtras: (memberId: MemberId) => FrequentExtra[];        // derivado, no tabla
 
 dashboard: DashboardLayout;
 setDashboard: (layout: DashboardLayout) => Promise<void>;
 
-recipePrefs: Map<string, number>;   // receta -> mi voto
+recipePrefs: Map<string, number>;
 setRecipePref: (recipeId: string, rating: -1 | 1 | 0) => Promise<void>;
-memberDiets: Map<string, string[]>;
+memberDiets: Map<MemberId, string[]>;
 ```
 
-Igual que `saveRecipe`/`pantryAdd`, lo que escribe devuelve `Promise` en **las dos**
-implementaciones: la demo resuelve al momento, y las pantallas no distinguen.
+`activeMemberId`/`setActiveMember` **no** están aquí: son estado de dispositivo y viven en
+`prefs` (§3.5).
 
-El rango de fechas descargado de `intake_extra` es el mismo que ya usa el plan (semana
+Igual que `saveRecipe`/`pantryAdd`, lo que escribe devuelve `Promise` en las dos
+implementaciones. El rango de fechas de `intake_extra` es el mismo que ya usa el plan (semana
 actual ± 1), para no multiplicar consultas.
 
 ## 12. MCP
 
-`mcp/` es un tercer cliente del mismo backend; **no se toca `app/src/data/*` para servirlo**
-(regla del repo). Su usuario se resuelve a `member` por `auth_user_id`.
+`mcp/` es un tercer cliente del mismo backend; **no se toca `app/src/data/*` para servirlo**.
+Su usuario se resuelve a `member` por `auth_user_id`.
 
-- Las herramientas existentes siguen funcionando: nada de lo que leen cambia de forma.
-- Se añaden `rezet_log_intake` (registrar un extra) y `rezet_my_day` (cuánto llevo hoy, contra
-  mi objetivo). Son exactamente las que tienen sentido por voz.
-- `rezet_plan_*` gana el campo opcional de comensales solo si se implementa §10.
+- **Atención al idioma:** el MCP lee `profile.locale` (`mcp/src/supabase.ts:31`,
+  `mcp/src/worker/supabaseAuth.ts:96`). Como §3.5 hace que la app por fin **escriba** esa
+  columna, el MCP empezará a responder en inglés a quien tenga la app en inglés. Es la
+  corrección de un fallo latente, pero es un cambio de comportamiento observable y va al
+  CHANGELOG.
+- Se añaden `rezet_log_intake` y `rezet_my_day`: las dos que tienen sentido por voz.
+- `rezet_plan_*` gana el campo de comensales solo si se implementa §10.
 
-Las dos entradas (stdio y Worker) comparten las herramientas, así que se escriben una vez.
-Recordatorio del repo: **nunca refrescar la sesión de Supabase dentro de una herramienta.**
+Las dos entradas comparten las herramientas: se escriben una vez. Recordatorio del repo:
+**nunca refrescar la sesión de Supabase dentro de una herramienta.**
 
 ## 13. i18n
 
-Todo el texto nuevo entra en `app/src/i18n/es.ts` y `en.ts` a la vez. Familias de claves:
-`member.*`, `intake.*`, `nutrition.*`, `dashboard.*`, `diet.*`, `notify.*`, `turns.*`.
-
-Cuidado con los nombres de alérgenos y actividades: son listas cerradas y se traducen desde
-`diet_flag.name_es`/`name_en` (datos), no desde el diccionario, porque el catálogo puede
-crecer sin desplegar la app.
+Todo el texto nuevo entra en `es.ts` y `en.ts` a la vez. Familias: `member.*`, `intake.*`,
+`nutrition.*`, `dashboard.*`, `diet.*`, `notify.*`, `turns.*`. Las marcas de dieta y los
+niveles de actividad son listas cerradas: van en el diccionario como cualquier otro texto.
 
 ## 14. Orden de entrega
 
-Cada fase es desplegable por sí sola y deja la app en un estado coherente. Versión nueva por
-fase (skill `releasing-versions`, `CHANGELOG.md` bilingüe).
-
 | Fase | Contenido | Versión |
 |---|---|---|
-| 0 | Partir `supabaseStore.tsx` (§3.6), sin cambios funcionales | patch |
-| 1 | Fundación `member` + ajustes sincronizados + avatar/color + miembros sin cuenta (§5) | minor |
+| 0 | Partir `supabaseStore.tsx` (§3.8), sin cambios funcionales | patch |
+| 1 | Fundación `member` + `can_act_for` + ajustes en `profile` + avatar/color + tutelados (§5, §3.5, §3.6) | minor |
 | 2 | Nutrición personal completa (§6) — **el corazón de lo pedido** | minor |
 | 3 | Dashboard de widgets (§7) | minor |
-| 4 | Avisos a tu medida (§9) — barato y depende solo de la fase 1 | minor |
+| 4 | Avisos a tu medida (§9) | minor |
 | 5 | Gustos + "Para ti" (§8.1) | minor |
 | 6 | Dietas y alérgenos (§8.2-8.4) — el caro | minor |
-| 7 | Turnos, apagados por defecto (§10) | minor |
+| 7 | Turnos (§10) | minor |
 
 Las fases 4 y 5 van antes que la 6 a propósito: dan valor por sí solas mientras se prepara el
 trabajo de datos del etiquetado.
@@ -809,18 +964,52 @@ trabajo de datos del etiquetado.
 ## 15. Riesgos
 
 1. **El etiquetado de alérgenos es incompleto por definición.** Mitigación: el estado "sin
-   verificar" de §8.3, que nunca se presenta como seguro. Riesgo residual aceptado: alguien
-   ignora el aviso. La app no puede garantizar seguridad alimentaria y no debe dar a entender
-   que lo hace.
+   verificar" (§8.3) y el catálogo global de solo lectura (§8.2). Riesgo residual aceptado:
+   alguien ignora el aviso. La app no puede garantizar seguridad alimentaria y no debe dar a
+   entender que lo hace.
 2. **Fricción de registro.** Si registrar cuesta, se abandona en una semana. Mitigación: el
-   valor por defecto no exige ninguna acción (plan auto), favoritos en primera pestaña, y el
-   recordatorio apagado por defecto para no compensar la fricción a base de molestar.
-3. **Privacidad de los datos corporales.** Mitigación: tabla aparte, RLS por cuenta, tests de
-   RLS obligatorios en el banco de migraciones, y aviso explícito para miembros sin cuenta.
-4. **Superficie de esquema.** Doce tablas nuevas es mucho para un hogar de cuatro personas.
-   Mitigación: la fase 0 y el orden por fases; ninguna tabla se crea antes de la fase que la
-   usa.
-5. **Clientes viejos.** §3.4. Síntoma acotado a un número desactualizado, nunca a datos
-   corruptos.
-6. **`household.kcal_target` queda como deuda.** Se documenta en `CLAUDE.md` en la sección de
-   huecos conocidos, con la condición de retirada.
+   valor por defecto no exige ninguna acción, favoritos en primera pestaña, recordatorio
+   apagado por defecto.
+3. **Privacidad de los datos corporales.** Mitigación: tabla aparte, `can_act_for` con las
+   tres condiciones, borrado al salir del hogar, y los cuatro tests de RLS de §3.9 como
+   obligatorios.
+4. **La ración por defecto de 1 infla el consumo del hogar** cuando se cocina menos de lo que
+   comen (§6.2). Decisión del usuario; mitigada con un aviso, no con un cambio de regla.
+5. **Superficie de esquema**: diez tablas nuevas. Mitigación: el orden por fases; ninguna
+   tabla se crea antes de la fase que la usa.
+6. **Cambio visible en el anillo** (§6.4): el número baja donde se planifican 2+ raciones.
+   Tiene que ir en el CHANGELOG con esas palabras.
+7. **El MCP cambia de idioma** (§12) para quien tenga la app en inglés.
+
+## 16. Respuesta a la revisión independiente
+
+Revisión hecha por un agente sin contexto previo contra el código en `b156e40`. Todo lo que
+se comprobó, se comprobó: los cinco bloqueantes eran reales.
+
+**Aceptado e incorporado:** el `is_ward` explícito y el borrado de `member_body` al salir
+(B1); el chequeo de hogar y la prohibición de SQL dinámico en las RPC (B2); la RLS del
+registro por miembro en vez de por hogar (B3); `finish_cook_v2` con los shares dentro de la
+transacción (B4); el catálogo global de alérgenos de solo lectura (B5); las dos correcciones
+factuales de §1 (`profile.locale` sí se usa; el anillo cuenta lo cocinado) y el fallo latente
+del idioma del MCP (I1, I2); que `kcal_target` es hoy una constante que nadie escribe (I3);
+el puente de providers, porque `PrefsProvider` está encima de `AuthProvider` (I4); dejar los
+ajustes en `profile` en vez de duplicarlos (I5); fusionar `color`/`accent` (I6); la
+convención `p_profile_id`/`p_member_id` y los tipos marcados (I7); no revocar nada de
+`profile` (I8); el aviso de reparto y el aviso de cambio visible en el anillo (I9); las
+políticas RLS escritas para **todas** las tablas (I10); `current_member()` como
+`security definer` con `limit 1` (I11); el `check` de `kcal_target` (I12); la ruta plana de
+avatares (I13); los temporizadores exentos de horas de silencio y el join con `profile`
+(I14); abrir superficie propia en demo (I15); leer también los miembros borrados (I16); y los
+menores M1-M7. De los recortes: fuera `intake_favorite` (derivado), fuera `diet_flag` como
+tabla, fuera `tz`/`servings`/`barcode`, fuera los topes numéricos en RPC.
+
+**Rechazado, con motivo:**
+
+- **Quitar §7 (dashboard de widgets)** — el usuario lo pidió explícitamente, con tamaños. La
+  alternativa propuesta (interruptores en `prefs`, por dispositivo) no es lo que se pidió:
+  no sigue al miembro entre dispositivos.
+- **Quitar §10 (turnos)** — también pedido explícitamente, ya marcado como opcional y
+  apagado por defecto, y colocado el último de la entrega.
+- **Ración por defecto = raciones ÷ miembros** — el usuario eligió "1 ración ajustable" sobre
+  esa misma alternativa, sabiendo el reparto. Se mitiga con el aviso de §6.2, no cambiando la
+  decisión.
