@@ -1,9 +1,12 @@
 import { createContext, useContext } from 'react';
 import type {
+  Accent,
   Difficulty,
   HouseholdDetail,
   Ingredient,
   MealSlot,
+  Member,
+  MemberId,
   PantryItem,
   PantryLoc,
   PlanEntry,
@@ -58,6 +61,14 @@ export interface Coverage {
   full: boolean;
 }
 
+export interface MemberSettingsPatch {
+  displayName?: string;
+  color?: Accent;
+  avatarPath?: string | null;
+  sortOrder?: number;
+  kcalTarget?: number;
+}
+
 export interface Store {
   ingredients: Ingredient[];
   recipes: Recipe[];
@@ -74,6 +85,30 @@ export interface Store {
    * que abre esta hoja no se renderiza en demo).
    */
   household: HouseholdDetail | null;
+
+  /**
+   * Miembros del hogar, **incluidos los borrados**: hacen falta para poner
+   * nombre a lo que dejaron hecho. Filtra por `deletedAt === null` en
+   * cualquier lista que el usuario vaya a tocar.
+   */
+  members: Member[];
+  /** El miembro que corresponde a la sesión. `null` en demo y mientras carga. */
+  myMemberId: MemberId | null;
+
+  /** Contrato: `rpc/create_ward_member`. Solo admins. Devuelve el id nuevo. */
+  createWardMember: (displayName: string, color: Accent) => Promise<MemberId>;
+  /**
+   * Contrato: `rpc/delete_ward_member`. Solo admins, y solo sobre miembros
+   * SIN cuenta: a quien tiene cuenta se le saca con `removeMember`.
+   */
+  deleteWardMember: (memberId: MemberId) => Promise<void>;
+  /**
+   * Contrato: `rpc/set_member_settings`. Escribe la lista blanca
+   * (`displayName`, `color`, `avatarPath`, `sortOrder`, `kcalTarget`) del
+   * miembro propio o de un tutelado del hogar. El servidor ignora cualquier
+   * otra clave.
+   */
+  setMemberSettings: (memberId: MemberId, patch: MemberSettingsPatch) => Promise<void>;
 
   recipeById: Map<string, Recipe>;
   ingredientById: Map<string, Ingredient>;
