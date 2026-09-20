@@ -17,6 +17,27 @@ describe('referencedPaths', () => {
     ]);
     expect([...refs]).toEqual([`${HA}/a.jpg`]);
   });
+
+  // Tarea 11 + petición explícita de revisión: `member.avatar_path` puede
+  // venir a null o a cadena vacía igual que `recipe.photo_path` — un fallo
+  // aquí metería esas dos rutas "vacías" en el conjunto de referencias y,
+  // como ninguna coincide con un objeto real del bucket, no cambiaría nada
+  // por sí solo; el riesgo real es lo contrario: que SÍ se cuelen como
+  // "huérfano" un avatar de verdad por comparar mal. Este test fija que el
+  // campo `avatar_path` se comporta exactamente igual que `photo_path`.
+  it('con avatar_path se comporta igual: ignora null, cadena vacía y carpeta ajena', () => {
+    const refs = referencedPaths(
+      [
+        { id: '1', household_id: HA, avatar_path: `${HA}/a.jpg` },
+        { id: '2', household_id: HA, avatar_path: `${HB}/pinned.jpg` },
+        { id: '3', household_id: HA, avatar_path: `${HA}/../${HB}/x.jpg` },
+        { id: '4', household_id: HA, avatar_path: '' },
+        { id: '5', household_id: HA, avatar_path: null },
+      ],
+      'avatar_path',
+    );
+    expect([...refs]).toEqual([`${HA}/a.jpg`]);
+  });
 });
 
 describe('readAllByKey', () => {
