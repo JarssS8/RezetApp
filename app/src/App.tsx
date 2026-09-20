@@ -8,6 +8,7 @@ import { SupabaseDataProvider } from './data/supabaseStore';
 import { useData } from './data/storeContext';
 import { haptics } from './motion/motion';
 import { AppShell, type Tab } from './app/AppShell';
+import { PrefsBridge } from './app/PrefsBridge';
 import { Login } from './screens/Login';
 import { CreateOrJoinHousehold } from './screens/CreateOrJoinHousehold';
 import { Onboarding } from './screens/Onboarding';
@@ -121,11 +122,17 @@ export function App() {
   const profile = auth.profile!;
 
   if (!profile.onboardedAt) {
-    return <FirstOnboarding householdId={profile.householdId} />;
+    return (
+      <>
+        <PrefsBridge />
+        <FirstOnboarding householdId={profile.householdId} />
+      </>
+    );
   }
 
   return (
     <SupabaseDataProvider householdId={profile.householdId}>
+      <PrefsBridge />
       <MainApp demo={false} onSignOut={() => void auth.signOut()} onInvite />
     </SupabaseDataProvider>
   );
