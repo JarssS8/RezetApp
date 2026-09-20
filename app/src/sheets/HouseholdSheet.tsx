@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePrefs, ACCENTS } from '../store/prefs';
 import { useData } from '../data/storeContext';
+import { supabase } from '../data/supabaseClient';
 import { stripHouseholdErrorTag } from '../data/householdErrors';
 import { memberActions } from '../domain/householdRoles';
 import { formatKcal } from '../domain/units';
@@ -92,6 +93,45 @@ export function HouseholdSheet({
   const [wardName, setWardName] = useState('');
   const [wardColor, setWardColor] = useState<Accent>('green');
   const [wardBusy, setWardBusy] = useState(false);
+  /** Mapa ruta → URL firmada (el bucket `avatars` no es público). */
+  const [avatarUrls, setAvatarUrls] = useState<Record<string, string>>({});
+
+  // Una única llamada por lista, no una por miembro: `createSignedUrls`
+  // acepta varias rutas de golpe. En demo `avatarPath` siempre es `null`
+  // (no hay Storage), así que la lista sale vacía y no se pide nada. Si la
+  // firma falla (red, permisos…) se deja `avatarUrls` como estaba y
+  // `Avatar` cae a la inicial sin romper el resto de la hoja.
+  const avatarPaths = members
+    .filter((m) => m.deletedAt === null && m.avatarPath)
+    .map((m) => m.avatarPath as string);
+  const avatarPathsKey = avatarPaths.join('|');
+  useEffect(() => {
+    if (avatarPaths.length === 0) {
+      setAvatarUrls({});
+      return;
+    }
+    let cancelled = false;
+    void supabase.storage
+      .from('avatars')
+      .createSignedUrls(avatarPaths, 3600)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const next: Record<string, string> = {};
+        for (const entry of data) {
+          if (entry.path && entry.signedUrl) next[entry.path] = entry.signedUrl;
+        }
+        setAvatarUrls(next);
+      })
+      .catch(() => {
+        // Sin URLs firmadas: cada `Avatar` cae a su inicial.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Se recalcula solo cuando cambia el CONJUNTO de rutas, no en cada
+    // render (`avatarPaths` es un array nuevo cada vez).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avatarPathsKey]);
 
   if (!household) {
     return (
@@ -195,7 +235,7 @@ export function HouseholdSheet({
                     textAlign: 'left',
                   }}
                 >
-                  <Avatar member={m} size={38} />
+                  <Avatar member={m} size={38} src={m.avatarPath ? avatarUrls[m.avatarPath] : null} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 15.5, fontWeight: 600 }}>{m.displayName}</div>
                     <div style={{ fontSize: 13, color: 'var(--muted)' }}>
