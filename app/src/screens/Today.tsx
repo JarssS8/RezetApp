@@ -27,12 +27,14 @@ const SHARE_OPTIONS: Array<{ value: number; label: string }> = [
 /** Hoy responde una pregunta: qué toca comer y qué hago con ello. */
 export function Today({
   onOpenRecipe,
+  onCook,
   onGoPlan,
   onOpenSettings,
   onAddIntake,
   isWide,
 }: {
   onOpenRecipe: (recipeId: string, servings: number) => void;
+  onCook: (recipeId: string, servings: number, planEntryId: string | null) => void;
   onGoPlan: () => void;
   onOpenSettings: () => void;
   /**
@@ -178,6 +180,7 @@ export function Today({
                 entry={entry}
                 recipe={recipe}
                 onOpenRecipe={onOpenRecipe}
+                onCook={onCook}
                 onSetShare={(servings) =>
                   myMemberId && void setShare(myMemberId, meal.planEntryId, servings)
                 }
@@ -291,12 +294,14 @@ function MealCard({
   entry,
   recipe,
   onOpenRecipe,
+  onCook,
   onSetShare,
 }: {
   meal: MealLine;
   entry: PlanEntry;
   recipe: Recipe;
   onOpenRecipe: (recipeId: string, servings: number) => void;
+  onCook: (recipeId: string, servings: number, planEntryId: string | null) => void;
   onSetShare: (servings: number) => void;
 }) {
   const { t, locale, loc } = usePrefs();
@@ -349,6 +354,24 @@ function MealCard({
           {formatKcal(cooked ? meal.kcal : potentialKcal, locale)} {t.kcal}
         </div>
       </div>
+
+      {/*
+       * Una comida o está por cocinar —y aquí se ofrece cocinarla, el atajo
+       * del bucle plan→cocinar→despensa— o ya se cocinó, y entonces se
+       * ofrece ajustar cuánto se comió. Nunca las dos cosas a la vez.
+       */}
+      {!cooked && (
+        <div style={{ marginTop: 12 }}>
+          <Button
+            size="header"
+            onClick={() => onCook(recipe.id, entry.servings, entry.id)}
+            icon={<Icon name="cook" size={15} />}
+            style={{ height: 40, borderRadius: radius.chip, fontSize: 14.5, fontWeight: 600 }}
+          >
+            {t.cook}
+          </Button>
+        </div>
+      )}
 
       {cooked && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>

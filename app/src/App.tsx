@@ -326,6 +326,7 @@ function MainApp({
           <Today
             isWide={isWide}
             onOpenRecipe={openRecipe}
+            onCook={startCook}
             onGoPlan={() => setTab('plan')}
             onOpenSettings={() => setSheet({ kind: 'settings' })}
             // La hoja de "añadir algo que comí" es la Tarea 11: todavía no existe.
