@@ -327,6 +327,9 @@ export const es = {
   // Botón explícito, no seguimiento automático: la cifra final del objetivo
   // siempre la escribe la persona, este botón solo se la propone.
   useEstimateAction: 'Usar esta estimación',
+  // Hallazgo de revisión: la spec pide avisar por debajo de 1.200 kcal sin
+  // bloquear el guardado — el número final es siempre de la persona.
+  targetLowWarn: 'Por debajo de 1.200 kcal se sale del rango habitual. Puedes seguir si es lo que quieres.',
 
   adminBadge: 'Admin',
   makeAdminAction: 'Hacer administrador',

@@ -12,6 +12,7 @@ import { TextField } from '../ui/Fields';
 import { radius, text as T } from '../ui/tokens';
 import { formatKcal } from '../domain/units';
 import {
+  ESTIMATE_MIN,
   FALLBACK,
   KCAL_MAX,
   KCAL_MIN,
@@ -315,6 +316,25 @@ export function MemberTargetSheet({
           <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--muted)' }}>
             {t.targetRange(formatKcal(KCAL_MIN, locale), formatKcal(KCAL_MAX, locale))}
           </div>
+          {/* Hallazgo de revisión: la spec pide avisar por debajo de 1.200
+           * kcal sin quitar la posibilidad de guardar — el stepper bajaba
+           * hasta KCAL_MIN (1000) sin decir nada. Tokens de aviso, nunca
+           * `--accent`: esto no es información neutra. */}
+          {target < ESTIMATE_MIN && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: '10px 13px',
+                borderRadius: radius.input,
+                background: 'var(--warnsoft)',
+                color: 'var(--warn-ink)',
+                fontSize: 13,
+                lineHeight: 1.45,
+              }}
+            >
+              {t.targetLowWarn}
+            </div>
+          )}
         </div>
 
         <Button

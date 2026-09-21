@@ -315,6 +315,7 @@ export const en: Dictionary = {
   targetYourTarget: 'Your daily target',
   targetRange: (min: string, max: string) => `Between ${min} and ${max} kcal.`,
   useEstimateAction: 'Use this estimate',
+  targetLowWarn: "Below 1,200 kcal is outside the usual range. You can keep it if that's what you want.",
 
   adminBadge: 'Admin',
   makeAdminAction: 'Make admin',

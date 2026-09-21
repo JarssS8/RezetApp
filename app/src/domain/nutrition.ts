@@ -31,8 +31,14 @@ export const GOAL_FACTOR: Record<Goal, number> = {
 /** Lo que acepta la columna `member.kcal_target` (su `check` en la BD). */
 export const KCAL_MIN = 1000;
 export const KCAL_MAX = 5000;
-/** Cotas de la ESTIMACIÓN, más estrechas: fuera de aquí no la ofrecemos. */
-const ESTIMATE_MIN = 1200;
+/**
+ * Cotas de la ESTIMACIÓN, más estrechas: fuera de aquí no la ofrecemos.
+ * `ESTIMATE_MIN` se exporta porque la interfaz la reutiliza también como el
+ * umbral del aviso "esto se sale de lo habitual" sobre el objetivo escrito a
+ * mano (hallazgo de revisión): es el mismo número, no una segunda constante
+ * que pudiera divergir de esta con el tiempo.
+ */
+export const ESTIMATE_MIN = 1200;
 const ESTIMATE_MAX = 4500;
 /** Edad mínima para usar la fórmula: está validada en adultos. */
 const ADULT_AGE = 18;
