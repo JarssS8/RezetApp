@@ -82,6 +82,39 @@ Deno.serve(async (req) => {
     // solo llegó a la mitad de sus dispositivos, y el cron no vuelve a él.
     if (sent >= MAX_SENDS_PER_RUN) break;
 
+    // `cook_timer.profile_id` y `push_subscription.profile_id` cuelgan de
+    // `profile`; las preferencias cuelgan de `member`, así que hace falta
+    // resolver el member correspondiente por `auth_user_id`. Las horas de
+    // silencio NO aplican aquí a propósito (diseño, ver member_notify_pref):
+    // un temporizador que se traga porque son las 23:10 es comida quemada,
+    // así que solo se mira el interruptor propio `timers`.
+    //
+    // Sin fila de member (p. ej. member borrado) o sin fila de preferencias
+    // (nadie ha tocado el ajuste todavía), se manda igual que siempre: una
+    // preferencia que no existe no puede silenciar a nadie.
+    const { data: member } = await supabase
+      .from("member")
+      .select("id")
+      .eq("auth_user_id", timer.profile_id)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    let sendTimer = true;
+    if (member) {
+      const { data: pref } = await supabase
+        .from("member_notify_pref")
+        .select("timers")
+        .eq("member_id", member.id)
+        .maybeSingle();
+      if (pref && pref.timers === false) sendTimer = false;
+    }
+
+    if (!sendTimer) {
+      // Se marca avisado igual: si no, el cron lo reintentaría para siempre.
+      await supabase.from("cook_timer").update({ notified_at: new Date().toISOString() }).eq("id", timer.id);
+      continue;
+    }
+
     const { data: subs } = await supabase
       .from("push_subscription")
       .select("endpoint, p256dh, auth")
