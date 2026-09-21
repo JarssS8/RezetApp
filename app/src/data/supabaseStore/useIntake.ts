@@ -115,8 +115,16 @@ export function useIntake(
 
   // Sin filtro de fecha: son las EXCEPCIONES a "una ración por persona", no
   // el historial de lo comido — pocas filas por hogar, no hace falta acotar.
-  // Tampoco hay `household_id` en la tabla (ver la migración); la RLS ya
-  // limita esto a lo propio o a quien tutelas.
+  // Tampoco hay `household_id` en la tabla, pero eso no importa aquí: la RLS
+  // de `intake_share` es de HOGAR, no por miembro — corregido de un
+  // comentario de revisión anterior que decía "a lo propio o a quien
+  // tutelas", que era la política vieja y dejó de ser cierto. La ración que
+  // alguien comió de una comida del hogar no es un dato privado (quien
+  // cocinó estaba delante y lo vio), así que cualquier persona del hogar
+  // puede leerla y escribirla — ver `intake_share_rw` en
+  // `20260921090200_rezet_finish_cook_v2.sql`. `intake_extra` (lo que cada
+  // uno come por su cuenta, la consulta de abajo) SÍ se queda por miembro:
+  // eso es lo que de verdad nadie más tiene por qué ver.
   const sharesQ = useQuery({
     queryKey: sharesKey,
     queryFn: async (): Promise<ShareRow[]> => {
