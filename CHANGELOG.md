@@ -3,6 +3,34 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.10.0] - 2026-09-21
+
+### Español
+
+**Nuevo**
+- Cada persona tiene su objetivo de calorías, estimado a partir de sexo, edad, altura, peso y actividad. Es una estimación: siempre se puede escribir el número a mano, y donde la fórmula no está validada (sin sexo declarado, o con menos de 18 años) no se ofrece — se pide el número directamente.
+- El anillo de Hoy ya cuenta lo que has comido **tú**: las comidas del plan que se han cocinado, a una ración por persona (ajustable a ½, 1, 1½ o 2, o descartable), más lo que registres aparte.
+- Registrar lo que comes por cuatro caminos: lo que más repites, texto libre, una receta del hogar, o escaneando un código de barras.
+- Al terminar de cocinar, la comida se reparte entre quienes la comieron.
+- "Tu semana": las barras de cada día, la media y la racha de días dentro del objetivo.
+- Los datos corporales son privados: no los ve el resto del hogar, y desaparecen si te vas. Lo que sí es visible dentro del hogar son las raciones de una comida compartida (quien cocinó estaba delante) y el objetivo de calorías de cada persona (hace falta para planificar).
+
+**Cambio de comportamiento**
+- Antes, el anillo de Hoy sumaba las raciones del plato entero: una cena de 4 raciones contaba como 4 para quien mirase la pantalla. Ahora suma **tu** ración. En un hogar que planifica varias raciones, el número **baja**. No es un fallo: antes contaba mal.
+
+### English
+
+**New**
+- Everyone gets their own calorie target, estimated from sex, age, height, weight and activity level. It's an estimate: you can always type your own number by hand, and where the formula isn't validated (no sex on file, or under 18) it isn't offered at all — you're asked for the number directly instead.
+- The Today ring now counts what **you** ate: cooked plan meals, at one serving per person (adjustable to ½, 1, 1½ or 2, or dismissable), plus anything you log separately.
+- Log what you eat four ways: your most-repeated pick, free text, a household recipe, or scanning a barcode.
+- Finishing a cook now splits the meal between whoever ate it.
+- "Your week": daily bars, the average, and your streak of days within target.
+- Body data is private: no one else in the household can see it, and it disappears if you leave. What *is* visible inside the household is a shared meal's servings (whoever cooked was there) and everyone's calorie target (planning needs it).
+
+**Behaviour change**
+- The Today ring used to add up the whole dish's servings: a 4-serving dinner counted as 4 for anyone looking at the screen. It now adds up **your** serving instead. In a household that plans multiple servings, the number **goes down**. That's not a bug — it used to count wrong.
+
 ## [1.9.0] - 2026-09-20
 
 ### Español

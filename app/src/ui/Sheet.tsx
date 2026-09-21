@@ -23,6 +23,14 @@ import { maxW, radius, text as T } from './tokens';
  * cualquier vía de desmontaje (Escape, botón de cerrar, o que el padre deje
  * de renderizarla) la retire igual; si no, la pila acumula ids fantasma y
  * Escape deja de responder en toda la app tras un rato de uso.
+ *
+ * Esta pila asume que la última hoja en montarse es la de arriba. Eso es
+ * cierto mientras las hojas anidadas se abran por interacción del usuario
+ * (la hoja padre ya está montada cuando la hija aparece). Si alguna vez una
+ * hoja hija se monta en el MISMO commit que su padre, React ejecuta el
+ * efecto del hijo antes que el del padre y el orden de la pila queda
+ * invertido — Escape respondería en la hoja equivocada. Hoy no pasa en
+ * ningún sitio de la app; quien añada un anidamiento nuevo debe saberlo.
  */
 let nextSheetId = 0;
 const openSheetStack: number[] = [];
