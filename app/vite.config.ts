@@ -1,7 +1,6 @@
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
-import { configDefaults } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -63,16 +62,5 @@ export default defineConfig({
     // Capacitor sirve estos archivos desde el propio bundle nativo.
     assetsDir: 'assets',
     sourcemap: false,
-  },
-  test: {
-    // `*.test.ts` de otras Edge Functions (p. ej. `logic.test.ts`) no usan
-    // ninguna API de Deno, así que vitest los recoge y ejecuta sin problema
-    // — cuentan hacia los tests de `npm test`. `quiet.test.ts` es distinto:
-    // usa `Deno.test`, el runner nativo de Deno (ver el propio fichero para
-    // el porqué), así que cargarlo bajo vitest revienta con "Deno is not
-    // defined" en vez de simplemente no encontrarlo. Se excluye solo a él,
-    // no a toda la carpeta de Edge Functions, para no perder la cobertura ya
-    // existente de esos otros ficheros.
-    exclude: [...configDefaults.exclude, 'supabase/functions/send-timer-notifications/quiet.test.ts'],
   },
 });
