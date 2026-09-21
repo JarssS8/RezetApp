@@ -51,6 +51,38 @@ export async function loadShoppingChecks(
   return Object.fromEntries((data ?? []).map((r) => [r.item_key as string, true])) as Record<string, boolean>;
 }
 
+export interface MyMember {
+  id: string;
+  kcalTarget: number;
+}
+
+/**
+ * Resuelve el `member` de quien llama a partir de `auth_user_id` (§12 del diseño de
+ * personalización). La RLS de `member` ya solo deja ver los de tu hogar (`member_select`),
+ * así que el filtro por `household_id` de abajo es defensa en profundidad, no el único guardián.
+ * No hay fallback a "el primer miembro del hogar": sin fila propia no hay a quién atribuir
+ * el consumo, y las RPCs de intake rechazarían igualmente un `member_id`/`created_by` que no
+ * cuadre.
+ */
+export async function loadMyMember(
+  supabase: SupabaseClient,
+  householdId: string,
+  userId: string,
+): Promise<MyMember> {
+  const { data, error } = await supabase
+    .from('member')
+    .select('id, kcal_target')
+    .eq('household_id', householdId)
+    .eq('auth_user_id', userId)
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    throw new Error('rezet: no member record for this account in this household');
+  }
+  return { id: data.id as string, kcalTarget: data.kcal_target as number };
+}
+
 export interface Snapshot {
   ingredients: Ingredient[];
   recipes: Recipe[];
