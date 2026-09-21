@@ -45,6 +45,23 @@ export const es = {
   notificationsDenied: 'Bloqueaste el permiso de notificaciones en el navegador.',
   notificationsUnsupported: 'Este navegador no soporta notificaciones push.',
   notificationsError: 'No se pudo activar. Inténtalo de nuevo.',
+
+  notifyTitle: 'Avisos',
+  notifyTimers: 'Temporizadores de cocina',
+  notifyTimersNever: 'Nunca se silencian, ni en las horas de silencio.',
+  notifyExpiring: 'Caduca pronto',
+  notifyExpiringHint: 'Un aviso cuando algo de la despensa está a punto de caducar.',
+  notifyCookTurn: 'Te toca cocinar',
+  notifyCookTurnHint: 'Un aviso cuando el plan dice que cocinas tú.',
+  notifyLogReminder: 'Recordarme registrar',
+  notifyLogReminderHint: 'Un aviso si a media tarde no has apuntado lo que has comido.',
+  notifyQuiet: 'Horas de silencio',
+  notifyQuietHint:
+    'Caduca pronto, te toca cocinar y el recordatorio de registrar callan en este tramo. Los temporizadores de cocina no: uno que se traga porque son las 23:10 es comida quemada, no una notificación molesta.',
+  notifyQuietFrom: 'Desde',
+  notifyQuietTo: 'Hasta',
+  notifyWardsNote: 'Quien no tiene cuenta no recibe avisos: no hay dónde enviárselos.',
+
   inviteSheetTitle: 'Invita a tu hogar',
   inviteSheetBody:
     'Comparte este código. Caduca en 7 días y solo puede usarse una vez.',

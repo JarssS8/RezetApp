@@ -128,7 +128,8 @@ export const TextField = forwardRef(function TextField(
     onChange: (v: string) => void;
     placeholder?: string;
     inputMode?: 'numeric' | 'decimal' | 'text';
-    type?: 'text' | 'date';
+    /** `'time'`: usado por `NotifySheet` para las horas de silencio — el navegador ya devuelve `HH:MM`. */
+    type?: 'text' | 'date' | 'time';
     min?: string;
     style?: CSSProperties;
     onFocus?: () => void;

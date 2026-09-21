@@ -34,6 +34,7 @@ export function SettingsSheet({
   onClose,
   onReplayTour,
   onSignOut,
+  onNotify,
   onAccountHousehold,
   accountHouseholdLabel,
   onToast,
@@ -41,6 +42,8 @@ export function SettingsSheet({
   onClose: () => void;
   onReplayTour: () => void;
   onSignOut: () => void;
+  /** Abre `NotifySheet`. Igual en los dos modos: la preferencia propia existe en las dos capas de datos. */
+  onNotify: () => void;
   /** Presente en los dos modos: abre `AccountHouseholdSheet` en real, `HouseholdSheet` en demo. */
   onAccountHousehold?: () => void;
   /** Rótulo de la fila; por defecto `t.accountHouseholdRow` ("Cuenta y hogar"). */
@@ -167,6 +170,17 @@ export function SettingsSheet({
               {notifOn ? t.disableNotifications : t.enableNotifications}
             </Pressable>
           )}
+          <Pressable
+            onClick={onNotify}
+            scale={0.98}
+            style={{ ...rowStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Icon name="clock" size={18} strokeWidth={1.8} />
+              {t.notifyTitle}
+            </span>
+            <Icon name="chevronRight" size={16} strokeWidth={2.2} />
+          </Pressable>
           {onAccountHousehold && (
             <Pressable
               onClick={onAccountHousehold}

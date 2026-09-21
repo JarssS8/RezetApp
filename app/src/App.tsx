@@ -25,6 +25,7 @@ import { Cook } from './screens/Cook';
 import { useCookSession } from './screens/useCookSession';
 import { useCookTimerSync } from './data/useCookTimerSync';
 import { SettingsSheet } from './sheets/SettingsSheet';
+import { NotifySheet } from './sheets/NotifySheet';
 import { ShoppingSheet } from './sheets/ShoppingSheet';
 import { PantryAddSheet } from './sheets/PantryAddSheet';
 import { RecipePickerSheet, type PickerTarget } from './sheets/RecipePickerSheet';
@@ -58,6 +59,7 @@ type Push =
   | null;
 type SheetState =
   | { kind: 'settings' }
+  | { kind: 'notify' }
   | { kind: 'shopping' }
   | { kind: 'pantryAdd' }
   | { kind: 'picker'; target: PickerTarget }
@@ -450,9 +452,12 @@ function MainApp({
                 : () => setSheet({ kind: 'accountHousehold' })
           }
           accountHouseholdLabel={demo ? t.householdRow : undefined}
+          onNotify={() => setSheet({ kind: 'notify' })}
           onToast={show}
         />
       )}
+
+      {sheet?.kind === 'notify' && <NotifySheet onClose={() => setSheet(null)} onToast={show} />}
 
       {sheet?.kind === 'shopping' && (
         <ShoppingSheet weekOffset={weekOffset} onClose={() => setSheet(null)} onToast={show} />
