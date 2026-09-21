@@ -101,6 +101,17 @@ export const es = {
   notEaten: 'No lo comí',
   addWhatIAte: 'Añadir algo que comí',
 
+  // "Tu semana" (Tarea 13): siete barras contra el objetivo, más la racha.
+  yourWeek: 'Tu semana',
+  weekAverage: 'Media semanal',
+  weekTarget: 'Objetivo diario',
+  streakDays: (n: number) => `${n} ${n === 1 ? 'día' : 'días'}`,
+  streakWithin: 'Días seguidos dentro del objetivo',
+  streakTodayNote: 'Hoy todavía no cuenta: un día solo suma a la racha cuando termina.',
+  legendWithin: 'Dentro del objetivo',
+  legendOver: 'Por encima del objetivo',
+  legendUnder: 'Por debajo del objetivo',
+
   // Hoja "Añadir lo que comí" (Tarea 11): cuatro caminos para registrar un extra.
   intakeAddTitle: 'Añadir algo que comí',
   tabFavourites: 'Favoritos',

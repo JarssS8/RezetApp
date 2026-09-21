@@ -31,6 +31,7 @@ export function Today({
   onGoPlan,
   onOpenSettings,
   onAddIntake,
+  onOpenWeek,
   isWide,
 }: {
   onOpenRecipe: (recipeId: string, servings: number) => void;
@@ -39,6 +40,8 @@ export function Today({
   onOpenSettings: () => void;
   /** Abre `IntakeAddSheet`, la hoja de "añadir algo que comí" (Tarea 11). */
   onAddIntake: () => void;
+  /** Abre "Tu semana" (Tarea 13): la fila bajo el anillo. */
+  onOpenWeek: () => void;
   isWide: boolean;
 }) {
   const { t, locale, loc } = usePrefs();
@@ -162,6 +165,33 @@ export function Today({
           </div>
         </div>
       </Card>
+
+      {/* Entrada a "Tu semana" (Tarea 13): una fila bajo el anillo, no una
+       * pestaña propia — es un vistazo ocasional, no algo que se consulte
+       * cada día como Hoy o Plan. */}
+      <Pressable
+        onClick={onOpenWeek}
+        scale={0.98}
+        style={{
+          marginTop: 14,
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          padding: '13px 16px',
+          background: 'var(--surface)',
+          border: '1px solid var(--line)',
+          borderRadius: radius.list,
+          boxShadow: 'var(--shadow-s)',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, fontWeight: 600 }}>
+          <Icon name="calendar" size={18} strokeWidth={1.8} />
+          {t.yourWeek}
+        </span>
+        <Icon name="chevronRight" size={16} strokeWidth={2.2} />
+      </Pressable>
 
       <div style={{ marginTop: 26 }}>
         <SectionHeader label={t.yourDay} trailing={t.yourDayCount(meals.length)} />

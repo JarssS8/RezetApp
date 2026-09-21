@@ -128,3 +128,30 @@ export function streakOf(days: DayTotal[], target: number, todayKey: string): nu
   }
   return n;
 }
+
+export type DayBand = 'within' | 'over' | 'under';
+
+/**
+ * Cómo le fue a un día frente al objetivo, con la MISMA banda de tolerancia
+ * que usa `streakOf` — para que un día que cuenta para la racha se vea
+ * también "dentro" en cualquier sitio que lo pinte (p. ej. "Tu semana",
+ * Tarea 13). Repetir el 10% a mano en una pantalla habría sido la segunda
+ * fuente de verdad que este módulo entero existe para evitar.
+ */
+export function dayBand(kcal: number, target: number): DayBand {
+  if (target <= 0) return 'under';
+  if (Math.abs(kcal - target) <= target * STREAK_BAND) return 'within';
+  return kcal > target ? 'over' : 'under';
+}
+
+/**
+ * Media de los días YA TERMINADOS de una semana (mismo criterio que
+ * `streakOf`: el día en curso pesaría con datos a medio llenar, y los días
+ * aún no vividos no son "poco", son inexistentes). `0` si no hay ninguno
+ * todavía — por ejemplo, un lunes por la mañana.
+ */
+export function weekAverage(days: DayTotal[], todayKey: string): number {
+  const pasados = days.filter((d) => d.date < todayKey);
+  if (pasados.length === 0) return 0;
+  return pasados.reduce((sum, d) => sum + d.kcal, 0) / pasados.length;
+}

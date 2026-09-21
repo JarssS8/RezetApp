@@ -13,6 +13,7 @@ import { Login } from './screens/Login';
 import { CreateOrJoinHousehold } from './screens/CreateOrJoinHousehold';
 import { Onboarding } from './screens/Onboarding';
 import { Today } from './screens/Today';
+import { Week } from './screens/Week';
 import { Recipes } from './screens/Recipes';
 import { RecipeDetail } from './screens/RecipeDetail';
 import { IdeaDetail } from './screens/IdeaDetail';
@@ -52,6 +53,7 @@ type Push =
   | { kind: 'new' }
   | { kind: 'edit'; recipeId: string }
   | { kind: 'idea'; ideaId: string }
+  | { kind: 'week' }
   | null;
 type SheetState =
   | { kind: 'settings' }
@@ -333,6 +335,7 @@ function MainApp({
             onGoPlan={() => setTab('plan')}
             onOpenSettings={() => setSheet({ kind: 'settings' })}
             onAddIntake={() => setSheet({ kind: 'intakeAdd' })}
+            onOpenWeek={() => setPush({ kind: 'week' })}
           />
         )}
         {tab === 'recipes' && (
@@ -379,6 +382,8 @@ function MainApp({
           onEdit={(recipeId) => setPush({ kind: 'edit', recipeId })}
         />
       )}
+
+      {push?.kind === 'week' && <Week onClose={() => setPush(null)} />}
 
       {(push?.kind === 'new' || push?.kind === 'edit') && (
         <RecipeForm

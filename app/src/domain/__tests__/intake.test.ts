@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SHARE, intakeOfDay, streakOf, weekTotals } from '../intake';
+import { DEFAULT_SHARE, dayBand, intakeOfDay, streakOf, weekAverage, weekTotals } from '../intake';
 import type { PlanEntry, Recipe } from '../../types';
 
 const receta = (id: string, kcal: number): Recipe =>
@@ -128,5 +128,29 @@ describe('intake', () => {
 
   it('sin objetivo no hay racha que calcular', () => {
     expect(streakOf([{ date: '2026-09-20', kcal: 1900 }], 0, '2026-09-21')).toBe(0);
+  });
+
+  it('dayBand: dentro, por encima y por debajo usan la misma banda que la racha', () => {
+    expect(dayBand(1900, 1900)).toBe('within');
+    expect(dayBand(2050, 1900)).toBe('within'); // dentro del 10%
+    expect(dayBand(3000, 1900)).toBe('over');
+    expect(dayBand(200, 1900)).toBe('under');
+  });
+
+  it('dayBand: sin objetivo, ningún día queda "dentro"', () => {
+    expect(dayBand(0, 0)).toBe('under');
+  });
+
+  it('weekAverage: solo promedia los días ya terminados, no el de hoy', () => {
+    const dias = [
+      { date: '2026-09-18', kcal: 1900 },
+      { date: '2026-09-19', kcal: 2100 },
+      { date: '2026-09-21', kcal: 200 }, // hoy, a medias: no debe entrar en la media
+    ];
+    expect(weekAverage(dias, '2026-09-21')).toBe(2000);
+  });
+
+  it('weekAverage: sin días terminados todavía, la media es 0', () => {
+    expect(weekAverage([{ date: '2026-09-21', kcal: 900 }], '2026-09-21')).toBe(0);
   });
 });

@@ -102,6 +102,17 @@ export const en: Dictionary = {
   notEaten: "Didn't eat it",
   addWhatIAte: 'Add something I ate',
 
+  // "Your week" (Task 13): seven bars against the target, plus the streak.
+  yourWeek: 'Your week',
+  weekAverage: 'Weekly average',
+  weekTarget: 'Daily target',
+  streakDays: (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`,
+  streakWithin: 'Days in a row within target',
+  streakTodayNote: "Today doesn't count yet: a day only adds to the streak once it's over.",
+  legendWithin: 'Within target',
+  legendOver: 'Over target',
+  legendUnder: 'Under target',
+
   // "Add what I ate" sheet (Task 11): four ways to log an extra.
   intakeAddTitle: 'Add something I ate',
   tabFavourites: 'Favourites',
