@@ -129,6 +129,8 @@ export const en: Dictionary = {
   gramsEaten: 'Grams you ate',
   noKcalInProduct: "This product doesn't list calories. Finish it by hand.",
   addToMyDay: 'Add to my day',
+  intakeKcalHint: (max: string) => `Up to ${max} kcal per extra.`,
+  intakeKcalTooHigh: (max: string) => `That's over the allowed maximum (${max} kcal). Adjust the amount.`,
 
   searchRecipes: 'Search recipes',
   newRecipe: 'New recipe',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SHARE, dayBand, intakeOfDay, streakOf, weekAverage, weekTotals } from '../intake';
+import { DEFAULT_SHARE, EXTRA_KCAL_MAX, EXTRA_KCAL_MIN, dayBand, intakeOfDay, streakOf, weekAverage, weekTotals } from '../intake';
 import type { PlanEntry, Recipe } from '../../types';
 
 const receta = (id: string, kcal: number): Recipe =>
@@ -160,5 +160,15 @@ describe('intake', () => {
 
   it('weekAverage: sin días terminados todavía, la media es 0', () => {
     expect(weekAverage([{ date: '2026-09-21', kcal: 900 }], '2026-09-21')).toBe(0);
+  });
+
+  // Hallazgo de revisión: el cliente tiene que acotar `kcal` de un extra al
+  // MISMO rango que el `check` de `intake_extra.kcal` en la base
+  // (`supabase/migrations/20260921090100_rezet_intake.sql`) — fijado aquí
+  // para que un cambio en un lado sin el otro rompa este test en vez de
+  // dejar que la real rechace en crudo lo que la demo se traga tan tranquila.
+  it('EXTRA_KCAL_MIN/MAX coinciden con el check de intake_extra.kcal en la base', () => {
+    expect(EXTRA_KCAL_MIN).toBe(0);
+    expect(EXTRA_KCAL_MAX).toBe(10000);
   });
 });

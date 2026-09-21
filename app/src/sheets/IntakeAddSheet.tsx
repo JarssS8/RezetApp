@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
 import { todayKey } from '../domain/dates';
+import { EXTRA_KCAL_MAX } from '../domain/intake';
 import { formatKcal } from '../domain/units';
 import { Button } from '../ui/Button';
 import { Pressable } from '../ui/Pressable';
@@ -67,13 +68,23 @@ export function IntakeAddSheet({
   /** Único punto de escritura: registra el extra de hoy y cierra la hoja. */
   const commit = async (input: { label: string; kcal: number; source: 'manual' | 'recipe' | 'barcode'; recipeId?: string }) => {
     if (!myMemberId || submitting) return;
+    const kcal = Math.round(input.kcal);
+    // Última barrera, la misma para las cuatro pestañas (incluidos
+    // favoritos, que pueden venir de una fila antigua): la columna acota
+    // `kcal` a `[0, 10000]`, y el cliente tiene que acotar igual en vez de
+    // dejar pasar el error en crudo de la base — o, en la demo, guardarlo
+    // tal cual sin decir nada.
+    if (kcal <= 0 || kcal > EXTRA_KCAL_MAX) {
+      onToast(t.intakeKcalTooHigh(formatKcal(EXTRA_KCAL_MAX, locale)));
+      return;
+    }
     setSubmitting(true);
     try {
       await addExtra({
         memberId: myMemberId,
         date: todayKey(),
         label: input.label,
-        kcal: Math.round(input.kcal),
+        kcal,
         source: input.source,
         recipeId: input.recipeId ?? null,
       });
@@ -88,12 +99,15 @@ export function IntakeAddSheet({
   const pickFavourite = (f: FrequentExtra) => void commit({ label: f.label, kcal: f.kcal, source: 'manual' });
 
   const quickKcalValue = parseFloat(quickKcalInput.replace(',', '.'));
-  const quickValid = quickName.trim().length > 0 && Number.isFinite(quickKcalValue) && quickKcalValue > 0;
+  const quickKcalTooHigh = Number.isFinite(quickKcalValue) && quickKcalValue > EXTRA_KCAL_MAX;
+  const quickValid =
+    quickName.trim().length > 0 && Number.isFinite(quickKcalValue) && quickKcalValue > 0 && !quickKcalTooHigh;
   const submitQuick = () =>
     void commit({ label: quickName.trim(), kcal: quickKcalValue, source: 'manual' });
 
   const pickedRecipe = pickedRecipeId ? recipeById.get(pickedRecipeId) : undefined;
   const recipeKcal = pickedRecipe ? pickedRecipe.kcalPerServing * recipeServings : 0;
+  const recipeKcalTooHigh = recipeKcal > EXTRA_KCAL_MAX;
   const submitRecipe = () =>
     pickedRecipe &&
     void commit({ label: loc(pickedRecipe.name), kcal: recipeKcal, source: 'recipe', recipeId: pickedRecipe.id });
@@ -101,6 +115,7 @@ export function IntakeAddSheet({
   const gramsValue = parseFloat(gramsInput.replace(',', '.'));
   const gramsValid = Number.isFinite(gramsValue) && gramsValue > 0;
   const barcodeKcal = scannedProduct && gramsValid ? (scannedProduct.kcalPer100g * gramsValue) / 100 : 0;
+  const barcodeKcalTooHigh = barcodeKcal > EXTRA_KCAL_MAX;
   const submitBarcode = () =>
     scannedProduct &&
     gramsValid &&
@@ -125,6 +140,18 @@ export function IntakeAddSheet({
   };
 
   const fieldLabelStyle = { fontSize: 13, color: 'var(--muted)', marginBottom: 6 } as const;
+  const kcalMaxLabel = formatKcal(EXTRA_KCAL_MAX, locale);
+  // Mismo estilo de aviso que `CookFinishSheet`/`MemberTargetSheet`: tokens
+  // de aviso, nunca `--accent` (esto no es información neutra, es un tope).
+  const kcalWarnStyle = {
+    marginTop: 8,
+    padding: '10px 13px',
+    borderRadius: radius.input,
+    background: 'var(--warnsoft)',
+    color: 'var(--warn-ink)',
+    fontSize: 13,
+    lineHeight: 1.45,
+  } as const;
 
   return (
     <Sheet title={t.intakeAddTitle} onClose={onClose}>
@@ -219,6 +246,11 @@ export function IntakeAddSheet({
                 placeholder="250"
                 style={{ ...tabular }}
               />
+              {quickKcalTooHigh ? (
+                <div style={kcalWarnStyle}>{t.intakeKcalTooHigh(kcalMaxLabel)}</div>
+              ) : (
+                <div style={{ marginTop: 6, fontSize: 12.5, color: 'var(--muted)' }}>{t.intakeKcalHint(kcalMaxLabel)}</div>
+              )}
             </label>
             <Button full size="primary" disabled={!quickValid || submitting} onClick={submitQuick} style={{ borderRadius: radius.button }}>
               {t.addToMyDay}
@@ -257,10 +289,17 @@ export function IntakeAddSheet({
                     onIncrement={() => setRecipeServings((s) => Math.min(24, s + 1))}
                   />
                 </div>
-                <div style={{ fontSize: 14.5, color: 'var(--muted)' }}>
+                <div style={{ fontSize: 14.5, color: recipeKcalTooHigh ? 'var(--warn-ink)' : 'var(--muted)' }}>
                   {formatKcal(recipeKcal, locale)} {t.kcal}
                 </div>
-                <Button full size="primary" disabled={submitting} onClick={submitRecipe} style={{ borderRadius: radius.button }}>
+                {recipeKcalTooHigh && <div style={kcalWarnStyle}>{t.intakeKcalTooHigh(kcalMaxLabel)}</div>}
+                <Button
+                  full
+                  size="primary"
+                  disabled={submitting || recipeKcalTooHigh}
+                  onClick={submitRecipe}
+                  style={{ borderRadius: radius.button }}
+                >
                   {t.addToMyDay}
                 </Button>
                 <button
@@ -298,10 +337,17 @@ export function IntakeAddSheet({
                     style={{ ...tabular }}
                   />
                 </label>
-                <div style={{ fontSize: 14.5, color: 'var(--muted)' }}>
+                <div style={{ fontSize: 14.5, color: barcodeKcalTooHigh ? 'var(--warn-ink)' : 'var(--muted)' }}>
                   {formatKcal(barcodeKcal, locale)} {t.kcal}
                 </div>
-                <Button full size="primary" disabled={!gramsValid || submitting} onClick={submitBarcode} style={{ borderRadius: radius.button }}>
+                {barcodeKcalTooHigh && <div style={kcalWarnStyle}>{t.intakeKcalTooHigh(kcalMaxLabel)}</div>}
+                <Button
+                  full
+                  size="primary"
+                  disabled={!gramsValid || submitting || barcodeKcalTooHigh}
+                  onClick={submitBarcode}
+                  style={{ borderRadius: radius.button }}
+                >
                   {t.addToMyDay}
                 </Button>
                 <button

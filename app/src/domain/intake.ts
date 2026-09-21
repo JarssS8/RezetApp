@@ -19,6 +19,16 @@ export const DEFAULT_SHARE = 1;
 /** Margen para dar un día por "dentro del objetivo". */
 const STREAK_BAND = 0.1;
 
+/**
+ * Lo que acepta la columna `intake_extra.kcal` (su `check` en la BD, ver
+ * `supabase/migrations/20260921090100_rezet_intake.sql`). Vive aquí para que
+ * el cliente pare ANTES de mandar la petición, en las dos capas: sin esto,
+ * la real devuelve una violación de `check` en crudo (hallazgo de revisión)
+ * y la demo, sin ningún `check` detrás, se lo traga tan tranquila.
+ */
+export const EXTRA_KCAL_MIN = 0;
+export const EXTRA_KCAL_MAX = 10000;
+
 export interface IntakeExtraLine {
   id: string;
   label: string;

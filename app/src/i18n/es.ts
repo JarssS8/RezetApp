@@ -130,6 +130,11 @@ export const es = {
   gramsEaten: 'Gramos que has comido',
   noKcalInProduct: 'Este producto no trae calorías. Termínalo a mano.',
   addToMyDay: 'Añadir a mi día',
+  // Hallazgo de revisión: la columna acota `kcal` a `[0, 10000]`; el cliente
+  // tiene que acotar igual, y decir qué pasa en vez de dejar pasar el error
+  // en crudo de la base (o, en la demo, no decir nada y guardarlo tal cual).
+  intakeKcalHint: (max: string) => `Hasta ${max} kcal por extra.`,
+  intakeKcalTooHigh: (max: string) => `Se pasa del máximo permitido (${max} kcal). Ajusta la cantidad.`,
 
   searchRecipes: 'Buscar recetas',
   newRecipe: 'Nueva receta',
