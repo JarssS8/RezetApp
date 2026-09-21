@@ -37,10 +37,7 @@ export function Today({
   onCook: (recipeId: string, servings: number, planEntryId: string | null) => void;
   onGoPlan: () => void;
   onOpenSettings: () => void;
-  /**
-   * Abre la hoja de "añadir algo que comí" (Tarea 11, todavía no existe).
-   * El padre puede dejarlo sin conectar mientras tanto.
-   */
+  /** Abre `IntakeAddSheet`, la hoja de "añadir algo que comí" (Tarea 11). */
   onAddIntake: () => void;
   isWide: boolean;
 }) {

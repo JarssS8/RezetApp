@@ -102,6 +102,19 @@ export const en: Dictionary = {
   notEaten: "Didn't eat it",
   addWhatIAte: 'Add something I ate',
 
+  // "Add what I ate" sheet (Task 11): four ways to log an extra.
+  intakeAddTitle: 'Add something I ate',
+  tabFavourites: 'Favourites',
+  tabQuick: 'Quick',
+  tabRecipe: 'Recipe',
+  tabBarcode: 'Barcode',
+  favouritesHint: 'What you repeat most, from your history.',
+  quickName: 'What you ate',
+  quickKcal: 'Calories',
+  gramsEaten: 'Grams you ate',
+  noKcalInProduct: "This product doesn't list calories. Finish it by hand.",
+  addToMyDay: 'Add to my day',
+
   searchRecipes: 'Search recipes',
   newRecipe: 'New recipe',
   noRecipesYet: 'No recipes yet',

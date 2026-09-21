@@ -7,7 +7,15 @@ export interface OffApiResponse {
     product_name?: string;
     product_quantity?: string | number;
     product_quantity_unit?: string;
+    /** Solo se lee `energy-kcal_100g`: es el único nutriente que necesita "Añadir lo que comí". */
+    nutriments?: { 'energy-kcal_100g'?: number };
   };
+}
+
+/** `null` si el producto no trae el campo o viene con un tipo raro — nunca se inventa un valor. */
+function kcalPer100gOf(product: OffApiResponse['product']): number | null {
+  const raw = product?.nutriments?.['energy-kcal_100g'];
+  return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : null;
 }
 
 /**
@@ -16,10 +24,13 @@ export interface OffApiResponse {
  * cerrado ('g'|'ml'|'ud') y un string libre como "kg" rompería el matching
  * de stock/shopping en `store.tsx` (`p.unit === need.unit`) en silencio.
  */
-export function mapOpenFoodFactsProduct(raw: OffApiResponse): { name: string; quantity: number; unit: Unit } | null {
+export function mapOpenFoodFactsProduct(
+  raw: OffApiResponse,
+): { name: string; quantity: number; unit: Unit; kcalPer100g: number | null } | null {
   const product = raw.product;
   const name = sanitizeExternalName(product?.product_name ?? '');
   if (raw.status !== 1 || !name) return null;
+  const kcalPer100g = kcalPer100gOf(product);
 
   const rawUnit = (product?.product_quantity_unit ?? '').toLowerCase().trim();
   const rawQty = Number(product?.product_quantity);
@@ -27,18 +38,18 @@ export function mapOpenFoodFactsProduct(raw: OffApiResponse): { name: string; qu
   if (Number.isFinite(rawQty) && rawQty > 0) {
     switch (rawUnit) {
       case 'g':
-        return { name, quantity: rawQty, unit: 'g' };
+        return { name, quantity: rawQty, unit: 'g', kcalPer100g };
       case 'kg':
-        return { name, quantity: rawQty * 1000, unit: 'g' };
+        return { name, quantity: rawQty * 1000, unit: 'g', kcalPer100g };
       case 'ml':
-        return { name, quantity: rawQty, unit: 'ml' };
+        return { name, quantity: rawQty, unit: 'ml', kcalPer100g };
       case 'l':
-        return { name, quantity: rawQty * 1000, unit: 'ml' };
+        return { name, quantity: rawQty * 1000, unit: 'ml', kcalPer100g };
       case 'cl':
-        return { name, quantity: rawQty * 10, unit: 'ml' };
+        return { name, quantity: rawQty * 10, unit: 'ml', kcalPer100g };
     }
   }
-  return { name, quantity: 1, unit: 'ud' };
+  return { name, quantity: 1, unit: 'ud', kcalPer100g };
 }
 
 const VALID_UNITS: readonly Unit[] = ['g', 'ml', 'ud'];

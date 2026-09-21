@@ -26,6 +26,7 @@ import { SettingsSheet } from './sheets/SettingsSheet';
 import { ShoppingSheet } from './sheets/ShoppingSheet';
 import { PantryAddSheet } from './sheets/PantryAddSheet';
 import { RecipePickerSheet, type PickerTarget } from './sheets/RecipePickerSheet';
+import { IntakeAddSheet } from './sheets/IntakeAddSheet';
 import { CookFinishSheet } from './sheets/CookFinishSheet';
 import { InviteSheet } from './sheets/InviteSheet';
 import { ConnectMcpSheet } from './sheets/ConnectMcpSheet';
@@ -57,6 +58,7 @@ type SheetState =
   | { kind: 'shopping' }
   | { kind: 'pantryAdd' }
   | { kind: 'picker'; target: PickerTarget }
+  | { kind: 'intakeAdd' }
   | { kind: 'finish' }
   | { kind: 'invite' }
   | { kind: 'connectMcp' }
@@ -329,8 +331,7 @@ function MainApp({
             onCook={startCook}
             onGoPlan={() => setTab('plan')}
             onOpenSettings={() => setSheet({ kind: 'settings' })}
-            // La hoja de "añadir algo que comí" es la Tarea 11: todavía no existe.
-            onAddIntake={() => {}}
+            onAddIntake={() => setSheet({ kind: 'intakeAdd' })}
           />
         )}
         {tab === 'recipes' && (
@@ -431,6 +432,8 @@ function MainApp({
       {sheet?.kind === 'pantryAdd' && (
         <PantryAddSheet onClose={() => setSheet(null)} onToast={show} allowPhoto={!demo} />
       )}
+
+      {sheet?.kind === 'intakeAdd' && <IntakeAddSheet onClose={() => setSheet(null)} onToast={show} />}
 
       {sheet?.kind === 'picker' && (
         <RecipePickerSheet

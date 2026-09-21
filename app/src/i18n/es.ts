@@ -101,6 +101,19 @@ export const es = {
   notEaten: 'No lo comí',
   addWhatIAte: 'Añadir algo que comí',
 
+  // Hoja "Añadir lo que comí" (Tarea 11): cuatro caminos para registrar un extra.
+  intakeAddTitle: 'Añadir algo que comí',
+  tabFavourites: 'Favoritos',
+  tabQuick: 'Rápido',
+  tabRecipe: 'Receta',
+  tabBarcode: 'Código',
+  favouritesHint: 'Lo que más repites, calculado de tu historial.',
+  quickName: 'Qué has comido',
+  quickKcal: 'Calorías',
+  gramsEaten: 'Gramos que has comido',
+  noKcalInProduct: 'Este producto no trae calorías. Termínalo a mano.',
+  addToMyDay: 'Añadir a mi día',
+
   searchRecipes: 'Buscar recetas',
   newRecipe: 'Nueva receta',
   noRecipesYet: 'Aún no tienes recetas',
