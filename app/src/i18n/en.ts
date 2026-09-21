@@ -310,6 +310,7 @@ export const en: Dictionary = {
   targetManualOnly: "We're missing some data to estimate it (or you're under 18): enter the number by hand here.",
   targetYourTarget: 'Your daily target',
   targetRange: (min: string, max: string) => `Between ${min} and ${max} kcal.`,
+  useEstimateAction: 'Use this estimate',
 
   adminBadge: 'Admin',
   makeAdminAction: 'Make admin',

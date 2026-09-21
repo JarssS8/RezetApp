@@ -310,6 +310,9 @@ export const es = {
   targetManualOnly: 'Nos faltan datos para estimarlo (o eres menor de 18): pon aquí el número a mano.',
   targetYourTarget: 'Tu objetivo diario',
   targetRange: (min: string, max: string) => `Entre ${min} y ${max} kcal.`,
+  // Botón explícito, no seguimiento automático: la cifra final del objetivo
+  // siempre la escribe la persona, este botón solo se la propone.
+  useEstimateAction: 'Usar esta estimación',
 
   adminBadge: 'Admin',
   makeAdminAction: 'Hacer administrador',

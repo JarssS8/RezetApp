@@ -279,6 +279,22 @@ export function MemberTargetSheet({
             <div style={{ marginTop: 8, fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
               {t.targetEstimateNote}
             </div>
+            {/* Hallazgo de revisión: la estimación se pintaba pero nunca tocaba
+             * `target` — rellenar el formulario y pulsar Guardar dejaba el
+             * objetivo de siempre. Botón explícito y no un `useEffect` que
+             * siga la estimación sola: seguir automático pelearía con quien ya
+             * escribió su número a mano, y el diseño insiste en que la cifra
+             * final es siempre de la persona. */}
+            <Button
+              size="secondary"
+              variant="secondary"
+              full
+              disabled={target === estimate}
+              onClick={() => setTarget(estimate)}
+              style={{ marginTop: 14, borderRadius: radius.button }}
+            >
+              {t.useEstimateAction}
+            </Button>
           </div>
         ) : (
           <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.45, padding: '0 2px' }}>
