@@ -177,3 +177,41 @@ export interface Member {
   /** No null = ya no está en el hogar. Se sigue leyendo para la atribución. */
   deletedAt: string | null;
 }
+
+/** Datos corporales de un miembro. Privados: solo suyos, o de quien le tutela. */
+export interface MemberBody {
+  sex: 'female' | 'male' | null;
+  birthYear: number | null;
+  heightCm: number | null;
+  weightKg: number | null;
+  activity: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+  goal: 'lose' | 'maintain' | 'gain';
+}
+
+/** Algo que alguien comió fuera del plan. */
+export interface IntakeExtra {
+  id: string;
+  memberId: MemberId;
+  /** Fecha ISO local, `YYYY-MM-DD`. */
+  date: string;
+  label: string;
+  kcal: number;
+  source: 'manual' | 'recipe' | 'barcode';
+  recipeId: string | null;
+}
+
+export interface ExtraInput {
+  memberId: MemberId;
+  date: string;
+  label: string;
+  kcal: number;
+  source: 'manual' | 'recipe' | 'barcode';
+  recipeId?: string | null;
+}
+
+/** Un extra que alguien repite. Derivado de `intake_extra`, no es una tabla. */
+export interface FrequentExtra {
+  label: string;
+  kcal: number;
+  times: number;
+}

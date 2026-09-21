@@ -2,10 +2,14 @@ import { createContext, useContext } from 'react';
 import type {
   Accent,
   Difficulty,
+  ExtraInput,
+  FrequentExtra,
   HouseholdDetail,
   Ingredient,
+  IntakeExtra,
   MealSlot,
   Member,
+  MemberBody,
   MemberId,
   PantryItem,
   PantryLoc,
@@ -15,6 +19,7 @@ import type {
   ShoppingNeed,
   Unit,
 } from '../types';
+import type { DayIntake, DayTotal } from '../domain/intake';
 
 /**
  * Contrato compartido por las dos capas de datos: `store.tsx` (demo,
@@ -213,6 +218,25 @@ export interface Store {
    * hace nada.
    */
   setHouseholdSheetOpen: (open: boolean) => void;
+
+  /** Datos corporales del miembro propio. `null` si no hay o no hay acceso. */
+  myBody: MemberBody | null;
+  /**
+   * Contrato: `rpc/set_member_body`. El objetivo va YA CALCULADO con
+   * `domain/nutrition.ts`: la fórmula vive ahí y solo ahí.
+   */
+  setMyBody: (memberId: MemberId, patch: Partial<MemberBody>, kcalTarget: number | null) => Promise<void>;
+
+  /** Puro, sobre datos ya descargados. Ver `domain/intake.ts`. */
+  intakeOfDayFor: (memberId: MemberId, date: string) => DayIntake;
+  /** Raciones de un miembro en una comida del plan. 0 = no la comió. */
+  setShare: (memberId: MemberId, planEntryId: string, servings: number) => Promise<void>;
+  addExtra: (input: ExtraInput) => Promise<string>;
+  removeExtra: (id: string) => Promise<void>;
+  /** Los que más repite, derivados de su historial. No hay tabla de favoritos. */
+  frequentExtras: (memberId: MemberId) => FrequentExtra[];
+  /** Totales por día para la pantalla de progreso. */
+  weekTotalsFor: (memberId: MemberId, dates: string[]) => DayTotal[];
 }
 
 export const StoreCtx = createContext<Store | null>(null);
