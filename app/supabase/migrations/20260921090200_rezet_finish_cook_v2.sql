@@ -59,7 +59,10 @@ begin
   end if;
 
   if v_already_cooked then
-    return '[]'::jsonb;
+    -- Mismo contrato que la salida normal: un doble toque tiene que
+    -- devolver un objeto, no el array de la versión anterior, o el
+    -- envoltorio acaba devolviendo NULL a los clientes cacheados.
+    return jsonb_build_object('shortages', '[]'::jsonb, 'plan_entry_id', p_plan_entry_id);
   end if;
 
   v_factor := p_servings::numeric / nullif(v_base_servings, 0);
@@ -130,11 +133,20 @@ begin
   -- de esa persona quedaría inflado sin que nadie se enterase.
   if jsonb_typeof(p_shares) = 'array' then
     insert into public.intake_share (member_id, plan_entry_id, servings)
-    select (s->>'member_id')::uuid, v_plan_entry_id, (s->>'servings')::numeric
-      from jsonb_array_elements(p_shares) as s
+    select d.member_id, v_plan_entry_id, d.servings
+      from (
+        -- El mismo miembro puede venir repetido en el array; el último
+        -- valor gana, en vez de reventar el `on conflict` con dos filas
+        -- para la misma clave (member_id, plan_entry_id).
+        select distinct on ((s->>'member_id'))
+               (s->>'member_id')::uuid as member_id,
+               (s->>'servings')::numeric as servings
+          from jsonb_array_elements(p_shares) with ordinality as t(s, ord)
+         order by (s->>'member_id'), ord desc
+      ) d
      where exists (
        select 1 from public.member m
-        where m.id = (s->>'member_id')::uuid
+        where m.id = d.member_id
           and m.household_id = v_household_id
           and m.deleted_at is null
      )
@@ -142,10 +154,15 @@ begin
       servings = excluded.servings, updated_at = now();
 
     -- Un id que no es de este hogar no se ignora en silencio: se rechaza.
-    if (select count(*) from jsonb_array_elements(p_shares)) <>
+    if (select count(distinct s->>'member_id') from jsonb_array_elements(p_shares) as s) <>
        (select count(*) from public.intake_share where plan_entry_id = v_plan_entry_id) then
       raise exception 'REZET_FOREIGN_HOUSEHOLD: alguna ración no es de este hogar';
     end if;
+  else
+    -- p_shares que no es lista es justo el "se pierde en silencio" que esta
+    -- tarea existe para evitar: se rechaza en vez de terminar bien sin
+    -- escribir nada y sin avisar a nadie.
+    raise exception 'REZET_BAD_SHARES: las raciones deben venir como lista';
   end if;
 
   return jsonb_build_object('shortages', v_shortages, 'plan_entry_id', v_plan_entry_id);
@@ -170,3 +187,25 @@ revoke all on function public.finish_cook_v2(uuid, integer, uuid, date, meal_slo
 grant execute on function public.finish_cook_v2(uuid, integer, uuid, date, meal_slot, jsonb) to authenticated;
 revoke all on function public.finish_cook(uuid, integer, uuid, date, meal_slot) from public, anon;
 grant execute on function public.finish_cook(uuid, integer, uuid, date, meal_slot) to authenticated;
+
+-- La ración que alguien comió de una comida del hogar NO es un dato privado:
+-- quien cocinó estaba delante y lo vio. Con la política por miembro, la
+-- pantalla de fin de cocción ("cuenta para: …", con todo el hogar marcado)
+-- era imposible en cualquier hogar con dos adultos, y además la violación de
+-- RLS hacía rollback del descuento de despensa entero.
+-- `intake_extra` (lo que cada uno come por su cuenta) SÍ se queda en nivel
+-- propio: eso es lo que de verdad nadie tiene por qué ver.
+drop policy if exists intake_share_rw on public.intake_share;
+create policy intake_share_rw on public.intake_share for all
+  to authenticated
+  using (exists (
+    select 1 from public.member m
+     where m.id = intake_share.member_id
+       and m.household_id = (select private.current_household())
+  ))
+  with check (exists (
+    select 1 from public.member m
+     where m.id = intake_share.member_id
+       and m.household_id = (select private.current_household())
+       and m.deleted_at is null
+  ));

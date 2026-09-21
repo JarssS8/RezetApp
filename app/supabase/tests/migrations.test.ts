@@ -1610,6 +1610,151 @@ describe('migraciones', () => {
     await db.close();
   }, 120_000);
 
+  // Revisión Critical 1 — la rama "ya cocinado" tenía que devolver el mismo
+  // contrato que la salida normal, o el envoltorio acababa dando NULL.
+  it('finish_cook_v2 sobre una comida ya cocinada devuelve el mismo contrato, y el envoltorio sigue dando []', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    await db.exec(`
+      insert into public.recipe (id, household_id, name, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000014', '${h.rows[0].id}', 'Ya cocinada', 300);
+      insert into public.plan_entry (id, household_id, on_date, slot, recipe_id, servings, cooked_at, servings_cooked) values
+        ('00000000-0000-4000-8000-000000000015', '${h.rows[0].id}', '2026-09-21', 'lunch',
+         '00000000-0000-4000-8000-000000000014', 2, now(), 2);
+    `);
+
+    const res = (await asUser(
+      db,
+      ana,
+      `select public.finish_cook_v2(
+         '00000000-0000-4000-8000-000000000014', 2, '00000000-0000-4000-8000-000000000015', '2026-09-21', 'lunch',
+         '[]'::jsonb
+       ) as out`,
+    )) as { rows: { out: { shortages: unknown[]; plan_entry_id: string } }[] };
+    expect(res.rows[0].out.plan_entry_id).toBe('00000000-0000-4000-8000-000000000015');
+    expect(res.rows[0].out.shortages).toEqual([]);
+
+    const wrapped = (await asUser(
+      db,
+      ana,
+      `select public.finish_cook(
+         '00000000-0000-4000-8000-000000000014', 2, '00000000-0000-4000-8000-000000000015', '2026-09-21', 'lunch'
+       ) as out`,
+    )) as { rows: { out: unknown }[] };
+    expect(wrapped.rows[0].out).toEqual([]);
+    await db.close();
+  }, 120_000);
+
+  // Revisión Critical 2 — con la política por miembro, repartir entre dos
+  // adultos del mismo hogar hacía rollback de TODA la transacción (incluido
+  // el descuento de despensa). intake_share pasa a ser de nivel hogar.
+  it('cocinar repartiendo entre dos adultos del hogar funciona y descuenta la despensa', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const invite = (await asUser(db, ana, 'select public.create_invite() as code')) as {
+      rows: { code: string }[];
+    };
+    await asUser(db, bruno, `select public.redeem_invite('${invite.rows[0].code}', 'Bruno')`);
+
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    const mBruno = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bruno}'`,
+    );
+
+    await db.exec(`
+      insert into public.ingredient (id, household_id, name_es, name_en, default_unit) values
+        ('00000000-0000-4000-8000-000000000020', '${h.rows[0].id}', 'Arroz', 'Rice', 'g');
+      insert into public.recipe (id, household_id, name, base_servings, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000021', '${h.rows[0].id}', 'Paella', 2, 600);
+      insert into public.recipe_ingredient (recipe_id, ingredient_id, quantity, unit, position) values
+        ('00000000-0000-4000-8000-000000000021', '00000000-0000-4000-8000-000000000020', 100, 'g', 0);
+      insert into public.pantry_item (household_id, ingredient_id, quantity, unit) values
+        ('${h.rows[0].id}', '00000000-0000-4000-8000-000000000020', 500, 'g');
+    `);
+
+    const res = (await asUser(
+      db,
+      ana,
+      `select public.finish_cook_v2(
+         '00000000-0000-4000-8000-000000000021', 2, null, '2026-09-21', 'dinner',
+         '[{"member_id":"${yo.rows[0].id}","servings":1},
+           {"member_id":"${mBruno.rows[0].id}","servings":1}]'::jsonb
+       ) as out`,
+    )) as { rows: { out: { plan_entry_id: string } }[] };
+    expect(res.rows[0].out.plan_entry_id).toBeTruthy();
+
+    const pantry = await db.query<{ quantity: string }>(
+      `select quantity::float8 as quantity from public.pantry_item
+         where ingredient_id = '00000000-0000-4000-8000-000000000020'`,
+    );
+    expect(Number(pantry.rows[0].quantity)).toBe(400);
+
+    const shares = await db.query<{ n: number }>('select count(*)::int as n from public.intake_share');
+    expect(shares.rows[0].n).toBe(2);
+    await db.close();
+  }, 120_000);
+
+  it('finish_cook_v2 rechaza p_shares que no es una lista', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    await db.exec(`
+      insert into public.recipe (id, household_id, name, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000022', '${h.rows[0].id}', 'Tortilla', 350);
+    `);
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `select public.finish_cook_v2(
+           '00000000-0000-4000-8000-000000000022', 1, null, '2026-09-21', 'lunch',
+           '{"member_id":"x"}'::jsonb)`,
+      ),
+    ).rejects.toThrow(/REZET_BAD_SHARES/);
+    await db.close();
+  }, 120_000);
+
+  it('finish_cook_v2 con el mismo miembro repetido en p_shares se queda con el último valor', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    await db.exec(`
+      insert into public.recipe (id, household_id, name, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000023', '${h.rows[0].id}', 'Pisto', 320);
+    `);
+
+    const res = (await asUser(
+      db,
+      ana,
+      `select public.finish_cook_v2(
+         '00000000-0000-4000-8000-000000000023', 1, null, '2026-09-21', 'lunch',
+         '[{"member_id":"${yo.rows[0].id}","servings":1},
+           {"member_id":"${yo.rows[0].id}","servings":2}]'::jsonb
+       ) as out`,
+    )) as { rows: { out: { plan_entry_id: string } }[] };
+    expect(res.rows[0].out.plan_entry_id).toBeTruthy();
+
+    const share = await db.query<{ n: number; servings: string }>(
+      'select count(*)::int as n, max(servings)::text as servings from public.intake_share',
+    );
+    expect(share.rows[0].n).toBe(1);
+    expect(Number(share.rows[0].servings)).toBe(2);
+    await db.close();
+  }, 120_000);
+
   // ── Tarea de endurecimiento: 20260921090300_rezet_intake_hardening.sql ──
   it('delete_ward_member se lleva el member_body del tutelado', async () => {
     const db = await applyMigrations();
