@@ -33,6 +33,7 @@ import { KomprappLinkSheet } from './sheets/KomprappLinkSheet';
 import { AccountHouseholdSheet } from './sheets/AccountHouseholdSheet';
 import { HouseholdSheet } from './sheets/HouseholdSheet';
 import { MemberSheet } from './sheets/MemberSheet';
+import { MemberTargetSheet } from './sheets/MemberTargetSheet';
 import { LeaveConfirmDialog, LeaveLastMemberDialog, LeaveLastAdminDialog } from './sheets/LeaveHouseholdDialogs';
 import { RemoveMemberDialog, SignOutEverywhereDialog } from './sheets/MemberAndSessionDialogs';
 import { DeleteIntroSheet, DeleteConfirmDialog } from './sheets/DeleteHouseholdFlow';
@@ -63,6 +64,7 @@ type SheetState =
   | { kind: 'accountHousehold' }
   | { kind: 'household' }
   | { kind: 'member'; memberId: MemberId }
+  | { kind: 'memberTarget'; memberId: MemberId }
   | { kind: 'removeMember'; member: { id: string; displayName: string } }
   | { kind: 'signOutEverywhere' }
   | { kind: 'leaveConfirm' }
@@ -197,6 +199,9 @@ function MainApp({
     // `MemberSheet` deriva "quién soy"/"soy admin" de `household.members`
     // (ver `HouseholdSheet.tsx`), igual que `HouseholdSheet` misma.
     sheet?.kind === 'member' ||
+    // "Tu objetivo" (`MemberTargetSheet`) cuelga de `MemberSheet` igual que
+    // el resto de este flujo: necesita el mismo `household.members` cargado.
+    sheet?.kind === 'memberTarget' ||
     sheet?.kind === 'removeMember' ||
     sheet?.kind === 'leaveConfirm' ||
     sheet?.kind === 'leaveLastMember' ||
@@ -492,7 +497,20 @@ function MainApp({
       )}
 
       {sheet?.kind === 'member' && (
-        <MemberSheet memberId={sheet.memberId} onClose={() => setSheet({ kind: 'household' })} onToast={show} />
+        <MemberSheet
+          memberId={sheet.memberId}
+          onClose={() => setSheet({ kind: 'household' })}
+          onToast={show}
+          onOpenTarget={(memberId) => setSheet({ kind: 'memberTarget', memberId })}
+        />
+      )}
+
+      {sheet?.kind === 'memberTarget' && (
+        <MemberTargetSheet
+          memberId={sheet.memberId}
+          onClose={() => setSheet({ kind: 'member', memberId: sheet.memberId })}
+          onToast={show}
+        />
       )}
 
       {sheet?.kind === 'removeMember' && (
