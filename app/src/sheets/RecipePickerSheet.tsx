@@ -11,7 +11,15 @@ import type { MealSlot } from '../types';
 
 export type PickerTarget =
   | { kind: 'slot'; date: string; slot: MealSlot }
-  | { kind: 'recipe'; recipeId: string };
+  | { kind: 'recipe'; recipeId: string }
+  /**
+   * Tarea 11 ("Añadir lo que comí"): elegir una receta sin más — a
+   * diferencia de 'slot'/'recipe', no toca el plan (nada de `addPlanEntry`
+   * ni toast). `IntakeAddSheet` la usa para su pestaña "Receta": solo hace
+   * falta saber qué receta se eligió para calcular kcal, no plantarla en un
+   * día ni una comida.
+   */
+  | { kind: 'choose'; onPick: (recipeId: string) => void };
 
 /**
  * Doble uso: elegir receta para un hueco, o elegir hueco para una receta.
@@ -32,7 +40,7 @@ export function RecipePickerSheet({
 }) {
   const { t, locale, loc } = usePrefs();
   const { recipes, addPlanEntry } = useData();
-  const noRecipes = target.kind === 'slot' && recipes.length === 0;
+  const noRecipes = (target.kind === 'slot' || target.kind === 'choose') && recipes.length === 0;
 
   const rows =
     target.kind === 'slot'
@@ -46,23 +54,33 @@ export function RecipePickerSheet({
             onToast(t.added);
           },
         }))
-      : Array.from({ length: 7 }).flatMap((_, i) => {
-          const day = addDays(mondayOf(weekOffset), i);
-          const key = dateKey(day);
-          return (['lunch', 'dinner'] as MealSlot[]).map((slot) => ({
-            key: `${key}-${slot}`,
-            name: day.toLocaleDateString(locale === 'es' ? 'es-ES' : 'en-US', {
-              weekday: 'long',
-              day: 'numeric',
-            }),
-            meta: t[slot],
+      : target.kind === 'recipe'
+        ? Array.from({ length: 7 }).flatMap((_, i) => {
+            const day = addDays(mondayOf(weekOffset), i);
+            const key = dateKey(day);
+            return (['lunch', 'dinner'] as MealSlot[]).map((slot) => ({
+              key: `${key}-${slot}`,
+              name: day.toLocaleDateString(locale === 'es' ? 'es-ES' : 'en-US', {
+                weekday: 'long',
+                day: 'numeric',
+              }),
+              meta: t[slot],
+              onTap: () => {
+                addPlanEntry(target.recipeId, key, slot);
+                onClose();
+                onToast(t.added);
+              },
+            }));
+          })
+        : recipes.map((r) => ({
+            key: r.id,
+            name: loc(r.name),
+            meta: `${r.minutes} min · ${r.kcalPerServing} ${t.kcal} · ${r.baseServings}×`,
             onTap: () => {
-              addPlanEntry(target.recipeId, key, slot);
+              target.onPick(r.id);
               onClose();
-              onToast(t.added);
             },
           }));
-        });
 
   return (
     <Sheet title={t.pickRecipe} onClose={onClose}>
@@ -104,9 +122,11 @@ export function RecipePickerSheet({
           </div>
         ) : (
           <>
-        <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 14 }}>
-          {target.kind === 'slot' ? t.pickForSlot : t.pickSlot}
-        </div>
+        {target.kind !== 'choose' && (
+          <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 14 }}>
+            {target.kind === 'slot' ? t.pickForSlot : t.pickSlot}
+          </div>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {rows.map((row) => (
             <Pressable

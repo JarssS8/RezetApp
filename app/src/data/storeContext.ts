@@ -2,10 +2,13 @@ import { createContext, useContext } from 'react';
 import type {
   Accent,
   Difficulty,
+  ExtraInput,
+  FrequentExtra,
   HouseholdDetail,
   Ingredient,
   MealSlot,
   Member,
+  MemberBody,
   MemberId,
   PantryItem,
   PantryLoc,
@@ -15,6 +18,7 @@ import type {
   ShoppingNeed,
   Unit,
 } from '../types';
+import type { DayIntake, DayTotal } from '../domain/intake';
 
 /**
  * Contrato compartido por las dos capas de datos: `store.tsx` (demo,
@@ -144,11 +148,17 @@ export interface Store {
    * El valor de retorno no lo usa ninguna pantalla hoy (la vista previa de
    * "¿Cómo ha salido?" calcula sus propios shortages con `shortagesFor`,
    * puro y local); se deja tipado por si algún día hace falta.
+   *
+   * `shares`: quién come de lo cocinado y cuántas raciones — se escribe en
+   * `intake_share` DENTRO de la misma transacción que descuenta la despensa
+   * (`rpc/finish_cook_v2`), nunca en una llamada aparte: si esa segunda
+   * llamada fallara, un "no lo cené" se perdería en silencio.
    */
   finishCook: (input: {
     recipeId: string;
     servings: number;
     planEntryId: string | null;
+    shares: { memberId: MemberId; servings: number }[];
   }) => Promise<Shortage[]>;
   shortagesFor: (recipe: Recipe, servings: number) => Shortage[];
 
@@ -213,6 +223,38 @@ export interface Store {
    * hace nada.
    */
   setHouseholdSheetOpen: (open: boolean) => void;
+
+  /**
+   * Datos corporales de un miembro: los propios, o los de un miembro sin
+   * cuenta a tu cargo. `null` si no hay datos o no tienes acceso — la RLS
+   * decide, y el cliente no puede pedir los de otro adulto aunque quiera.
+   */
+  bodyOf: (memberId: MemberId) => MemberBody | null;
+  /**
+   * `true` mientras la consulta de datos corporales del hogar está en
+   * curso (solo la primera carga, no cada refetch en segundo plano). Antes
+   * de que resuelva, `bodyOf` da `null` para cualquier miembro, igual que
+   * "no hay datos guardados" — sin esta señal un formulario no puede
+   * distinguir "todavía no sé" de "no hay nada", y guardar en esa ventana
+   * borraría en silencio datos que sí existen.
+   */
+  bodyLoading: boolean;
+  /**
+   * Contrato: `rpc/set_member_body`. El objetivo va YA CALCULADO con
+   * `domain/nutrition.ts`: la fórmula vive ahí y solo ahí.
+   */
+  setMyBody: (memberId: MemberId, patch: Partial<MemberBody>, kcalTarget: number | null) => Promise<void>;
+
+  /** Puro, sobre datos ya descargados. Ver `domain/intake.ts`. */
+  intakeOfDayFor: (memberId: MemberId, date: string) => DayIntake;
+  /** Raciones de un miembro en una comida del plan. 0 = no la comió. */
+  setShare: (memberId: MemberId, planEntryId: string, servings: number) => Promise<void>;
+  addExtra: (input: ExtraInput) => Promise<string>;
+  removeExtra: (id: string) => Promise<void>;
+  /** Los que más repite, derivados de su historial. No hay tabla de favoritos. */
+  frequentExtras: (memberId: MemberId) => FrequentExtra[];
+  /** Totales por día para la pantalla de progreso. */
+  weekTotalsFor: (memberId: MemberId, dates: string[]) => DayTotal[];
 }
 
 export const StoreCtx = createContext<Store | null>(null);

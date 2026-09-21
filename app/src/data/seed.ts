@@ -1,6 +1,6 @@
-import { offsetKey } from '../domain/dates';
+import { offsetKey, todayKey } from '../domain/dates';
 import { asMemberId, asProfileId } from '../types';
-import type { Ingredient, Member, PantryItem, PlanEntry, Recipe } from '../types';
+import type { Ingredient, IntakeExtra, Member, MemberBody, PantryItem, PlanEntry, Recipe } from '../types';
 
 /**
  * Datos de arranque de la demo.
@@ -284,4 +284,32 @@ export const MEMBERS: Member[] = [
     displayName: 'Jars', avatarPath: null, color: 'blue', sortOrder: 1, kcalTarget: 2500, deletedAt: null },
   { id: asMemberId('demo-nico'), authUserId: null, isWard: true,
     displayName: 'Nico', avatarPath: null, color: 'amber', sortOrder: 2, kcalTarget: 1600, deletedAt: null },
+];
+
+/**
+ * Datos corporales de Ana (`MEMBERS[0]`, la propia de la demo): sin esto
+ * `bodyOf(MEMBERS[0].id)` da `null` y la demo no enseña nada de nutrición
+ * personal hasta que alguien rellena el formulario a mano. Igual que en producción, la
+ * fórmula de `domain/nutrition.ts` calcularía el objetivo a partir de estos
+ * datos — aquí se deja fijo `kcalTarget` en `MEMBERS[0]` en vez de
+ * recalcularlo, para no duplicar esa cuenta en el seed.
+ */
+export const MEMBER_BODY: MemberBody = {
+  sex: 'female',
+  birthYear: 1991,
+  heightCm: 168,
+  weightKg: 62,
+  activity: 'light',
+  goal: 'maintain',
+};
+
+/**
+ * Un par de extras de HOY (`todayKey()`, nunca una fecha fija: con una fecha
+ * fija la demo se vería vacía en cuanto pasara ese día). Solo `source:
+ * 'manual'` porque son los únicos que cuentan para `frequentExtras`.
+ */
+export const INTAKE_EXTRAS: IntakeExtra[] = [
+  { id: 'extra1', memberId: asMemberId('demo-ana'), date: todayKey(), label: 'Café con leche', kcal: 90, source: 'manual', recipeId: null },
+  { id: 'extra2', memberId: asMemberId('demo-ana'), date: todayKey(), label: 'Cerveza', kcal: 150, source: 'manual', recipeId: null },
+  { id: 'extra3', memberId: asMemberId('demo-ana'), date: todayKey(), label: 'Onza de chocolate', kcal: 55, source: 'manual', recipeId: null },
 ];

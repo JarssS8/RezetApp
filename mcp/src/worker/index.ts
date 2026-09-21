@@ -39,6 +39,7 @@ function mcpHandlerFor(env: Env) {
       return createRezetServer({
         supabase,
         householdId: props.householdId,
+        userId: props.userId,
         locale: props.locale,
         reauthHint: 'Your Rezet connection expired. Reconnect the Rezet connector in your AI client to sign in again.',
       });

@@ -10,6 +10,7 @@ import { StoreCtx, type RecipeDraft, type Store } from './storeContext';
 import type {
   HouseholdDetail,
   MealSlot,
+  MemberId,
   PantryItem,
   PantryLoc,
   PlanEntry,
@@ -44,6 +45,7 @@ import {
 } from './supabaseStore/rows';
 import { storeKeys } from './supabaseStore/keys';
 import { useMembers } from './supabaseStore/useMembers';
+import { useIntake } from './supabaseStore/useIntake';
 
 const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
 
@@ -287,6 +289,18 @@ export function SupabaseDataProvider({
     () => Array.from(new Set((recipesQ.data ?? []).flatMap((r) => r.tags))),
     [recipesQ.data],
   );
+
+  const {
+    bodyOf,
+    bodyLoading,
+    setMyBody,
+    intakeOfDayFor,
+    setShare,
+    addExtra,
+    removeExtra,
+    frequentExtras,
+    weekTotalsFor,
+  } = useIntake(householdId, myMemberId, recipeById, planQ.data ?? []);
 
   const { stockOf, needOf, coverageOf, needsForWeek, shortagesFor } = useMemo(
     () =>
@@ -596,26 +610,44 @@ export function SupabaseDataProvider({
   );
 
   const finishCookMut = useMutation({
-    mutationFn: async (input: { recipeId: string; servings: number; planEntryId: string | null }) => {
-      const { data, error } = await supabase.rpc('finish_cook', {
+    mutationFn: async (input: {
+      recipeId: string;
+      servings: number;
+      planEntryId: string | null;
+      shares: { memberId: MemberId; servings: number }[];
+    }) => {
+      // `finish_cook_v2` (no `finish_cook`, que se queda solo como
+      // envoltorio para clientes cacheados): escribe el reparto de raciones
+      // en la misma transacción que descuenta la despensa, y devuelve un
+      // objeto `{ shortages, plan_entry_id }`, no el array de la versión vieja.
+      const { data, error } = await supabase.rpc('finish_cook_v2', {
         p_recipe_id: input.recipeId,
         p_servings: input.servings,
         p_plan_entry_id: input.planEntryId,
         p_today: todayKey(),
         p_slot: slotForNow(),
+        p_shares: input.shares.map((s) => ({ member_id: s.memberId, servings: s.servings })),
       });
       if (error) throw error;
-      return (data ?? []) as Shortage[];
+      const result = data as { shortages?: Shortage[] } | null;
+      return (result?.shortages ?? []) as Shortage[];
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: pantryKey });
       void queryClient.invalidateQueries({ queryKey: planKey });
       void queryClient.invalidateQueries({ queryKey: recipesKey });
+      // Las raciones recién escritas por `finish_cook_v2` afectan a lo que
+      // come cada miembro hoy (pantalla Hoy / progreso semanal).
+      void queryClient.invalidateQueries({ queryKey: storeKeys.intakeShares(householdId) });
     },
   });
   const finishCook = useCallback(
-    (input: { recipeId: string; servings: number; planEntryId: string | null }) =>
-      finishCookMut.mutateAsync(input),
+    (input: {
+      recipeId: string;
+      servings: number;
+      planEntryId: string | null;
+      shares: { memberId: MemberId; servings: number }[];
+    }) => finishCookMut.mutateAsync(input),
     [finishCookMut],
   );
 
@@ -770,6 +802,15 @@ export function SupabaseDataProvider({
       setKomprappListToken,
       deleteAccount,
       setHouseholdSheetOpen,
+      bodyOf,
+      bodyLoading,
+      setMyBody,
+      intakeOfDayFor,
+      setShare,
+      addExtra,
+      removeExtra,
+      frequentExtras,
+      weekTotalsFor,
     }),
     [
       ingredientsQ.data,
@@ -809,6 +850,15 @@ export function SupabaseDataProvider({
       removeMember,
       setKomprappListToken,
       deleteAccount,
+      bodyOf,
+      bodyLoading,
+      setMyBody,
+      intakeOfDayFor,
+      setShare,
+      addExtra,
+      removeExtra,
+      frequentExtras,
+      weekTotalsFor,
     ],
   );
 

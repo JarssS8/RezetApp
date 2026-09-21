@@ -14,7 +14,7 @@ describe('mapOpenFoodFactsProduct', () => {
         status: 1,
         product: { product_name: 'Lentejas', product_quantity: 500, product_quantity_unit: 'g' },
       }),
-    ).toEqual({ name: 'Lentejas', quantity: 500, unit: 'g' });
+    ).toEqual({ name: 'Lentejas', quantity: 500, unit: 'g', kcalPer100g: null });
   });
   it('normaliza kg a gramos', () => {
     expect(
@@ -22,7 +22,7 @@ describe('mapOpenFoodFactsProduct', () => {
         status: 1,
         product: { product_name: 'Arroz', product_quantity: 1.5, product_quantity_unit: 'kg' },
       }),
-    ).toEqual({ name: 'Arroz', quantity: 1500, unit: 'g' });
+    ).toEqual({ name: 'Arroz', quantity: 1500, unit: 'g', kcalPer100g: null });
   });
   it('normaliza litros a mililitros', () => {
     expect(
@@ -30,7 +30,7 @@ describe('mapOpenFoodFactsProduct', () => {
         status: 1,
         product: { product_name: 'Leche', product_quantity: 1, product_quantity_unit: 'l' },
       }),
-    ).toEqual({ name: 'Leche', quantity: 1000, unit: 'ml' });
+    ).toEqual({ name: 'Leche', quantity: 1000, unit: 'ml', kcalPer100g: null });
   });
   it('normaliza centilitros a mililitros', () => {
     expect(
@@ -38,7 +38,7 @@ describe('mapOpenFoodFactsProduct', () => {
         status: 1,
         product: { product_name: 'Refresco', product_quantity: 33, product_quantity_unit: 'cl' },
       }),
-    ).toEqual({ name: 'Refresco', quantity: 330, unit: 'ml' });
+    ).toEqual({ name: 'Refresco', quantity: 330, unit: 'ml', kcalPer100g: null });
   });
   it('cae a 1 ud si el unit no se reconoce', () => {
     expect(
@@ -46,14 +46,43 @@ describe('mapOpenFoodFactsProduct', () => {
         status: 1,
         product: { product_name: 'Cosa rara', product_quantity: 4, product_quantity_unit: 'oz' },
       }),
-    ).toEqual({ name: 'Cosa rara', quantity: 1, unit: 'ud' });
+    ).toEqual({ name: 'Cosa rara', quantity: 1, unit: 'ud', kcalPer100g: null });
   });
   it('cae a 1 ud si no hay product_quantity', () => {
     expect(mapOpenFoodFactsProduct({ status: 1, product: { product_name: 'Manzana' } })).toEqual({
       name: 'Manzana',
       quantity: 1,
       unit: 'ud',
+      kcalPer100g: null,
     });
+  });
+  it('lee energy-kcal_100g cuando viene en nutriments', () => {
+    expect(
+      mapOpenFoodFactsProduct({
+        status: 1,
+        product: {
+          product_name: 'Galletas',
+          product_quantity: 200,
+          product_quantity_unit: 'g',
+          nutriments: { 'energy-kcal_100g': 480 },
+        },
+      }),
+    ).toEqual({ name: 'Galletas', quantity: 200, unit: 'g', kcalPer100g: 480 });
+  });
+  it('kcalPer100g es null si nutriments no trae el campo o tiene un tipo raro', () => {
+    expect(
+      mapOpenFoodFactsProduct({
+        status: 1,
+        product: { product_name: 'Sin datos', nutriments: {} },
+      })?.kcalPer100g,
+    ).toBeNull();
+    expect(
+      mapOpenFoodFactsProduct({
+        status: 1,
+        // @ts-expect-error tipo raro a propósito, para probar el saneo defensivo
+        product: { product_name: 'Tipo raro', nutriments: { 'energy-kcal_100g': '480' } },
+      })?.kcalPer100g,
+    ).toBeNull();
   });
 });
 

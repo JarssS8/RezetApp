@@ -123,10 +123,16 @@ function ScanTutorial({ onDone }: { onDone: () => void }) {
   );
 }
 
-async function lookupBarcode(code: string): Promise<{ name: string; quantity: number; unit: Unit } | null> {
+async function lookupBarcode(
+  code: string,
+): Promise<{ name: string; quantity: number; unit: Unit; kcalPer100g: number | null } | null> {
   try {
+    // `nutriments` va en la misma llamada a un origen ya permitido por el CSP
+    // (`world.openfoodfacts.org`, `_headers`) — pedir un campo más no abre
+    // ningún origen nuevo. Solo se lee `energy-kcal_100g` de ahí dentro (ver
+    // `kcalPer100gOf` en `domain/pantryImport.ts`).
     const res = await fetch(
-      `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,quantity,product_quantity,product_quantity_unit`,
+      `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,quantity,product_quantity,product_quantity_unit,nutriments`,
     );
     if (!res.ok) return null;
     return mapOpenFoodFactsProduct((await res.json()) as OffApiResponse);
@@ -146,7 +152,19 @@ export function PantryScanCapture({
   onManual,
 }: {
   allowPhoto: boolean;
-  onResult: (item: { name: string; quantity?: number; unit?: Unit; expiresOn?: string }) => void;
+  /**
+   * `kcalPer100g` solo llega por el camino de código de barras (Open Food
+   * Facts) — el reconocimiento por foto (Gemini) no lo pide ni lo necesita,
+   * así que queda `undefined` en ese camino. `PantryAddSheet` lo ignora sin
+   * más; `IntakeAddSheet` (pestaña "Código") es quien lo usa de verdad.
+   */
+  onResult: (item: {
+    name: string;
+    quantity?: number;
+    unit?: Unit;
+    expiresOn?: string;
+    kcalPer100g?: number | null;
+  }) => void;
   onManual: () => void;
 }) {
   const { t } = usePrefs();

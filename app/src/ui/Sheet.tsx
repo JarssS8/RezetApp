@@ -6,6 +6,36 @@ import { EASE_SHEET } from '../motion/motion';
 import { maxW, radius, text as T } from './tokens';
 
 /**
+ * Pila de hojas `<Sheet>` montadas, en orden de montaje (a nivel de módulo:
+ * la comparten todas las instancias de la app). Hace falta porque
+ * `IntakeAddSheet` monta `<RecipePickerSheet>` — que es a su vez un
+ * `<Sheet>` — dentro de su propio `<Sheet>`, así que puede haber dos
+ * instancias escuchando `keydown` en el mismo `document` a la vez. Cada una
+ * tiene su propio `e.stopPropagation()`, pero eso solo corta la
+ * *propagación* por el árbol del DOM: no impide que el resto de listeners
+ * registrados en ese mismo `document` se ejecuten (para eso haría falta
+ * `stopImmediatePropagation`, y ni con eso alcanzaría, porque el orden de
+ * registro no tiene por qué coincidir con "la hoja que se ve encima"). Sin
+ * esta pila, Escape ejecuta los `dismiss()` de las dos hojas: se cierra el
+ * selector de recetas y toda la hoja que lo contiene de un solo golpe.
+ * Cada `Sheet` se apunta a la pila al montarse y se da de baja en la
+ * limpieza del `useEffect` — nunca en un `onClose` manual — para que
+ * cualquier vía de desmontaje (Escape, botón de cerrar, o que el padre deje
+ * de renderizarla) la retire igual; si no, la pila acumula ids fantasma y
+ * Escape deja de responder en toda la app tras un rato de uso.
+ *
+ * Esta pila asume que la última hoja en montarse es la de arriba. Eso es
+ * cierto mientras las hojas anidadas se abran por interacción del usuario
+ * (la hoja padre ya está montada cuando la hija aparece). Si alguna vez una
+ * hoja hija se monta en el MISMO commit que su padre, React ejecuta el
+ * efecto del hijo antes que el del padre y el orden de la pila queda
+ * invertido — Escape respondería en la hoja equivocada. Hoy no pasa en
+ * ningún sitio de la app; quien añada un anidamiento nuevo debe saberlo.
+ */
+let nextSheetId = 0;
+const openSheetStack: number[] = [];
+
+/**
  * Hoja inferior arrastrable.
  *
  * Diálogo modal: atrapa el foco, cierra con Escape y devuelve el foco al
@@ -23,12 +53,33 @@ export function Sheet({
   const { y, fading, scrimOpacity, onPointerDown, dismiss } = useSheetDrag(onClose);
   const panel = useRef<HTMLDivElement>(null);
   const restoreTo = useRef<Element | null>(null);
+  // Id estable por instancia, asignado una sola vez (no en un efecto: hace
+  // falta antes del primer registro en la pila).
+  const idRef = useRef<number>();
+  if (idRef.current === undefined) idRef.current = ++nextSheetId;
+
+  // Registro/baja en la pila, separado del efecto de teclado para que no
+  // dependa de `dismiss` — se apunta una vez al montar y se da de baja una
+  // vez al desmontar, sea cual sea el motivo del desmontaje.
+  useEffect(() => {
+    const id = idRef.current!;
+    openSheetStack.push(id);
+    return () => {
+      const at = openSheetStack.indexOf(id);
+      if (at !== -1) openSheetStack.splice(at, 1);
+    };
+  }, []);
 
   useEffect(() => {
     restoreTo.current = document.activeElement;
     panel.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // Solo la última hoja montada (la de arriba) reacciona a Escape —
+        // ver el comentario de `openSheetStack` más arriba. Con una sola
+        // hoja abierta (el 99 % de los casos) esto es un no-op: siempre es
+        // la única de la pila.
+        if (openSheetStack[openSheetStack.length - 1] !== idRef.current) return;
         e.stopPropagation();
         dismiss();
         return;

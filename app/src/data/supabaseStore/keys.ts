@@ -13,4 +13,7 @@ export const storeKeys = {
   household: (householdId: string) => ['household', householdId] as const,
   householdMembers: (householdId: string) => ['householdMembers', householdId] as const,
   members: (householdId: string) => ['members', householdId] as const,
+  body: (householdId: string) => ['memberBody', householdId] as const,
+  intakeShares: (householdId: string) => ['intakeShares', householdId] as const,
+  intakeExtras: (householdId: string) => ['intakeExtras', householdId] as const,
 };

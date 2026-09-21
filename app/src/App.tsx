@@ -6,6 +6,7 @@ import { useAuth } from './data/auth';
 import { DataProvider } from './data/store';
 import { SupabaseDataProvider } from './data/supabaseStore';
 import { useData } from './data/storeContext';
+import { stripHouseholdErrorTag } from './data/householdErrors';
 import { haptics } from './motion/motion';
 import { AppShell, type Tab } from './app/AppShell';
 import { PrefsBridge } from './app/PrefsBridge';
@@ -13,6 +14,7 @@ import { Login } from './screens/Login';
 import { CreateOrJoinHousehold } from './screens/CreateOrJoinHousehold';
 import { Onboarding } from './screens/Onboarding';
 import { Today } from './screens/Today';
+import { Week } from './screens/Week';
 import { Recipes } from './screens/Recipes';
 import { RecipeDetail } from './screens/RecipeDetail';
 import { IdeaDetail } from './screens/IdeaDetail';
@@ -26,6 +28,7 @@ import { SettingsSheet } from './sheets/SettingsSheet';
 import { ShoppingSheet } from './sheets/ShoppingSheet';
 import { PantryAddSheet } from './sheets/PantryAddSheet';
 import { RecipePickerSheet, type PickerTarget } from './sheets/RecipePickerSheet';
+import { IntakeAddSheet } from './sheets/IntakeAddSheet';
 import { CookFinishSheet } from './sheets/CookFinishSheet';
 import { InviteSheet } from './sheets/InviteSheet';
 import { ConnectMcpSheet } from './sheets/ConnectMcpSheet';
@@ -33,6 +36,7 @@ import { KomprappLinkSheet } from './sheets/KomprappLinkSheet';
 import { AccountHouseholdSheet } from './sheets/AccountHouseholdSheet';
 import { HouseholdSheet } from './sheets/HouseholdSheet';
 import { MemberSheet } from './sheets/MemberSheet';
+import { MemberTargetSheet } from './sheets/MemberTargetSheet';
 import { LeaveConfirmDialog, LeaveLastMemberDialog, LeaveLastAdminDialog } from './sheets/LeaveHouseholdDialogs';
 import { RemoveMemberDialog, SignOutEverywhereDialog } from './sheets/MemberAndSessionDialogs';
 import { DeleteIntroSheet, DeleteConfirmDialog } from './sheets/DeleteHouseholdFlow';
@@ -50,12 +54,14 @@ type Push =
   | { kind: 'new' }
   | { kind: 'edit'; recipeId: string }
   | { kind: 'idea'; ideaId: string }
+  | { kind: 'week' }
   | null;
 type SheetState =
   | { kind: 'settings' }
   | { kind: 'shopping' }
   | { kind: 'pantryAdd' }
   | { kind: 'picker'; target: PickerTarget }
+  | { kind: 'intakeAdd' }
   | { kind: 'finish' }
   | { kind: 'invite' }
   | { kind: 'connectMcp' }
@@ -63,6 +69,7 @@ type SheetState =
   | { kind: 'accountHousehold' }
   | { kind: 'household' }
   | { kind: 'member'; memberId: MemberId }
+  | { kind: 'memberTarget'; memberId: MemberId }
   | { kind: 'removeMember'; member: { id: string; displayName: string } }
   | { kind: 'signOutEverywhere' }
   | { kind: 'leaveConfirm' }
@@ -197,6 +204,9 @@ function MainApp({
     // `MemberSheet` deriva "quién soy"/"soy admin" de `household.members`
     // (ver `HouseholdSheet.tsx`), igual que `HouseholdSheet` misma.
     sheet?.kind === 'member' ||
+    // "Tu objetivo" (`MemberTargetSheet`) cuelga de `MemberSheet` igual que
+    // el resto de este flujo: necesita el mismo `household.members` cargado.
+    sheet?.kind === 'memberTarget' ||
     sheet?.kind === 'removeMember' ||
     sheet?.kind === 'leaveConfirm' ||
     sheet?.kind === 'leaveLastMember' ||
@@ -235,20 +245,42 @@ function MainApp({
     [cook, recipeById],
   );
 
+  // Evita un doble envío mientras la RPC de arriba está en vuelo: sin `await`
+  // (ver más abajo) un segundo toque en "Guardar" lanzaría una segunda
+  // transacción antes de que la primera hubiera terminado.
+  const cookSavingRef = useRef(false);
+
   const confirmCook = useCallback(
-    (servings: number) => {
-      if (!cookSession) return;
-      void finishCook({
-        recipeId: cookSession.recipeId,
-        servings,
-        planEntryId: cookSession.planEntryId,
-      });
-      setSheet(null);
-      cook.endCook();
-      haptics.cookSaved();
-      show(t.cookSaved);
+    (servings: number, shares: { memberId: MemberId; servings: number }[]) => {
+      if (!cookSession || cookSavingRef.current) return;
+      cookSavingRef.current = true;
+      // Hallazgo de revisión: esto se lanzaba con `void` y sin `catch`, así
+      // que el toast y la vibración de éxito se disparaban aunque la RPC
+      // rechazara la llamada — la fase añadió tres vías nuevas por las que
+      // `finish_cook_v2` puede lanzar (miembro de otro hogar, `p_shares` mal
+      // formado, etc.), y las tres deshacen la transacción entera: la
+      // despensa no se descuenta, el contador no sube y la comida no se
+      // marca. Con "Guardado" en pantalla, no había forma de saberlo.
+      void (async () => {
+        try {
+          await finishCook({
+            recipeId: cookSession.recipeId,
+            servings,
+            planEntryId: cookSession.planEntryId,
+            shares,
+          });
+          setSheet(null);
+          cook.endCook();
+          haptics.cookSaved();
+          show(t.cookSaved);
+        } catch (e) {
+          show(stripHouseholdErrorTag(e instanceof Error ? e.message : String(e)) || t.cookSaveError);
+        } finally {
+          cookSavingRef.current = false;
+        }
+      })();
     },
-    [cookSession, finishCook, cook, show, t.cookSaved],
+    [cookSession, finishCook, cook, show, t.cookSaved, t.cookSaveError],
   );
 
   /**
@@ -324,6 +356,9 @@ function MainApp({
             onCook={startCook}
             onGoPlan={() => setTab('plan')}
             onOpenSettings={() => setSheet({ kind: 'settings' })}
+            onAddIntake={() => setSheet({ kind: 'intakeAdd' })}
+            onOpenWeek={() => setPush({ kind: 'week' })}
+            onToast={show}
           />
         )}
         {tab === 'recipes' && (
@@ -370,6 +405,8 @@ function MainApp({
           onEdit={(recipeId) => setPush({ kind: 'edit', recipeId })}
         />
       )}
+
+      {push?.kind === 'week' && <Week onClose={() => setPush(null)} />}
 
       {(push?.kind === 'new' || push?.kind === 'edit') && (
         <RecipeForm
@@ -424,6 +461,8 @@ function MainApp({
       {sheet?.kind === 'pantryAdd' && (
         <PantryAddSheet onClose={() => setSheet(null)} onToast={show} allowPhoto={!demo} />
       )}
+
+      {sheet?.kind === 'intakeAdd' && <IntakeAddSheet onClose={() => setSheet(null)} onToast={show} />}
 
       {sheet?.kind === 'picker' && (
         <RecipePickerSheet
@@ -492,7 +531,20 @@ function MainApp({
       )}
 
       {sheet?.kind === 'member' && (
-        <MemberSheet memberId={sheet.memberId} onClose={() => setSheet({ kind: 'household' })} onToast={show} />
+        <MemberSheet
+          memberId={sheet.memberId}
+          onClose={() => setSheet({ kind: 'household' })}
+          onToast={show}
+          onOpenTarget={(memberId) => setSheet({ kind: 'memberTarget', memberId })}
+        />
+      )}
+
+      {sheet?.kind === 'memberTarget' && (
+        <MemberTargetSheet
+          memberId={sheet.memberId}
+          onClose={() => setSheet({ kind: 'member', memberId: sheet.memberId })}
+          onToast={show}
+        />
       )}
 
       {sheet?.kind === 'removeMember' && (

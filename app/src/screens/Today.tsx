@@ -1,20 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
-import { SLOT_ORDER, longDate, todayKey } from '../domain/dates';
+import { longDate, todayKey } from '../domain/dates';
 import { entriesOfDay } from '../domain/shopping';
 import { formatKcal } from '../domain/units';
+import type { MealLine } from '../domain/intake';
 import { prefersReducedMotion } from '../motion/motion';
 import { Button, IconButton } from '../ui/Button';
 import { Card, Eyebrow, SectionHeader } from '../ui/Card';
-import { Pill } from '../ui/Chip';
 import { Icon } from '../ui/Icon';
 import { Pressable } from '../ui/Pressable';
 import { ScreenBody, ScreenHeader } from '../ui/Fields';
-import { maxW, radius, tabular, text as T } from '../ui/tokens';
-import type { MealSlot, PlanEntry } from '../types';
+import { height, maxW, radius, tabular, text as T } from '../ui/tokens';
+import type { PlanEntry, Recipe } from '../types';
 
 const RING_CIRCUMFERENCE = 263.9;
+
+/** Media, entera, y media más raciones — las cuatro opciones del segmentado de reparto. */
+const SHARE_OPTIONS: Array<{ value: number; label: string }> = [
+  { value: 0.5, label: '½' },
+  { value: 1, label: '1' },
+  { value: 1.5, label: '1½' },
+  { value: 2, label: '2' },
+];
 
 /** Hoy responde una pregunta: qué toca comer y qué hago con ello. */
 export function Today({
@@ -22,37 +30,74 @@ export function Today({
   onCook,
   onGoPlan,
   onOpenSettings,
+  onAddIntake,
+  onOpenWeek,
+  onToast,
   isWide,
 }: {
   onOpenRecipe: (recipeId: string, servings: number) => void;
   onCook: (recipeId: string, servings: number, planEntryId: string | null) => void;
   onGoPlan: () => void;
   onOpenSettings: () => void;
+  /** Abre `IntakeAddSheet`, la hoja de "añadir algo que comí" (Tarea 11). */
+  onAddIntake: () => void;
+  /** Abre "Tu semana" (Tarea 13): la fila bajo el anillo. */
+  onOpenWeek: () => void;
+  /** Toast de error al borrar un extra (hallazgo de revisión: antes no se podía). */
+  onToast: (message: string) => void;
   isWide: boolean;
 }) {
   const { t, locale, loc } = usePrefs();
-  const { plan, recipes, recipeById, kcalTarget: householdKcalTarget, coverageOf, members, myMemberId } = useData();
+  const {
+    plan,
+    recipes,
+    recipeById,
+    kcalTarget: householdKcalTarget,
+    coverageOf,
+    members,
+    myMemberId,
+    intakeOfDayFor,
+    setShare,
+    removeExtra,
+  } = useData();
   const today = todayKey();
+
+  // Un extra a la vez: evita un doble borrado si se toca dos veces mientras
+  // la llamada sigue en vuelo, y sirve para deshabilitar solo SU botón.
+  const [removingExtraId, setRemovingExtraId] = useState<string | null>(null);
+  const handleRemoveExtra = async (id: string) => {
+    if (removingExtraId) return;
+    setRemovingExtraId(id);
+    try {
+      await removeExtra(id);
+    } catch {
+      onToast(t.memberActionError);
+    } finally {
+      setRemovingExtraId(null);
+    }
+  };
 
   // El anillo compara contra el objetivo PROPIO cuando existe (control por
   // persona, Tarea de fundación de miembro), cayendo al del hogar si no hay
   // sesión de miembro (demo, o carga inicial antes de que lleguen los
-  // miembros). El consumo que cuenta sigue siendo el de las comidas del
-  // hogar entero — eso no cambia en esta versión, ver CHANGELOG 1.9.0.
+  // miembros).
   const kcalTarget = members.find((m) => m.id === myMemberId)?.kcalTarget ?? householdKcalTarget;
 
   const entries = useMemo(() => entriesOfDay(today, plan), [today, plan]);
+  const entryById = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
 
-  const { done, planned } = useMemo(() => {
-    let d = 0;
-    let p = 0;
-    for (const e of entries) {
-      const kcal = (recipeById.get(e.recipeId)?.kcalPerServing ?? 0) * e.servings;
-      p += kcal;
-      if (e.cooked) d += kcal;
-    }
-    return { done: d, planned: p };
-  }, [entries, recipeById]);
+  // Lo que lleva comido HOY es lo que dice el registro de esta persona, no
+  // una suma de raciones de plato — ver `domain/intake.ts`. Calcularlo aquí
+  // sería una segunda fuente de verdad que acabaría divergiendo de las
+  // otras pantallas que también leen `intakeOfDayFor`.
+  const dayIntake = useMemo(
+    () =>
+      myMemberId
+        ? intakeOfDayFor(myMemberId, today)
+        : { done: 0, planned: 0, extras: 0, extraLines: [], meals: [] as MealLine[] },
+    [myMemberId, today, intakeOfDayFor],
+  );
+  const { done, planned, extraLines, meals } = dayIntake;
 
   const pct = kcalTarget > 0 ? Math.min(1, done / kcalTarget) : 0;
 
@@ -64,13 +109,6 @@ export function Today({
     setAnimatedPct(pct);
   }, [pct]);
 
-  const groups = useMemo(() => {
-    return SLOT_ORDER.map((slot) => ({
-      slot,
-      items: entries.filter((e) => e.slot === slot),
-    })).filter((g) => g.items.length > 0);
-  }, [entries]);
-
   const cookable = useMemo(
     () => recipes.filter((r) => coverageOf(r, r.baseServings).full).slice(0, 3),
     [recipes, coverageOf],
@@ -79,10 +117,16 @@ export function Today({
   const kcalLine = `${t.kcalOf} ${formatKcal(kcalTarget, locale)} ${t.kcal}${
     planned ? ` · ${t.planned} ${formatKcal(planned, locale)}` : ''
   }`;
+  // Pasarse del objetivo es un aviso (--warn/--warn-ink), nunca --accent:
+  // son tokens de papeles distintos y mezclarlos rompe el contraste.
+  const over = done - kcalTarget;
   const kcalHint =
-    done >= kcalTarget
-      ? t.kcalDoneAll
-      : `${t.kcalLeft} ${formatKcal(kcalTarget - done, locale)} ${t.kcal}`;
+    over > 0
+      ? `${t.overTarget} ${formatKcal(over, locale)} ${t.kcal}`
+      : done === kcalTarget
+        ? t.kcalDoneAll
+        : `${t.kcalLeft} ${formatKcal(kcalTarget - done, locale)} ${t.kcal}`;
+  const kcalHintColor = over > 0 ? 'var(--warn-ink)' : 'var(--accent-ink)';
 
   return (
     <ScreenBody maxWidth={maxW.today} label="Hoy">
@@ -135,25 +179,120 @@ export function Today({
           <div style={{ marginTop: 7, fontSize: 14.5, color: 'var(--muted)', letterSpacing: '-.005em' }}>
             {kcalLine}
           </div>
-          <div style={{ marginTop: 10, fontSize: 13.5, color: 'var(--accent-ink)', fontWeight: 600 }}>
+          <div style={{ marginTop: 10, fontSize: 13.5, color: kcalHintColor, fontWeight: 600 }}>
             {kcalHint}
           </div>
         </div>
       </Card>
 
-      {groups.length > 0 ? (
-        <div style={{ marginTop: 26, display: 'flex', flexDirection: 'column', gap: 22 }}>
-          {groups.map((group) => (
-            <MealGroup
-              key={group.slot}
-              slot={group.slot}
-              items={group.items}
-              onOpenRecipe={onOpenRecipe}
-              onCook={onCook}
-            />
+      {/* Entrada a "Tu semana" (Tarea 13): una fila bajo el anillo, no una
+       * pestaña propia — es un vistazo ocasional, no algo que se consulte
+       * cada día como Hoy o Plan. */}
+      <Pressable
+        onClick={onOpenWeek}
+        scale={0.98}
+        style={{
+          marginTop: 14,
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          padding: '13px 16px',
+          background: 'var(--surface)',
+          border: '1px solid var(--line)',
+          borderRadius: radius.list,
+          boxShadow: 'var(--shadow-s)',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, fontWeight: 600 }}>
+          <Icon name="calendar" size={18} strokeWidth={1.8} />
+          {t.yourWeek}
+        </span>
+        <Icon name="chevronRight" size={16} strokeWidth={2.2} />
+      </Pressable>
+
+      <div style={{ marginTop: 26 }}>
+        <SectionHeader label={t.yourDay} trailing={t.yourDayCount(meals.length)} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {meals.map((meal) => {
+            const entry = entryById.get(meal.planEntryId);
+            const recipe = recipeById.get(meal.recipeId);
+            if (!entry || !recipe) return null;
+            return (
+              <MealCard
+                key={meal.planEntryId}
+                meal={meal}
+                entry={entry}
+                recipe={recipe}
+                onOpenRecipe={onOpenRecipe}
+                onCook={onCook}
+                onSetShare={(servings) =>
+                  myMemberId && void setShare(myMemberId, meal.planEntryId, servings)
+                }
+              />
+            );
+          })}
+
+          {/* Una fila por extra, con su nombre y sus kcal — no una tarjeta
+           * genérica con el total: cada extra es una cosa distinta que la
+           * persona registró, no un agregado sin nombre. */}
+          {extraLines.map((extra) => (
+            <div
+              key={extra.id}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--line)',
+                borderRadius: radius.list,
+                padding: '14px 14px 14px 16px',
+                boxShadow: 'var(--shadow-s)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 14,
+              }}
+            >
+              <div
+                style={{
+                  ...T.cardTitle,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {extra.label}
+              </div>
+              <div style={{ ...tabular, fontSize: 14.5, fontWeight: 650, whiteSpace: 'nowrap' }}>
+                {formatKcal(extra.kcal, locale)} {t.kcal}
+              </div>
+              {/* Hallazgo de revisión: un extra registrado no se podía borrar
+               * — si te equivocabas de cifra, el anillo mentía el resto del
+               * día sin recurso, y encima contaminaba `frequentExtras`. */}
+              <IconButton
+                onClick={() => void handleRemoveExtra(extra.id)}
+                ariaLabel={t.removeExtraAction(extra.label)}
+                disabled={removingExtraId === extra.id}
+                size={height.touch}
+                style={{ color: 'var(--muted)' }}
+              >
+                <Icon name="trash" size={16} strokeWidth={1.9} />
+              </IconButton>
+            </div>
           ))}
         </div>
-      ) : (
+
+        <Button
+          full
+          size="primary"
+          onClick={onAddIntake}
+          icon={<Icon name="plus" size={16} />}
+          style={{ marginTop: 14, borderRadius: radius.button }}
+        >
+          {t.addWhatIAte}
+        </Button>
+      </div>
+
+      {entries.length === 0 && (
         <Card dashed style={{ marginTop: 20, padding: '36px 24px', textAlign: 'center' }}>
           <div style={{ fontSize: 18, fontWeight: 650, letterSpacing: '-.02em' }}>{t.emptyToday}</div>
           <div
@@ -216,84 +355,151 @@ export function Today({
   );
 }
 
-function MealGroup({
-  slot,
-  items,
+/**
+ * Una comida del plan de hoy. Solo cocinada muestra el reparto (segmentado
+ * ½/1/1½/2 + "No lo comí"): mientras no se cocine, la ración de nadie está
+ * decidida todavía, así que no hay nada que ajustar.
+ */
+function MealCard({
+  meal,
+  entry,
+  recipe,
   onOpenRecipe,
   onCook,
+  onSetShare,
 }: {
-  slot: MealSlot;
-  items: PlanEntry[];
+  meal: MealLine;
+  entry: PlanEntry;
+  recipe: Recipe;
   onOpenRecipe: (recipeId: string, servings: number) => void;
   onCook: (recipeId: string, servings: number, planEntryId: string | null) => void;
+  onSetShare: (servings: number) => void;
 }) {
   const { t, locale, loc } = usePrefs();
-  const { recipeById } = useData();
-  const kcal = items.reduce(
-    (sum, e) => sum + (recipeById.get(e.recipeId)?.kcalPerServing ?? 0) * e.servings,
-    0,
-  );
+  const cooked = meal.cooked;
+  // Lo que aportaría si se cocinara con la ración actual: todavía no cuenta,
+  // de ahí el "+" y el tono apagado.
+  const potentialKcal = recipe.kcalPerServing * meal.share;
 
   return (
-    <div>
-      <SectionHeader label={t[slot]} trailing={`${formatKcal(kcal, locale)} ${t.kcal}`} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {items.map((entry) => {
-          const recipe = recipeById.get(entry.recipeId);
-          if (!recipe) return null;
-          return (
-            <div
-              key={entry.id}
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--line)',
-                borderRadius: radius.list,
-                padding: '14px 14px 14px 16px',
-                boxShadow: 'var(--shadow-s)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 14,
-              }}
-            >
-              <Pressable
-                onClick={() => onOpenRecipe(recipe.id, entry.servings)}
-                scale={1}
-                style={{ flex: 1, minWidth: 0, textAlign: 'left' }}
-              >
-                <div
+    <div
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--line)',
+        borderRadius: radius.list,
+        padding: '14px 14px 14px 16px',
+        boxShadow: 'var(--shadow-s)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <Pressable
+          onClick={() => onOpenRecipe(recipe.id, entry.servings)}
+          scale={1}
+          style={{ flex: 1, minWidth: 0, textAlign: 'left' }}
+        >
+          <div
+            style={{
+              ...T.cardTitle,
+              color: cooked ? 'var(--text)' : 'var(--muted)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {loc(recipe.name)}
+          </div>
+          <div style={{ marginTop: 4, fontSize: 13.5, color: 'var(--muted)' }}>
+            {t[meal.slot]} · {cooked ? t.cooked : t.mealNotCooked}
+          </div>
+        </Pressable>
+        <div
+          style={{
+            ...tabular,
+            fontSize: 14.5,
+            fontWeight: 650,
+            color: cooked ? 'var(--text)' : 'var(--muted)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {cooked ? '' : '+'}
+          {formatKcal(cooked ? meal.kcal : potentialKcal, locale)} {t.kcal}
+        </div>
+      </div>
+
+      {/*
+       * Una comida o está por cocinar —y aquí se ofrece cocinarla, el atajo
+       * del bucle plan→cocinar→despensa— o ya se cocinó, y entonces se
+       * ofrece ajustar cuánto se comió. Nunca las dos cosas a la vez.
+       */}
+      {!cooked && (
+        <div style={{ marginTop: 12 }}>
+          <Button
+            size="header"
+            onClick={() => onCook(recipe.id, entry.servings, entry.id)}
+            icon={<Icon name="cook" size={15} />}
+            style={{ height: 40, borderRadius: radius.chip, fontSize: 14.5, fontWeight: 600 }}
+          >
+            {t.cook}
+          </Button>
+        </div>
+      )}
+
+      {cooked && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+          <div
+            role="group"
+            aria-label={loc(recipe.name)}
+            style={{
+              display: 'flex',
+              height: height.stepper,
+              background: 'var(--surface2)',
+              borderRadius: radius.stepper,
+              padding: 3,
+              gap: 2,
+            }}
+          >
+            {SHARE_OPTIONS.map((opt) => {
+              const active = meal.share === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  onClick={() => onSetShare(opt.value)}
+                  ariaPressed={active}
+                  scale={0.95}
                   style={{
-                    ...T.cardTitle,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
+                    minWidth: 44,
+                    padding: '0 6px',
+                    borderRadius: radius.stepper - 3,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    background: active ? 'var(--soft)' : 'transparent',
+                    color: active ? 'var(--accent-ink)' : 'var(--text)',
                   }}
                 >
-                  {loc(recipe.name)}
-                </div>
-                <div style={{ marginTop: 4, fontSize: 13.5, color: 'var(--muted)', ...tabular }}>
-                  {entry.servings}× · {formatKcal(recipe.kcalPerServing * entry.servings, locale)} {t.kcal}
-                </div>
-              </Pressable>
-
-              {entry.cooked ? (
-                <Pill>
-                  <Icon name="check" size={13} strokeWidth={3} />
-                  {t.cooked}
-                </Pill>
-              ) : (
-                <Button
-                  size="header"
-                  onClick={() => onCook(recipe.id, entry.servings, entry.id)}
-                  icon={<Icon name="cook" size={15} />}
-                  style={{ height: 40, borderRadius: radius.chip, fontSize: 14.5, fontWeight: 600 }}
-                >
-                  {t.cook}
-                </Button>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                  {opt.label}
+                </Pressable>
+              );
+            })}
+          </div>
+          <Pressable
+            onClick={() => onSetShare(0)}
+            ariaPressed={meal.share === 0}
+            scale={0.96}
+            style={{
+              height: height.stepper,
+              padding: '0 14px',
+              borderRadius: radius.stepper,
+              fontSize: 14,
+              fontWeight: 600,
+              border: `1px solid ${meal.share === 0 ? 'var(--soft2)' : 'var(--line)'}`,
+              background: meal.share === 0 ? 'var(--soft)' : 'var(--surface)',
+              color: meal.share === 0 ? 'var(--accent-ink)' : 'var(--muted)',
+            }}
+          >
+            {t.notEaten}
+          </Pressable>
+        </div>
+      )}
     </div>
   );
 }

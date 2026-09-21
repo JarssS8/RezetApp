@@ -93,7 +93,44 @@ export const en: Dictionary = {
   kcal: 'kcal',
   kcalLeft: 'Left today',
   kcalDoneAll: 'Daily target reached',
+  overTarget: 'Over your target by',
   planned: 'planned',
+
+  yourDay: 'Your day',
+  yourDayCount: (n: number) => `${n} ${n === 1 ? 'meal' : 'meals'}`,
+  mealNotCooked: 'Not cooked yet',
+  notEaten: "Didn't eat it",
+  addWhatIAte: 'Add something I ate',
+  removeExtraAction: (label: string) => `Remove ${label}`,
+
+  // "Your week" (Task 13): seven bars against the target, plus the streak.
+  yourWeek: 'Your week',
+  weekAverage: 'Weekly average',
+  weekTarget: 'Daily target',
+  streakDays: (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`,
+  streakWithin: 'Days in a row within target',
+  streakTodayNote: "Today doesn't count yet: a day only adds to the streak once it's over.",
+  legendWithin: 'Within target',
+  legendOver: 'Over target',
+  legendUnder: 'Under target',
+  // Future day in "Your week" (review finding): not real data, so neither
+  // the band nor the "0 kcal" figure is read out — only that it hasn't happened yet.
+  weekDayNotYet: "hasn't happened yet",
+
+  // "Add what I ate" sheet (Task 11): four ways to log an extra.
+  intakeAddTitle: 'Add something I ate',
+  tabFavourites: 'Favourites',
+  tabQuick: 'Quick',
+  tabRecipe: 'Recipe',
+  tabBarcode: 'Barcode',
+  favouritesHint: 'What you repeat most, from your history.',
+  quickName: 'What you ate',
+  quickKcal: 'Calories',
+  gramsEaten: 'Grams you ate',
+  noKcalInProduct: "This product doesn't list calories. Finish it by hand.",
+  addToMyDay: 'Add to my day',
+  intakeKcalHint: (max: string) => `Up to ${max} kcal per extra.`,
+  intakeKcalTooHigh: (max: string) => `That's over the allowed maximum (${max} kcal). Adjust the amount.`,
 
   searchRecipes: 'Search recipes',
   newRecipe: 'New recipe',
@@ -170,6 +207,7 @@ export const en: Dictionary = {
   cancel: 'Cancel',
   needTitle: 'Give the recipe a name',
 
+  planDayKcalHousehold: 'for the household',
   thisWeek: 'This week',
   shoppingList: 'Shopping list',
   dragHint: 'Drag a recipe onto a slot',
@@ -251,6 +289,33 @@ export const en: Dictionary = {
   settingsSynced: 'Synced with your account',
   settingsLocalOnly: 'On this device only',
   memberActionError: "Couldn't save. Please try again.",
+
+  targetSheetTitle: 'Your target',
+  targetPrivacy: 'This data is yours alone: no one else in the household can see it.',
+  targetSex: 'Sex',
+  targetSexFemale: 'Female',
+  targetSexMale: 'Male',
+  targetSexUndisclosed: "I'd rather not say",
+  targetBirthYear: 'Birth year',
+  targetHeight: 'Height (cm)',
+  targetWeight: 'Weight (kg)',
+  targetActivity: 'Activity',
+  targetActivitySedentary: 'Sedentary — barely move day to day',
+  targetActivityLight: 'Light — gentle exercise 1-3 days a week',
+  targetActivityModerate: 'Moderate — moderate exercise 3-5 days a week',
+  targetActivityActive: 'Active — intense exercise 6-7 days a week',
+  targetActivityVeryActive: 'Very active — intense exercise every day, or physical work',
+  targetGoal: 'Goal',
+  targetGoalLose: 'Lose',
+  targetGoalMaintain: 'Maintain',
+  targetGoalGain: 'Gain',
+  targetEstimate: 'Estimate',
+  targetEstimateNote: "It's an estimate from your data, not a medical prescription: adjust the number if it doesn't fit you.",
+  targetManualOnly: "We're missing some data to estimate it (or you're under 18): enter the number by hand here.",
+  targetYourTarget: 'Your daily target',
+  targetRange: (min: string, max: string) => `Between ${min} and ${max} kcal.`,
+  useEstimateAction: 'Use this estimate',
+  targetLowWarn: "Below 1,200 kcal is outside the usual range. You can keep it if that's what you want.",
 
   adminBadge: 'Admin',
   makeAdminAction: 'Make admin',
@@ -398,6 +463,14 @@ export const en: Dictionary = {
   saveCook: 'Save',
   finishIntro: "We'll log the cook and subtract it from your pantry.",
   missingWarn: 'You were short on:',
+  countsFor: 'Counts for',
+  didNotEat: "Didn't eat",
+  sharesMismatch: (made: number, marked: number) =>
+    `You cooked ${made} ${made === 1 ? 'serving' : 'servings'} and ${marked} ${
+      marked === 1 ? 'person is' : 'people are'
+    } marked`,
+  splitServingsAction: (each: string) => `Split: ${each} each`,
+  splitServingsApplied: (each: string) => `Split: ${each} each`,
 
   shopIntro: "What's missing for this week's plan, compared with your pantry.",
   shopEmpty: 'Nothing missing',
@@ -419,6 +492,7 @@ export const en: Dictionary = {
   removed: 'Removed from the plan',
   savedRecipe: 'Recipe saved',
   cookSaved: 'Cooked. Pantry updated.',
+  cookSaveError: "Couldn't save the cook. Please try again.",
 
   onboarding: [
     {

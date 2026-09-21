@@ -31,6 +31,8 @@ export interface PressableProps {
   disabled?: boolean;
   role?: string;
   ariaChecked?: boolean;
+  /** Para botones toggle sueltos (no agrupados con role="radio"): comunica cuál está activo. */
+  ariaPressed?: boolean;
   type?: 'button' | 'submit';
 }
 
@@ -44,6 +46,7 @@ export function Pressable({
   disabled,
   role,
   ariaChecked,
+  ariaPressed,
   type = 'button',
 }: PressableProps) {
   const press = usePress(scale);
@@ -55,6 +58,7 @@ export function Pressable({
       aria-label={ariaLabel}
       role={role}
       aria-checked={ariaChecked}
+      aria-pressed={ariaPressed}
       {...press.handlers}
       style={{
         font: 'inherit',

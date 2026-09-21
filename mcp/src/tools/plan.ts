@@ -13,7 +13,10 @@ export function register(server: McpServer, ctx: Ctx): void {
     'get_week_plan',
     {
       title: 'Get week plan',
-      description: 'Get the 7-day meal plan for a given week, with concrete dates, per-day kcal totals and cooked status.',
+      description:
+        'Get the 7-day meal plan for a given week, with concrete dates, per-day HOUSEHOLD-planned kcal totals ' +
+        '(the whole cooked dish across everyone, not what any one person actually ate — use rezet_my_day for ' +
+        'that) and cooked status.',
       inputSchema: { weekOffset },
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
@@ -38,7 +41,10 @@ export function register(server: McpServer, ctx: Ctx): void {
       const days = dates.map((date) => ({
         date,
         weekday: weekdayFormatter.format(new Date(`${date}T12:00:00`)),
-        kcal: dayKcal(date, plan, recipeById),
+        // Fórmula del plato entero (raciones planificadas × kcal/ración): lo correcto para
+        // planificar la comida de TODA la casa, no lo que ha comido quien pregunta — de ahí el
+        // nombre cualificado. Ver rezet_my_day para el consumo personal.
+        householdPlannedKcal: dayKcal(date, plan, recipeById),
         entries: entriesOfDay(date, plan).map((e) => ({
           id: e.id,
           slot: e.slot,

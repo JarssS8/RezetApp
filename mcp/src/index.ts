@@ -24,6 +24,7 @@ try {
 const ctx: Ctx = {
   supabase,
   householdId: session.householdId,
+  userId: session.userId,
   locale: session.locale,
   reauthHint: 'Run `npm run login` in /home/jars/Programing/Rezet/mcp, then restart the MCP server.',
 };

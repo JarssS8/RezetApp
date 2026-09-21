@@ -1288,4 +1288,587 @@ describe('migraciones', () => {
     expect(seenByOther.rows.length).toBe(0);
     await db.close();
   }, 120_000);
+
+  it('member_body: nadie lee los datos corporales de otro adulto del hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    const beaMember = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bea}'`,
+    );
+    await asUser(
+      db,
+      bea,
+      `select public.set_member_body('${beaMember.rows[0].id}', '{"weight_kg":62,"sex":"female"}'::jsonb, 1850)`,
+    );
+
+    // Bea sí ve lo suyo.
+    const propio = (await asUser(db, bea, 'select count(*)::int as n from public.member_body')) as {
+      rows: { n: number }[];
+    };
+    expect(propio.rows[0].n).toBe(1);
+
+    // Ana, del mismo hogar, no ve nada.
+    const ajeno = (await asUser(db, ana, 'select count(*)::int as n from public.member_body')) as {
+      rows: { n: number }[];
+    };
+    expect(ajeno.rows[0].n).toBe(0);
+
+    // Y tampoco puede escribirlo.
+    await expect(
+      asUser(db, ana, `select public.set_member_body('${beaMember.rows[0].id}', '{"weight_kg":99}'::jsonb, null)`),
+    ).rejects.toThrow();
+
+    await db.close();
+  }, 120_000);
+
+  it('member_body: el tutelado sí lo gestiona quien tiene cuenta', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, "select public.create_ward_member('Nico', 'amber')");
+    const nico = await db.query<{ id: string }>(
+      "select id from public.member where display_name = 'Nico'",
+    );
+
+    await asUser(
+      db,
+      ana,
+      `select public.set_member_body('${nico.rows[0].id}', '{"birth_year":2014}'::jsonb, 1600)`,
+    );
+
+    const visto = (await asUser(db, ana, 'select count(*)::int as n from public.member_body')) as {
+      rows: { n: number }[];
+    };
+    expect(visto.rows[0].n).toBe(1);
+
+    const objetivo = await db.query<{ kcal_target: number }>(
+      `select kcal_target from public.member where id = '${nico.rows[0].id}'`,
+    );
+    expect(objetivo.rows[0].kcal_target).toBe(1600);
+    await db.close();
+  }, 120_000);
+
+  it('member_body: salir del hogar borra los datos corporales', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+    const beaMember = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bea}'`,
+    );
+    await asUser(db, bea, `select public.set_member_body('${beaMember.rows[0].id}', '{"weight_kg":62}'::jsonb, 1850)`);
+
+    await asUser(db, bea, 'select public.leave_household()');
+
+    const quedan = await db.query<{ n: number }>('select count(*)::int as n from public.member_body');
+    expect(quedan.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
+
+  it('member_body: no se puede escribir la tabla por la vía directa', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    await expect(
+      asUser(db, ana, `insert into public.member_body (member_id, weight_kg) values ('${yo.rows[0].id}', 62)`),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('intake: el diario de uno no lo lee el resto del hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    const beaMember = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bea}'`,
+    );
+
+    await asUser(
+      db,
+      bea,
+      `insert into public.intake_extra (household_id, member_id, date, label, kcal, source)
+       values ('${h.rows[0].id}', '${beaMember.rows[0].id}', '2026-09-21', 'Cerveza', 150, 'manual')`,
+    );
+
+    const suyo = (await asUser(db, bea, 'select count(*)::int as n from public.intake_extra')) as {
+      rows: { n: number }[];
+    };
+    expect(suyo.rows[0].n).toBe(1);
+
+    const ajeno = (await asUser(db, ana, 'select count(*)::int as n from public.intake_extra')) as {
+      rows: { n: number }[];
+    };
+    expect(ajeno.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
+
+  it('intake: no se puede registrar en nombre de otro adulto', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    const beaMember = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bea}'`,
+    );
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `insert into public.intake_extra (household_id, member_id, date, label, kcal, source)
+         values ('${h.rows[0].id}', '${beaMember.rows[0].id}', '2026-09-21', 'Colado', 500, 'manual')`,
+      ),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('intake: un tutelado sí lo registra quien lo gestiona', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, "select public.create_ward_member('Nico', 'amber')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    const nico = await db.query<{ id: string }>(
+      "select id from public.member where display_name = 'Nico'",
+    );
+
+    await asUser(
+      db,
+      ana,
+      `insert into public.intake_extra (household_id, member_id, date, label, kcal, source)
+       values ('${h.rows[0].id}', '${nico.rows[0].id}', '2026-09-21', 'Merienda', 200, 'manual')`,
+    );
+    const n = (await asUser(db, ana, 'select count(*)::int as n from public.intake_extra')) as {
+      rows: { n: number }[];
+    };
+    expect(n.rows[0].n).toBe(1);
+    await db.close();
+  }, 120_000);
+
+  it('intake: no se puede colar un extra en el hogar equivocado', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+    await asUser(db, mallory, "select public.create_household('Casa de Mallory', 'Mallory')");
+    const hAna = await db.query<{ id: string }>(
+      `select household_id as id from public.profile where id = '${ana}'`,
+    );
+    const mMallory = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${mallory}'`,
+    );
+
+    await expect(
+      asUser(
+        db,
+        mallory,
+        `insert into public.intake_extra (household_id, member_id, date, label, kcal, source)
+         values ('${hAna.rows[0].id}', '${mMallory.rows[0].id}', '2026-09-21', 'Cruzado', 100, 'manual')`,
+      ),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('intake_share: borrar la comida del plan se lleva la excepción', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    await db.exec(`
+      insert into public.recipe (id, household_id, name) values
+        ('00000000-0000-4000-8000-000000000001', '${h.rows[0].id}', 'Lentejas');
+      insert into public.plan_entry (id, household_id, on_date, slot, recipe_id, servings) values
+        ('00000000-0000-4000-8000-000000000002', '${h.rows[0].id}', '2026-09-21', 'lunch',
+         '00000000-0000-4000-8000-000000000001', 2);
+    `);
+
+    await asUser(
+      db,
+      ana,
+      `insert into public.intake_share (member_id, plan_entry_id, servings)
+       values ('${yo.rows[0].id}', '00000000-0000-4000-8000-000000000002', 0.5)`,
+    );
+
+    await db.exec("delete from public.plan_entry where id = '00000000-0000-4000-8000-000000000002'");
+    const quedan = await db.query<{ n: number }>('select count(*)::int as n from public.intake_share');
+    expect(quedan.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
+
+  // Task 5 — finish_cook_v2 escribe las raciones dentro de la misma
+  // transacción que descuenta la despensa: el camino "no planificado" es
+  // justo el que no tenía plan_entry_id que devolver.
+  it('finish_cook_v2 devuelve el id de la comida que crea y escribe las raciones', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, "select public.create_ward_member('Nico', 'amber')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    const nico = await db.query<{ id: string }>(
+      "select id from public.member where display_name = 'Nico'",
+    );
+    await db.exec(`
+      insert into public.recipe (id, household_id, name, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000011', '${h.rows[0].id}', 'Lentejas', 500);
+    `);
+
+    const res = (await asUser(
+      db,
+      ana,
+      `select public.finish_cook_v2(
+         '00000000-0000-4000-8000-000000000011', 2, null, '2026-09-21', 'lunch',
+         '[{"member_id":"${yo.rows[0].id}","servings":1},
+           {"member_id":"${nico.rows[0].id}","servings":0}]'::jsonb
+       ) as out`,
+    )) as { rows: { out: { shortages: unknown[]; plan_entry_id: string } }[] };
+
+    expect(res.rows[0].out.plan_entry_id).toBeTruthy();
+    expect(Array.isArray(res.rows[0].out.shortages)).toBe(true);
+
+    const shares = await db.query<{ n: number; ceros: number }>(
+      `select count(*)::int as n, count(*) filter (where servings = 0)::int as ceros
+         from public.intake_share`,
+    );
+    expect(shares.rows[0].n).toBe(2);
+    expect(shares.rows[0].ceros).toBe(1);
+    await db.close();
+  }, 120_000);
+
+  it('finish_cook sigue devolviendo solo el array, para los clientes viejos', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    await db.exec(`
+      insert into public.recipe (id, household_id, name, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000012', '${h.rows[0].id}', 'Sopa', 200);
+    `);
+
+    const res = (await asUser(
+      db,
+      ana,
+      `select public.finish_cook('00000000-0000-4000-8000-000000000012', 1, null, '2026-09-21', 'dinner') as out`,
+    )) as { rows: { out: unknown }[] };
+
+    expect(Array.isArray(res.rows[0].out)).toBe(true);
+    await db.close();
+  }, 120_000);
+
+  it('finish_cook_v2 no acepta raciones de un miembro de otro hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+    await asUser(db, mallory, "select public.create_household('Casa de Mallory', 'Mallory')");
+    const h = await db.query<{ id: string }>(
+      `select household_id as id from public.profile where id = '${ana}'`,
+    );
+    const mMallory = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${mallory}'`,
+    );
+    await db.exec(`
+      insert into public.recipe (id, household_id, name, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000013', '${h.rows[0].id}', 'Arroz', 400);
+    `);
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `select public.finish_cook_v2(
+           '00000000-0000-4000-8000-000000000013', 1, null, '2026-09-21', 'lunch',
+           '[{"member_id":"${mMallory.rows[0].id}","servings":1}]'::jsonb)`,
+      ),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  // Revisión Critical 1 — la rama "ya cocinado" tenía que devolver el mismo
+  // contrato que la salida normal, o el envoltorio acababa dando NULL.
+  it('finish_cook_v2 sobre una comida ya cocinada devuelve el mismo contrato, y el envoltorio sigue dando []', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    await db.exec(`
+      insert into public.recipe (id, household_id, name, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000014', '${h.rows[0].id}', 'Ya cocinada', 300);
+      insert into public.plan_entry (id, household_id, on_date, slot, recipe_id, servings, cooked_at, servings_cooked) values
+        ('00000000-0000-4000-8000-000000000015', '${h.rows[0].id}', '2026-09-21', 'lunch',
+         '00000000-0000-4000-8000-000000000014', 2, now(), 2);
+    `);
+
+    const res = (await asUser(
+      db,
+      ana,
+      `select public.finish_cook_v2(
+         '00000000-0000-4000-8000-000000000014', 2, '00000000-0000-4000-8000-000000000015', '2026-09-21', 'lunch',
+         '[]'::jsonb
+       ) as out`,
+    )) as { rows: { out: { shortages: unknown[]; plan_entry_id: string } }[] };
+    expect(res.rows[0].out.plan_entry_id).toBe('00000000-0000-4000-8000-000000000015');
+    expect(res.rows[0].out.shortages).toEqual([]);
+
+    const wrapped = (await asUser(
+      db,
+      ana,
+      `select public.finish_cook(
+         '00000000-0000-4000-8000-000000000014', 2, '00000000-0000-4000-8000-000000000015', '2026-09-21', 'lunch'
+       ) as out`,
+    )) as { rows: { out: unknown }[] };
+    expect(wrapped.rows[0].out).toEqual([]);
+    await db.close();
+  }, 120_000);
+
+  // Revisión Critical 2 — con la política por miembro, repartir entre dos
+  // adultos del mismo hogar hacía rollback de TODA la transacción (incluido
+  // el descuento de despensa). intake_share pasa a ser de nivel hogar.
+  it('cocinar repartiendo entre dos adultos del hogar funciona y descuenta la despensa', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bruno = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const invite = (await asUser(db, ana, 'select public.create_invite() as code')) as {
+      rows: { code: string }[];
+    };
+    await asUser(db, bruno, `select public.redeem_invite('${invite.rows[0].code}', 'Bruno')`);
+
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    const mBruno = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bruno}'`,
+    );
+
+    await db.exec(`
+      insert into public.ingredient (id, household_id, name_es, name_en, default_unit) values
+        ('00000000-0000-4000-8000-000000000020', '${h.rows[0].id}', 'Arroz', 'Rice', 'g');
+      insert into public.recipe (id, household_id, name, base_servings, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000021', '${h.rows[0].id}', 'Paella', 2, 600);
+      insert into public.recipe_ingredient (recipe_id, ingredient_id, quantity, unit, position) values
+        ('00000000-0000-4000-8000-000000000021', '00000000-0000-4000-8000-000000000020', 100, 'g', 0);
+      insert into public.pantry_item (household_id, ingredient_id, quantity, unit) values
+        ('${h.rows[0].id}', '00000000-0000-4000-8000-000000000020', 500, 'g');
+    `);
+
+    const res = (await asUser(
+      db,
+      ana,
+      `select public.finish_cook_v2(
+         '00000000-0000-4000-8000-000000000021', 2, null, '2026-09-21', 'dinner',
+         '[{"member_id":"${yo.rows[0].id}","servings":1},
+           {"member_id":"${mBruno.rows[0].id}","servings":1}]'::jsonb
+       ) as out`,
+    )) as { rows: { out: { plan_entry_id: string } }[] };
+    expect(res.rows[0].out.plan_entry_id).toBeTruthy();
+
+    const pantry = await db.query<{ quantity: string }>(
+      `select quantity::float8 as quantity from public.pantry_item
+         where ingredient_id = '00000000-0000-4000-8000-000000000020'`,
+    );
+    expect(Number(pantry.rows[0].quantity)).toBe(400);
+
+    const shares = await db.query<{ n: number }>('select count(*)::int as n from public.intake_share');
+    expect(shares.rows[0].n).toBe(2);
+    await db.close();
+  }, 120_000);
+
+  it('finish_cook_v2 rechaza p_shares que no es una lista', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    await db.exec(`
+      insert into public.recipe (id, household_id, name, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000022', '${h.rows[0].id}', 'Tortilla', 350);
+    `);
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `select public.finish_cook_v2(
+           '00000000-0000-4000-8000-000000000022', 1, null, '2026-09-21', 'lunch',
+           '{"member_id":"x"}'::jsonb)`,
+      ),
+    ).rejects.toThrow(/REZET_BAD_SHARES/);
+    await db.close();
+  }, 120_000);
+
+  it('finish_cook_v2 con el mismo miembro repetido en p_shares se queda con el último valor', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    await db.exec(`
+      insert into public.recipe (id, household_id, name, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000023', '${h.rows[0].id}', 'Pisto', 320);
+    `);
+
+    const res = (await asUser(
+      db,
+      ana,
+      `select public.finish_cook_v2(
+         '00000000-0000-4000-8000-000000000023', 1, null, '2026-09-21', 'lunch',
+         '[{"member_id":"${yo.rows[0].id}","servings":1},
+           {"member_id":"${yo.rows[0].id}","servings":2}]'::jsonb
+       ) as out`,
+    )) as { rows: { out: { plan_entry_id: string } }[] };
+    expect(res.rows[0].out.plan_entry_id).toBeTruthy();
+
+    const share = await db.query<{ n: number; servings: string }>(
+      'select count(*)::int as n, max(servings)::text as servings from public.intake_share',
+    );
+    expect(share.rows[0].n).toBe(1);
+    expect(Number(share.rows[0].servings)).toBe(2);
+    await db.close();
+  }, 120_000);
+
+  // ── Tarea de endurecimiento: 20260921090300_rezet_intake_hardening.sql ──
+  it('delete_ward_member se lleva el member_body del tutelado', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, "select public.create_ward_member('Nico', 'amber')");
+    const nico = await db.query<{ id: string }>(
+      "select id from public.member where display_name = 'Nico'",
+    );
+    await asUser(
+      db,
+      ana,
+      `select public.set_member_body('${nico.rows[0].id}', '{"weight_kg":30}'::jsonb, 1600)`,
+    );
+
+    await asUser(db, ana, `select public.delete_ward_member('${nico.rows[0].id}')`);
+
+    const quedan = await db.query<{ n: number }>(
+      `select count(*)::int as n from public.member_body where member_id = '${nico.rows[0].id}'`,
+    );
+    expect(quedan.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
+
+  it('remove_member se lleva el member_body de quien es expulsado', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, mallory, `select public.redeem_invite('${code.rows[0].code}', 'Mallory')`);
+    const malloryMember = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${mallory}'`,
+    );
+    await asUser(
+      db,
+      mallory,
+      `select public.set_member_body('${malloryMember.rows[0].id}', '{"weight_kg":58}'::jsonb, 1800)`,
+    );
+
+    await asUser(db, ana, `select public.remove_member('${mallory}')`);
+
+    const quedan = await db.query<{ n: number }>(
+      `select count(*)::int as n from public.member_body where member_id = '${malloryMember.rows[0].id}'`,
+    );
+    expect(quedan.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
+
+  it('delete_household no deja ningún member_body detrás', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, "select public.create_ward_member('Nico', 'amber')");
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    const nico = await db.query<{ id: string }>(
+      "select id from public.member where display_name = 'Nico'",
+    );
+    await asUser(db, ana, `select public.set_member_body('${yo.rows[0].id}', '{"weight_kg":70}'::jsonb, 2000)`);
+    await asUser(db, ana, `select public.set_member_body('${nico.rows[0].id}', '{"weight_kg":30}'::jsonb, 1600)`);
+
+    await asUser(db, ana, 'select public.delete_household()');
+
+    const quedan = await db.query<{ n: number }>('select count(*)::int as n from public.member_body');
+    expect(quedan.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
+
+  it('intake_extra: created_by de otro hogar se rechaza', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+    await asUser(db, mallory, "select public.create_household('Casa de Mallory', 'Mallory')");
+    const hAna = await db.query<{ id: string }>(
+      `select household_id as id from public.profile where id = '${ana}'`,
+    );
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    const mMallory = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${mallory}'`,
+    );
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `insert into public.intake_extra (household_id, member_id, date, label, kcal, source, created_by)
+         values ('${hAna.rows[0].id}', '${yo.rows[0].id}', '2026-09-21', 'Robado', 100, 'manual',
+                 '${mMallory.rows[0].id}')`,
+      ),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
+
+  it('set_member_body con una actividad no válida lanza REZET_INVALID_BODY', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `select public.set_member_body('${yo.rows[0].id}', '{"activity":"crazy"}'::jsonb, null)`,
+      ),
+    ).rejects.toThrow(/REZET_INVALID_BODY/);
+    await db.close();
+  }, 120_000);
 });

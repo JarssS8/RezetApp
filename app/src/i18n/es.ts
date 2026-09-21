@@ -92,7 +92,49 @@ export const es = {
   kcal: 'kcal',
   kcalLeft: 'Te quedan',
   kcalDoneAll: 'Objetivo del día completado',
+  overTarget: 'Te has pasado del objetivo por',
   planned: 'plan',
+
+  yourDay: 'Tu día',
+  yourDayCount: (n: number) => `${n} ${n === 1 ? 'comida' : 'comidas'}`,
+  mealNotCooked: 'Aún sin cocinar',
+  notEaten: 'No lo comí',
+  addWhatIAte: 'Añadir algo que comí',
+  // Hallazgo de revisión: un extra registrado no se podía borrar — si te
+  // equivocabas de cifra, el anillo mentía el resto del día sin recurso.
+  removeExtraAction: (label: string) => `Quitar ${label}`,
+
+  // "Tu semana" (Tarea 13): siete barras contra el objetivo, más la racha.
+  yourWeek: 'Tu semana',
+  weekAverage: 'Media semanal',
+  weekTarget: 'Objetivo diario',
+  streakDays: (n: number) => `${n} ${n === 1 ? 'día' : 'días'}`,
+  streakWithin: 'Días seguidos dentro del objetivo',
+  streakTodayNote: 'Hoy todavía no cuenta: un día solo suma a la racha cuando termina.',
+  legendWithin: 'Dentro del objetivo',
+  legendOver: 'Por encima del objetivo',
+  legendUnder: 'Por debajo del objetivo',
+  // Día futuro en "Tu semana" (hallazgo de revisión): no es un dato real, así
+  // que ni la banda ni la cifra "0 kcal" se leen — solo que aún no ha pasado.
+  weekDayNotYet: 'aún no ha llegado',
+
+  // Hoja "Añadir lo que comí" (Tarea 11): cuatro caminos para registrar un extra.
+  intakeAddTitle: 'Añadir algo que comí',
+  tabFavourites: 'Favoritos',
+  tabQuick: 'Rápido',
+  tabRecipe: 'Receta',
+  tabBarcode: 'Código',
+  favouritesHint: 'Lo que más repites, calculado de tu historial.',
+  quickName: 'Qué has comido',
+  quickKcal: 'Calorías',
+  gramsEaten: 'Gramos que has comido',
+  noKcalInProduct: 'Este producto no trae calorías. Termínalo a mano.',
+  addToMyDay: 'Añadir a mi día',
+  // Hallazgo de revisión: la columna acota `kcal` a `[0, 10000]`; el cliente
+  // tiene que acotar igual, y decir qué pasa en vez de dejar pasar el error
+  // en crudo de la base (o, en la demo, no decir nada y guardarlo tal cual).
+  intakeKcalHint: (max: string) => `Hasta ${max} kcal por extra.`,
+  intakeKcalTooHigh: (max: string) => `Se pasa del máximo permitido (${max} kcal). Ajusta la cantidad.`,
 
   searchRecipes: 'Buscar recetas',
   newRecipe: 'Nueva receta',
@@ -170,6 +212,12 @@ export const es = {
   cancel: 'Cancelar',
   needTitle: 'Ponle un nombre a la receta',
 
+  // Hallazgo de revisión: Plan enseña las kcal del PLATO ENTERO
+  // (kcalPerServing × raciones, para todo el hogar) mientras Hoy enseña la
+  // ración de una persona. Es la fórmula correcta para planificar la comida
+  // de la casa — no se toca — pero antes de "Tu objetivo" las dos cifras
+  // coincidían y ahora no, así que aquí se etiqueta cuál es cuál.
+  planDayKcalHousehold: 'para la casa',
   thisWeek: 'Esta semana',
   shoppingList: 'Lista de la compra',
   dragHint: 'Arrastra una receta a un hueco',
@@ -251,6 +299,37 @@ export const es = {
   settingsSynced: 'Sincronizado con tu cuenta',
   settingsLocalOnly: 'Solo en este dispositivo',
   memberActionError: 'No se pudo guardar. Inténtalo de nuevo.',
+
+  targetSheetTitle: 'Tu objetivo',
+  targetPrivacy: 'Estos datos son solo tuyos: nadie más del hogar puede verlos.',
+  targetSex: 'Sexo',
+  targetSexFemale: 'Mujer',
+  targetSexMale: 'Hombre',
+  targetSexUndisclosed: 'Prefiero no decirlo',
+  targetBirthYear: 'Año de nacimiento',
+  targetHeight: 'Altura (cm)',
+  targetWeight: 'Peso (kg)',
+  targetActivity: 'Actividad',
+  targetActivitySedentary: 'Sedentaria — apenas te mueves en el día a día',
+  targetActivityLight: 'Ligera — ejercicio suave 1-3 días por semana',
+  targetActivityModerate: 'Moderada — ejercicio moderado 3-5 días por semana',
+  targetActivityActive: 'Activa — ejercicio intenso 6-7 días por semana',
+  targetActivityVeryActive: 'Muy activa — ejercicio intenso a diario, o trabajo físico',
+  targetGoal: 'Objetivo',
+  targetGoalLose: 'Bajar',
+  targetGoalMaintain: 'Mantener',
+  targetGoalGain: 'Subir',
+  targetEstimate: 'Estimación',
+  targetEstimateNote: 'Es una estimación a partir de tus datos, no una receta médica: ajusta el número si no encaja contigo.',
+  targetManualOnly: 'Nos faltan datos para estimarlo (o eres menor de 18): pon aquí el número a mano.',
+  targetYourTarget: 'Tu objetivo diario',
+  targetRange: (min: string, max: string) => `Entre ${min} y ${max} kcal.`,
+  // Botón explícito, no seguimiento automático: la cifra final del objetivo
+  // siempre la escribe la persona, este botón solo se la propone.
+  useEstimateAction: 'Usar esta estimación',
+  // Hallazgo de revisión: la spec pide avisar por debajo de 1.200 kcal sin
+  // bloquear el guardado — el número final es siempre de la persona.
+  targetLowWarn: 'Por debajo de 1.200 kcal se sale del rango habitual. Puedes seguir si es lo que quieres.',
 
   adminBadge: 'Admin',
   makeAdminAction: 'Hacer administrador',
@@ -400,6 +479,16 @@ export const es = {
   saveCook: 'Guardar',
   finishIntro: 'Guardamos lo cocinado y lo descontamos de la despensa.',
   missingWarn: 'No tenías todo:',
+  countsFor: 'Cuenta para',
+  didNotEat: 'No comió',
+  sharesMismatch: (made: number, marked: number) =>
+    `Cocinaste ${made} ${made === 1 ? 'ración' : 'raciones'} y hay ${marked} ${
+      marked === 1 ? 'persona marcada' : 'personas marcadas'
+    }`,
+  // Mitigación que pide la spec: la spec acepta "una ración por defecto" a
+  // cambio de que esta hoja ofrezca repartir en un toque cuando no cuadra.
+  splitServingsAction: (each: string) => `Repartir: ${each} cada uno`,
+  splitServingsApplied: (each: string) => `Repartido: ${each} cada uno`,
 
   shopIntro: 'Lo que falta para el plan de esta semana, comparado con tu despensa.',
   shopEmpty: 'No falta nada',
@@ -421,6 +510,10 @@ export const es = {
   removed: 'Quitado del plan',
   savedRecipe: 'Receta guardada',
   cookSaved: 'Cocinado. Despensa actualizada.',
+  // Hallazgo de revisión: `finishCook` se lanzaba sin esperar su respuesta,
+  // así que un rechazo del servidor (la RPC deshace la transacción entera)
+  // se veía igual que un guardado bueno.
+  cookSaveError: 'No se pudo guardar el cocinado. Inténtalo de nuevo.',
 
   onboarding: [
     {

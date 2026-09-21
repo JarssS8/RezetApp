@@ -9,22 +9,11 @@ import { Sheet } from '../ui/Sheet';
 import { Avatar } from '../ui/Avatar';
 import { Pressable } from '../ui/Pressable';
 import { Button } from '../ui/Button';
-import { Stepper } from '../ui/Stepper';
 import { TextField } from '../ui/Fields';
+import { Icon } from '../ui/Icon';
 import { Eyebrow } from '../ui/Card';
 import { radius } from '../ui/tokens';
 import type { Accent, MemberId } from '../types';
-
-/**
- * Objetivo diario en pasos de 50 kcal. El rango tiene que coincidir con el
- * `check (kcal_target between 1000 and 5000)` de la columna
- * (`20260920090000_rezet_member_foundation.sql`): salirse de él en el
- * cliente dispara en modo real una violación de CHECK cruda de Postgres,
- * sin prefijo `REZET_`, que `stripHouseholdErrorTag` no sabe traducir.
- */
-const KCAL_STEP = 50;
-const KCAL_MIN = 1000;
-const KCAL_MAX = 5000;
 
 /**
  * Lado máximo del avatar comprimido, en píxeles: de sobra para el tamaño
@@ -70,10 +59,13 @@ export function MemberSheet({
   memberId,
   onClose,
   onToast,
+  onOpenTarget,
 }: {
   memberId: MemberId;
   onClose: () => void;
   onToast?: (msg: string) => void;
+  /** Abre "Tu objetivo" (`MemberTargetSheet`), la única forma de tocar el objetivo diario ahora. */
+  onOpenTarget: (memberId: MemberId) => void;
 }) {
   const { t, locale } = usePrefs();
   const { members, myMemberId, household, setMemberSettings, deleteWardMember } = useData();
@@ -84,7 +76,6 @@ export function MemberSheet({
 
   const [displayName, setDisplayName] = useState(member?.displayName ?? '');
   const [color, setColor] = useState<Accent>(member?.color ?? 'green');
-  const [kcalTarget, setKcalTarget] = useState(member?.kcalTarget ?? 2000);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
 
@@ -95,17 +86,16 @@ export function MemberSheet({
   const avatarInput = useRef<HTMLInputElement>(null);
 
   // Si la hoja monta antes de que lleguen los miembros (`members` aún vacío
-  // en la primera carga), los cuatro `useState` de arriba se quedan clavados
-  // en sus valores de fábrica (nombre vacío, verde, 2000, sin avatar) y
-  // guardar escribiría eso. Se resincronizan en cuanto cambia la IDENTIDAD
-  // del miembro — aparece por primera vez, o esta misma hoja se reutiliza
-  // para otro — no en cada cambio de sus campos, para no pisar lo que el
-  // usuario está escribiendo mientras edita.
+  // en la primera carga), los tres `useState` de arriba se quedan clavados
+  // en sus valores de fábrica (nombre vacío, verde, sin avatar) y guardar
+  // escribiría eso. Se resincronizan en cuanto cambia la IDENTIDAD del
+  // miembro — aparece por primera vez, o esta misma hoja se reutiliza para
+  // otro — no en cada cambio de sus campos, para no pisar lo que el usuario
+  // está escribiendo mientras edita.
   useEffect(() => {
     if (!member) return;
     setDisplayName(member.displayName);
     setColor(member.color);
-    setKcalTarget(member.kcalTarget);
     setAvatarPath(member.avatarPath);
   }, [member?.id]);
 
@@ -163,7 +153,7 @@ export function MemberSheet({
     if (!canEdit || !displayName.trim() || saving) return;
     setSaving(true);
     try {
-      await setMemberSettings(memberId, { displayName: displayName.trim(), color, kcalTarget });
+      await setMemberSettings(memberId, { displayName: displayName.trim(), color });
       onClose();
     } catch (e) {
       onToast?.(stripHouseholdErrorTag(e instanceof Error ? e.message : String(e)) || t.memberActionError);
@@ -312,18 +302,40 @@ export function MemberSheet({
             </div>
           </div>
 
+          {/* La cifra ya no se edita aquí con un stepper suelto: "Tu objetivo"
+              (`MemberTargetSheet`) la calcula a partir de los datos corporales,
+              o la deja escribir a mano si no hay suficientes para estimarla.
+              Fila propia, no dentro del wrapper de opacidad: tiene que
+              desaparecer del todo para quien no puede editar, no verse
+              atenuada (regla de la Tarea 9). */}
+        </div>
+
+        {canEdit && (
           <div>
             <Eyebrow style={{ marginBottom: 9 }}>{t.memberKcalTarget}</Eyebrow>
-            <Stepper
-              value={kcalTarget}
-              formatted={`${formatKcal(kcalTarget, locale)} ${t.kcal}`}
-              valueWidth={110}
-              onDecrement={() => setKcalTarget((v) => Math.max(KCAL_MIN, v - KCAL_STEP))}
-              onIncrement={() => setKcalTarget((v) => Math.min(KCAL_MAX, v + KCAL_STEP))}
-              label={t.memberKcalTarget}
-            />
+            <Pressable
+              onClick={() => onOpenTarget(memberId)}
+              scale={0.98}
+              style={{
+                width: '100%',
+                height: 48,
+                borderRadius: radius.input,
+                background: 'var(--surface2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0 14px',
+                fontSize: 15.5,
+                fontWeight: 600,
+              }}
+            >
+              <span>
+                {formatKcal(member.kcalTarget, locale)} {t.kcal}
+              </span>
+              <Icon name="chevronRight" size={16} strokeWidth={2.2} />
+            </Pressable>
           </div>
-        </div>
+        )}
 
         <Button
           full

@@ -24,6 +24,8 @@ const PATHS = {
   link: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
   account: 'M5 20c0-3.87 3.13-7 7-7s7 3.13 7 7',
   bookmark: 'M6 4h12v16l-6-4-6 4Z',
+  // Candado: grillete (arco) + cuerpo (rectángulo cerrado) — aviso de privacidad de "Tu objetivo".
+  lock: 'M8 10.5V8a4 4 0 0 1 8 0v2.5M6 10.5h12v8.5H6Z',
 } as const;
 
 export type IconName = keyof typeof PATHS;
