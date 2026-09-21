@@ -6,7 +6,6 @@ import type {
   FrequentExtra,
   HouseholdDetail,
   Ingredient,
-  IntakeExtra,
   MealSlot,
   Member,
   MemberBody,

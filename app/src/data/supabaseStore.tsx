@@ -44,6 +44,7 @@ import {
 } from './supabaseStore/rows';
 import { storeKeys } from './supabaseStore/keys';
 import { useMembers } from './supabaseStore/useMembers';
+import { useIntake } from './supabaseStore/useIntake';
 
 const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
 
@@ -287,6 +288,9 @@ export function SupabaseDataProvider({
     () => Array.from(new Set((recipesQ.data ?? []).flatMap((r) => r.tags))),
     [recipesQ.data],
   );
+
+  const { myBody, setMyBody, intakeOfDayFor, setShare, addExtra, removeExtra, frequentExtras, weekTotalsFor } =
+    useIntake(householdId, myMemberId, recipeById, planQ.data ?? []);
 
   const { stockOf, needOf, coverageOf, needsForWeek, shortagesFor } = useMemo(
     () =>
@@ -770,6 +774,14 @@ export function SupabaseDataProvider({
       setKomprappListToken,
       deleteAccount,
       setHouseholdSheetOpen,
+      myBody,
+      setMyBody,
+      intakeOfDayFor,
+      setShare,
+      addExtra,
+      removeExtra,
+      frequentExtras,
+      weekTotalsFor,
     }),
     [
       ingredientsQ.data,
@@ -809,6 +821,14 @@ export function SupabaseDataProvider({
       removeMember,
       setKomprappListToken,
       deleteAccount,
+      myBody,
+      setMyBody,
+      intakeOfDayFor,
+      setShare,
+      addExtra,
+      removeExtra,
+      frequentExtras,
+      weekTotalsFor,
     ],
   );
 
