@@ -49,17 +49,15 @@ export function MemberTargetSheet({
   onToast?: (msg: string) => void;
 }) {
   const { t, locale } = usePrefs();
-  const { members, myMemberId, myBody, myBodyLoading, setMyBody } = useData();
+  const { members, bodyOf, bodyLoading, setMyBody } = useData();
   const member = members.find((m) => m.id === memberId);
 
-  // `myBody` es SIEMPRE el cuerpo de quien tiene la sesión (ver `storeContext.ts`):
-  // no hay forma de leer los datos ya guardados de un tutelado desde aquí. Para no
-  // enseñar por error los datos de quien administra sobre la ficha de un tutelado
-  // (y guardarlos ahí sin querer), el formulario arranca en blanco en ese caso —
-  // se puede rellenar y guardar igual, con `setMyBody(memberId, …)`, solo que no
-  // recuerda lo que hubiera antes.
-  const isSelf = memberId === myMemberId;
-  const initialBody = isSelf ? myBody : null;
+  // `bodyOf` resuelve lo propio y lo de un tutelado a cargo por igual — la
+  // RLS de `member_body` (`can_act_for`) decide qué es accesible, nunca el
+  // cliente (ver `storeContext.ts`). Antes esto solo exponía `myBody` (el
+  // de la sesión), así que editar el objetivo de un tutelado arrancaba
+  // siempre en blanco aunque sus datos existieran.
+  const initialBody = bodyOf(memberId);
 
   const [sexChoice, setSexChoice] = useState<SexChoice>(initialBody?.sex ?? 'undisclosed');
   const [birthYearInput, setBirthYearInput] = useState(
@@ -76,9 +74,9 @@ export function MemberTargetSheet({
   const [target, setTarget] = useState(member?.kcalTarget ?? FALLBACK);
   const [saving, setSaving] = useState(false);
 
-  // La hoja puede montar antes de que `myBody` resuelva (viaja en su propia
-  // consulta, aparte de `members`): los `useState` de arriba se habrían
-  // clavado ya en "vacío", así que hace falta resincronizar en cuanto
+  // La hoja puede montar antes de que la consulta de `bodyOf` resuelva (viaja
+  // en su propia consulta, aparte de `members`): los `useState` de arriba se
+  // habrían clavado ya en "vacío", así que hace falta resincronizar en cuanto
   // cambie la identidad del miembro que se edita O lleguen sus datos —
   // mismo patrón que `MemberSheet.tsx`, ampliado con la llegada async.
   useEffect(() => {
@@ -125,12 +123,13 @@ export function MemberTargetSheet({
     very_active: t.targetActivityVeryActive,
   };
 
-  // Mientras `myBody` está en vuelo, el formulario puede llevar los valores
-  // por defecto sin que exista todavía respuesta del servidor — guardar en
-  // esa ventana borraría datos corporales reales con `null`. El botón ya se
-  // deshabilita para esto, pero el propio `save` repite el gate: no basta
-  // con resincronizar los campos si el clic llega antes de que resuelva.
-  const bodyStillLoading = isSelf && myBodyLoading;
+  // Mientras la consulta de datos corporales está en vuelo, el formulario
+  // puede llevar los valores por defecto sin que exista todavía respuesta
+  // del servidor — guardar en esa ventana borraría datos corporales reales
+  // con `null`. El botón ya se deshabilita para esto, pero el propio `save`
+  // repite el gate: no basta con resincronizar los campos si el clic llega
+  // antes de que resuelva.
+  const bodyStillLoading = bodyLoading;
 
   const save = async () => {
     if (saving || bodyStillLoading) return;

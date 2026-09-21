@@ -62,7 +62,7 @@ interface Data {
   members: Member[];
   /**
    * Datos corporales por miembro. Como en la tabla real, no toda fila de
-   * `members` tiene una aquí: sin cuerpo registrado, `myBody` es `null`
+   * `members` tiene una aquí: sin cuerpo registrado, `bodyOf(id)` da `null`
    * (ver contrato en `storeContext.ts`), no un objeto con todo a `null`.
    */
   memberBody: Partial<Record<MemberId, MemberBody>>;
@@ -546,6 +546,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
+   * Igual que la capa real (`useIntake.ts`): la RLS de la tabla real solo
+   * deja leer la fila propia o la de un tutelado, así que aquí basta con
+   * indexar `memberBody` por miembro — sin distinguir "propio" de
+   * "tutelado", `data.memberBody` ya solo tiene lo que el hogar puede ver.
+   */
+  const bodyOf = useCallback(
+    (memberId: MemberId): MemberBody | null => data.memberBody[memberId] ?? null,
+    [data.memberBody],
+  );
+
+  /**
    * Puro sobre lo ya persistido: la aritmética (raciones, extras, totales)
    * sale de `domain/intake.ts`, igual que `useIntake.ts` en la capa real —
    * si las dos divergieran, la demo (pública, en rezet.jarsss8.es) enseñaría
@@ -689,10 +700,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setKomprappListToken: demoHouseholdActionUnavailable,
       deleteAccount: demoHouseholdActionUnavailable,
       setHouseholdSheetOpen: demoSetHouseholdSheetOpen,
-      myBody: data.memberBody[DEMO_MY_MEMBER_ID] ?? null,
+      bodyOf,
       // La demo no hace ningún viaje de red: el estado ya está en memoria
       // desde el primer render, así que nunca hay una consulta "en curso".
-      myBodyLoading: false,
+      bodyLoading: false,
       setMyBody,
       intakeOfDayFor,
       setShare,
@@ -725,6 +736,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       createWardMember,
       deleteWardMember,
       setMemberSettings,
+      bodyOf,
       setMyBody,
       intakeOfDayFor,
       setShare,

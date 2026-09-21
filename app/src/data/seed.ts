@@ -288,8 +288,8 @@ export const MEMBERS: Member[] = [
 
 /**
  * Datos corporales de Ana (`MEMBERS[0]`, la propia de la demo): sin esto
- * `myBody` sale `null` y la demo no enseña nada de nutrición personal hasta
- * que alguien rellena el formulario a mano. Igual que en producción, la
+ * `bodyOf(MEMBERS[0].id)` da `null` y la demo no enseña nada de nutrición
+ * personal hasta que alguien rellena el formulario a mano. Igual que en producción, la
  * fórmula de `domain/nutrition.ts` calcularía el objetivo a partir de estos
  * datos — aquí se deja fijo `kcalTarget` en `MEMBERS[0]` en vez de
  * recalcularlo, para no duplicar esa cuenta en el seed.

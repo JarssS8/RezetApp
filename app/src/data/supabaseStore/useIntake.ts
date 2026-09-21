@@ -59,19 +59,30 @@ export function useIntake(
   const sharesKey = useMemo(() => storeKeys.intakeShares(householdId), [householdId]);
   const extrasKey = useMemo(() => storeKeys.intakeExtras(householdId), [householdId]);
 
+  // Sin `.eq('member_id', …)`: la RLS de `member_body` (`can_act_for`) ya
+  // devuelve solo lo accesible — la fila propia y la de cualquier tutelado
+  // que se administre, nunca la de otro adulto — así que basta con pedirlo
+  // todo e indexar por miembro. Antes se filtraba aquí por `myMemberId`, lo
+  // que dejaba siempre a ciegas la ficha de un tutelado (hallazgo T9).
   const bodyQ = useQuery({
     queryKey: bodyKey,
-    enabled: myMemberId !== null,
-    queryFn: async (): Promise<MemberBody | null> => {
+    queryFn: async (): Promise<Map<MemberId, MemberBody>> => {
       const { data, error } = await supabase
         .from('member_body')
-        .select('sex, birth_year, height_cm, weight_kg, activity, goal')
-        .eq('member_id', myMemberId as string)
-        .maybeSingle();
+        .select('member_id, sex, birth_year, height_cm, weight_kg, activity, goal');
       if (error) throw error;
-      return data ? mapBody(data) : null;
+      const byMember = new Map<MemberId, MemberBody>();
+      for (const row of data ?? []) {
+        byMember.set(asMemberId(row.member_id as string), mapBody(row));
+      }
+      return byMember;
     },
   });
+
+  const bodyOf = useCallback(
+    (memberId: MemberId): MemberBody | null => bodyQ.data?.get(memberId) ?? null,
+    [bodyQ.data],
+  );
 
   // Sin filtro de fecha: son las EXCEPCIONES a "una ración por persona", no
   // el historial de lo comido — pocas filas por hogar, no hace falta acotar.
@@ -307,8 +318,8 @@ export function useIntake(
   );
 
   return {
-    myBody: bodyQ.data ?? null,
-    myBodyLoading: bodyQ.isLoading,
+    bodyOf,
+    bodyLoading: bodyQ.isLoading,
     setMyBody,
     intakeOfDayFor,
     setShare,

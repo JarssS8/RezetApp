@@ -218,16 +218,21 @@ export interface Store {
    */
   setHouseholdSheetOpen: (open: boolean) => void;
 
-  /** Datos corporales del miembro propio. `null` si no hay o no hay acceso. */
-  myBody: MemberBody | null;
   /**
-   * `true` mientras la consulta de datos corporales está en curso (solo la
-   * primera carga, no cada refetch en segundo plano). Antes de que resuelva,
-   * `myBody` vale `null` igual que "no hay datos guardados" — sin esta señal
-   * un formulario no puede distinguir "todavía no sé" de "no hay nada", y
-   * guardar en esa ventana borraría en silencio datos que sí existen.
+   * Datos corporales de un miembro: los propios, o los de un miembro sin
+   * cuenta a tu cargo. `null` si no hay datos o no tienes acceso — la RLS
+   * decide, y el cliente no puede pedir los de otro adulto aunque quiera.
    */
-  myBodyLoading: boolean;
+  bodyOf: (memberId: MemberId) => MemberBody | null;
+  /**
+   * `true` mientras la consulta de datos corporales del hogar está en
+   * curso (solo la primera carga, no cada refetch en segundo plano). Antes
+   * de que resuelva, `bodyOf` da `null` para cualquier miembro, igual que
+   * "no hay datos guardados" — sin esta señal un formulario no puede
+   * distinguir "todavía no sé" de "no hay nada", y guardar en esa ventana
+   * borraría en silencio datos que sí existen.
+   */
+  bodyLoading: boolean;
   /**
    * Contrato: `rpc/set_member_body`. El objetivo va YA CALCULADO con
    * `domain/nutrition.ts`: la fórmula vive ahí y solo ahí.

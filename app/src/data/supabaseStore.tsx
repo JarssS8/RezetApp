@@ -290,8 +290,8 @@ export function SupabaseDataProvider({
   );
 
   const {
-    myBody,
-    myBodyLoading,
+    bodyOf,
+    bodyLoading,
     setMyBody,
     intakeOfDayFor,
     setShare,
@@ -783,8 +783,8 @@ export function SupabaseDataProvider({
       setKomprappListToken,
       deleteAccount,
       setHouseholdSheetOpen,
-      myBody,
-      myBodyLoading,
+      bodyOf,
+      bodyLoading,
       setMyBody,
       intakeOfDayFor,
       setShare,
@@ -831,8 +831,8 @@ export function SupabaseDataProvider({
       removeMember,
       setKomprappListToken,
       deleteAccount,
-      myBody,
-      myBodyLoading,
+      bodyOf,
+      bodyLoading,
       setMyBody,
       intakeOfDayFor,
       setShare,
