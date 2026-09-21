@@ -90,4 +90,27 @@ describe('nutrition', () => {
     expect(clampTarget(1837)).toBe(1850);
     expect(clampTarget(Number.NaN)).toBe(2100);
   });
+
+  it('los cinco factores de actividad son los estándar', () => {
+    expect(ACTIVITY_FACTOR).toEqual({
+      sedentary: 1.2,
+      light: 1.375,
+      moderate: 1.55,
+      active: 1.725,
+      very_active: 1.9,
+    });
+  });
+
+  it('a los 18 ya se estima, a los 17 todavía no', () => {
+    const base = { sex: 'male', heightCm: 175, weightKg: 70, activity: 'light', goal: 'maintain' } as const;
+    // HOY es 2026: nacido en 2008 cumple 18 este año, nacido en 2009 cumple 17.
+    expect(estimateTarget({ ...base, birthYear: 2008 }, HOY)).not.toBeNull();
+    expect(estimateTarget({ ...base, birthYear: 2009 }, HOY)).toBeNull();
+  });
+
+  it('falta el peso o el año y tampoco hay estimación', () => {
+    const base = { sex: 'female', birthYear: 1991, heightCm: 168, weightKg: 62, activity: 'light', goal: 'maintain' } as const;
+    expect(estimateTarget({ ...base, weightKg: null }, HOY)).toBeNull();
+    expect(estimateTarget({ ...base, birthYear: null }, HOY)).toBeNull();
+  });
 });
