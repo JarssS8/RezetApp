@@ -5,13 +5,14 @@ import {
   EXTRA_KCAL_MIN,
   SPLIT_SHARE_MAX,
   dayBand,
+  frequentExtrasOf,
   intakeOfDay,
   splitServings,
   streakOf,
   weekAverage,
   weekTotals,
 } from '../intake';
-import type { PlanEntry, Recipe } from '../../types';
+import { asMemberId, type IntakeExtra, type PlanEntry, type Recipe } from '../../types';
 
 const receta = (id: string, kcal: number): Recipe =>
   ({ id, kcalPerServing: kcal, name: { es: id, en: id } } as unknown as Recipe);
@@ -202,6 +203,44 @@ describe('intake', () => {
 
     it('sin nadie marcado no reparte nada, en vez de dividir por cero', () => {
       expect(splitServings(4, 0)).toBe(0);
+    });
+  });
+
+  describe('frequentExtrasOf — favoritos de IntakeAddSheet', () => {
+    const m1 = asMemberId('m1');
+    const fila = (memberId: string, label: string, kcal: number, source: IntakeExtra['source']) =>
+      ({ memberId: asMemberId(memberId), label, kcal, source }) as Pick<
+        IntakeExtra,
+        'memberId' | 'label' | 'kcal' | 'source'
+      >;
+
+    it('solo cuenta lo registrado a mano, no por receta ni código de barras', () => {
+      const rows = [
+        fila('m1', 'Yogur', 120, 'manual'),
+        fila('m1', 'Yogur', 120, 'manual'),
+        fila('m1', 'Tortilla', 400, 'recipe'),
+        fila('m1', 'Cerveza', 150, 'barcode'),
+      ];
+      expect(frequentExtrasOf(m1, rows)).toEqual([{ label: 'Yogur', kcal: 120, times: 2 }]);
+    });
+
+    it('no mezcla los extras de otra persona del hogar', () => {
+      const rows = [fila('m1', 'Yogur', 120, 'manual'), fila('m2', 'Yogur', 120, 'manual')];
+      expect(frequentExtrasOf(m1, rows)).toEqual([{ label: 'Yogur', kcal: 120, times: 1 }]);
+    });
+
+    it('agrupa por nombre Y kcal exactos — dos cifras distintas no son "lo mismo"', () => {
+      const rows = [fila('m1', 'Café con leche', 50, 'manual'), fila('m1', 'Café con leche', 80, 'manual')];
+      expect(frequentExtrasOf(m1, rows)).toHaveLength(2);
+    });
+
+    it('ordena por frecuencia y corta en 8', () => {
+      const rows = Array.from({ length: 9 }, (_, i) => fila('m1', `Extra ${i}`, 100 + i, 'manual'));
+      // El primero se repite tres veces más, así que debe quedar el primero.
+      rows.push(fila('m1', 'Extra 0', 100, 'manual'), fila('m1', 'Extra 0', 100, 'manual'));
+      const result = frequentExtrasOf(m1, rows);
+      expect(result).toHaveLength(8);
+      expect(result[0]).toEqual({ label: 'Extra 0', kcal: 100, times: 3 });
     });
   });
 });

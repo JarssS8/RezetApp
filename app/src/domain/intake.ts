@@ -1,4 +1,4 @@
-import type { MealSlot, PlanEntry, Recipe } from '../types';
+import type { FrequentExtra, IntakeExtra, MealSlot, MemberId, PlanEntry, Recipe } from '../types';
 
 /**
  * Lo que ha comido una persona en un día.
@@ -181,4 +181,36 @@ export function weekAverage(days: DayTotal[], todayKey: string): number {
   const pasados = days.filter((d) => d.date < todayKey);
   if (pasados.length === 0) return 0;
   return pasados.reduce((sum, d) => sum + d.kcal, 0) / pasados.length;
+}
+
+/** Tope de favoritos que enseña la pestaña "Favoritos" de `IntakeAddSheet`. */
+const FREQUENT_EXTRAS_LIMIT = 8;
+
+/**
+ * Qué cuenta como "un extra que repites" (pestaña "Favoritos" de
+ * `IntakeAddSheet`): solo los registrados a mano (`source === 'manual'` —
+ * uno por receta o código de barras ya tiene su propio camino corto, y
+ * mezclarlos aquí duplicaría entradas), agrupados por nombre+kcal exactos,
+ * ordenados por frecuencia y con un tope de 8.
+ *
+ * Regla de negocio (hallazgo de revisión: estaba copiada palabra por
+ * palabra en `data/store.tsx` y en `data/supabaseStore/useIntake.ts` — dos
+ * copias de "qué cuenta como repetido" es justo lo que este módulo existe
+ * para evitar), así que vive aquí y las dos capas solo la llaman.
+ */
+export function frequentExtrasOf(
+  memberId: MemberId,
+  rows: Pick<IntakeExtra, 'memberId' | 'label' | 'kcal' | 'source'>[],
+): FrequentExtra[] {
+  const counts = new Map<string, FrequentExtra>();
+  for (const row of rows) {
+    if (row.memberId !== memberId || row.source !== 'manual') continue;
+    const key = `${row.label}\u0000${row.kcal}`;
+    const existing = counts.get(key);
+    if (existing) existing.times += 1;
+    else counts.set(key, { label: row.label, kcal: row.kcal, times: 1 });
+  }
+  return Array.from(counts.values())
+    .sort((a, b) => b.times - a.times)
+    .slice(0, FREQUENT_EXTRAS_LIMIT);
 }

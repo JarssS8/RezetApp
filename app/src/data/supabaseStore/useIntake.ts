@@ -4,7 +4,14 @@ import { supabase } from '../supabaseClient';
 import { storeKeys } from './keys';
 import { addDays, dateKey, mondayOf } from '../../domain/dates';
 import { entriesOfDay } from '../../domain/shopping';
-import { intakeOfDay, weekTotals, type DayIntake, type DayTotal, type IntakeExtraLine } from '../../domain/intake';
+import {
+  frequentExtrasOf,
+  intakeOfDay,
+  weekTotals,
+  type DayIntake,
+  type DayTotal,
+  type IntakeExtraLine,
+} from '../../domain/intake';
 import { asMemberId, type ExtraInput, type FrequentExtra, type MemberBody, type MemberId, type PlanEntry, type Recipe } from '../../types';
 
 interface ShareRow {
@@ -199,20 +206,11 @@ export function useIntake(
     [plan, recipeById, sharesByMember, extrasByMemberDate],
   );
 
+  // Regla de negocio ("qué cuenta como repetido") movida a
+  // `domain/intake.ts::frequentExtrasOf` (hallazgo de revisión: estaba
+  // copiada palabra por palabra aquí y en `data/store.tsx`).
   const frequentExtras = useCallback(
-    (memberId: MemberId): FrequentExtra[] => {
-      const counts = new Map<string, FrequentExtra>();
-      for (const row of extrasQ.data ?? []) {
-        if (row.memberId !== memberId || row.source !== 'manual') continue;
-        const key = `${row.label}\u0000${row.kcal}`;
-        const existing = counts.get(key);
-        if (existing) existing.times += 1;
-        else counts.set(key, { label: row.label, kcal: row.kcal, times: 1 });
-      }
-      return Array.from(counts.values())
-        .sort((a, b) => b.times - a.times)
-        .slice(0, 8);
-    },
+    (memberId: MemberId): FrequentExtra[] => frequentExtrasOf(memberId, extrasQ.data ?? []),
     [extrasQ.data],
   );
 

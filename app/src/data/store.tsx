@@ -4,7 +4,14 @@ import { scaleQuantity } from '../domain/scaling';
 import { addDays, dateKey, resolveExpiry, slotForNow, todayKey } from '../domain/dates';
 import { SENSITIVE_RE, defaultLocationFor, inferFoodGroup } from '../domain/recipeText';
 import { entriesOfDay } from '../domain/shopping';
-import { intakeOfDay, weekTotals, type DayIntake, type DayTotal, type IntakeExtraLine } from '../domain/intake';
+import {
+  frequentExtrasOf,
+  intakeOfDay,
+  weekTotals,
+  type DayIntake,
+  type DayTotal,
+  type IntakeExtraLine,
+} from '../domain/intake';
 import { createStoreDerivations } from '../domain/deriveStore';
 import { INGREDIENTS, INTAKE_EXTRAS, KCAL_TARGET, MEMBER_BODY, MEMBERS, PANTRY, PLAN, RECIPES } from './seed';
 import { usePrefs } from '../store/prefs';
@@ -667,21 +674,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [setData],
   );
 
-  /** Los que más repite. Solo `manual`: los de `recipe`/`barcode` no son "algo que registró a mano" para sugerir de nuevo. */
+  // Regla de negocio ("qué cuenta como repetido") movida a
+  // `domain/intake.ts::frequentExtrasOf` (hallazgo de revisión: estaba
+  // copiada palabra por palabra aquí y en `supabaseStore/useIntake.ts`).
   const frequentExtras = useCallback(
-    (memberId: MemberId): FrequentExtra[] => {
-      const counts = new Map<string, FrequentExtra>();
-      for (const row of data.intakeExtras) {
-        if (row.memberId !== memberId || row.source !== 'manual') continue;
-        const key = `${row.label}\u0000${row.kcal}`;
-        const existing = counts.get(key);
-        if (existing) existing.times += 1;
-        else counts.set(key, { label: row.label, kcal: row.kcal, times: 1 });
-      }
-      return Array.from(counts.values())
-        .sort((a, b) => b.times - a.times)
-        .slice(0, 8);
-    },
+    (memberId: MemberId): FrequentExtra[] => frequentExtrasOf(memberId, data.intakeExtras),
     [data.intakeExtras],
   );
 
