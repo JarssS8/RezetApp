@@ -92,7 +92,15 @@ export const es = {
   kcal: 'kcal',
   kcalLeft: 'Te quedan',
   kcalDoneAll: 'Objetivo del día completado',
+  overTarget: 'Te has pasado del objetivo por',
   planned: 'plan',
+
+  yourDay: 'Tu día',
+  yourDayCount: (n: number) => `${n} ${n === 1 ? 'comida' : 'comidas'}`,
+  mealNotCooked: 'Aún sin cocinar',
+  notEaten: 'No lo comí',
+  extraLabel: 'Extra',
+  addWhatIAte: 'Añadir algo que comí',
 
   searchRecipes: 'Buscar recetas',
   newRecipe: 'Nueva receta',

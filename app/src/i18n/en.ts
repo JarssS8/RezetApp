@@ -93,7 +93,15 @@ export const en: Dictionary = {
   kcal: 'kcal',
   kcalLeft: 'Left today',
   kcalDoneAll: 'Daily target reached',
+  overTarget: 'Over your target by',
   planned: 'planned',
+
+  yourDay: 'Your day',
+  yourDayCount: (n: number) => `${n} ${n === 1 ? 'meal' : 'meals'}`,
+  mealNotCooked: 'Not cooked yet',
+  notEaten: "Didn't eat it",
+  extraLabel: 'Extra',
+  addWhatIAte: 'Add something I ate',
 
   searchRecipes: 'Search recipes',
   newRecipe: 'New recipe',
