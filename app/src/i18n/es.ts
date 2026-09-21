@@ -489,6 +489,10 @@ export const es = {
   removed: 'Quitado del plan',
   savedRecipe: 'Receta guardada',
   cookSaved: 'Cocinado. Despensa actualizada.',
+  // Hallazgo de revisión: `finishCook` se lanzaba sin esperar su respuesta,
+  // así que un rechazo del servidor (la RPC deshace la transacción entera)
+  // se veía igual que un guardado bueno.
+  cookSaveError: 'No se pudo guardar el cocinado. Inténtalo de nuevo.',
 
   onboarding: [
     {

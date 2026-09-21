@@ -6,6 +6,7 @@ import { useAuth } from './data/auth';
 import { DataProvider } from './data/store';
 import { SupabaseDataProvider } from './data/supabaseStore';
 import { useData } from './data/storeContext';
+import { stripHouseholdErrorTag } from './data/householdErrors';
 import { haptics } from './motion/motion';
 import { AppShell, type Tab } from './app/AppShell';
 import { PrefsBridge } from './app/PrefsBridge';
@@ -244,21 +245,42 @@ function MainApp({
     [cook, recipeById],
   );
 
+  // Evita un doble envío mientras la RPC de arriba está en vuelo: sin `await`
+  // (ver más abajo) un segundo toque en "Guardar" lanzaría una segunda
+  // transacción antes de que la primera hubiera terminado.
+  const cookSavingRef = useRef(false);
+
   const confirmCook = useCallback(
     (servings: number, shares: { memberId: MemberId; servings: number }[]) => {
-      if (!cookSession) return;
-      void finishCook({
-        recipeId: cookSession.recipeId,
-        servings,
-        planEntryId: cookSession.planEntryId,
-        shares,
-      });
-      setSheet(null);
-      cook.endCook();
-      haptics.cookSaved();
-      show(t.cookSaved);
+      if (!cookSession || cookSavingRef.current) return;
+      cookSavingRef.current = true;
+      // Hallazgo de revisión: esto se lanzaba con `void` y sin `catch`, así
+      // que el toast y la vibración de éxito se disparaban aunque la RPC
+      // rechazara la llamada — la fase añadió tres vías nuevas por las que
+      // `finish_cook_v2` puede lanzar (miembro de otro hogar, `p_shares` mal
+      // formado, etc.), y las tres deshacen la transacción entera: la
+      // despensa no se descuenta, el contador no sube y la comida no se
+      // marca. Con "Guardado" en pantalla, no había forma de saberlo.
+      void (async () => {
+        try {
+          await finishCook({
+            recipeId: cookSession.recipeId,
+            servings,
+            planEntryId: cookSession.planEntryId,
+            shares,
+          });
+          setSheet(null);
+          cook.endCook();
+          haptics.cookSaved();
+          show(t.cookSaved);
+        } catch (e) {
+          show(stripHouseholdErrorTag(e instanceof Error ? e.message : String(e)) || t.cookSaveError);
+        } finally {
+          cookSavingRef.current = false;
+        }
+      })();
     },
-    [cookSession, finishCook, cook, show, t.cookSaved],
+    [cookSession, finishCook, cook, show, t.cookSaved, t.cookSaveError],
   );
 
   /**

@@ -485,6 +485,7 @@ export const en: Dictionary = {
   removed: 'Removed from the plan',
   savedRecipe: 'Recipe saved',
   cookSaved: 'Cooked. Pantry updated.',
+  cookSaveError: "Couldn't save the cook. Please try again.",
 
   onboarding: [
     {
