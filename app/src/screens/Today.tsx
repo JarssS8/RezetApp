@@ -3,6 +3,7 @@ import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
 import { longDate, todayKey } from '../domain/dates';
 import { entriesOfDay } from '../domain/shopping';
+import { rankSuggestions } from '../domain/suggestions';
 import { formatKcal } from '../domain/units';
 import type { MealLine } from '../domain/intake';
 import { prefersReducedMotion } from '../motion/motion';
@@ -59,6 +60,7 @@ export function Today({
     intakeOfDayFor,
     setShare,
     removeExtra,
+    recipePrefsByRecipe,
   } = useData();
   const today = todayKey();
 
@@ -112,6 +114,27 @@ export function Today({
   const cookable = useMemo(
     () => recipes.filter((r) => coverageOf(r, r.baseServings).full).slice(0, 3),
     [recipes, coverageOf],
+  );
+
+  /**
+   * "Para ti": las tres mejores según `domain/suggestions.ts` (gustos +
+   * despensa + cuánto hace que no se cocina) — la puntuación vive entera en
+   * ese módulo, aquí solo se junta lo que hace falta para calcularla.
+   */
+  const suggestions = useMemo(
+    () =>
+      rankSuggestions(
+        recipes.map((r) => ({
+          recipe: r,
+          myRating: myMemberId
+            ? (recipePrefsByRecipe.get(r.id)?.find((p) => p.memberId === myMemberId)?.rating ?? null)
+            : null,
+          pantryFull: coverageOf(r, r.baseServings).full,
+        })),
+        plan,
+        3,
+      ),
+    [recipes, recipePrefsByRecipe, myMemberId, coverageOf, plan],
   );
 
   const kcalLine = `${t.kcalOf} ${formatKcal(kcalTarget, locale)} ${t.kcal}${
@@ -314,6 +337,43 @@ export function Today({
             </Button>
           </div>
         </Card>
+      )}
+
+      {suggestions.length > 0 && (
+        <div style={{ marginTop: 26 }}>
+          <Eyebrow style={{ margin: '0 4px 4px' }}>{t.forYou}</Eyebrow>
+          <div style={{ margin: '0 4px 12px', fontSize: 13, color: 'var(--muted)' }}>{t.forYouHint}</div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gap: 12,
+            }}
+          >
+            {suggestions.map(({ recipe: r }) => (
+              <Pressable
+                key={r.id}
+                onClick={() => onOpenRecipe(r.id, r.baseServings)}
+                scale={0.98}
+                style={{
+                  textAlign: 'left',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--line)',
+                  borderRadius: radius.list,
+                  padding: 14,
+                  boxShadow: 'var(--shadow-s)',
+                }}
+              >
+                <div style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: '-.015em', lineHeight: 1.25 }}>
+                  {loc(r.name)}
+                </div>
+                <div style={{ marginTop: 6, fontSize: 13, color: 'var(--muted)', ...tabular }}>
+                  {r.minutes} min · {r.kcalPerServing} {t.kcal}
+                </div>
+              </Pressable>
+            ))}
+          </div>
+        </div>
       )}
 
       {cookable.length > 0 && (

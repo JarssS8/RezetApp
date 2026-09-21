@@ -405,6 +405,7 @@ function MainApp({
             setSheet({ kind: 'picker', target: { kind: 'recipe', recipeId } })
           }
           onEdit={(recipeId) => setPush({ kind: 'edit', recipeId })}
+          onToast={show}
         />
       )}
 

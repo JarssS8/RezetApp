@@ -104,6 +104,11 @@ export const es = {
   emptyTodayBody: 'Elige una receta o deja que el plan de la semana lo resuelva.',
   planWeek: 'Planificar la semana',
   cookableNow: 'Puedes cocinarlo ya',
+  // "Para ti" (Today): las tres recetas con mejor puntuación de
+  // `domain/suggestions.ts` — gustos, despensa y cuánto hace que no se
+  // cocina, nada de aprendizaje automático.
+  forYou: 'Para ti',
+  forYouHint: 'Según tus gustos, tu despensa y cuánto hace que no la cocinas.',
 
   kcalOf: 'de',
   kcal: 'kcal',
@@ -175,6 +180,13 @@ export const es = {
   sensitiveNote:
     'La sal y las especias no se duplican al subir raciones: se ajustan poco a poco.',
   cookedTimes: 'veces cocinada',
+
+  // Gustos por persona (`member_recipe_pref`): dos botones que se
+  // deshacen al pulsarlos otra vez, y debajo el agregado del hogar —
+  // quién votó qué es visible a propósito, no un dato privado.
+  likeAction: 'Me gusta',
+  dislikeAction: 'No me gusta',
+  likedByCount: (liked: number, total: number) => `A ${liked} de ${total} le gusta`,
 
   minutes: 'Minutos',
   difficulty: 'Dificultad',

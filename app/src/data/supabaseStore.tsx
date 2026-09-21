@@ -47,6 +47,7 @@ import { storeKeys } from './supabaseStore/keys';
 import { useMembers } from './supabaseStore/useMembers';
 import { useIntake } from './supabaseStore/useIntake';
 import { useNotifyPref } from './supabaseStore/useNotifyPref';
+import { useRecipePrefs } from './supabaseStore/useRecipePrefs';
 
 const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
 
@@ -304,6 +305,7 @@ export function SupabaseDataProvider({
   } = useIntake(householdId, myMemberId, recipeById, planQ.data ?? []);
 
   const { notifyPref, setNotifyPref } = useNotifyPref(householdId, myMemberId);
+  const { recipePrefsByRecipe, setRecipePref } = useRecipePrefs(householdId, myMemberId);
 
   const { stockOf, needOf, coverageOf, needsForWeek, shortagesFor } = useMemo(
     () =>
@@ -816,6 +818,8 @@ export function SupabaseDataProvider({
       weekTotalsFor,
       notifyPref,
       setNotifyPref,
+      recipePrefsByRecipe,
+      setRecipePref,
     }),
     [
       ingredientsQ.data,
@@ -866,6 +870,8 @@ export function SupabaseDataProvider({
       weekTotalsFor,
       notifyPref,
       setNotifyPref,
+      recipePrefsByRecipe,
+      setRecipePref,
     ],
   );
 

@@ -3,6 +3,7 @@ import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
 import { isCovered } from '../domain/coverage';
 import { formatKcal, formatQuantity } from '../domain/units';
+import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { Card, Eyebrow, ListCard, Row, StepNumber } from '../ui/Card';
 import { Icon } from '../ui/Icon';
@@ -11,6 +12,7 @@ import { PushHeader } from '../ui/Fields';
 import { useStackDismiss } from '../motion/useStackDismiss';
 import { Stepper } from '../ui/Stepper';
 import { maxW, radius, tabular, text as T } from '../ui/tokens';
+import type { RecipeRating } from '../types';
 
 export function RecipeDetail({
   recipeId,
@@ -19,6 +21,7 @@ export function RecipeDetail({
   onCook,
   onAddToPlan,
   onEdit,
+  onToast,
 }: {
   recipeId: string;
   initialServings: number;
@@ -26,11 +29,17 @@ export function RecipeDetail({
   onCook: (recipeId: string, servings: number) => void;
   onAddToPlan: (recipeId: string) => void;
   onEdit: (recipeId: string) => void;
+  /** Aviso si el voto de "me gusta"/"no me gusta" falla al guardarse (capa real). */
+  onToast: (message: string) => void;
 }) {
   const { t, locale, units, loc } = usePrefs();
-  const { recipeById, ingredientById, needOf, stockOf, coverageOf } = useData();
+  const { recipeById, ingredientById, needOf, stockOf, coverageOf, members, myMemberId, recipePrefsByRecipe, setRecipePref } =
+    useData();
   const recipe = recipeById.get(recipeId);
   const [servings, setServings] = useState(initialServings);
+  // Un voto a la vez, para no disparar dos escrituras si se pulsa dos veces
+  // mientras la primera sigue en vuelo (mismo patrón que `removingExtraId` en Today).
+  const [ratingPending, setRatingPending] = useState(false);
   const stack = useStackDismiss(onClose);
 
   if (!recipe) return null;
@@ -38,6 +47,27 @@ export function RecipeDetail({
   const hasSensitive = recipe.ingredients.some(
     (ri) => ingredientById.get(ri.ingredientId)?.sensitive,
   );
+
+  const prefs = recipePrefsByRecipe.get(recipe.id) ?? [];
+  const myRating = prefs.find((p) => p.memberId === myMemberId)?.rating ?? null;
+  const likedCount = prefs.filter((p) => p.rating === 1).length;
+  const activeMembers = members.filter((m) => m.deletedAt === null);
+  const memberById = new Map(activeMembers.map((m) => [m.id, m]));
+  // Solo miembros que siguen en el hogar y han votado: un voto de alguien ya
+  // salido no tiene a quién atribuírselo en la interfaz.
+  const voters = prefs.filter((p) => memberById.has(p.memberId));
+
+  const handleRate = async (rating: RecipeRating) => {
+    if (ratingPending) return;
+    setRatingPending(true);
+    try {
+      await setRecipePref(recipe.id, rating);
+    } catch {
+      onToast(t.memberActionError);
+    } finally {
+      setRatingPending(false);
+    }
+  };
 
   return (
     <div
@@ -274,6 +304,95 @@ export function RecipeDetail({
             ))}
           </div>
         </div>
+
+        {/*
+         * Gustos por persona (`member_recipe_pref`): pulsar el mismo botón
+         * otra vez quita el voto (ver `setRecipePref`). `aria-pressed`
+         * comunica cuál está activo a lectores de pantalla, igual que el
+         * segmentado de raciones de `Today.tsx`.
+         */}
+        <div style={{ marginTop: 22, display: 'flex', gap: 10 }} role="group" aria-label={loc(recipe.name)}>
+          <Pressable
+            onClick={() => void handleRate(1)}
+            ariaPressed={myRating === 1}
+            disabled={ratingPending}
+            scale={0.97}
+            style={{
+              flex: 1,
+              height: 46,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              borderRadius: radius.button,
+              fontSize: 15,
+              fontWeight: 600,
+              background: myRating === 1 ? 'var(--soft)' : 'var(--surface2)',
+              color: myRating === 1 ? 'var(--accent-ink)' : 'var(--text)',
+              opacity: ratingPending ? 0.7 : 1,
+            }}
+          >
+            {t.likeAction}
+          </Pressable>
+          <Pressable
+            onClick={() => void handleRate(-1)}
+            ariaPressed={myRating === -1}
+            disabled={ratingPending}
+            scale={0.97}
+            style={{
+              flex: 1,
+              height: 46,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              borderRadius: radius.button,
+              fontSize: 15,
+              fontWeight: 600,
+              background: myRating === -1 ? 'var(--warnsoft)' : 'var(--surface2)',
+              color: myRating === -1 ? 'var(--warn-ink)' : 'var(--text)',
+              opacity: ratingPending ? 0.7 : 1,
+            }}
+          >
+            {t.dislikeAction}
+          </Pressable>
+        </div>
+
+        {/*
+         * Agregado del hogar: quién votó qué es visible a propósito (ver
+         * `RecipePref` en `types.ts`) — esconderlo sería peor en un grupo
+         * pequeño. El avatar de `Avatar` es `aria-hidden`, así que siempre
+         * va acompañado del nombre y el voto en texto.
+         */}
+        {voters.length > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+              {t.likedByCount(likedCount, activeMembers.length)}
+            </div>
+            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {voters.map((p) => {
+                const member = memberById.get(p.memberId)!;
+                return (
+                  <div key={p.memberId} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Avatar member={member} size={26} />
+                    <span style={{ fontSize: 14, fontWeight: 600, flex: 1, minWidth: 0 }}>
+                      {member.displayName}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: p.rating === 1 ? 'var(--accent-ink)' : 'var(--warn-ink)',
+                      }}
+                    >
+                      {p.rating === 1 ? t.likeAction : t.dislikeAction}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div style={{ marginTop: 26, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Button

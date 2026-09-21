@@ -15,6 +15,8 @@ import type {
   PantryLoc,
   PlanEntry,
   Recipe,
+  RecipePref,
+  RecipeRating,
   Shortage,
   ShoppingNeed,
   Unit,
@@ -273,6 +275,25 @@ export interface Store {
    * claves presentes en el patch: las ausentes las conserva el servidor.
    */
   setNotifyPref: (memberId: MemberId, patch: Partial<NotifyPref>) => Promise<void>;
+
+  /**
+   * Valoraciones ("me gusta"/"no me gusta") de TODO el hogar por receta
+   * (`member_recipe_pref`) — mapa recipeId -> lista de votos, ausente o
+   * vacío si nadie ha votado. Deliberadamente del hogar entero, no solo el
+   * propio voto: quién votó qué es visible a propósito (ver el tipo
+   * `RecipePref` en `types.ts`), y la puntuación de "Para ti"
+   * (`domain/suggestions.ts`) solo necesita el voto propio, pero la
+   * interfaz enseña el agregado.
+   */
+  recipePrefsByRecipe: Map<string, RecipePref[]>;
+  /**
+   * Contrato: upsert/delete sobre `member_recipe_pref`, siempre del miembro
+   * propio (`myMemberId`) — la RLS de escritura ya lo exige
+   * (`can_act_for`). Pasar la misma puntuación que ya tenías quita el voto
+   * (se borra la fila), que es como la UI pide que funcione "pulsar el
+   * mismo botón otra vez".
+   */
+  setRecipePref: (recipeId: string, rating: RecipeRating) => Promise<void>;
 }
 
 export const StoreCtx = createContext<Store | null>(null);

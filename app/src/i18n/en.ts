@@ -105,6 +105,10 @@ export const en: Dictionary = {
   emptyTodayBody: 'Pick a recipe, or let the week plan handle it.',
   planWeek: 'Plan the week',
   cookableNow: 'You can cook this now',
+  // "For you" (Today): the top three recipes by `domain/suggestions.ts`
+  // score — likes, pantry and how long since it was cooked, no ML.
+  forYou: 'For you',
+  forYouHint: 'Based on what you like, your pantry, and how long since you cooked it.',
 
   kcalOf: 'of',
   kcal: 'kcal',
@@ -170,6 +174,13 @@ export const en: Dictionary = {
   photoSlot: 'dish photo',
   sensitiveNote: "Salt and spices don't double when you scale up: they adjust gently.",
   cookedTimes: 'times cooked',
+
+  // Per-person likes (`member_recipe_pref`): two buttons that undo on a
+  // second tap, and below them the household aggregate — who voted what
+  // is visible on purpose, not private data.
+  likeAction: 'Like',
+  dislikeAction: 'Dislike',
+  likedByCount: (liked: number, total: number) => `${liked} of ${total} like this`,
 
   minutes: 'Minutes',
   difficulty: 'Difficulty',

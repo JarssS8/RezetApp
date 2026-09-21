@@ -32,6 +32,8 @@ import type {
   PantryLoc,
   PlanEntry,
   Recipe,
+  RecipePref,
+  RecipeRating,
   Shortage,
   ShoppingNeed,
   Unit,
@@ -89,6 +91,13 @@ interface Data {
    * de Ajustes es quien decide qué valores por defecto enseñar en ese caso.
    */
   notifyPrefByMember: Partial<Record<MemberId, NotifyPref>>;
+  /**
+   * Valoraciones de recetas (`member_recipe_pref` en la capa real). Una
+   * lista plana y no un mapa anidado, mismo motivo que `intakeShares`: así
+   * se persiste tal cual en JSON. Como mucho una fila por (miembro,
+   * receta) — la clave primaria real.
+   */
+  recipePrefs: Array<{ memberId: MemberId; recipeId: string; rating: RecipeRating }>;
 }
 
 const INITIAL: Data = {
@@ -103,6 +112,7 @@ const INITIAL: Data = {
   intakeShares: [],
   intakeExtras: INTAKE_EXTRAS,
   notifyPrefByMember: {},
+  recipePrefs: [],
 };
 
 /**
@@ -632,6 +642,48 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
+   * Del hogar entero, agrupadas por receta — quién votó qué es visible a
+   * propósito (ver `RecipePref` en `types.ts`). En demo "el hogar" es solo
+   * el propio voto, pero el contrato ya es de lista para no divergir de la
+   * capa real cuando hay tutelados con voto propio.
+   */
+  const recipePrefsByRecipe = useMemo(() => {
+    const map = new Map<string, RecipePref[]>();
+    for (const p of data.recipePrefs) {
+      const list = map.get(p.recipeId) ?? [];
+      list.push({ memberId: p.memberId, rating: p.rating });
+      map.set(p.recipeId, list);
+    }
+    return map;
+  }, [data.recipePrefs]);
+
+  /**
+   * Contrato: upsert/delete sobre `member_recipe_pref`, siempre del "yo" de
+   * la demo. Pulsar el mismo botón otra vez quita el voto (se borra la
+   * fila), tal y como pide la UI.
+   */
+  const setRecipePref = useCallback(
+    async (recipeId: string, rating: RecipeRating): Promise<void> => {
+      setData((d) => {
+        const existing = d.recipePrefs.find(
+          (p) => p.memberId === DEMO_MY_MEMBER_ID && p.recipeId === recipeId,
+        );
+        const withoutMine = d.recipePrefs.filter(
+          (p) => !(p.memberId === DEMO_MY_MEMBER_ID && p.recipeId === recipeId),
+        );
+        if (existing && existing.rating === rating) {
+          return { ...d, recipePrefs: withoutMine };
+        }
+        return {
+          ...d,
+          recipePrefs: [...withoutMine, { memberId: DEMO_MY_MEMBER_ID, recipeId, rating }],
+        };
+      });
+    },
+    [setData],
+  );
+
+  /**
    * Puro sobre lo ya persistido: la aritmética (raciones, extras, totales)
    * sale de `domain/intake.ts`, igual que `useIntake.ts` en la capa real —
    * si las dos divergieran, la demo (pública, en rezet.jarsss8.es) enseñaría
@@ -780,6 +832,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // avisos (no hay dónde enviárselos), igual que en la capa real.
       notifyPref: data.notifyPrefByMember[DEMO_MY_MEMBER_ID] ?? null,
       setNotifyPref,
+      recipePrefsByRecipe,
+      setRecipePref,
     }),
     [
       data,
@@ -814,6 +868,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       frequentExtras,
       weekTotalsFor,
       setNotifyPref,
+      recipePrefsByRecipe,
+      setRecipePref,
     ],
   );
 

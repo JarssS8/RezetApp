@@ -209,6 +209,20 @@ export interface NotifyPref {
   quietTo: string | null;
 }
 
+/** Voto de un miembro sobre una receta (`member_recipe_pref.rating`): -1 "no me gusta", 1 "me gusta". */
+export type RecipeRating = -1 | 1;
+
+/**
+ * Un voto sobre una receta, con quién lo puso. A diferencia de `MemberBody`/
+ * `NotifyPref` (privados), este dato es del HOGAR: leer es de cualquier
+ * miembro, escribir es solo del propio — esconder quién votó qué crearía una
+ * ambigüedad peor ("¿a quién no le gusta?") en un grupo pequeño.
+ */
+export interface RecipePref {
+  memberId: MemberId;
+  rating: RecipeRating;
+}
+
 /** Algo que alguien comió fuera del plan. */
 export interface IntakeExtra {
   id: string;
