@@ -1871,4 +1871,73 @@ describe('migraciones', () => {
     ).rejects.toThrow(/REZET_INVALID_BODY/);
     await db.close();
   }, 120_000);
+
+  it('notify_pref: cada uno ve y edita solo el suyo', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+    const beaMember = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bea}'`,
+    );
+
+    await asUser(
+      db,
+      bea,
+      `insert into public.member_notify_pref (member_id, expiring) values ('${beaMember.rows[0].id}', false)`,
+    );
+
+    const suyo = (await asUser(db, bea, 'select count(*)::int as n from public.member_notify_pref')) as {
+      rows: { n: number }[];
+    };
+    expect(suyo.rows[0].n).toBe(1);
+
+    const ajeno = (await asUser(db, ana, 'select count(*)::int as n from public.member_notify_pref')) as {
+      rows: { n: number }[];
+    };
+    expect(ajeno.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
+
+  it('notify_pref: un tutelado lo gestiona quien lo tutela', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, "select public.create_ward_member('Nico', 'amber')");
+    const nico = await db.query<{ id: string }>(
+      "select id from public.member where display_name = 'Nico'",
+    );
+
+    await asUser(
+      db,
+      ana,
+      `insert into public.member_notify_pref (member_id) values ('${nico.rows[0].id}')`,
+    );
+    const n = (await asUser(db, ana, 'select count(*)::int as n from public.member_notify_pref')) as {
+      rows: { n: number }[];
+    };
+    expect(n.rows[0].n).toBe(1);
+    await db.close();
+  }, 120_000);
+
+  it('notify_pref: borrar el miembro se lleva sus preferencias', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    await db.exec(
+      `insert into public.member_notify_pref (member_id) values ('${yo.rows[0].id}')`,
+    );
+    await db.exec(`delete from public.member where id = '${yo.rows[0].id}'`);
+    const quedan = await db.query<{ n: number }>(
+      'select count(*)::int as n from public.member_notify_pref',
+    );
+    expect(quedan.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
 });
