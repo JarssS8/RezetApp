@@ -1940,4 +1940,109 @@ describe('migraciones', () => {
     expect(quedan.rows[0].n).toBe(0);
     await db.close();
   }, 120_000);
+
+  // (2026-09-21-avisos-gustos-turnos, task 5) — el riesgo a comprobar de
+  // verdad: con una política `for select` y otra `for all` sobre la misma
+  // tabla, Postgres combina los USING con OR. Si eso colase hacia
+  // INSERT/UPDATE/DELETE, cualquiera del hogar podría votar por otro.
+  it('recipe_pref: cualquiera del hogar lee el voto ajeno, pero nadie vota por otro', async () => {
+    const db = await applyMigrations();
+    const [ana, bea] = await householdWith(db, ['Ana', 'Bea']);
+    const hAna = (
+      await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)
+    ).rows[0].h;
+    const beaMember = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${bea}'`)
+    ).rows[0].id;
+    const recipe1 = (
+      (await asUser(db, ana, `insert into public.recipe (household_id, name) values ('${hAna}', 'R1') returning id`)) as {
+        rows: { id: string }[];
+      }
+    ).rows[0].id;
+    const recipe2 = (
+      (await asUser(db, ana, `insert into public.recipe (household_id, name) values ('${hAna}', 'R2') returning id`)) as {
+        rows: { id: string }[];
+      }
+    ).rows[0].id;
+
+    // Bea vota su propia receta: permitido.
+    await asUser(
+      db,
+      bea,
+      `insert into public.member_recipe_pref (member_id, recipe_id, rating) values ('${beaMember}', '${recipe1}', 1)`,
+    );
+
+    // Cara 1 — leer: Ana SÍ ve el voto de Bea (el agregado es el producto).
+    const leido = await asUser(
+      db,
+      ana,
+      `select rating from public.member_recipe_pref where member_id = '${beaMember}' and recipe_id = '${recipe1}'`,
+    );
+    expect((leido as { rows: { rating: number }[] }).rows).toHaveLength(1);
+    expect((leido as { rows: { rating: number }[] }).rows[0].rating).toBe(1);
+
+    // Cara 2 — escribir: Ana NO puede votar por Bea.
+    await expect(
+      asUser(
+        db,
+        ana,
+        `insert into public.member_recipe_pref (member_id, recipe_id, rating) values ('${beaMember}', '${recipe2}', -1)`,
+      ),
+    ).rejects.toThrow(/row-level security/);
+
+    await asUser(
+      db,
+      ana,
+      `update public.member_recipe_pref set rating = -1 where member_id = '${beaMember}' and recipe_id = '${recipe1}'`,
+    );
+    const trasUpdate = await db.query<{ rating: number }>(
+      `select rating from public.member_recipe_pref where member_id = '${beaMember}' and recipe_id = '${recipe1}'`,
+    );
+    expect(trasUpdate.rows[0].rating).toBe(1);
+
+    await asUser(
+      db,
+      ana,
+      `delete from public.member_recipe_pref where member_id = '${beaMember}' and recipe_id = '${recipe1}'`,
+    );
+    const trasDelete = await db.query<{ n: number }>(
+      `select count(*)::int as n from public.member_recipe_pref where member_id = '${beaMember}' and recipe_id = '${recipe1}'`,
+    );
+    expect(trasDelete.rows[0].n).toBe(1);
+    await db.close();
+  }, 120_000);
+
+  it('recipe_pref: aislamiento entre hogares', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const [eve] = await householdWith(db, ['Eve']);
+    const hEve = (
+      await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${eve}'`)
+    ).rows[0].h;
+    const eveMember = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${eve}'`)
+    ).rows[0].id;
+    const recipeE = (
+      (await asUser(db, eve, `insert into public.recipe (household_id, name) values ('${hEve}', 'E') returning id`)) as {
+        rows: { id: string }[];
+      }
+    ).rows[0].id;
+    await asUser(
+      db,
+      eve,
+      `insert into public.member_recipe_pref (member_id, recipe_id, rating) values ('${eveMember}', '${recipeE}', 1)`,
+    );
+
+    const ajeno = await count(db, ana, 'select count(*)::int as n from public.member_recipe_pref');
+    expect(ajeno).toBe(0);
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `insert into public.member_recipe_pref (member_id, recipe_id, rating) values ('${eveMember}', '${recipeE}', -1)`,
+      ),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
 });
