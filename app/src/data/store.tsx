@@ -27,6 +27,7 @@ import type {
   Member,
   MemberBody,
   MemberId,
+  NotifyPref,
   PantryItem,
   PantryLoc,
   PlanEntry,
@@ -81,6 +82,13 @@ interface Data {
   intakeShares: { memberId: MemberId; planEntryId: string; servings: number }[];
   /** Historial completo de extras — la demo es pequeña, no hace falta acotar por semana como la capa real. */
   intakeExtras: IntakeExtra[];
+  /**
+   * Preferencias de aviso por miembro (`member_notify_pref` en la capa
+   * real). Igual que `memberBody`: sin fila para un miembro, el contrato
+   * (`notifyPref`, siempre el del "yo" de la demo) da `null` — la pantalla
+   * de Ajustes es quien decide qué valores por defecto enseñar en ese caso.
+   */
+  notifyPrefByMember: Partial<Record<MemberId, NotifyPref>>;
 }
 
 const INITIAL: Data = {
@@ -94,6 +102,26 @@ const INITIAL: Data = {
   memberBody: { [MEMBERS[0]!.id]: MEMBER_BODY },
   intakeShares: [],
   intakeExtras: INTAKE_EXTRAS,
+  notifyPrefByMember: {},
+};
+
+/**
+ * Valores por defecto del diseño (§9, migración
+ * `20260921100000_rezet_notify_pref.sql`): todo activado salvo el
+ * recordatorio de registro (una app que da la lata sin que se lo pidas se
+ * desinstala) y sin horas de silencio configuradas. Solo se usa para
+ * fusionar un patch la primera vez que se toca el ajuste — igual que hace
+ * `upsert` en la capa real al insertar una fila nueva con columnas por
+ * defecto —, nunca se expone directamente como `notifyPref`.
+ */
+const DEFAULT_NOTIFY_PREF: NotifyPref = {
+  timers: true,
+  expiring: true,
+  cookTurn: true,
+  logReminder: false,
+  logReminderAt: '21:00',
+  quietFrom: null,
+  quietTo: null,
 };
 
 /**
@@ -584,6 +612,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
+   * Contrato: en la capa real es un `upsert` directo sobre
+   * `member_notify_pref` (sin RPC, ver `useNotifyPref.ts`). Solo se tocan
+   * las claves presentes en el patch, fusionadas sobre `DEFAULT_NOTIFY_PREF`
+   * si es la primera vez que se toca el ajuste — mismo criterio que
+   * `setMemberSettings`/`setMyBody` de más arriba.
+   */
+  const setNotifyPref = useCallback(
+    async (memberId: MemberId, patch: Partial<NotifyPref>): Promise<void> => {
+      setData((d) => {
+        const base = d.notifyPrefByMember[memberId] ?? DEFAULT_NOTIFY_PREF;
+        return {
+          ...d,
+          notifyPrefByMember: { ...d.notifyPrefByMember, [memberId]: { ...base, ...patch } },
+        };
+      });
+    },
+    [setData],
+  );
+
+  /**
    * Puro sobre lo ya persistido: la aritmética (raciones, extras, totales)
    * sale de `domain/intake.ts`, igual que `useIntake.ts` en la capa real —
    * si las dos divergieran, la demo (pública, en rezet.jarsss8.es) enseñaría
@@ -728,6 +776,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       removeExtra,
       frequentExtras,
       weekTotalsFor,
+      // Solo la fila del "yo" de la demo: un tutelado sin cuenta no recibe
+      // avisos (no hay dónde enviárselos), igual que en la capa real.
+      notifyPref: data.notifyPrefByMember[DEMO_MY_MEMBER_ID] ?? null,
+      setNotifyPref,
     }),
     [
       data,
@@ -761,6 +813,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       removeExtra,
       frequentExtras,
       weekTotalsFor,
+      setNotifyPref,
     ],
   );
 

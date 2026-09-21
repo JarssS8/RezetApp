@@ -10,6 +10,7 @@ import type {
   Member,
   MemberBody,
   MemberId,
+  NotifyPref,
   PantryItem,
   PantryLoc,
   PlanEntry,
@@ -255,6 +256,23 @@ export interface Store {
   frequentExtras: (memberId: MemberId) => FrequentExtra[];
   /** Totales por día para la pantalla de progreso. */
   weekTotalsFor: (memberId: MemberId, dates: string[]) => DayTotal[];
+
+  /**
+   * Preferencias de aviso del miembro propio (`member_notify_pref`). `null`
+   * mientras carga en modo real, o si nadie las ha tocado todavía — la
+   * pantalla de Ajustes es quien decide mostrar ahí los valores por defecto
+   * del diseño (§9), no este contrato. Solo la propia: a diferencia de
+   * `bodyOf`, aquí no hace falta indexar por miembro porque un tutelado sin
+   * cuenta no tiene dónde recibir un aviso (ver `NotifyPref` en `types.ts`).
+   */
+  notifyPref: NotifyPref | null;
+  /**
+   * Contrato: en la capa real es un `upsert` directo sobre
+   * `member_notify_pref` (RLS `can_act_for`; la tabla concede
+   * INSERT/UPDATE/DELETE a `authenticated` sin pasar por una RPC). Solo las
+   * claves presentes en el patch: las ausentes las conserva el servidor.
+   */
+  setNotifyPref: (memberId: MemberId, patch: Partial<NotifyPref>) => Promise<void>;
 }
 
 export const StoreCtx = createContext<Store | null>(null);

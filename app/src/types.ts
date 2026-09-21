@@ -188,6 +188,27 @@ export interface MemberBody {
   goal: 'lose' | 'maintain' | 'gain';
 }
 
+/**
+ * Qué avisos quiere recibir un miembro y cuándo (diseño §9,
+ * `member_notify_pref`). Privado, mismo nivel que `MemberBody`: solo el
+ * propio, o el de un tutelado — pero a diferencia del cuerpo, un tutelado
+ * (sin cuenta) nunca llega a usarlo de verdad, porque no hay dónde
+ * enviarle un aviso.
+ */
+export interface NotifyPref {
+  /** Temporizadores de cocina. Exento de `quietFrom`/`quietTo` por diseño. */
+  timers: boolean;
+  expiring: boolean;
+  cookTurn: boolean;
+  /** Apagado por defecto: una app que da la lata sin que se lo pidas se desinstala. */
+  logReminder: boolean;
+  /** Hora local, tal como la devuelve Postgres para una columna `time` ('HH:MM' o 'HH:MM:SS'). */
+  logReminderAt: string;
+  /** `null` en cualquiera de los dos = sin horas de silencio configuradas. */
+  quietFrom: string | null;
+  quietTo: string | null;
+}
+
 /** Algo que alguien comió fuera del plan. */
 export interface IntakeExtra {
   id: string;
