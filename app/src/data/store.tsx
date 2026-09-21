@@ -3,16 +3,22 @@ import { usePersistentState } from '../hooks/usePersistentState';
 import { scaleQuantity } from '../domain/scaling';
 import { addDays, dateKey, resolveExpiry, slotForNow, todayKey } from '../domain/dates';
 import { SENSITIVE_RE, defaultLocationFor, inferFoodGroup } from '../domain/recipeText';
+import { entriesOfDay } from '../domain/shopping';
+import { intakeOfDay, weekTotals, type DayIntake, type DayTotal, type IntakeExtraLine } from '../domain/intake';
 import { createStoreDerivations } from '../domain/deriveStore';
-import { INGREDIENTS, KCAL_TARGET, MEMBERS, PANTRY, PLAN, RECIPES } from './seed';
+import { INGREDIENTS, INTAKE_EXTRAS, KCAL_TARGET, MEMBER_BODY, MEMBERS, PANTRY, PLAN, RECIPES } from './seed';
 import { usePrefs } from '../store/prefs';
 import { asMemberId, type Accent } from '../types';
 import { StoreCtx, type MemberSettingsPatch, type RecipeDraft, type Store } from './storeContext';
 import type {
+  ExtraInput,
+  FrequentExtra,
   HouseholdDetail,
   Ingredient,
+  IntakeExtra,
   MealSlot,
   Member,
+  MemberBody,
   MemberId,
   PantryItem,
   PantryLoc,
@@ -54,6 +60,20 @@ interface Data {
   kcalTarget: number;
   /** Incluye a los borrados, igual que el contrato `Store` exige — ver storeContext.ts. */
   members: Member[];
+  /**
+   * Datos corporales por miembro. Como en la tabla real, no toda fila de
+   * `members` tiene una aquí: sin cuerpo registrado, `myBody` es `null`
+   * (ver contrato en `storeContext.ts`), no un objeto con todo a `null`.
+   */
+  memberBody: Partial<Record<MemberId, MemberBody>>;
+  /**
+   * Excepciones a "una ración por persona" (ver `domain/intake.ts`). Un
+   * array y no un mapa anidado porque así se persiste tal cual en JSON; la
+   * clave real (miembro + entrada de plan) se resuelve al leer.
+   */
+  intakeShares: { memberId: MemberId; planEntryId: string; servings: number }[];
+  /** Historial completo de extras — la demo es pequeña, no hace falta acotar por semana como la capa real. */
+  intakeExtras: IntakeExtra[];
 }
 
 const INITIAL: Data = {
@@ -64,6 +84,9 @@ const INITIAL: Data = {
   shoppingChecked: {},
   kcalTarget: KCAL_TARGET,
   members: MEMBERS,
+  memberBody: { [MEMBERS[0]!.id]: MEMBER_BODY },
+  intakeShares: [],
+  intakeExtras: INTAKE_EXTRAS,
 };
 
 /**
@@ -493,6 +516,144 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [setData],
   );
 
+  /**
+   * Contrato: `rpc/set_member_body`. El objetivo llega YA CALCULADO (ver
+   * `domain/nutrition.ts`); aquí solo se guarda. `patch` es un objeto ya
+   * filtrado por quien llama, así que fusionarlo tal cual sobre lo que
+   * hubiera (o sobre los valores por defecto, si es la primera vez) basta
+   * — igual que hace la RPC real con las claves presentes en el jsonb.
+   */
+  const setMyBody = useCallback(
+    async (memberId: MemberId, patch: Partial<MemberBody>, kcalTarget: number | null): Promise<void> => {
+      setData((d) => {
+        const base: MemberBody = d.memberBody[memberId] ?? {
+          sex: null,
+          birthYear: null,
+          heightCm: null,
+          weightKg: null,
+          activity: 'sedentary',
+          goal: 'maintain',
+        };
+        const memberBody = { ...d.memberBody, [memberId]: { ...base, ...patch } };
+        const members =
+          kcalTarget != null
+            ? d.members.map((m) => (m.id === memberId ? { ...m, kcalTarget } : m))
+            : d.members;
+        return { ...d, memberBody, members };
+      });
+    },
+    [setData],
+  );
+
+  /**
+   * Puro sobre lo ya persistido: la aritmética (raciones, extras, totales)
+   * sale de `domain/intake.ts`, igual que `useIntake.ts` en la capa real —
+   * si las dos divergieran, la demo (pública, en rezet.jarsss8.es) enseñaría
+   * un número que la app real no da.
+   */
+  const sharesOfMember = useCallback(
+    (memberId: MemberId): Map<string, number> => {
+      const map = new Map<string, number>();
+      for (const s of data.intakeShares) {
+        if (s.memberId === memberId) map.set(s.planEntryId, s.servings);
+      }
+      return map;
+    },
+    [data.intakeShares],
+  );
+
+  const intakeOfDayFor = useCallback(
+    (memberId: MemberId, date: string): DayIntake => {
+      const entries = entriesOfDay(date, data.plan);
+      const shares = sharesOfMember(memberId);
+      const extras: IntakeExtraLine[] = data.intakeExtras.filter(
+        (e) => e.memberId === memberId && e.date === date,
+      );
+      return intakeOfDay({ entries, recipeById, shares, extras });
+    },
+    [data.plan, data.intakeExtras, recipeById, sharesOfMember],
+  );
+
+  const weekTotalsFor = useCallback(
+    (memberId: MemberId, dates: string[]): DayTotal[] => {
+      const shares = sharesOfMember(memberId);
+      const entriesByDate = new Map(dates.map((d) => [d, entriesOfDay(d, data.plan)] as const));
+      const extrasByDate = new Map(
+        dates.map(
+          (d) => [d, data.intakeExtras.filter((e) => e.memberId === memberId && e.date === d)] as const,
+        ),
+      );
+      return weekTotals({ dates, entriesByDate, recipeById, shares, extrasByDate });
+    },
+    [data.plan, data.intakeExtras, recipeById, sharesOfMember],
+  );
+
+  /** Contrato: `rpc/set_member_body` visto desde `intake_share` — un upsert por (miembro, entrada de plan). */
+  const setShare = useCallback(
+    async (memberId: MemberId, planEntryId: string, servings: number): Promise<void> => {
+      setData((d) => ({
+        ...d,
+        intakeShares: [
+          ...d.intakeShares.filter((s) => !(s.memberId === memberId && s.planEntryId === planEntryId)),
+          { memberId, planEntryId, servings },
+        ],
+      }));
+    },
+    [setData],
+  );
+
+  const addExtra = useCallback(
+    async (input: ExtraInput): Promise<string> => {
+      // Generado fuera del updater, mismo motivo que `pantryAdd`: bajo
+      // <StrictMode> el updater se invoca dos veces en desarrollo, y un id
+      // generado dentro daría dos valores distintos entre lo que esta
+      // función devuelve y lo que React acaba guardando.
+      const id = uid('extra');
+      setData((d) => ({
+        ...d,
+        intakeExtras: [
+          ...d.intakeExtras,
+          {
+            id,
+            memberId: input.memberId,
+            date: input.date,
+            label: input.label,
+            kcal: input.kcal,
+            source: input.source,
+            recipeId: input.recipeId ?? null,
+          },
+        ],
+      }));
+      return id;
+    },
+    [setData],
+  );
+
+  const removeExtra = useCallback(
+    async (id: string): Promise<void> => {
+      setData((d) => ({ ...d, intakeExtras: d.intakeExtras.filter((e) => e.id !== id) }));
+    },
+    [setData],
+  );
+
+  /** Los que más repite. Solo `manual`: los de `recipe`/`barcode` no son "algo que registró a mano" para sugerir de nuevo. */
+  const frequentExtras = useCallback(
+    (memberId: MemberId): FrequentExtra[] => {
+      const counts = new Map<string, FrequentExtra>();
+      for (const row of data.intakeExtras) {
+        if (row.memberId !== memberId || row.source !== 'manual') continue;
+        const key = `${row.label}\u0000${row.kcal}`;
+        const existing = counts.get(key);
+        if (existing) existing.times += 1;
+        else counts.set(key, { label: row.label, kcal: row.kcal, times: 1 });
+      }
+      return Array.from(counts.values())
+        .sort((a, b) => b.times - a.times)
+        .slice(0, 8);
+    },
+    [data.intakeExtras],
+  );
+
   const value = useMemo<Store>(
     () => ({
       ...data,
@@ -528,6 +689,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setKomprappListToken: demoHouseholdActionUnavailable,
       deleteAccount: demoHouseholdActionUnavailable,
       setHouseholdSheetOpen: demoSetHouseholdSheetOpen,
+      myBody: data.memberBody[DEMO_MY_MEMBER_ID] ?? null,
+      setMyBody,
+      intakeOfDayFor,
+      setShare,
+      addExtra,
+      removeExtra,
+      frequentExtras,
+      weekTotalsFor,
     }),
     [
       data,
@@ -553,6 +722,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       createWardMember,
       deleteWardMember,
       setMemberSettings,
+      setMyBody,
+      intakeOfDayFor,
+      setShare,
+      addExtra,
+      removeExtra,
+      frequentExtras,
+      weekTotalsFor,
     ],
   );
 
