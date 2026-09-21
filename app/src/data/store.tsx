@@ -392,15 +392,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
-   * Contrato: `rpc/finish_cook`. En una sola operación: resta de la despensa lo
-   * escalado, incrementa el contador, marca la entrada de plan (o crea una de
-   * hoy) y devuelve lo que faltaba.
+   * Contrato: `rpc/finish_cook_v2`. En una sola operación: resta de la despensa
+   * lo escalado, incrementa el contador, marca la entrada de plan (o crea una
+   * de hoy), escribe el reparto de raciones por miembro ("Cuenta para" en
+   * `CookFinishSheet`) y devuelve lo que faltaba.
    */
   const finishCook = useCallback(
-    async (input: { recipeId: string; servings: number; planEntryId: string | null }): Promise<Shortage[]> => {
+    async (input: {
+      recipeId: string;
+      servings: number;
+      planEntryId: string | null;
+      shares: { memberId: MemberId; servings: number }[];
+    }): Promise<Shortage[]> => {
       const recipe = recipeById.get(input.recipeId);
       if (!recipe) return [];
       const shortages = shortagesFor(recipe, input.servings);
+
+      // Generado fuera del updater, mismo motivo que en `pantryAdd`/
+      // `createWardMember`: bajo <StrictMode> el updater se invoca dos veces
+      // en desarrollo, y el id de la entrada de plan tiene que ser el mismo
+      // que el que usan las raciones escritas más abajo en la misma llamada.
+      const newPlanEntryId = uid('pe');
 
       setData((d) => {
         const pantry = d.pantry.map((p) => ({ ...p }));
@@ -421,6 +433,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const existing = input.planEntryId
           ? d.plan.find((e) => e.id === input.planEntryId)
           : undefined;
+        const planEntryId = existing ? existing.id : newPlanEntryId;
         if (existing) {
           // Idempotencia: si ya estaba cocinada, no se vuelve a restar.
           plan = d.plan.map((e) =>
@@ -430,7 +443,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           plan = [
             ...d.plan,
             {
-              id: uid('pe'),
+              id: newPlanEntryId,
               date: todayKey(),
               slot: slotForNow(),
               recipeId: recipe.id,
@@ -440,7 +453,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           ];
         }
 
-        return { ...d, pantry: pantry.filter((p) => p.quantity > 0), recipes, plan };
+        // Igual que `finish_cook_v2`: las raciones se escriben en la misma
+        // operación que descuenta la despensa, nunca en una llamada aparte.
+        const intakeShares = [
+          ...d.intakeShares.filter((s) => s.planEntryId !== planEntryId),
+          ...input.shares.map((s) => ({ memberId: s.memberId, planEntryId, servings: s.servings })),
+        ];
+
+        return { ...d, pantry: pantry.filter((p) => p.quantity > 0), recipes, plan, intakeShares };
       });
 
       return shortages;

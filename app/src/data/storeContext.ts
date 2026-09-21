@@ -148,11 +148,17 @@ export interface Store {
    * El valor de retorno no lo usa ninguna pantalla hoy (la vista previa de
    * "¿Cómo ha salido?" calcula sus propios shortages con `shortagesFor`,
    * puro y local); se deja tipado por si algún día hace falta.
+   *
+   * `shares`: quién come de lo cocinado y cuántas raciones — se escribe en
+   * `intake_share` DENTRO de la misma transacción que descuenta la despensa
+   * (`rpc/finish_cook_v2`), nunca en una llamada aparte: si esa segunda
+   * llamada fallara, un "no lo cené" se perdería en silencio.
    */
   finishCook: (input: {
     recipeId: string;
     servings: number;
     planEntryId: string | null;
+    shares: { memberId: MemberId; servings: number }[];
   }) => Promise<Shortage[]>;
   shortagesFor: (recipe: Recipe, servings: number) => Shortage[];
 

@@ -443,6 +443,12 @@ export const en: Dictionary = {
   saveCook: 'Save',
   finishIntro: "We'll log the cook and subtract it from your pantry.",
   missingWarn: 'You were short on:',
+  countsFor: 'Counts for',
+  didNotEat: "Didn't eat",
+  sharesMismatch: (made: number, marked: number) =>
+    `You cooked ${made} ${made === 1 ? 'serving' : 'servings'} and ${marked} ${
+      marked === 1 ? 'person is' : 'people are'
+    } marked`,
 
   shopIntro: "What's missing for this week's plan, compared with your pantry.",
   shopEmpty: 'Nothing missing',

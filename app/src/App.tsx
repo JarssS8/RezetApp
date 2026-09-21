@@ -243,12 +243,13 @@ function MainApp({
   );
 
   const confirmCook = useCallback(
-    (servings: number) => {
+    (servings: number, shares: { memberId: MemberId; servings: number }[]) => {
       if (!cookSession) return;
       void finishCook({
         recipeId: cookSession.recipeId,
         servings,
         planEntryId: cookSession.planEntryId,
+        shares,
       });
       setSheet(null);
       cook.endCook();

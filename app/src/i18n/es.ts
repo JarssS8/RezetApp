@@ -445,6 +445,12 @@ export const es = {
   saveCook: 'Guardar',
   finishIntro: 'Guardamos lo cocinado y lo descontamos de la despensa.',
   missingWarn: 'No tenías todo:',
+  countsFor: 'Cuenta para',
+  didNotEat: 'No comió',
+  sharesMismatch: (made: number, marked: number) =>
+    `Cocinaste ${made} ${made === 1 ? 'ración' : 'raciones'} y hay ${marked} ${
+      marked === 1 ? 'persona marcada' : 'personas marcadas'
+    }`,
 
   shopIntro: 'Lo que falta para el plan de esta semana, comparado con tu despensa.',
   shopEmpty: 'No falta nada',
