@@ -99,7 +99,6 @@ export const es = {
   yourDayCount: (n: number) => `${n} ${n === 1 ? 'comida' : 'comidas'}`,
   mealNotCooked: 'Aún sin cocinar',
   notEaten: 'No lo comí',
-  extraLabel: 'Extra',
   addWhatIAte: 'Añadir algo que comí',
 
   searchRecipes: 'Buscar recetas',

@@ -75,10 +75,10 @@ export function Today({
     () =>
       myMemberId
         ? intakeOfDayFor(myMemberId, today)
-        : { done: 0, planned: 0, extras: 0, meals: [] as MealLine[] },
+        : { done: 0, planned: 0, extras: 0, extraLines: [], meals: [] as MealLine[] },
     [myMemberId, today, intakeOfDayFor],
   );
-  const { done, planned, extras, meals } = dayIntake;
+  const { done, planned, extraLines, meals } = dayIntake;
 
   const pct = kcalTarget > 0 ? Math.min(1, done / kcalTarget) : 0;
 
@@ -188,8 +188,12 @@ export function Today({
             );
           })}
 
-          {extras > 0 && (
+          {/* Una fila por extra, con su nombre y sus kcal — no una tarjeta
+           * genérica con el total: cada extra es una cosa distinta que la
+           * persona registró, no un agregado sin nombre. */}
+          {extraLines.map((extra) => (
             <div
+              key={extra.id}
               style={{
                 background: 'var(--surface)',
                 border: '1px solid var(--line)',
@@ -202,12 +206,21 @@ export function Today({
                 gap: 14,
               }}
             >
-              <div style={T.cardTitle}>{t.extraLabel}</div>
-              <div style={{ ...tabular, fontSize: 14.5, fontWeight: 650 }}>
-                {formatKcal(extras, locale)} {t.kcal}
+              <div
+                style={{
+                  ...T.cardTitle,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {extra.label}
+              </div>
+              <div style={{ ...tabular, fontSize: 14.5, fontWeight: 650, whiteSpace: 'nowrap' }}>
+                {formatKcal(extra.kcal, locale)} {t.kcal}
               </div>
             </div>
-          )}
+          ))}
         </div>
 
         <Button

@@ -100,7 +100,6 @@ export const en: Dictionary = {
   yourDayCount: (n: number) => `${n} ${n === 1 ? 'meal' : 'meals'}`,
   mealNotCooked: 'Not cooked yet',
   notEaten: "Didn't eat it",
-  extraLabel: 'Extra',
   addWhatIAte: 'Add something I ate',
 
   searchRecipes: 'Search recipes',

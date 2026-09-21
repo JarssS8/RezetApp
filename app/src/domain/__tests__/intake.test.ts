@@ -68,6 +68,21 @@ describe('intake', () => {
     expect(d.done).toBe(240);
   });
 
+  it('extraLines refleja lo que entró y suma lo mismo que extras', () => {
+    const lineas = [
+      { id: 'e1', label: 'Café', kcal: 90 },
+      { id: 'e2', label: 'Cerveza', kcal: 150 },
+    ];
+    const d = intakeOfDay({
+      entries: [],
+      recipeById: recipes,
+      shares: new Map(),
+      extras: lineas,
+    });
+    expect(d.extraLines).toEqual(lineas);
+    expect(d.extraLines.reduce((sum, x) => sum + x.kcal, 0)).toBe(d.extras);
+  });
+
   it('una receta que ya no existe no rompe el día', () => {
     const d = intakeOfDay({
       entries: [entrada('p1', 'fantasma', 2, true)],

@@ -43,6 +43,8 @@ export interface DayIntake {
   planned: number;
   /** Solo los extras, para poder enseñarlos aparte. */
   extras: number;
+  /** Las líneas que suman `extras`, para poder enseñarlas una a una. */
+  extraLines: IntakeExtraLine[];
   meals: MealLine[];
 }
 
@@ -86,7 +88,7 @@ export function intakeOfDay(input: {
   const planned =
     meals.reduce((sum, m) => sum + kcalOf(recipeById, m.recipeId) * m.share, 0) + extrasKcal;
 
-  return { done, planned, extras: extrasKcal, meals };
+  return { done, planned, extras: extrasKcal, extraLines: extras, meals };
 }
 
 export function weekTotals(input: {
