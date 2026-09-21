@@ -1288,4 +1288,102 @@ describe('migraciones', () => {
     expect(seenByOther.rows.length).toBe(0);
     await db.close();
   }, 120_000);
+
+  it('member_body: nadie lee los datos corporales de otro adulto del hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+
+    const beaMember = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bea}'`,
+    );
+    await asUser(
+      db,
+      bea,
+      `select public.set_member_body('${beaMember.rows[0].id}', '{"weight_kg":62,"sex":"female"}'::jsonb, 1850)`,
+    );
+
+    // Bea sí ve lo suyo.
+    const propio = (await asUser(db, bea, 'select count(*)::int as n from public.member_body')) as {
+      rows: { n: number }[];
+    };
+    expect(propio.rows[0].n).toBe(1);
+
+    // Ana, del mismo hogar, no ve nada.
+    const ajeno = (await asUser(db, ana, 'select count(*)::int as n from public.member_body')) as {
+      rows: { n: number }[];
+    };
+    expect(ajeno.rows[0].n).toBe(0);
+
+    // Y tampoco puede escribirlo.
+    await expect(
+      asUser(db, ana, `select public.set_member_body('${beaMember.rows[0].id}', '{"weight_kg":99}'::jsonb, null)`),
+    ).rejects.toThrow();
+
+    await db.close();
+  }, 120_000);
+
+  it('member_body: el tutelado sí lo gestiona quien tiene cuenta', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, "select public.create_ward_member('Nico', 'amber')");
+    const nico = await db.query<{ id: string }>(
+      "select id from public.member where display_name = 'Nico'",
+    );
+
+    await asUser(
+      db,
+      ana,
+      `select public.set_member_body('${nico.rows[0].id}', '{"birth_year":2014}'::jsonb, 1600)`,
+    );
+
+    const visto = (await asUser(db, ana, 'select count(*)::int as n from public.member_body')) as {
+      rows: { n: number }[];
+    };
+    expect(visto.rows[0].n).toBe(1);
+
+    const objetivo = await db.query<{ kcal_target: number }>(
+      `select kcal_target from public.member where id = '${nico.rows[0].id}'`,
+    );
+    expect(objetivo.rows[0].kcal_target).toBe(1600);
+    await db.close();
+  }, 120_000);
+
+  it('member_body: salir del hogar borra los datos corporales', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const bea = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, 'select public.create_invite()');
+    const code = await db.query<{ code: string }>('select code from public.household_invite limit 1');
+    await asUser(db, bea, `select public.redeem_invite('${code.rows[0].code}', 'Bea')`);
+    const beaMember = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${bea}'`,
+    );
+    await asUser(db, bea, `select public.set_member_body('${beaMember.rows[0].id}', '{"weight_kg":62}'::jsonb, 1850)`);
+
+    await asUser(db, bea, 'select public.leave_household()');
+
+    const quedan = await db.query<{ n: number }>('select count(*)::int as n from public.member_body');
+    expect(quedan.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
+
+  it('member_body: no se puede escribir la tabla por la vía directa', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    await expect(
+      asUser(db, ana, `insert into public.member_body (member_id, weight_kg) values ('${yo.rows[0].id}', 62)`),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
 });
