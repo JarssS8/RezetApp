@@ -1518,4 +1518,95 @@ describe('migraciones', () => {
     expect(quedan.rows[0].n).toBe(0);
     await db.close();
   }, 120_000);
+
+  // Task 5 — finish_cook_v2 escribe las raciones dentro de la misma
+  // transacción que descuenta la despensa: el camino "no planificado" es
+  // justo el que no tenía plan_entry_id que devolver.
+  it('finish_cook_v2 devuelve el id de la comida que crea y escribe las raciones', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    await asUser(db, ana, "select public.create_ward_member('Nico', 'amber')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    const nico = await db.query<{ id: string }>(
+      "select id from public.member where display_name = 'Nico'",
+    );
+    await db.exec(`
+      insert into public.recipe (id, household_id, name, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000011', '${h.rows[0].id}', 'Lentejas', 500);
+    `);
+
+    const res = (await asUser(
+      db,
+      ana,
+      `select public.finish_cook_v2(
+         '00000000-0000-4000-8000-000000000011', 2, null, '2026-09-21', 'lunch',
+         '[{"member_id":"${yo.rows[0].id}","servings":1},
+           {"member_id":"${nico.rows[0].id}","servings":0}]'::jsonb
+       ) as out`,
+    )) as { rows: { out: { shortages: unknown[]; plan_entry_id: string } }[] };
+
+    expect(res.rows[0].out.plan_entry_id).toBeTruthy();
+    expect(Array.isArray(res.rows[0].out.shortages)).toBe(true);
+
+    const shares = await db.query<{ n: number; ceros: number }>(
+      `select count(*)::int as n, count(*) filter (where servings = 0)::int as ceros
+         from public.intake_share`,
+    );
+    expect(shares.rows[0].n).toBe(2);
+    expect(shares.rows[0].ceros).toBe(1);
+    await db.close();
+  }, 120_000);
+
+  it('finish_cook sigue devolviendo solo el array, para los clientes viejos', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    await db.exec(`
+      insert into public.recipe (id, household_id, name, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000012', '${h.rows[0].id}', 'Sopa', 200);
+    `);
+
+    const res = (await asUser(
+      db,
+      ana,
+      `select public.finish_cook('00000000-0000-4000-8000-000000000012', 1, null, '2026-09-21', 'dinner') as out`,
+    )) as { rows: { out: unknown }[] };
+
+    expect(Array.isArray(res.rows[0].out)).toBe(true);
+    await db.close();
+  }, 120_000);
+
+  it('finish_cook_v2 no acepta raciones de un miembro de otro hogar', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    const mallory = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa de Ana', 'Ana')");
+    await asUser(db, mallory, "select public.create_household('Casa de Mallory', 'Mallory')");
+    const h = await db.query<{ id: string }>(
+      `select household_id as id from public.profile where id = '${ana}'`,
+    );
+    const mMallory = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${mallory}'`,
+    );
+    await db.exec(`
+      insert into public.recipe (id, household_id, name, kcal_per_serving) values
+        ('00000000-0000-4000-8000-000000000013', '${h.rows[0].id}', 'Arroz', 400);
+    `);
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `select public.finish_cook_v2(
+           '00000000-0000-4000-8000-000000000013', 1, null, '2026-09-21', 'lunch',
+           '[{"member_id":"${mMallory.rows[0].id}","servings":1}]'::jsonb)`,
+      ),
+    ).rejects.toThrow();
+    await db.close();
+  }, 120_000);
 });
