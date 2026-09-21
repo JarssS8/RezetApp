@@ -358,6 +358,7 @@ function MainApp({
             onOpenSettings={() => setSheet({ kind: 'settings' })}
             onAddIntake={() => setSheet({ kind: 'intakeAdd' })}
             onOpenWeek={() => setPush({ kind: 'week' })}
+            onToast={show}
           />
         )}
         {tab === 'recipes' && (

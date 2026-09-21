@@ -100,6 +100,9 @@ export const es = {
   mealNotCooked: 'Aún sin cocinar',
   notEaten: 'No lo comí',
   addWhatIAte: 'Añadir algo que comí',
+  // Hallazgo de revisión: un extra registrado no se podía borrar — si te
+  // equivocabas de cifra, el anillo mentía el resto del día sin recurso.
+  removeExtraAction: (label: string) => `Quitar ${label}`,
 
   // "Tu semana" (Tarea 13): siete barras contra el objetivo, más la racha.
   yourWeek: 'Tu semana',

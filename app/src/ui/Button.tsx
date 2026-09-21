@@ -82,18 +82,21 @@ export function IconButton({
   onClick,
   ariaLabel,
   size = 40,
+  disabled,
   style,
 }: {
   children: ReactNode;
   onClick?: () => void;
   ariaLabel: string;
   size?: number;
+  disabled?: boolean;
   style?: CSSProperties;
 }) {
   return (
     <Pressable
       onClick={onClick}
       ariaLabel={ariaLabel}
+      disabled={disabled}
       scale={0.93}
       style={{
         width: size,
@@ -104,6 +107,7 @@ export function IconButton({
         background: 'var(--surface2)',
         color: 'var(--text)',
         flex: `0 0 ${size}px`,
+        opacity: disabled ? 0.55 : 1,
         ...style,
       }}
     >

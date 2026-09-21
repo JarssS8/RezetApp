@@ -32,6 +32,7 @@ export function Today({
   onOpenSettings,
   onAddIntake,
   onOpenWeek,
+  onToast,
   isWide,
 }: {
   onOpenRecipe: (recipeId: string, servings: number) => void;
@@ -42,6 +43,8 @@ export function Today({
   onAddIntake: () => void;
   /** Abre "Tu semana" (Tarea 13): la fila bajo el anillo. */
   onOpenWeek: () => void;
+  /** Toast de error al borrar un extra (hallazgo de revisión: antes no se podía). */
+  onToast: (message: string) => void;
   isWide: boolean;
 }) {
   const { t, locale, loc } = usePrefs();
@@ -55,8 +58,24 @@ export function Today({
     myMemberId,
     intakeOfDayFor,
     setShare,
+    removeExtra,
   } = useData();
   const today = todayKey();
+
+  // Un extra a la vez: evita un doble borrado si se toca dos veces mientras
+  // la llamada sigue en vuelo, y sirve para deshabilitar solo SU botón.
+  const [removingExtraId, setRemovingExtraId] = useState<string | null>(null);
+  const handleRemoveExtra = async (id: string) => {
+    if (removingExtraId) return;
+    setRemovingExtraId(id);
+    try {
+      await removeExtra(id);
+    } catch {
+      onToast(t.memberActionError);
+    } finally {
+      setRemovingExtraId(null);
+    }
+  };
 
   // El anillo compara contra el objetivo PROPIO cuando existe (control por
   // persona, Tarea de fundación de miembro), cayendo al del hogar si no hay
@@ -246,6 +265,18 @@ export function Today({
               <div style={{ ...tabular, fontSize: 14.5, fontWeight: 650, whiteSpace: 'nowrap' }}>
                 {formatKcal(extra.kcal, locale)} {t.kcal}
               </div>
+              {/* Hallazgo de revisión: un extra registrado no se podía borrar
+               * — si te equivocabas de cifra, el anillo mentía el resto del
+               * día sin recurso, y encima contaminaba `frequentExtras`. */}
+              <IconButton
+                onClick={() => void handleRemoveExtra(extra.id)}
+                ariaLabel={t.removeExtraAction(extra.label)}
+                disabled={removingExtraId === extra.id}
+                size={height.touch}
+                style={{ color: 'var(--muted)' }}
+              >
+                <Icon name="trash" size={16} strokeWidth={1.9} />
+              </IconButton>
             </div>
           ))}
         </div>

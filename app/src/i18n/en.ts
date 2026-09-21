@@ -101,6 +101,7 @@ export const en: Dictionary = {
   mealNotCooked: 'Not cooked yet',
   notEaten: "Didn't eat it",
   addWhatIAte: 'Add something I ate',
+  removeExtraAction: (label: string) => `Remove ${label}`,
 
   // "Your week" (Task 13): seven bars against the target, plus the streak.
   yourWeek: 'Your week',
