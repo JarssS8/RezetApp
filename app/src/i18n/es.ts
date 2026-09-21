@@ -482,6 +482,10 @@ export const es = {
     `Cocinaste ${made} ${made === 1 ? 'ración' : 'raciones'} y hay ${marked} ${
       marked === 1 ? 'persona marcada' : 'personas marcadas'
     }`,
+  // Mitigación que pide la spec: la spec acepta "una ración por defecto" a
+  // cambio de que esta hoja ofrezca repartir en un toque cuando no cuadra.
+  splitServingsAction: (each: string) => `Repartir: ${each} cada uno`,
+  splitServingsApplied: (each: string) => `Repartido: ${each} cada uno`,
 
   shopIntro: 'Lo que falta para el plan de esta semana, comparado con tu despensa.',
   shopEmpty: 'No falta nada',

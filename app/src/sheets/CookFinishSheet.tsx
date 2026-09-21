@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
-import { formatQuantity } from '../domain/units';
+import { splitServings } from '../domain/intake';
+import { formatFractionalQuantity, formatQuantity } from '../domain/units';
 import { Button } from '../ui/Button';
 import { Sheet } from '../ui/Sheet';
 import { Stepper } from '../ui/Stepper';
@@ -57,6 +58,17 @@ export function CookFinishSheet({
   // No bloquea: el hogar decide (pudo haber sobras, o alguien comió menos).
   const sharesMismatch = aliveMembers.length > 0 && made !== markedCount;
 
+  /**
+   * Mitigación que pide la spec (hallazgo de revisión): a cambio de "una
+   * ración por defecto", la hoja ofrece repartir en un toque cuando no
+   * cuadra — si no, la única corrección era que cada persona abriera Hoy y
+   * ajustara su stepper. `splitEvenly` no congela el número al pulsar: se
+   * recalcula solo si se toca el stepper o se marca/desmarca a alguien
+   * después, así que nunca queda repartiendo un valor ya viejo.
+   */
+  const [splitEvenly, setSplitEvenly] = useState(false);
+  const perPersonShare = splitServings(made, markedCount);
+
   const shortages = useMemo(
     () => (recipe ? shortagesFor(recipe, made) : []),
     [recipe, made, shortagesFor],
@@ -65,11 +77,12 @@ export function CookFinishSheet({
   if (!recipe) return null;
 
   const confirm = () => {
-    // Solo se manda la excepción (0 raciones) de quien se ha desmarcado;
-    // el resto queda implícito, igual que hace el resto de la app.
+    // Sin repartir: solo se manda la excepción (0 raciones) de quien se ha
+    // desmarcado, el resto queda implícito. Repartiendo: se manda también la
+    // ración de cada persona marcada, calculada arriba.
     const shares = aliveMembers
-      .filter((m) => unmarked.has(m.id))
-      .map((m) => ({ memberId: m.id, servings: 0 }));
+      .filter((m) => unmarked.has(m.id) || splitEvenly)
+      .map((m) => ({ memberId: m.id, servings: unmarked.has(m.id) ? 0 : perPersonShare }));
     onConfirm(made, shares);
   };
 
@@ -189,6 +202,20 @@ export function CookFinishSheet({
                 }}
               >
                 {t.sharesMismatch(made, markedCount)}
+                {splitEvenly ? (
+                  <div style={{ marginTop: 8, fontWeight: 650 }}>
+                    {t.splitServingsApplied(formatFractionalQuantity(perPersonShare, locale))}
+                  </div>
+                ) : (
+                  <Button
+                    size="secondary"
+                    variant="secondary"
+                    onClick={() => setSplitEvenly(true)}
+                    style={{ marginTop: 10, borderRadius: radius.button }}
+                  >
+                    {t.splitServingsAction(formatFractionalQuantity(perPersonShare, locale))}
+                  </Button>
+                )}
               </div>
             )}
           </div>

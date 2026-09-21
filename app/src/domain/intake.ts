@@ -101,6 +101,23 @@ export function intakeOfDay(input: {
   return { done, planned, extras: extrasKcal, extraLines: extras, meals };
 }
 
+/**
+ * Reparte lo cocinado en un toque entre quienes lo comieron — la mitigación
+ * que la spec pone a cambio de aceptar "una ración por defecto": un hogar de
+ * 4 que cocina 2 raciones puede repartir 0,5 para cada uno en vez de que
+ * cada persona abra Hoy y ajuste su stepper a mano. Dos decimales y entre 0
+ * y 6, lo que acepta la columna `intake_share.servings`
+ * (`numeric(4,2) check (servings between 0 and 6)`). Nunca bloquea: es una
+ * ayuda que se puede pedir, no algo que se imponga solo.
+ */
+export const SPLIT_SHARE_MAX = 6;
+export function splitServings(made: number, peopleCount: number): number {
+  if (peopleCount <= 0) return 0;
+  const raw = made / peopleCount;
+  const rounded = Math.round(raw * 100) / 100;
+  return Math.min(SPLIT_SHARE_MAX, Math.max(0, rounded));
+}
+
 export function weekTotals(input: {
   dates: string[];
   entriesByDate: Map<string, PlanEntry[]>;

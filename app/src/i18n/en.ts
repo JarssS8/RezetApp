@@ -468,6 +468,8 @@ export const en: Dictionary = {
     `You cooked ${made} ${made === 1 ? 'serving' : 'servings'} and ${marked} ${
       marked === 1 ? 'person is' : 'people are'
     } marked`,
+  splitServingsAction: (each: string) => `Split: ${each} each`,
+  splitServingsApplied: (each: string) => `Split: ${each} each`,
 
   shopIntro: "What's missing for this week's plan, compared with your pantry.",
   shopEmpty: 'Nothing missing',

@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SHARE, EXTRA_KCAL_MAX, EXTRA_KCAL_MIN, dayBand, intakeOfDay, streakOf, weekAverage, weekTotals } from '../intake';
+import {
+  DEFAULT_SHARE,
+  EXTRA_KCAL_MAX,
+  EXTRA_KCAL_MIN,
+  SPLIT_SHARE_MAX,
+  dayBand,
+  intakeOfDay,
+  splitServings,
+  streakOf,
+  weekAverage,
+  weekTotals,
+} from '../intake';
 import type { PlanEntry, Recipe } from '../../types';
 
 const receta = (id: string, kcal: number): Recipe =>
@@ -170,5 +181,27 @@ describe('intake', () => {
   it('EXTRA_KCAL_MIN/MAX coinciden con el check de intake_extra.kcal en la base', () => {
     expect(EXTRA_KCAL_MIN).toBe(0);
     expect(EXTRA_KCAL_MAX).toBe(10000);
+  });
+
+  describe('splitServings — reparto en un toque de CookFinishSheet', () => {
+    it('2 raciones entre 4 personas da 0,5 cada una', () => {
+      expect(splitServings(2, 4)).toBe(0.5);
+    });
+
+    it('reparto exacto no deja arrastre de coma flotante', () => {
+      expect(splitServings(1, 3)).toBe(0.33);
+    });
+
+    it('se redondea a dos decimales, lo que acepta la columna', () => {
+      expect(splitServings(10, 3)).toBe(3.33);
+    });
+
+    it('nunca pasa de SPLIT_SHARE_MAX (6), el tope de la columna', () => {
+      expect(splitServings(24, 1)).toBe(SPLIT_SHARE_MAX);
+    });
+
+    it('sin nadie marcado no reparte nada, en vez de dividir por cero', () => {
+      expect(splitServings(4, 0)).toBe(0);
+    });
   });
 });
