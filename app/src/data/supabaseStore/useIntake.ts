@@ -41,6 +41,13 @@ function mapBody(row: {
   };
 }
 
+/** Fila de datos corporales con el id de a quién pertenece, tal como la
+ * devuelve `bodyQ` — un ARRAY, nunca un `Map` (ver el comentario junto a
+ * `bodyQ` más abajo sobre por qué). */
+interface BodyRow extends MemberBody {
+  memberId: MemberId;
+}
+
 /**
  * Registro personal de consumo, capa real. Toda la aritmética (raciones,
  * extras, totales) sale de `domain/intake.ts`: este hook solo filtra lo ya
@@ -64,24 +71,39 @@ export function useIntake(
   // que se administre, nunca la de otro adulto — así que basta con pedirlo
   // todo e indexar por miembro. Antes se filtraba aquí por `myMemberId`, lo
   // que dejaba siempre a ciegas la ficha de un tutelado (hallazgo T9).
+  //
+  // La `queryFn` devuelve un ARRAY, nunca un `Map`: TanStack Query solo sabe
+  // aplicar structural sharing (reusar la MISMA referencia cuando el dato no
+  // ha cambiado) sobre objetos y arrays planos, no sobre `Map`. Con un `Map`
+  // cada refetch —y `refetchOnWindowFocus` dispara uno solo con cambiar de
+  // app y volver— producía una identidad nueva aunque el contenido fuera
+  // igual, y eso reescribía en silencio el formulario de `MemberTargetSheet`
+  // (su `useEffect` de resincronía depende de esta identidad). El `Map` de
+  // trabajo se construye aparte, en un `useMemo`, para no perder el índice
+  // por miembro.
   const bodyQ = useQuery({
     queryKey: bodyKey,
-    queryFn: async (): Promise<Map<MemberId, MemberBody>> => {
+    queryFn: async (): Promise<BodyRow[]> => {
       const { data, error } = await supabase
         .from('member_body')
         .select('member_id, sex, birth_year, height_cm, weight_kg, activity, goal');
       if (error) throw error;
-      const byMember = new Map<MemberId, MemberBody>();
-      for (const row of data ?? []) {
-        byMember.set(asMemberId(row.member_id as string), mapBody(row));
-      }
-      return byMember;
+      return (data ?? []).map((row) => ({ memberId: asMemberId(row.member_id as string), ...mapBody(row) }));
     },
+    // Guarda que esta consulta había perdido en un refactor anterior: sin
+    // ella se dispara ya con `myMemberId` todavía sin resolver.
+    enabled: myMemberId !== null,
   });
 
+  const bodyByMember = useMemo(() => {
+    const map = new Map<MemberId, MemberBody>();
+    for (const row of bodyQ.data ?? []) map.set(row.memberId, row);
+    return map;
+  }, [bodyQ.data]);
+
   const bodyOf = useCallback(
-    (memberId: MemberId): MemberBody | null => bodyQ.data?.get(memberId) ?? null,
-    [bodyQ.data],
+    (memberId: MemberId): MemberBody | null => bodyByMember.get(memberId) ?? null,
+    [bodyByMember],
   );
 
   // Sin filtro de fecha: son las EXCEPCIONES a "una ración por persona", no
