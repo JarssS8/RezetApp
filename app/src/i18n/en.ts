@@ -204,6 +204,7 @@ export const en: Dictionary = {
   cancel: 'Cancel',
   needTitle: 'Give the recipe a name',
 
+  planDayKcalHousehold: 'for the household',
   thisWeek: 'This week',
   shoppingList: 'Shopping list',
   dragHint: 'Drag a recipe onto a slot',

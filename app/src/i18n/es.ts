@@ -204,6 +204,12 @@ export const es = {
   cancel: 'Cancelar',
   needTitle: 'Ponle un nombre a la receta',
 
+  // Hallazgo de revisión: Plan enseña las kcal del PLATO ENTERO
+  // (kcalPerServing × raciones, para todo el hogar) mientras Hoy enseña la
+  // ración de una persona. Es la fórmula correcta para planificar la comida
+  // de la casa — no se toca — pero antes de "Tu objetivo" las dos cifras
+  // coincidían y ahora no, así que aquí se etiqueta cuál es cuál.
+  planDayKcalHousehold: 'para la casa',
   thisWeek: 'Esta semana',
   shoppingList: 'Lista de la compra',
   dragHint: 'Arrastra una receta a un hueco',

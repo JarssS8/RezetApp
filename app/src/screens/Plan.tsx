@@ -177,12 +177,9 @@ export function Plan({
           const kcal = dayKcal(key, plan, recipeById);
           return (
             <div key={key} style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, padding: '0 4px 10px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, padding: '0 4px 2px' }}>
                 <div style={{ fontSize: 15, fontWeight: 650, letterSpacing: '-.015em' }}>
                   {shortDay(day, locale)}
-                </div>
-                <div style={{ fontSize: 12.5, color: 'var(--muted)', ...tabular }}>
-                  {kcal ? `${Math.round(kcal / 100) / 10}k` : ''}
                 </div>
                 {key === today && (
                   <div
@@ -196,6 +193,27 @@ export function Plan({
                   />
                 )}
               </div>
+              {/* Hallazgo de revisión: esta cifra es la del PLATO ENTERO
+               * (kcalPerServing × raciones, para todo el hogar) — correcta
+               * para planificar, pero antes de "Tu objetivo" no había otra
+               * cifra de kcal con la que confundirla. Se etiqueta para que
+               * no se lea como la ración propia que enseña Hoy. */}
+              {kcal > 0 && (
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    color: 'var(--muted)',
+                    padding: '0 4px 10px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    ...tabular,
+                  }}
+                  title={`${Math.round(kcal)} ${t.kcal} ${t.planDayKcalHousehold}`}
+                >
+                  {`${Math.round(kcal / 100) / 10}k ${t.kcal} · ${t.planDayKcalHousehold}`}
+                </div>
+              )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {SLOT_ORDER.map((slot) => {
