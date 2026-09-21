@@ -308,6 +308,7 @@ export function useIntake(
 
   return {
     myBody: bodyQ.data ?? null,
+    myBodyLoading: bodyQ.isLoading,
     setMyBody,
     intakeOfDayFor,
     setShare,

@@ -690,6 +690,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       deleteAccount: demoHouseholdActionUnavailable,
       setHouseholdSheetOpen: demoSetHouseholdSheetOpen,
       myBody: data.memberBody[DEMO_MY_MEMBER_ID] ?? null,
+      // La demo no hace ningún viaje de red: el estado ya está en memoria
+      // desde el primer render, así que nunca hay una consulta "en curso".
+      myBodyLoading: false,
       setMyBody,
       intakeOfDayFor,
       setShare,

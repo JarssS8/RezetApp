@@ -221,6 +221,14 @@ export interface Store {
   /** Datos corporales del miembro propio. `null` si no hay o no hay acceso. */
   myBody: MemberBody | null;
   /**
+   * `true` mientras la consulta de datos corporales está en curso (solo la
+   * primera carga, no cada refetch en segundo plano). Antes de que resuelva,
+   * `myBody` vale `null` igual que "no hay datos guardados" — sin esta señal
+   * un formulario no puede distinguir "todavía no sé" de "no hay nada", y
+   * guardar en esa ventana borraría en silencio datos que sí existen.
+   */
+  myBodyLoading: boolean;
+  /**
    * Contrato: `rpc/set_member_body`. El objetivo va YA CALCULADO con
    * `domain/nutrition.ts`: la fórmula vive ahí y solo ahí.
    */

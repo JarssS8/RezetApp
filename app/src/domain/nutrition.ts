@@ -36,7 +36,8 @@ const ESTIMATE_MIN = 1200;
 const ESTIMATE_MAX = 4500;
 /** Edad mínima para usar la fórmula: está validada en adultos. */
 const ADULT_AGE = 18;
-const FALLBACK = 2100;
+/** Objetivo por defecto cuando no hay ni estimación ni número guardado — un solo sitio, no un literal repetido en cada formulario. */
+export const FALLBACK = 2100;
 
 export interface BodyInput {
   sex: Sex | null;

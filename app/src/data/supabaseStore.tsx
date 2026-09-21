@@ -289,8 +289,17 @@ export function SupabaseDataProvider({
     [recipesQ.data],
   );
 
-  const { myBody, setMyBody, intakeOfDayFor, setShare, addExtra, removeExtra, frequentExtras, weekTotalsFor } =
-    useIntake(householdId, myMemberId, recipeById, planQ.data ?? []);
+  const {
+    myBody,
+    myBodyLoading,
+    setMyBody,
+    intakeOfDayFor,
+    setShare,
+    addExtra,
+    removeExtra,
+    frequentExtras,
+    weekTotalsFor,
+  } = useIntake(householdId, myMemberId, recipeById, planQ.data ?? []);
 
   const { stockOf, needOf, coverageOf, needsForWeek, shortagesFor } = useMemo(
     () =>
@@ -775,6 +784,7 @@ export function SupabaseDataProvider({
       deleteAccount,
       setHouseholdSheetOpen,
       myBody,
+      myBodyLoading,
       setMyBody,
       intakeOfDayFor,
       setShare,
@@ -822,6 +832,7 @@ export function SupabaseDataProvider({
       setKomprappListToken,
       deleteAccount,
       myBody,
+      myBodyLoading,
       setMyBody,
       intakeOfDayFor,
       setShare,

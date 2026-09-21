@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/storeContext';
+import { stripHouseholdErrorTag } from '../data/householdErrors';
 import { Button } from '../ui/Button';
 import { Card, Eyebrow } from '../ui/Card';
 import { Icon } from '../ui/Icon';
@@ -11,6 +12,7 @@ import { TextField } from '../ui/Fields';
 import { radius, text as T } from '../ui/tokens';
 import { formatKcal } from '../domain/units';
 import {
+  FALLBACK,
   KCAL_MAX,
   KCAL_MIN,
   clampTarget,
@@ -47,7 +49,7 @@ export function MemberTargetSheet({
   onToast?: (msg: string) => void;
 }) {
   const { t, locale } = usePrefs();
-  const { members, myMemberId, myBody, setMyBody } = useData();
+  const { members, myMemberId, myBody, myBodyLoading, setMyBody } = useData();
   const member = members.find((m) => m.id === memberId);
 
   // `myBody` es SIEMPRE el cuerpo de quien tiene la sesión (ver `storeContext.ts`):
@@ -71,8 +73,24 @@ export function MemberTargetSheet({
   );
   const [activity, setActivity] = useState<Activity>(initialBody?.activity ?? 'sedentary');
   const [goal, setGoal] = useState<Goal>(initialBody?.goal ?? 'maintain');
-  const [target, setTarget] = useState(member?.kcalTarget ?? 2000);
+  const [target, setTarget] = useState(member?.kcalTarget ?? FALLBACK);
   const [saving, setSaving] = useState(false);
+
+  // La hoja puede montar antes de que `myBody` resuelva (viaja en su propia
+  // consulta, aparte de `members`): los `useState` de arriba se habrían
+  // clavado ya en "vacío", así que hace falta resincronizar en cuanto
+  // cambie la identidad del miembro que se edita O lleguen sus datos —
+  // mismo patrón que `MemberSheet.tsx`, ampliado con la llegada async.
+  useEffect(() => {
+    setSexChoice(initialBody?.sex ?? 'undisclosed');
+    setBirthYearInput(initialBody?.birthYear != null ? String(initialBody.birthYear) : '');
+    setHeightInput(initialBody?.heightCm != null ? String(initialBody.heightCm) : '');
+    setWeightInput(initialBody?.weightKg != null ? String(initialBody.weightKg) : '');
+    setActivity(initialBody?.activity ?? 'sedentary');
+    setGoal(initialBody?.goal ?? 'maintain');
+    setTarget(member?.kcalTarget ?? FALLBACK);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memberId, initialBody, member?.kcalTarget]);
 
   if (!member) {
     return (
@@ -107,8 +125,15 @@ export function MemberTargetSheet({
     very_active: t.targetActivityVeryActive,
   };
 
+  // Mientras `myBody` está en vuelo, el formulario puede llevar los valores
+  // por defecto sin que exista todavía respuesta del servidor — guardar en
+  // esa ventana borraría datos corporales reales con `null`. El botón ya se
+  // deshabilita para esto, pero el propio `save` repite el gate: no basta
+  // con resincronizar los campos si el clic llega antes de que resuelva.
+  const bodyStillLoading = isSelf && myBodyLoading;
+
   const save = async () => {
-    if (saving) return;
+    if (saving || bodyStillLoading) return;
     setSaving(true);
     try {
       await setMyBody(
@@ -126,8 +151,8 @@ export function MemberTargetSheet({
         clampTarget(target),
       );
       onClose();
-    } catch {
-      onToast?.(t.memberActionError);
+    } catch (e) {
+      onToast?.(stripHouseholdErrorTag(e instanceof Error ? e.message : String(e)) || t.memberActionError);
     } finally {
       setSaving(false);
     }
@@ -277,7 +302,13 @@ export function MemberTargetSheet({
           </div>
         </div>
 
-        <Button full size="cta" disabled={saving} onClick={() => void save()} style={{ borderRadius: radius.button }}>
+        <Button
+          full
+          size="cta"
+          disabled={saving || bodyStillLoading}
+          onClick={() => void save()}
+          style={{ borderRadius: radius.button }}
+        >
           {t.save}
         </Button>
       </div>
