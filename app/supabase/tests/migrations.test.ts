@@ -2045,4 +2045,204 @@ describe('migraciones', () => {
     ).rejects.toThrow();
     await db.close();
   }, 120_000);
+
+  // ── Task 7 (2026-09-21-avisos-gustos-turnos) — turnos de cocina/compra ──
+  // El riesgo real de esta tarea: household y plan_entry ya tenían grants
+  // vivos antes de esta migración, y `revoke update (columna)` es inocuo
+  // mientras siga vivo el de tabla (20260917070714 → 20260917070845). Estos
+  // dos tests de privilegios comprueban que NINGUNA columna que ya fuera
+  // editable dejó de serlo al añadir la nueva.
+
+  it('household: turns_enabled nace apagado y el UPDATE que ya existía sigue como estaba', async () => {
+    const db = await applyMigrations();
+    const priv = await db.query<{ n: boolean; k: boolean; t: boolean; e: boolean }>(
+      `select has_column_privilege('authenticated','public.household','name','UPDATE') as n,
+              has_column_privilege('authenticated','public.household','kcal_target','UPDATE') as k,
+              has_column_privilege('authenticated','public.household','komprapp_list_token','UPDATE') as t,
+              has_column_privilege('authenticated','public.household','turns_enabled','UPDATE') as e`,
+    );
+    // n/k/t: exactamente como antes de esta migración (20260918100100). e: nueva.
+    expect(priv.rows[0]).toEqual({ n: true, k: true, t: false, e: true });
+
+    const [ana] = await householdWith(db, ['Ana']);
+    const hAna = (
+      await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)
+    ).rows[0].h;
+    const before = await db.query<{ turns_enabled: boolean }>(
+      `select turns_enabled from public.household where id = '${hAna}'`,
+    );
+    expect(before.rows[0].turns_enabled).toBe(false);
+
+    await asUser(db, ana, `update public.household set turns_enabled = true where id = '${hAna}'`);
+    const after = await db.query<{ turns_enabled: boolean }>(
+      `select turns_enabled from public.household where id = '${hAna}'`,
+    );
+    expect(after.rows[0].turns_enabled).toBe(true);
+    await db.close();
+  }, 120_000);
+
+  it('plan_entry: el UPDATE columna a columna que ya existía sigue como estaba, y gana cook_member_id', async () => {
+    const db = await applyMigrations();
+    const priv = await db.query<{
+      id: boolean;
+      household_id: boolean;
+      on_date: boolean;
+      slot: boolean;
+      recipe_id: boolean;
+      servings: boolean;
+      cooked_at: boolean;
+      servings_cooked: boolean;
+      position: boolean;
+      created_at: boolean;
+      cook_member_id: boolean;
+    }>(
+      `select has_column_privilege('authenticated','public.plan_entry','id','UPDATE') as id,
+              has_column_privilege('authenticated','public.plan_entry','household_id','UPDATE') as household_id,
+              has_column_privilege('authenticated','public.plan_entry','on_date','UPDATE') as on_date,
+              has_column_privilege('authenticated','public.plan_entry','slot','UPDATE') as slot,
+              has_column_privilege('authenticated','public.plan_entry','recipe_id','UPDATE') as recipe_id,
+              has_column_privilege('authenticated','public.plan_entry','servings','UPDATE') as servings,
+              has_column_privilege('authenticated','public.plan_entry','cooked_at','UPDATE') as cooked_at,
+              has_column_privilege('authenticated','public.plan_entry','servings_cooked','UPDATE') as servings_cooked,
+              has_column_privilege('authenticated','public.plan_entry','position','UPDATE') as position,
+              has_column_privilege('authenticated','public.plan_entry','created_at','UPDATE') as created_at,
+              has_column_privilege('authenticated','public.plan_entry','cook_member_id','UPDATE') as cook_member_id`,
+    );
+    // Antes de esta migración, plan_entry solo tenía el grant de TABLA del
+    // esquema base (select/insert/update/delete a authenticated, sin ningún
+    // revoke de columna nunca): las diez columnas originales tenían que
+    // seguir siendo editables una a una tras convertirlo en columna a
+    // columna, y cook_member_id se añade nueva.
+    expect(priv.rows[0]).toEqual({
+      id: true,
+      household_id: true,
+      on_date: true,
+      slot: true,
+      recipe_id: true,
+      servings: true,
+      cooked_at: true,
+      servings_cooked: true,
+      position: true,
+      created_at: true,
+      cook_member_id: true,
+    });
+
+    // Y no solo el privilegio en abstracto: editar el plan semanal (el bucle
+    // central de la app) tiene que seguir funcionando de verdad.
+    const [ana] = await householdWith(db, ['Ana']);
+    const hAna = (
+      await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)
+    ).rows[0].h;
+    const recipe = (
+      (await asUser(db, ana, `insert into public.recipe (household_id, name) values ('${hAna}', 'R') returning id`)) as {
+        rows: { id: string }[];
+      }
+    ).rows[0].id;
+    const entry = (
+      (await asUser(
+        db,
+        ana,
+        `insert into public.plan_entry (household_id, on_date, slot, recipe_id, servings) values ('${hAna}', '2026-09-21', 'dinner', '${recipe}', 2) returning id`,
+      )) as { rows: { id: string }[] }
+    ).rows[0].id;
+    await asUser(db, ana, `update public.plan_entry set servings = 4, on_date = '2026-09-22' where id = '${entry}'`);
+    const row = await db.query<{ servings: number; on_date: string }>(
+      `select servings, on_date::text from public.plan_entry where id = '${entry}'`,
+    );
+    expect(row.rows[0].servings).toBe(4);
+    expect(row.rows[0].on_date).toBe('2026-09-22');
+    await db.close();
+  }, 120_000);
+
+  it('cook_member_id no puede apuntar a un miembro de otro hogar', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const [eve] = await householdWith(db, ['Eve']);
+    const hAna = (
+      await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)
+    ).rows[0].h;
+    const anaMember = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${ana}'`)
+    ).rows[0].id;
+    const eveMember = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${eve}'`)
+    ).rows[0].id;
+    const recipe = (
+      (await asUser(db, ana, `insert into public.recipe (household_id, name) values ('${hAna}', 'R') returning id`)) as {
+        rows: { id: string }[];
+      }
+    ).rows[0].id;
+
+    // No se puede crear apuntando ya al miembro de Eve.
+    await expect(
+      asUser(
+        db,
+        ana,
+        `insert into public.plan_entry (household_id, on_date, slot, recipe_id, servings, cook_member_id) values ('${hAna}', '2026-09-21', 'dinner', '${recipe}', 2, '${eveMember}')`,
+      ),
+    ).rejects.toThrow(/row-level security/);
+
+    // El propio miembro sí vale.
+    const entry = (
+      (await asUser(
+        db,
+        ana,
+        `insert into public.plan_entry (household_id, on_date, slot, recipe_id, servings, cook_member_id) values ('${hAna}', '2026-09-21', 'dinner', '${recipe}', 2, '${anaMember}') returning id`,
+      )) as { rows: { id: string }[] }
+    ).rows[0].id;
+
+    // Tampoco vale reasignarlo a alguien de otro hogar con un UPDATE.
+    await expect(
+      asUser(db, ana, `update public.plan_entry set cook_member_id = '${eveMember}' where id = '${entry}'`),
+    ).rejects.toThrow(/row-level security/);
+
+    await db.close();
+  }, 120_000);
+
+  it('shopping_turn: no se lee ni se escribe desde otro hogar', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const [eve] = await householdWith(db, ['Eve']);
+    const hAna = (
+      await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${ana}'`)
+    ).rows[0].h;
+    const hEve = (
+      await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${eve}'`)
+    ).rows[0].h;
+    const anaMember = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${ana}'`)
+    ).rows[0].id;
+    const eveMember = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${eve}'`)
+    ).rows[0].id;
+
+    await asUser(
+      db,
+      ana,
+      `insert into public.shopping_turn (household_id, week_start, member_id) values ('${hAna}', '2026-09-21', '${anaMember}')`,
+    );
+
+    // Eve no ve la fila de Ana.
+    expect(await count(db, eve, 'select count(*)::int as n from public.shopping_turn')).toBe(0);
+
+    // Eve no puede insertar una fila para el hogar de Ana.
+    await expect(
+      asUser(
+        db,
+        eve,
+        `insert into public.shopping_turn (household_id, week_start, member_id) values ('${hAna}', '2026-09-28', '${eveMember}')`,
+      ),
+    ).rejects.toThrow(/row-level security/);
+
+    // Ni, dentro de su propio hogar, asignarle el turno a un miembro de otro.
+    await expect(
+      asUser(
+        db,
+        eve,
+        `insert into public.shopping_turn (household_id, week_start, member_id) values ('${hEve}', '2026-09-21', '${anaMember}')`,
+      ),
+    ).rejects.toThrow(/row-level security/);
+
+    await db.close();
+  }, 120_000);
 });
