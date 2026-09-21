@@ -16,6 +16,13 @@ const BAR_AREA_HEIGHT = 108;
 /** Tope de la proporción kcal/objetivo que se deja crecer en altura, para que un día muy
  * por encima no aplaste visualmente al resto de la semana. */
 const BAR_HEIGHT_CAP = 1.6;
+/** Alto mínimo de una barra con dato real, para que un día muy por debajo del objetivo
+ * siga siendo visible como barra y no como una línea. */
+const BAR_MIN_HEIGHT = 4;
+/** Alto FIJO de la barra de un día futuro — no sale de ningún cálculo kcal/objetivo
+ * porque no representa ningún dato. Bajo pero distinguible de una línea, para que el
+ * contorno hueco (ver `fillFor`) se lea como "todavía no hay nada aquí", no como "cero". */
+const FUTURE_BAR_HEIGHT = 14;
 
 /** Oculto a la vista, presente para quien usa un lector de pantalla. */
 const srOnly: CSSProperties = {
@@ -99,9 +106,15 @@ export function Week({ onClose }: { onClose: () => void }) {
           <div aria-hidden="true" style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
             {days.map((day, i) => {
               const isToday = day.date === today;
-              const band = dayBand(day.kcal, target);
+              // Un día futuro no tiene dato real que pintar — decidirlo aquí, comparando
+              // fechas, antes de llamarle a `dayBand`, es justo lo que pide el hallazgo:
+              // `dayBand(0, target)` daría 'under' y lo confundiría con un día de comer poco.
+              const isFuture = day.date > today;
+              const band = isFuture ? undefined : dayBand(day.kcal, target);
               const pct = target > 0 ? day.kcal / target : 0;
-              const barHeight = Math.max(4, Math.min(pct, BAR_HEIGHT_CAP) * BAR_AREA_HEIGHT);
+              const barHeight = isFuture
+                ? FUTURE_BAR_HEIGHT
+                : Math.max(BAR_MIN_HEIGHT, Math.min(pct, BAR_HEIGHT_CAP) * BAR_AREA_HEIGHT);
               return (
                 <div
                   key={day.date}
@@ -115,7 +128,10 @@ export function Week({ onClose }: { onClose: () => void }) {
                   }}
                 >
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', ...tabular }}>
-                    {formatKcal(day.kcal, locale)}
+                    {/* Sin cifra para un día futuro: "0 kcal" sería un dato falso.
+                       El div se queda (vacío) para que las barras de la semana sigan
+                       alineadas por arriba igual que las de los días con dato real. */}
+                    {isFuture ? '' : formatKcal(day.kcal, locale)}
                   </div>
                   <div style={{ height: BAR_AREA_HEIGHT, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
                     <div
@@ -123,14 +139,17 @@ export function Week({ onClose }: { onClose: () => void }) {
                         width: '100%',
                         height: barHeight,
                         borderRadius: radius.chip,
-                        background: fillFor(band),
+                        // Día futuro: sin relleno de color, solo contorno — que se lea
+                        // como "hueco todavía", nunca como el mismo verde apagado de un
+                        // día real por debajo del objetivo.
+                        background: isFuture ? 'transparent' : fillFor(band!),
                         boxSizing: 'border-box',
                         // El día en curso lleva borde discontinuo porque aún no
                         // ha terminado — la misma idea que hace que `streakOf`
                         // no lo cuente ni lo corte, solo que aquí se ve. Un
                         // color de borde neutro (--text) para que se note igual
                         // sobre las tres bandas, no solo sobre una de ellas.
-                        border: isToday ? '2px dashed var(--text)' : 'none',
+                        border: isFuture ? '1px solid var(--line)' : isToday ? '2px dashed var(--text)' : 'none',
                       }}
                     />
                   </div>
@@ -153,8 +172,19 @@ export function Week({ onClose }: { onClose: () => void }) {
 
           <ul style={srOnly}>
             {days.map((day, i) => {
-              const band = dayBand(day.kcal, target);
               const isToday = day.date === today;
+              const isFuture = day.date > today;
+              // Mismo criterio que en el gráfico: un día futuro no dice "0 kcal, por
+              // debajo del objetivo" (dato falso disfrazado de real) sino que aún no
+              // ha llegado — sin banda, sin cifra.
+              if (isFuture) {
+                return (
+                  <li key={day.date}>
+                    {longDate(weekDates[i]!, locale)}: {t.weekDayNotYet}
+                  </li>
+                );
+              }
+              const band = dayBand(day.kcal, target);
               return (
                 <li key={day.date}>
                   {longDate(weekDates[i]!, locale)}: {formatKcal(day.kcal, locale)} {t.kcal}, {legendFor(band, t)}
@@ -199,6 +229,10 @@ export function Week({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        {/* Sin cuarta entrada para el día futuro: una barra sin relleno, solo contorno,
+           ya se lee como "hueco" al lado de las otras tres rellenas — añadirla aquí
+           haría una leyenda de cuatro líneas en una pantalla de móvil que no aporta
+           nada que la propia barra no diga ya con menos ruido. */}
         <div style={{ marginTop: 20, display: 'flex', flexWrap: 'wrap', gap: 14 }}>
           <LegendItem color="var(--accent)" label={t.legendWithin} />
           <LegendItem color="var(--warn)" label={t.legendOver} />

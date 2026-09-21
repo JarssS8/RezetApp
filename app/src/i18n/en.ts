@@ -112,6 +112,9 @@ export const en: Dictionary = {
   legendWithin: 'Within target',
   legendOver: 'Over target',
   legendUnder: 'Under target',
+  // Future day in "Your week" (review finding): not real data, so neither
+  // the band nor the "0 kcal" figure is read out — only that it hasn't happened yet.
+  weekDayNotYet: "hasn't happened yet",
 
   // "Add what I ate" sheet (Task 11): four ways to log an extra.
   intakeAddTitle: 'Add something I ate',

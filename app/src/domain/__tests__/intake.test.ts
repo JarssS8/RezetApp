@@ -141,6 +141,14 @@ describe('intake', () => {
     expect(dayBand(0, 0)).toBe('under');
   });
 
+  it('dayBand: el borde exacto de la banda (±10%) cuenta como "dentro"', () => {
+    // La banda es <=, no <: fijar aquí el borde para que si algún día cambia
+    // la constante (o el operador) un test se rompa en vez de que el gráfico
+    // cambie de color en silencio.
+    expect(dayBand(1900 * 1.1, 1900)).toBe('within');
+    expect(dayBand(1900 * 0.9, 1900)).toBe('within');
+  });
+
   it('weekAverage: solo promedia los días ya terminados, no el de hoy', () => {
     const dias = [
       { date: '2026-09-18', kcal: 1900 },

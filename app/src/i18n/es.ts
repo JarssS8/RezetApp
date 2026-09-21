@@ -111,6 +111,9 @@ export const es = {
   legendWithin: 'Dentro del objetivo',
   legendOver: 'Por encima del objetivo',
   legendUnder: 'Por debajo del objetivo',
+  // Día futuro en "Tu semana" (hallazgo de revisión): no es un dato real, así
+  // que ni la banda ni la cifra "0 kcal" se leen — solo que aún no ha pasado.
+  weekDayNotYet: 'aún no ha llegado',
 
   // Hoja "Añadir lo que comí" (Tarea 11): cuatro caminos para registrar un extra.
   intakeAddTitle: 'Añadir algo que comí',
