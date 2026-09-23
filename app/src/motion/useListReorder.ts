@@ -7,12 +7,31 @@ import { prefersReducedMotion, spring } from './motion';
  * Fijada aquí y solo aquí: quien pinta las filas (`DashboardEditSheet.tsx`)
  * importa esta misma constante para su `height`/posición, así la aritmética
  * del arrastre (índice × altura) y lo que se ve en pantalla no pueden
- * divergir. Bastante alta para el caso más ancho de una fila del dashboard
- * (nombre + interruptor en una línea, tamaño + subir/bajar en la siguiente,
- * cuando el hueco disponible no llega para una sola línea) sin recortar
- * contenido en ninguna fila, aunque no necesite las dos líneas.
+ * divergir.
+ *
+ * Aritmética (ronda de arreglo 1, hallazgo (a) — antes 120, sin cuentas):
+ * con `box-sizing: border-box` global (`tokens.css`), el contenido
+ * disponible de una fila es `ROW_HEIGHT − padding vertical − borde`, y
+ * `DashboardRow` fija `padding: '12px 15px'` (24px verticales) y
+ * `borderBottom: 1px`. En 7 de los 9 widgets del catálogo (todos salvo
+ * `today_meals` y `whose_turn`, que solo tienen un tamaño y por tanto no
+ * pintan el segmentado) el ancho de hoja de un móvil estrecho no llega
+ * para una sola línea y la fila envuelve a dos:
+ *   - línea 1 — asa + nombre + interruptor: el elemento más alto es el
+ *     asa/interruptor, `height.touch = 44`.
+ *   - línea 2 — segmentado + subir/bajar: el segmentado mide exactamente
+ *     `height.segment (38) + 2×padding de pista (3) = 44`
+ *     (`SegmentedControl.tsx`), igual que subir/bajar (`height.touch = 44`)
+ *     — las dos columnas de la línea miden 44 también.
+ *   - más el `gap: 10` entre líneas del propio contenedor flex-wrap.
+ *   Contenido mínimo = 44 + 10 + 44 = 98px.
+ *   ROW_HEIGHT mínimo = 98 + 24 (padding) + 1 (borde) = 123px — exacto, sin
+ *   margen. Se deja un colchón de 9px para no ir clavado al límite (metrics
+ *   de fuente/zoom del navegador pueden variar el alto de la línea 1, que
+ *   hoy solo queda por debajo de 44 por el texto del nombre, no por ningún
+ *   valor fijo): 123 + 9 = 132.
  */
-export const ROW_HEIGHT = 120;
+export const ROW_HEIGHT = 132;
 
 export interface RowDragHandlers {
   onPointerDown: (event: React.PointerEvent<HTMLElement>) => void;
@@ -45,6 +64,12 @@ export interface UseListReorderOptions {
  * reordenado (siempre pasa por `onMove`, que aquí arriba solo delega en
  * `moveWidget`).
  *
+ * Un solo arrastre a la vez: `dragIndex`/`offset`/`startY`/`startIndex` son
+ * compartidos por todas las filas, no van indexados por fila. Un segundo
+ * puntero (otro dedo sobre otra asa) mientras el primero sigue en curso se
+ * ignora entero en `onPointerDown` — ver el comentario junto a
+ * `activePointerId` más abajo.
+ *
  * Punteros unificados: `onPointerDown` captura el puntero sobre el propio
  * asa (`setPointerCapture`), así que los `onPointerMove`/`onPointerUp`
  * siguientes llegan a esa misma asa pase lo que pase por debajo del dedo —
@@ -69,6 +94,14 @@ export function useListReorder({ count, itemHeight = ROW_HEIGHT, onMove }: UseLi
   const startY = useRef(0);
   const startIndex = useRef(0);
   const cancelSpring = useRef<(() => void) | null>(null);
+  // Ronda de arreglo 1, hallazgo (b): `startY`/`startIndex` y el estado
+  // `dragIndex`/`offset` son compartidos por todas las filas — un solo
+  // arrastre a la vez. Sin este identificador, un segundo dedo que toca OTRA
+  // asa mientras el primero sigue capturado pisaba esas referencias antes de
+  // que `onPointerDown` mutara nada, y los siguientes `pointermove` del
+  // primer dedo (que sigue pasando el guard de `hasPointerCapture` de SU
+  // propia asa) calculaban con el `startY`/`startIndex` del segundo.
+  const activePointerId = useRef<number | null>(null);
 
   useEffect(() => () => cancelSpring.current?.(), []);
 
@@ -76,6 +109,7 @@ export function useListReorder({ count, itemHeight = ROW_HEIGHT, onMove }: UseLi
     cancelSpring.current?.();
     if (prefersReducedMotion()) {
       cancelSpring.current = null;
+      activePointerId.current = null;
       setDragIndex(null);
       setOffset(0);
       return;
@@ -87,6 +121,7 @@ export function useListReorder({ count, itemHeight = ROW_HEIGHT, onMove }: UseLi
       (v) => setOffset(v),
       () => {
         cancelSpring.current = null;
+        activePointerId.current = null;
         setDragIndex(null);
         setOffset(0);
       },
@@ -119,10 +154,18 @@ export function useListReorder({ count, itemHeight = ROW_HEIGHT, onMove }: UseLi
     (index: number): RowDragHandlers => ({
       onPointerDown: (event) => {
         if (event.pointerType === 'mouse' && event.button !== 0) return;
+        // (b) Ya hay un arrastre en curso (otro dedo, otra asa): se ignora
+        // por completo, sin tocar `startY`/`startIndex`/`dragIndex`/`offset`
+        // del primero. Sin este corte temprano, capturar el segundo puntero
+        // es válido de por sí (cada asa puede capturar el suyo), pero pisa
+        // el estado compartido antes de que el primer arrastre haya podido
+        // usarlo.
+        if (activePointerId.current !== null) return;
         event.preventDefault();
         cancelSpring.current?.();
         cancelSpring.current = null;
         event.currentTarget.setPointerCapture(event.pointerId);
+        activePointerId.current = event.pointerId;
         startY.current = event.clientY;
         startIndex.current = index;
         setDragIndex(index);
@@ -130,9 +173,12 @@ export function useListReorder({ count, itemHeight = ROW_HEIGHT, onMove }: UseLi
       },
       // `onPointerMove`/`onPointerUp` son handlers normales del asa: sin
       // esta comprobación también dispararían con un simple hover o un
-      // click suelto que nunca pasó por `onPointerDown`. Solo procesan el
-      // gesto cuando el puntero está realmente capturado por ESTE asa.
+      // click suelto que nunca pasó por `onPointerDown`. El chequeo de
+      // `pointerId` (además de `hasPointerCapture`) es la mitad (b) que
+      // falta en el lado de lectura: solo procesa el gesto del puntero que
+      // de verdad inició este arrastre, nunca el de uno segundo.
       onPointerMove: (event) => {
+        if (event.pointerId !== activePointerId.current) return;
         if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
         event.preventDefault();
         const raw = event.clientY - startY.current - (index - startIndex.current) * itemHeight;
@@ -141,6 +187,7 @@ export function useListReorder({ count, itemHeight = ROW_HEIGHT, onMove }: UseLi
         setOffset(nextOffset);
       },
       onPointerUp: (event) => {
+        if (event.pointerId !== activePointerId.current) return;
         if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
         event.currentTarget.releasePointerCapture(event.pointerId);
         const raw = event.clientY - startY.current - (index - startIndex.current) * itemHeight;
@@ -148,6 +195,7 @@ export function useListReorder({ count, itemHeight = ROW_HEIGHT, onMove }: UseLi
         settle(nextOffset);
       },
       onPointerCancel: (event) => {
+        if (event.pointerId !== activePointerId.current) return;
         if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
         event.currentTarget.releasePointerCapture(event.pointerId);
         settle(offset);

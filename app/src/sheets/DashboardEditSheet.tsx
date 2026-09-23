@@ -293,20 +293,36 @@ export function DashboardEditSheet({
     },
   });
 
-  // El arrastre acaba de soltarse (el índice arrastrado vuelve a `null`
-  // tras el muelle de regreso): anuncia por el mismo `aria-live` que ya usan
+  // El arrastre acaba de soltarse (el índice arrastrado vuelve a `null` tras
+  // el muelle de regreso): anuncia por el mismo `aria-live` que ya usan
   // subir/bajar, con la posición final ya asentada en `layout`.
+  //
+  // Ronda de arreglo 1, hallazgo (c): un simple toque en el asa (down
+  // seguido de up sin mover un píxel) también hace que `dragIndex` pase de
+  // no-nulo a nulo — el muelle de `offset: 0 → 0` termina en el primer
+  // frame igual que uno de verdad. `dragStartIndex` guarda dónde EMPEZÓ el
+  // arrastre (solo la primera vez que se ve `dragIndex` no-nulo en esta
+  // tanda) para compararlo con dónde terminó: si es el mismo índice, no se
+  // anuncia nada — ni el toque sin mover, ni arrastrar la primera fila hacia
+  // arriba contra el tope (`moveWidget` ya deja el layout intacto ahí a
+  // propósito). Es la misma regla que ya usa el teclado: el botón de subir
+  // de la primera fila está `disabled`, así que tampoco anuncia nada al
+  // "no pasar" nada.
+  const dragStartIndex = useRef<number | null>(null);
   const lastDragIndex = useRef<number | null>(null);
   useEffect(() => {
     if (dragIndex !== null) {
+      if (dragStartIndex.current === null) dragStartIndex.current = dragIndex;
       lastDragIndex.current = dragIndex;
       return;
     }
-    const i = lastDragIndex.current;
+    const start = dragStartIndex.current;
+    const end = lastDragIndex.current;
+    dragStartIndex.current = null;
     lastDragIndex.current = null;
-    if (i === null) return;
-    const item = layout[i];
-    if (item) setAnnouncement(t.dashboardMoved(nameOf(item.id), i + 1, layout.length));
+    if (end === null || start === end) return;
+    const item = layout[end];
+    if (item) setAnnouncement(t.dashboardMoved(nameOf(item.id), end + 1, layout.length));
   }, [dragIndex, layout, t]);
 
   const handleReset = () => {
