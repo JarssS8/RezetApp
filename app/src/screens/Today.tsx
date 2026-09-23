@@ -348,11 +348,22 @@ export function Today({
           alignItems: 'start',
         }}
       >
-        {visible.map((item) => (
-          <div key={item.id} style={{ gridColumn: `span ${spanFor(item.w, columns)}`, minWidth: 0 }}>
-            {renderWidget(item)}
-          </div>
-        ))}
+        {visible.map((item) => {
+          // I1 (revisión final): tres widgets devuelven `null` en estados
+          // normales (`ForYouWidget` sin sugerencias, `CookableNowWidget`
+          // sin nada cocinable, `WhoseTurnWidget` sin comidas hoy). El
+          // envoltorio de celda ocupa su hueco en la rejilla aunque esté
+          // vacío, así que hay que calcular el widget ANTES y no pintar la
+          // celda si sale `null` — nunca pintar un `<div>` vacío que solo
+          // sirva de agujero.
+          const widget = renderWidget(item);
+          if (widget === null) return null;
+          return (
+            <div key={item.id} style={{ gridColumn: `span ${spanFor(item.w, columns)}`, minWidth: 0 }}>
+              {widget}
+            </div>
+          );
+        })}
       </div>
     </ScreenBody>
   );
