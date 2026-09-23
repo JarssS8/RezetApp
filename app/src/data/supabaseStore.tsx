@@ -49,6 +49,8 @@ import { useIntake } from './supabaseStore/useIntake';
 import { useNotifyPref } from './supabaseStore/useNotifyPref';
 import { useRecipePrefs } from './supabaseStore/useRecipePrefs';
 import { useTurns } from './supabaseStore/useTurns';
+import { useDashboard } from './supabaseStore/useDashboard';
+import type { WidgetAvailability } from '../domain/dashboard';
 
 const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
 
@@ -323,6 +325,20 @@ export function SupabaseDataProvider({
   const { notifyPref, setNotifyPref } = useNotifyPref(householdId, myMemberId);
   const { recipePrefsByRecipe, setRecipePref } = useRecipePrefs(householdId, myMemberId);
   const { shoppingTurns, setShoppingTurn } = useTurns(householdId, household?.turnsEnabled ?? false);
+
+  // Con identidad propia: si se pasara un literal inline aquí, cambiaría en
+  // cada render y el `useMemo` que normaliza el layout dentro de
+  // `useDashboard` no serviría de nada (mismo fallo de identidad que
+  // reseteaba un formulario en la fase 2).
+  const dashboardAvailability = useMemo<WidgetAvailability>(
+    () => ({ turns: household?.turnsEnabled ?? false }),
+    [household?.turnsEnabled],
+  );
+  const { dashboardLayout, setDashboardLayout } = useDashboard(
+    householdId,
+    myMemberId,
+    dashboardAvailability,
+  );
 
   const { stockOf, needOf, coverageOf, needsForWeek, shortagesFor } = useMemo(
     () =>
@@ -888,6 +904,8 @@ export function SupabaseDataProvider({
       weekTotalsFor,
       notifyPref,
       setNotifyPref,
+      dashboardLayout,
+      setDashboardLayout,
       recipePrefsByRecipe,
       setRecipePref,
       setTurnsEnabled,
@@ -944,6 +962,8 @@ export function SupabaseDataProvider({
       weekTotalsFor,
       notifyPref,
       setNotifyPref,
+      dashboardLayout,
+      setDashboardLayout,
       recipePrefsByRecipe,
       setRecipePref,
       setTurnsEnabled,

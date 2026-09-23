@@ -23,6 +23,7 @@ import type {
   Unit,
 } from '../types';
 import type { DayIntake, DayTotal } from '../domain/intake';
+import type { WidgetItem } from '../domain/dashboard';
 
 /**
  * Contrato compartido por las dos capas de datos: `store.tsx` (demo,
@@ -276,6 +277,16 @@ export interface Store {
    * claves presentes en el patch: las ausentes las conserva el servidor.
    */
   setNotifyPref: (memberId: MemberId, patch: Partial<NotifyPref>) => Promise<void>;
+
+  /**
+   * El dashboard de quien está usando la app, ya normalizado por
+   * `domain/dashboard.ts`: nunca vacío, nunca con ids desconocidos, nunca
+   * con `whose_turn` si los turnos están apagados. La pantalla lo pinta tal
+   * cual y no vuelve a validarlo.
+   */
+  dashboardLayout: WidgetItem[];
+  /** Guarda el layout entero. Sin sesión de miembro no hace nada. */
+  setDashboardLayout: (layout: WidgetItem[]) => Promise<void>;
 
   /**
    * Valoraciones ("me gusta"/"no me gusta") de TODO el hogar por receta
