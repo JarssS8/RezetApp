@@ -334,7 +334,7 @@ export function SupabaseDataProvider({
     () => ({ turns: household?.turnsEnabled ?? false }),
     [household?.turnsEnabled],
   );
-  const { dashboardLayout, setDashboardLayout } = useDashboard(
+  const { dashboardLayout, dashboardLayoutLoading, setDashboardLayout } = useDashboard(
     householdId,
     myMemberId,
     dashboardAvailability,
@@ -905,6 +905,7 @@ export function SupabaseDataProvider({
       notifyPref,
       setNotifyPref,
       dashboardLayout,
+      dashboardLayoutLoading,
       setDashboardLayout,
       recipePrefsByRecipe,
       setRecipePref,
@@ -963,6 +964,7 @@ export function SupabaseDataProvider({
       notifyPref,
       setNotifyPref,
       dashboardLayout,
+      dashboardLayoutLoading,
       setDashboardLayout,
       recipePrefsByRecipe,
       setRecipePref,

@@ -77,5 +77,10 @@ export function useDashboard(
     [save],
   );
 
-  return { dashboardLayout: layout, setDashboardLayout };
+  // Solo la primera carga (`q.isLoading`), no cada refetch en segundo
+  // plano — mismo contrato que `bodyLoading` (`useIntake.ts`). Antes de que
+  // resuelva, `layout` de arriba YA es el layout por defecto normalizado;
+  // sin esta señal, quien edite y guarde de vuelta (`DashboardEditSheet`)
+  // no puede distinguir "todavía no sé" de "este miembro no tiene fila".
+  return { dashboardLayout: layout, dashboardLayoutLoading: q.isLoading, setDashboardLayout };
 }

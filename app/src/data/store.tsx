@@ -921,6 +921,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       dashboardLayout: normalizeLayout(data.dashboardByMember[DEMO_MY_MEMBER_ID] ?? null, {
         turns: data.turnsEnabled,
       }),
+      // La demo no hace ningún viaje de red: el estado ya está en memoria
+      // desde el primer render, así que nunca hay una consulta "en curso"
+      // (mismo razonamiento que `bodyLoading: false` más arriba).
+      dashboardLayoutLoading: false,
       setDashboardLayout,
       recipePrefsByRecipe,
       setRecipePref,

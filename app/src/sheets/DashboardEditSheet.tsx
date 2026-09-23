@@ -32,10 +32,12 @@ function Switch({
   checked,
   onChange,
   ariaLabel,
+  disabled,
 }: {
   checked: boolean;
   onChange: (value: boolean) => void;
   ariaLabel: string;
+  disabled?: boolean;
 }) {
   return (
     <input
@@ -43,6 +45,7 @@ function Switch({
       role="switch"
       aria-label={ariaLabel}
       checked={checked}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.checked)}
       style={{
         appearance: 'none',
@@ -59,7 +62,8 @@ function Switch({
         backgroundRepeat: 'no-repeat',
         backgroundPosition: checked ? 'right 3px center' : 'left 3px center',
         boxShadow: 'var(--shadow-s)',
-        cursor: 'pointer',
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.6 : 1,
         transition: 'background-color .18s ease, background-position .18s cubic-bezier(.2,.75,.2,1)',
       }}
     />
@@ -73,6 +77,12 @@ function Switch({
  * `style` la posiciona (índice × `ROW_HEIGHT`, Tarea 8); se aplica al mismo
  * div raíz que ya llevaba el borde y el padding, no a un envoltorio nuevo,
  * para no duplicar el layout de la fila en dos sitios.
+ *
+ * `disabled` (ronda de arreglo 1, hallazgo (b)): `true` mientras
+ * `dashboardLayoutLoading` — la copia local todavía es el layout por
+ * defecto de mientras tanto, no el de esta persona, así que nada de esta
+ * fila debe poder tocarse hasta que llegue el de verdad. Apaga el
+ * interruptor, el segmentado, subir/bajar y el asa de arrastre a la vez.
  */
 function DashboardRow({
   item,
@@ -84,6 +94,7 @@ function DashboardRow({
   onMove,
   dragHandlers,
   dragging,
+  disabled,
   style,
 }: {
   item: WidgetItem;
@@ -95,6 +106,7 @@ function DashboardRow({
   onMove: (dir: 'up' | 'down') => void;
   dragHandlers: RowDragHandlers;
   dragging: boolean;
+  disabled?: boolean;
   style?: CSSProperties;
 }) {
   const { t } = usePrefs();
@@ -124,7 +136,7 @@ function DashboardRow({
       */}
       <span
         aria-hidden="true"
-        {...dragHandlers}
+        {...(disabled ? {} : dragHandlers)}
         style={{
           flex: '0 0 auto',
           display: 'grid',
@@ -132,8 +144,9 @@ function DashboardRow({
           width: height.touch,
           height: height.touch,
           color: 'var(--muted)',
-          cursor: 'grab',
+          cursor: disabled ? 'default' : 'grab',
           touchAction: 'none',
+          opacity: disabled ? 0.5 : 1,
         }}
       >
         <Icon name="grip" size={18} strokeWidth={2} />
@@ -148,9 +161,18 @@ function DashboardRow({
       >
         {name}
       </div>
-      <Switch checked={item.on} onChange={onToggle} ariaLabel={t.dashboardShow(name)} />
+      <Switch checked={item.on} onChange={onToggle} ariaLabel={t.dashboardShow(name)} disabled={disabled} />
       {canSize && (
-        <div style={{ width: 132, flex: '0 0 132px' }}>
+        <div
+          style={{
+            width: 132,
+            flex: '0 0 132px',
+            // La propia `SegmentedControl` no admite `disabled` — se apaga
+            // por fuera, igual que el asa de arrastre de arriba.
+            pointerEvents: disabled ? 'none' : undefined,
+            opacity: disabled ? 0.5 : 1,
+          }}
+        >
           <SegmentedControl<WidgetSize>
             value={item.w}
             onChange={onSize}
@@ -165,7 +187,7 @@ function DashboardRow({
         <IconButton
           ariaLabel={t.dashboardUp(name)}
           size={height.touch}
-          disabled={isFirst}
+          disabled={isFirst || disabled}
           onClick={() => onMove('up')}
         >
           <Icon name="chevronUp" size={18} strokeWidth={2} />
@@ -173,7 +195,7 @@ function DashboardRow({
         <IconButton
           ariaLabel={t.dashboardDown(name)}
           size={height.touch}
-          disabled={isLast}
+          disabled={isLast || disabled}
           onClick={() => onMove('down')}
         >
           <Icon name="chevronDown" size={18} strokeWidth={2} />
@@ -204,6 +226,22 @@ function DashboardRow({
  * resuelto y la copia inicial es el valor por defecto de mientras tanto;
  * en cuanto llega el layout de verdad, esta hoja lo adopta. Tras el primer
  * toque, la copia local manda hasta que se cierre la hoja.
+ *
+ * Ronda de arreglo 1 — dos hallazgos Important corregidos:
+ *
+ * (a) Cerrar ya no es un disparo y olvido. `setDashboardLayout` se espera
+ * de verdad: si falla, la hoja NO se cierra (la copia local con todo lo
+ * editado sigue viva) y se avisa por `onToast`; solo se llama a `onClose`
+ * tras un guardado que sí ha ido bien, o si no había nada que guardar. Un
+ * segundo intento de cerrar reintenta el mismo guardado — igual que
+ * `MemberTargetSheet.tsx::save()`.
+ *
+ * (b) La hoja abre igual, pero deshabilitada mientras
+ * `dashboardLayoutLoading` es `true`: interruptor, segmentado, subir/bajar
+ * y arrastre de cada fila, más "Volver al orden inicial" (que también
+ * marca `dirty` y congelaría la resincronización si se tocara antes de
+ * saber el layout real). En la demo `dashboardLayoutLoading` es siempre
+ * `false`, así que ahí no cambia nada.
  */
 export function DashboardEditSheet({
   onClose,
@@ -213,11 +251,12 @@ export function DashboardEditSheet({
   onToast?: (message: string) => void;
 }) {
   const { t } = usePrefs();
-  const { dashboardLayout, setDashboardLayout, household } = useData();
+  const { dashboardLayout, dashboardLayoutLoading, setDashboardLayout, household } = useData();
   const turnsEnabled = household?.turnsEnabled ?? false;
 
   const [layout, setLayout] = useState<WidgetItem[]>(() => dashboardLayout);
   const [announcement, setAnnouncement] = useState('');
+  const [closing, setClosing] = useState(false);
   const dirty = useRef(false);
 
   // Ver el comentario de arriba: solo antes del primer toque.
@@ -275,11 +314,30 @@ export function DashboardEditSheet({
     setAnnouncement('');
   };
 
+  /**
+   * (a) Cerrar espera de verdad al guardado. Antes, `onClose()` se llamaba
+   * sin esperar la promesa: si `setDashboardLayout` fallaba, el toast
+   * llegaba con la hoja ya desmontada (`layout` perdido con ella) y sin
+   * nada que reintentar, porque la mutación nunca llegó a cuajar. Ahora
+   * solo se desmonta tras un guardado que sí ha ido bien, o si no había
+   * nada que guardar — igual que `MemberTargetSheet.tsx::save()`. `closing`
+   * evita que un segundo Escape/X mientras la primera petición sigue en
+   * vuelo dispare una segunda en paralelo; si la primera falla, se limpia
+   * y un nuevo intento de cerrar reintenta el mismo guardado.
+   */
   const handleClose = () => {
-    if (dirty.current) {
-      void setDashboardLayout(layout).catch(() => onToast?.(t.memberActionError));
+    if (closing) return;
+    if (!dirty.current) {
+      onClose();
+      return;
     }
-    onClose();
+    setClosing(true);
+    void setDashboardLayout(layout)
+      .then(() => onClose())
+      .catch(() => {
+        onToast?.(t.memberActionError);
+        setClosing(false);
+      });
   };
 
   return (
@@ -294,41 +352,58 @@ export function DashboardEditSheet({
           transicionar de un índice al siguiente cuando `layout` cambia de
           orden, sin recalcular nada geométrico aparte.
         */}
-        <ListCard style={{ position: 'relative', height: layout.length * ROW_HEIGHT }}>
-          {layout.map((item, i) => {
-            const dragging = dragIndex === i;
-            return (
-              <DashboardRow
-                key={item.id}
-                item={item}
-                name={nameOf(item.id)}
-                isFirst={i === 0}
-                isLast={i === layout.length - 1}
-                onToggle={(on) => apply(setWidgetOn(layout, item.id, on))}
-                onSize={(w) => apply(setWidgetSize(layout, item.id, w))}
-                onMove={(dir) => handleMove(item.id, dir)}
-                dragHandlers={dragHandlers(i)}
-                dragging={dragging}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: ROW_HEIGHT,
-                  transform: `translateY(${i * ROW_HEIGHT + (dragging ? offset : 0)}px)`,
-                  transition: dragging ? 'none' : `transform 220ms ${EASE_SHEET}`,
-                  zIndex: dragging ? 1 : 0,
-                }}
-              />
-            );
-          })}
-        </ListCard>
+        {/*
+          (b) Mientras `dashboardLayoutLoading` es `true`, `layout` todavía
+          es el layout por defecto de mientras tanto, no el de esta
+          persona: la lista se atenúa (`opacity`, `aria-busy`) y cada fila
+          se deshabilita (`disabled`, más abajo) para que nada de lo que se
+          toque aquí se pierda cuando llegue el de verdad.
+        */}
+        <div aria-busy={dashboardLayoutLoading}>
+          <ListCard
+            style={{
+              position: 'relative',
+              height: layout.length * ROW_HEIGHT,
+              opacity: dashboardLayoutLoading ? 0.55 : 1,
+              transition: 'opacity .15s ease',
+            }}
+          >
+            {layout.map((item, i) => {
+              const dragging = dragIndex === i;
+              return (
+                <DashboardRow
+                  key={item.id}
+                  item={item}
+                  name={nameOf(item.id)}
+                  isFirst={i === 0}
+                  isLast={i === layout.length - 1}
+                  onToggle={(on) => apply(setWidgetOn(layout, item.id, on))}
+                  onSize={(w) => apply(setWidgetSize(layout, item.id, w))}
+                  onMove={(dir) => handleMove(item.id, dir)}
+                  dragHandlers={dragHandlers(i)}
+                  dragging={dragging}
+                  disabled={dashboardLayoutLoading}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: ROW_HEIGHT,
+                    transform: `translateY(${i * ROW_HEIGHT + (dragging ? offset : 0)}px)`,
+                    transition: dragging ? 'none' : `transform 220ms ${EASE_SHEET}`,
+                    zIndex: dragging ? 1 : 0,
+                  }}
+                />
+              );
+            })}
+          </ListCard>
+        </div>
 
         <div aria-live="polite" style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', minHeight: 18 }}>
           {announcement}
         </div>
 
-        <Button variant="secondary" full onClick={handleReset}>
+        <Button variant="secondary" full onClick={handleReset} disabled={dashboardLayoutLoading}>
           {t.dashboardReset}
         </Button>
       </div>
