@@ -6,6 +6,28 @@ import { normalizeLayout, type WidgetAvailability, type WidgetItem } from '../..
 import type { MemberId } from '../../types';
 
 /**
+ * Lee la fila cruda de `member_dashboard`, sin normalizar. Extraída de la
+ * `queryFn` (y exportada) para poder probar la composición sin montar React
+ * — este repo no tiene Testing Library (ver `CLAUDE.md`, "Known gaps") — con
+ * `fetchQuery` de un `QueryClient` real, igual que
+ * `useDashboardComposition.test.ts` hace con esta misma función.
+ *
+ * Sin fila todavía (todo el mundo el primer día) devuelve `null`, no lanza:
+ * es el caso normal, no un error. Normalizar ese `null` (o cualquier otro
+ * valor) es cosa de quien llama (`domain/dashboard.ts::normalizeLayout`) —
+ * nunca de aquí. Ver el porqué en el comentario de `useDashboard` más abajo.
+ */
+export async function fetchDashboardRaw(myMemberId: MemberId): Promise<unknown> {
+  const { data, error } = await supabase
+    .from('member_dashboard')
+    .select('layout')
+    .eq('member_id', myMemberId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.layout ?? null;
+}
+
+/**
  * El dashboard del miembro en sesión, capa real.
  *
  * La query devuelve el JSON crudo tal como está guardado; normalizar es
@@ -25,17 +47,7 @@ export function useDashboard(
   const q = useQuery({
     queryKey: storeKeys.dashboard(householdId ?? 'none'),
     enabled: householdId !== null && myMemberId !== null,
-    queryFn: async (): Promise<unknown> => {
-      const { data, error } = await supabase
-        .from('member_dashboard')
-        .select('layout')
-        .eq('member_id', myMemberId!)
-        .maybeSingle();
-      if (error) throw error;
-      // Sin fila todavía: es el caso de todo el mundo el primer día, no un
-      // error. `normalizeLayout(null)` da el layout por defecto.
-      return data?.layout ?? null;
-    },
+    queryFn: (): Promise<unknown> => fetchDashboardRaw(myMemberId!),
   });
 
   const layout = useMemo(() => normalizeLayout(q.data ?? null, availability), [q.data, availability]);
