@@ -264,7 +264,7 @@ function DashboardRow({
  * saber el layout real). En la demo `dashboardLayoutLoading` es siempre
  * `false`, así que ahí no cambia nada.
  *
- * Ronda de arreglo final — dos hallazgos Important más:
+ * Ronda de arreglo final (primera pasada) — dos hallazgos Important más:
  *
  * (c) I2: cerrar podía fallar (el guardado en red) y `Sheet`/`useSheetDrag`
  * asumían que `onClose` siempre desmonta. Ahora esta hoja pasa `canClose`
@@ -280,6 +280,19 @@ function DashboardRow({
  * de la hoja. `handleMove` mueve el foco a un botón hermano (o al
  * interruptor de la fila) ANTES de aplicar el reordenado. Ver el
  * comentario en `handleMove` más abajo.
+ *
+ * Segunda ronda de revisión final:
+ *
+ * (e) Reentrada de `dismiss` durante la animación de salida: se arregló en
+ * `useSheetDrag.ts` (`closingRef`), no aquí — esta hoja ya no necesita su
+ * propia guarda de reentrada (`closing`, quitada; ver `canClose` más
+ * abajo).
+ *
+ * (f) `dashboardLayoutLoading` (I2 → I3 de la primera ronda, ahora
+ * ampliado) también es `true` con la consulta del dashboard en ERROR, no
+ * solo mientras carga — ver `computeDashboardLoading` en `useDashboard.ts`.
+ * Sin tocar nada aquí: esta hoja ya trataba `dashboardLayoutLoading` como
+ * "no toques nada todavía", y ahora esa señal cubre un caso más.
  *
  * Ronda de arreglo 2 — (b) no estaba cerrado del todo: el segmentado de
  * tamaño se apagaba con un envoltorio `pointerEvents: 'none'`, que bloquea
@@ -303,7 +316,6 @@ export function DashboardEditSheet({
 
   const [layout, setLayout] = useState<WidgetItem[]>(() => dashboardLayout);
   const [announcement, setAnnouncement] = useState('');
-  const [closing, setClosing] = useState(false);
   const dirty = useRef(false);
 
   // Ver el comentario de arriba: solo antes del primer toque.
@@ -406,10 +418,8 @@ export function DashboardEditSheet({
   /**
    * (a) Cerrar espera de verdad al guardado: si `setDashboardLayout`
    * falla, no se cierra (la copia local con todo lo editado sigue viva) y
-   * se avisa por `onToast`. `closing` evita que un segundo Escape/X
-   * mientras la primera petición sigue en vuelo dispare una segunda en
-   * paralelo; si la primera falla, se limpia y un nuevo intento de cerrar
-   * reintenta el mismo guardado — igual que `MemberTargetSheet.tsx::save()`.
+   * se avisa por `onToast`; un nuevo intento de cerrar reintenta el mismo
+   * guardado — igual que `MemberTargetSheet.tsx::save()`.
    *
    * I2 (revisión final de rama): esto ya NO se le pasa a `<Sheet>` como
    * `onClose` — se le pasa como `canClose`, aparte. `onClose` vuelve a ser
@@ -420,20 +430,22 @@ export function DashboardEditSheet({
    * como estaba — interactiva, opaca — y si devuelve `false` no hay nada
    * que revertir porque nada llegó a cambiar. Solo cuando devuelve `true`
    * arranca la animación de salida y, al terminar, `onClose` desmonta.
+   *
+   * Segunda ronda: ya no hace falta una guarda local de reentrada
+   * (`closing`, quitada) — `useSheetDrag.ts` ahora garantiza que `dismiss`
+   * (y por tanto `canClose`) nunca se reentra mientras un cierre sigue en
+   * curso, así que esta función solo necesita ocuparse del guardado.
    */
   const canClose = useCallback(async (): Promise<boolean> => {
-    if (closing) return false;
     if (!dirty.current) return true;
-    setClosing(true);
     try {
       await setDashboardLayout(layout);
       return true;
     } catch {
       onToast?.(t.memberActionError);
-      setClosing(false);
       return false;
     }
-  }, [closing, layout, onToast, setDashboardLayout, t]);
+  }, [layout, onToast, setDashboardLayout, t]);
 
   return (
     <Sheet title={t.dashboardTitle} onClose={onClose} canClose={canClose}>
