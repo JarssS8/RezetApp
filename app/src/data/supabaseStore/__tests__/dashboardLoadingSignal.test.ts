@@ -81,15 +81,68 @@ describe('señal de carga del dashboard — el hallazgo Critical de la revisión
     // ha resuelto, así que `myMemberId` es `null` y la query de
     // `useDashboard` está deshabilitada (isLoading false, como el test de
     // arriba). Sin el arreglo, esto se traducía en "ya sé el layout real".
-    expect(computeDashboardLoading(null, 'household-1', false)).toBe(true);
+    expect(computeDashboardLoading(null, 'household-1', false, false)).toBe(true);
   });
 
   it('computeDashboardLoading: sin hogar, nada que cargar', () => {
-    expect(computeDashboardLoading(null, null, false)).toBe(false);
+    expect(computeDashboardLoading(null, null, false, false)).toBe(false);
   });
 
   it('computeDashboardLoading: con myMemberId ya conocido, manda la señal real de la query', () => {
-    expect(computeDashboardLoading(MEMBER, 'household-1', true)).toBe(true);
-    expect(computeDashboardLoading(MEMBER, 'household-1', false)).toBe(false);
+    expect(computeDashboardLoading(MEMBER, 'household-1', true, false)).toBe(true);
+    expect(computeDashboardLoading(MEMBER, 'household-1', false, false)).toBe(false);
+  });
+});
+
+/**
+ * Segunda ronda de revisión final, hallazgo Important (3): con la query en
+ * estado de ERROR (el `select` de `member_dashboard` falla — red
+ * intermitente, 5xx, agotados los reintentos), `q.isLoading` YA es `false`
+ * (no está pendiente ni recargando) y `q.data` es `undefined`. Sin mirar
+ * `q.isError`, eso es exactamente el mismo daño que el hallazgo Critical
+ * por otra puerta: `computeDashboardLoading` decía "ya lo sé" sobre un
+ * layout que en realidad nunca llegó a leerse, `DashboardEditSheet` abría
+ * editable sobre el layout por defecto, y un guardado posterior (el
+ * `upsert`, una petición distinta que puede ir bien aunque el `select`
+ * fallara) pisaba la personalización real.
+ *
+ * Decisión explícita (coordinador): "error al leer" cuenta como "no se
+ * sabe", igual que "todavía cargando" — la hoja se queda deshabilitada
+ * mientras el error persista.
+ */
+describe('señal de carga del dashboard — con la query en error (segunda ronda)', () => {
+  it('control: query real con la queryFn rechazada (retry: false) → isError true, isLoading false, data undefined', async () => {
+    const client = new QueryClient();
+    const observer = new QueryObserver(client, {
+      queryKey: ['dashboard-error-control'],
+      enabled: true,
+      retry: false,
+      queryFn: () => Promise.reject(new Error('502')),
+    });
+
+    const unsubscribe = observer.subscribe(() => {});
+    // Deja que el rechazo se propague y TanStack actualice el estado.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const result = observer.getCurrentResult();
+    expect(result.isError).toBe(true);
+    expect(result.isLoading).toBe(false);
+    expect(result.data).toBeUndefined();
+
+    unsubscribe();
+    observer.destroy();
+  });
+
+  const MEMBER = asMemberId('m1');
+
+  it('computeDashboardLoading: myMemberId conocido, isLoading false pero isError true → sigue sin saberse', () => {
+    // Este es el caso exacto del hallazgo: sin el `|| queryIsError`, esto
+    // daría `false` ("ya lo sé") con un layout que nunca se llegó a leer.
+    expect(computeDashboardLoading(MEMBER, 'household-1', false, true)).toBe(true);
+  });
+
+  it('computeDashboardLoading: ni cargando ni en error → de verdad se sabe', () => {
+    expect(computeDashboardLoading(MEMBER, 'household-1', false, false)).toBe(false);
   });
 });

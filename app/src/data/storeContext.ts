@@ -293,10 +293,13 @@ export interface Store {
    */
   dashboardLayout: WidgetItem[];
   /**
-   * `true` mientras la consulta del dashboard está en curso (solo la
-   * primera carga, no cada refetch en segundo plano) — mismo contrato que
-   * `bodyLoading`. En la demo el dato ya está en memoria desde el primer
-   * render, así que siempre es `false`.
+   * `true` mientras no se sabe el layout real de esta persona: la primera
+   * carga de la consulta (no cada refetch en segundo plano — mismo
+   * contrato que `bodyLoading`), y también mientras esa consulta está en
+   * error (segunda ronda de revisión final) — "no sé leerlo" cuenta como
+   * "no se sabe", igual que "todavía cargando"; no como "está vacío y se
+   * puede editar". En la demo el dato ya está en memoria desde el primer
+   * render y no hay red que falle, así que siempre es `false`.
    */
   dashboardLayoutLoading: boolean;
   /** Guarda el layout entero. Sin sesión de miembro no hace nada. */

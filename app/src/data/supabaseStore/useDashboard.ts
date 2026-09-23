@@ -44,9 +44,24 @@ export async function fetchDashboardRaw(myMemberId: MemberId): Promise<unknown> 
  * Mientras `myMemberId` sigue sin resolverse, "cargando" es `true` si hay
  * hogar (se espera myMemberId tarde o temprano) y `false` si no lo hay
  * (nada que cargar — mismo caso que hoy deja `enabled` en `false` a
- * propósito). Una vez se conoce `myMemberId`, la señal real es la de
- * TanStack sin más: `q.isLoading` ya refleja el primer fetch de la query,
- * ahora sí habilitada.
+ * propósito). Una vez se conoce `myMemberId`, la señal combina
+ * `q.isLoading` con `q.isError`.
+ *
+ * Ese `isError` es la segunda ronda de revisión final, hallazgo Important:
+ * si el `select` de `member_dashboard` falla (red intermitente, 5xx —
+ * agotados los reintentos por defecto de TanStack), antes esto devolvía
+ * `false` sin más: `q.isLoading` ya es `false` para una query en estado de
+ * error (no está ni pendiente ni recargando), así que `DashboardEditSheet`
+ * abría habilitada sobre `normalizeLayout(undefined ?? null, …)` — el
+ * layout por defecto — y un guardado posterior (una petición DISTINTA, el
+ * `upsert`, que puede ir bien aunque el `select` fallara) pisaba la
+ * personalización real. Es el mismo daño que el hallazgo Critical, por
+ * otra puerta: "no sé leerlo" y "no lo ha tocado nadie todavía" no son el
+ * mismo caso, y solo el primero debe seguir bloqueando la edición. Decisión
+ * explícita: mientras el error persista, la hoja se queda deshabilitada —
+ * una hoja que no puede leer tu personalización no puede tener permiso
+ * para sobrescribirla — y eso es intencional, no un estado a mitigar con
+ * un layout "vacío pero editable".
  *
  * Extraída y exportada (como `fetchDashboardRaw` más arriba) para poder
  * fijarla con un test sin montar React — ver
@@ -56,9 +71,10 @@ export function computeDashboardLoading(
   myMemberId: MemberId | null,
   householdId: string | null,
   queryIsLoading: boolean,
+  queryIsError: boolean,
 ): boolean {
   if (myMemberId === null) return householdId !== null;
-  return queryIsLoading;
+  return queryIsLoading || queryIsError;
 }
 
 /**
@@ -115,8 +131,9 @@ export function useDashboard(
   // `layout` de arriba YA es el layout por defecto normalizado; sin esta
   // señal, quien edite y guarde de vuelta (`DashboardEditSheet`) no puede
   // distinguir "todavía no sé" de "este miembro no tiene fila". No es
-  // `q.isLoading` a secas: ver `computeDashboardLoading` más arriba.
-  const dashboardLayoutLoading = computeDashboardLoading(myMemberId, householdId, q.isLoading);
+  // `q.isLoading` a secas — tampoco ignora `q.isError`: ver
+  // `computeDashboardLoading` más arriba.
+  const dashboardLayoutLoading = computeDashboardLoading(myMemberId, householdId, q.isLoading, q.isError);
 
   return { dashboardLayout: layout, dashboardLayoutLoading, setDashboardLayout };
 }
