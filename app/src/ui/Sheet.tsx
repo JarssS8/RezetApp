@@ -77,9 +77,41 @@ export function Sheet({
     };
   }, []);
 
+  // Foco inicial y restauración al desmontar — SOLO al montar/desmontar
+  // (`[]`), separado a propósito del listener de teclado de abajo.
+  //
+  // Tercera ronda de revisión final, hallazgo Important (preexistente en
+  // `main`, agravado por esta rama): antes esto vivía en el MISMO efecto
+  // que el listener de teclado, con deps `[dismiss]`. La limpieza de un
+  // efecto se ejecuta en CADA cambio de esas deps, no solo al desmontar
+  // — así que cada vez que `dismiss` cambiaba de referencia, la limpieza
+  // hacía `restoreTo.current?.focus?.()` (llevando el foco de vuelta al
+  // disparador original) y el efecto se re-ejecutaba enfocando otra vez el
+  // panel del diálogo. `DashboardEditSheet.canClose` depende de `layout`,
+  // así que cada edición cambia `canClose` → `dismiss` cambia → el foco
+  // saltaba al `<div role="dialog">`, tirando a la basura el foco que
+  // `handleMove` (I3) coloca a propósito en el botón hermano. El patrón
+  // ya estaba en `main` y afecta a las 23 hojas en cada re-render de su
+  // padre; esta rama lo convirtió en algo que pasa en cada toque.
+  //
+  // Verificado montando `Sheet` de verdad (jsdom, fuera del repo — ver el
+  // informe): con el fallo, foco en un campo + una edición (cambiar la
+  // identidad de `onClose`, el mismo mecanismo que `canClose`) movía
+  // `document.activeElement` al `role="dialog"`; con el arreglo, se queda
+  // en el campo. El foco inicial al abrir y la restauración al cerrar
+  // siguen comprobados aparte, en el mismo harness.
   useEffect(() => {
     restoreTo.current = document.activeElement;
     panel.current?.focus();
+    return () => {
+      (restoreTo.current as HTMLElement | null)?.focus?.();
+    };
+  }, []);
+
+  // Listener de teclado — este sí depende de `dismiss` (Escape lo llama) y
+  // se re-suscribe cuando cambia, pero ya no toca el foco: solo añade y
+  // quita el propio listener.
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         // Solo la última hoja montada (la de arriba) reacciona a Escape —
@@ -107,10 +139,7 @@ export function Sheet({
       }
     };
     document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      (restoreTo.current as HTMLElement | null)?.focus?.();
-    };
+    return () => document.removeEventListener('keydown', onKey);
   }, [dismiss]);
 
   return (
