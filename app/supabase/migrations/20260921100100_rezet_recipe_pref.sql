@@ -24,6 +24,13 @@ create policy member_recipe_pref_select on public.member_recipe_pref for select
        and m.household_id = (select private.current_household())
   ));
 
+-- Dos políticas sobre la misma tabla, una `for select` y otra `for all`, son
+-- seguras porque Postgres solo combina con OR las políticas del MISMO
+-- comando: la `select` de arriba (todo el hogar) nunca se suma a un INSERT/
+-- UPDATE/DELETE, así que la única que rige la escritura es esta. Sin esto,
+-- cualquiera del hogar podría votar por otro. Verificado en
+-- `supabase/tests/migrations.test.ts` ("recipe_pref: cualquiera del hogar
+-- lee el voto ajeno, pero nadie vota por otro").
 create policy member_recipe_pref_write on public.member_recipe_pref for all
   to authenticated
   using ((select private.can_act_for(member_recipe_pref.member_id)))
