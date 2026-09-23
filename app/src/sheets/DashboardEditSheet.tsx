@@ -78,11 +78,14 @@ function Switch({
  * div raíz que ya llevaba el borde y el padding, no a un envoltorio nuevo,
  * para no duplicar el layout de la fila en dos sitios.
  *
- * `disabled` (ronda de arreglo 1, hallazgo (b)): `true` mientras
- * `dashboardLayoutLoading` — la copia local todavía es el layout por
- * defecto de mientras tanto, no el de esta persona, así que nada de esta
- * fila debe poder tocarse hasta que llegue el de verdad. Apaga el
- * interruptor, el segmentado, subir/bajar y el asa de arrastre a la vez.
+ * `disabled` (ronda de arreglo 1, hallazgo (b); ronda 2 lo completa): `true`
+ * mientras `dashboardLayoutLoading` — la copia local todavía es el layout
+ * por defecto de mientras tanto, no el de esta persona, así que nada de
+ * esta fila debe poder tocarse hasta que llegue el de verdad. Apaga el
+ * interruptor, el segmentado (con el `disabled` nativo de
+ * `SegmentedControl`, no un envoltorio con `pointerEvents` — eso bloquea
+ * ratón y toque pero no Tab ni Enter/Espacio sobre el `<button>`), subir/
+ * bajar y el asa de arrastre a la vez.
  */
 function DashboardRow({
   item,
@@ -163,16 +166,7 @@ function DashboardRow({
       </div>
       <Switch checked={item.on} onChange={onToggle} ariaLabel={t.dashboardShow(name)} disabled={disabled} />
       {canSize && (
-        <div
-          style={{
-            width: 132,
-            flex: '0 0 132px',
-            // La propia `SegmentedControl` no admite `disabled` — se apaga
-            // por fuera, igual que el asa de arrastre de arriba.
-            pointerEvents: disabled ? 'none' : undefined,
-            opacity: disabled ? 0.5 : 1,
-          }}
-        >
+        <div style={{ width: 132, flex: '0 0 132px' }}>
           <SegmentedControl<WidgetSize>
             value={item.w}
             onChange={onSize}
@@ -180,6 +174,7 @@ function DashboardRow({
               { value: 'full', label: t.dashboardSizeFull },
               { value: 'half', label: t.dashboardSizeHalf },
             ]}
+            disabled={disabled}
           />
         </div>
       )}
@@ -242,6 +237,15 @@ function DashboardRow({
  * marca `dirty` y congelaría la resincronización si se tocara antes de
  * saber el layout real). En la demo `dashboardLayoutLoading` es siempre
  * `false`, así que ahí no cambia nada.
+ *
+ * Ronda de arreglo 2 — (b) no estaba cerrado del todo: el segmentado de
+ * tamaño se apagaba con un envoltorio `pointerEvents: 'none'`, que bloquea
+ * ratón y toque pero no Tab ni Enter/Espacio sobre el `<button>` nativo —
+ * quien navegaba por teclado podía tabular hasta él durante la carga y
+ * cambiar el tamaño igualmente. `SegmentedControl` ahora tiene un
+ * `disabled` de verdad (`src/ui/SegmentedControl.tsx`), que llega hasta
+ * cada `Pressable`; aquí ya no hace falta el envoltorio ni una opacidad
+ * aparte (la propia `SegmentedControl` se atenúa cuando está `disabled`).
  */
 export function DashboardEditSheet({
   onClose,
