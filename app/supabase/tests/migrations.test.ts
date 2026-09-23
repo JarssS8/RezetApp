@@ -2321,4 +2321,92 @@ describe('migraciones', () => {
 
     await db.close();
   }, 120_000);
+
+  // ── member_notice_log (send-member-notifications) ────────────────────────
+  it('member_notice_log: un usuario autenticado no puede leerla ni escribirla', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const anaMember = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${ana}'`)
+    ).rows[0].id;
+
+    // Ni siquiera puede leer sus propias filas: no hay ninguna política, así
+    // que RLS deniega por defecto (no es "cero filas", es "permiso denegado").
+    await expect(
+      asUser(db, ana, 'select count(*)::int as n from public.member_notice_log'),
+    ).rejects.toThrow(/permission denied/);
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `insert into public.member_notice_log (member_id, kind, on_date) values ('${anaMember}', 'expiring', current_date)`,
+      ),
+    ).rejects.toThrow(/permission denied/);
+
+    // El superusuario (equivalente a la service role) sí puede: es quien usa
+    // la Edge Function.
+    await db.query(
+      `insert into public.member_notice_log (member_id, kind, on_date) values ('${anaMember}', 'expiring', current_date)`,
+    );
+    const superRow = await db.query<{ n: number }>('select count(*)::int as n from public.member_notice_log');
+    expect(superRow.rows[0].n).toBe(1);
+
+    await db.close();
+  }, 120_000);
+
+  it('member_notice_log: borrar el miembro se lleva sus avisos registrados', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const anaMember = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${ana}'`)
+    ).rows[0].id;
+
+    await db.query(
+      `insert into public.member_notice_log (member_id, kind, on_date) values ('${anaMember}', 'cook_turn', current_date)`,
+    );
+    expect((await db.query<{ n: number }>('select count(*)::int as n from public.member_notice_log')).rows[0].n).toBe(
+      1,
+    );
+
+    // remove_member marca deleted_at pero no borra la fila de `member`
+    // (20260919100100), así que se comprueba con un DELETE directo, que es
+    // lo que sí dispara el ON DELETE CASCADE declarado en la tabla.
+    await db.query(`delete from public.member where id = '${anaMember}'`);
+    expect((await db.query<{ n: number }>('select count(*)::int as n from public.member_notice_log')).rows[0].n).toBe(
+      0,
+    );
+
+    await db.close();
+  }, 120_000);
+
+  it('member_notice_log: la clave primaria impide dos avisos del mismo tipo el mismo día para la misma persona', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const anaMember = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${ana}'`)
+    ).rows[0].id;
+
+    await db.query(
+      `insert into public.member_notice_log (member_id, kind, on_date) values ('${anaMember}', 'log_reminder', current_date)`,
+    );
+    await expect(
+      db.query(
+        `insert into public.member_notice_log (member_id, kind, on_date) values ('${anaMember}', 'log_reminder', current_date)`,
+      ),
+    ).rejects.toThrow(/duplicate key/);
+
+    // Un tipo distinto, o un día distinto, sí vale.
+    await db.query(
+      `insert into public.member_notice_log (member_id, kind, on_date) values ('${anaMember}', 'expiring', current_date)`,
+    );
+    await db.query(
+      `insert into public.member_notice_log (member_id, kind, on_date) values ('${anaMember}', 'log_reminder', current_date - 1)`,
+    );
+    expect((await db.query<{ n: number }>('select count(*)::int as n from public.member_notice_log')).rows[0].n).toBe(
+      3,
+    );
+
+    await db.close();
+  }, 120_000);
 });
