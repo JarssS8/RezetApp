@@ -2046,6 +2046,82 @@ describe('migraciones', () => {
     await db.close();
   }, 120_000);
 
+  // (2026-09-21-avisos-gustos-turnos) — hallazgo de revisión sobre
+  // 20260921100100: la RLS de escritura solo comprueba que el MIEMBRO sea
+  // tuyo, no que la RECETA sea de tu mismo hogar. Ana puede votar sobre su
+  // PROPIA fila (RLS la deja) pero apuntando a una receta de otro hogar si
+  // conoce su uuid; el trigger de 20260921100300 debe cerrarlo, igual que
+  // check_intake_extra_refs cierra el mismo hueco en intake_extra.
+  it('recipe_pref: no se puede votar sobre una receta de otro hogar', async () => {
+    const db = await applyMigrations();
+    const [ana] = await householdWith(db, ['Ana']);
+    const [eve] = await householdWith(db, ['Eve']);
+    const hEve = (
+      await db.query<{ h: string }>(`select household_id as h from public.profile where id = '${eve}'`)
+    ).rows[0].h;
+    const anaMember = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${ana}'`)
+    ).rows[0].id;
+    const recipeE = (
+      (await asUser(db, eve, `insert into public.recipe (household_id, name) values ('${hEve}', 'E') returning id`)) as {
+        rows: { id: string }[];
+      }
+    ).rows[0].id;
+
+    await expect(
+      asUser(
+        db,
+        ana,
+        `insert into public.member_recipe_pref (member_id, recipe_id, rating) values ('${anaMember}', '${recipeE}', 1)`,
+      ),
+    ).rejects.toThrow(/REZET_FOREIGN_HOUSEHOLD/);
+    await db.close();
+  }, 120_000);
+
+  it('recipe_pref: borrar la receta o el miembro se lleva sus votos', async () => {
+    const db = await applyMigrations();
+    const ana = await createAuthUser(db);
+    await asUser(db, ana, "select public.create_household('Casa', 'Ana')");
+    const h = await db.query<{ id: string }>('select id from public.household limit 1');
+    const yo = await db.query<{ id: string }>(
+      `select id from public.member where auth_user_id = '${ana}'`,
+    );
+    const recipe1 = (
+      (await asUser(
+        db,
+        ana,
+        `insert into public.recipe (household_id, name) values ('${h.rows[0].id}', 'R1') returning id`,
+      )) as { rows: { id: string }[] }
+    ).rows[0].id;
+    const recipe2 = (
+      (await asUser(
+        db,
+        ana,
+        `insert into public.recipe (household_id, name) values ('${h.rows[0].id}', 'R2') returning id`,
+      )) as { rows: { id: string }[] }
+    ).rows[0].id;
+
+    await asUser(
+      db,
+      ana,
+      `insert into public.member_recipe_pref (member_id, recipe_id, rating) values
+        ('${yo.rows[0].id}', '${recipe1}', 1), ('${yo.rows[0].id}', '${recipe2}', -1)`,
+    );
+
+    await db.exec(`delete from public.recipe where id = '${recipe1}'`);
+    const trasBorrarReceta = await db.query<{ n: number }>(
+      'select count(*)::int as n from public.member_recipe_pref',
+    );
+    expect(trasBorrarReceta.rows[0].n).toBe(1);
+
+    await db.exec(`delete from public.member where id = '${yo.rows[0].id}'`);
+    const trasBorrarMiembro = await db.query<{ n: number }>(
+      'select count(*)::int as n from public.member_recipe_pref',
+    );
+    expect(trasBorrarMiembro.rows[0].n).toBe(0);
+    await db.close();
+  }, 120_000);
+
   // ── Task 7 (2026-09-21-avisos-gustos-turnos) — turnos de cocina/compra ──
   // El riesgo real de esta tarea: household y plan_entry ya tenían grants
   // vivos antes de esta migración, y `revoke update (columna)` es inocuo
