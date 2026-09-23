@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { QueryObserver } from '@tanstack/query-core';
-import { computeDashboardLoading } from '../useDashboard';
+import { computeDashboardLoading } from '../dashboardLoading';
 import { asMemberId } from '../../../types';
 
 /**
