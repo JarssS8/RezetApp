@@ -27,7 +27,7 @@ export function register(server: McpServer, ctx: Ctx): void {
 
       const { data, error } = await ctx.supabase
         .from('plan_entry')
-        .select('id, on_date, slot, recipe_id, servings, cooked_at')
+        .select('id, on_date, slot, recipe_id, servings, cooked_at, cook_member_id')
         .eq('household_id', ctx.householdId)
         .gte('on_date', monday)
         .lte('on_date', sunday);
@@ -99,7 +99,7 @@ export function register(server: McpServer, ctx: Ctx): void {
           recipe_id: recipeId,
           servings: finalServings,
         })
-        .select('id, on_date, slot, recipe_id, servings, cooked_at')
+        .select('id, on_date, slot, recipe_id, servings, cooked_at, cook_member_id')
         .single();
       if (error) throw error;
 

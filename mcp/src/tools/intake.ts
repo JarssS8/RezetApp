@@ -38,7 +38,7 @@ export function register(server: McpServer, ctx: Ctx): void {
       // hogar; la ración de cada uno es lo que aporta `intake_share`/el valor por defecto).
       const { data: planRows, error: planError } = await ctx.supabase
         .from('plan_entry')
-        .select('id, on_date, slot, recipe_id, servings, cooked_at')
+        .select('id, on_date, slot, recipe_id, servings, cooked_at, cook_member_id')
         .eq('household_id', ctx.householdId)
         .eq('on_date', today);
       if (planError) throw planError;

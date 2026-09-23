@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { resolveExpiry } from '../../app/src/domain/dates';
 import { SENSITIVE_RE, inferFoodGroup } from '../../app/src/domain/recipeText';
+import { asMemberId } from '../../app/src/types';
 import type {
   FoodGroup,
   Ingredient,
@@ -130,6 +131,10 @@ export function mapPlanEntry(row: {
   recipe_id: string;
   servings: number;
   cooked_at: string | null;
+  // Turnos (diseno 10). El MCP no expone los turnos como funcionalidad, pero
+  // `PlanEntry` es el tipo compartido con la app y no admite que falte: una
+  // fila a medias aqui seria una segunda forma del mismo tipo.
+  cook_member_id?: string | null;
 }): PlanEntry {
   return {
     id: row.id,
@@ -138,6 +143,7 @@ export function mapPlanEntry(row: {
     recipeId: row.recipe_id,
     servings: row.servings,
     cooked: row.cooked_at != null,
+    cookMemberId: row.cook_member_id == null ? null : asMemberId(row.cook_member_id),
   };
 }
 

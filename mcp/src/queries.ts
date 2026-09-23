@@ -33,7 +33,7 @@ export async function loadPantry(supabase: SupabaseClient, householdId: string):
 export async function loadPlan(supabase: SupabaseClient, householdId: string): Promise<PlanEntry[]> {
   const { data, error } = await supabase
     .from('plan_entry')
-    .select('id, on_date, slot, recipe_id, servings, cooked_at')
+    .select('id, on_date, slot, recipe_id, servings, cooked_at, cook_member_id')
     .eq('household_id', householdId);
   if (error) throw error;
   return (data ?? []).map(mapPlanEntry);
