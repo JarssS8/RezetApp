@@ -111,3 +111,38 @@ a:hover{color:color-mix(in oklab, var(--accent-ink) 75%, var(--text))}
 @media (prefers-contrast: more){
   :root{ --glass: var(--surface); --glass-blur: 0px; }
 }
+
+/* Interruptor (ui/Switch.tsx). El aro de foco tiene que vivir aquí: el
+   control real es un <input> invisible encima de la pista, y un
+   :focus-visible no se puede escribir en estilos en línea. Sin esto, quien
+   navega con el tabulador no sabe nunca dónde está. */
+.rz-switch input:focus-visible{ outline:none }
+.rz-switch:has(input:focus-visible){
+  outline:2px solid var(--accent-ink);
+  outline-offset:3px;
+  border-radius:999px;
+}
+
+/* Campos de hora (las horas de silencio de Avisos).
+   El navegador pinta el reloj del selector con SU color, no con el nuestro:
+   en tema oscuro salía un icono negro sobre un campo oscuro, invisible. El
+   `color-scheme` de cada tema (arriba) arregla el interior del campo, pero el
+   icono necesita decirlo aparte porque varios navegadores lo ignoran cuando
+   el input lleva un `background` propio, que es nuestro caso.
+   Y `min-width:0`: un input de hora tiene ancho mínimo propio (las cifras más
+   el icono), así que dentro de una caja flexible estrecha se desbordaba en
+   vez de encogerse. */
+input[type="time"]{ min-width:0; padding-inline:11px }
+input[type="time"]::-webkit-calendar-picker-indicator{
+  cursor:pointer;
+  opacity:.75;
+  padding:0;
+  margin-inline-start:4px;
+}
+input[type="time"]::-webkit-calendar-picker-indicator:hover{ opacity:1 }
+:root[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator{
+  filter:invert(1);
+}
+/* Las cifras heredan el color del texto; sin esto Safari usa el suyo. */
+input[type="time"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit-fields-wrapper{ color:inherit; padding:0 }

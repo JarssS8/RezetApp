@@ -13,6 +13,7 @@ import {
 import { ROW_HEIGHT, useListReorder, type RowDragHandlers } from '../motion/useListReorder';
 import { EASE_SHEET } from '../motion/motion';
 import { Sheet } from '../ui/Sheet';
+import { Switch } from '../ui/Switch';
 import { Button, IconButton } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { ListCard } from '../ui/Card';
@@ -36,57 +37,6 @@ function rowSwitchId(id: WidgetItem['id']): string {
   return `dashboard-row-switch-${id}`;
 }
 
-/**
- * Interruptor accesible, igual que el de `NotifySheet.tsx`, pero con
- * `aria-label` propio en vez de un `<label>` que envuelva texto visible: en
- * esta fila el nombre del widget ya se pinta aparte, junto al resto de
- * controles (tamaño, subir, bajar), así que reutilizar ese texto como
- * etiqueta del interruptor sería ambiguo.
- */
-function Switch({
-  checked,
-  onChange,
-  ariaLabel,
-  disabled,
-  id,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  ariaLabel: string;
-  disabled?: boolean;
-  id?: string;
-}) {
-  return (
-    <input
-      type="checkbox"
-      role="switch"
-      id={id}
-      aria-label={ariaLabel}
-      checked={checked}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.checked)}
-      style={{
-        appearance: 'none',
-        WebkitAppearance: 'none',
-        flex: '0 0 44px',
-        width: 44,
-        height: 26,
-        margin: 0,
-        borderRadius: radius.pill,
-        border: '1px solid var(--line)',
-        background: checked ? 'var(--accent)' : 'var(--surface2)',
-        backgroundImage: 'radial-gradient(circle, var(--surface) 42%, transparent 44%)',
-        backgroundSize: '20px 20px',
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: checked ? 'right 3px center' : 'left 3px center',
-        boxShadow: 'var(--shadow-s)',
-        cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.6 : 1,
-        transition: 'background-color .18s ease, background-position .18s cubic-bezier(.2,.75,.2,1)',
-      }}
-    />
-  );
-}
 
 /**
  * Una fila del layout: asa de arrastre, nombre, interruptor, tamaño (si

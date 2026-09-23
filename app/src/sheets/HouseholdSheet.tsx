@@ -6,6 +6,7 @@ import { stripHouseholdErrorTag } from '../data/householdErrors';
 import { memberActions } from '../domain/householdRoles';
 import { formatKcal } from '../domain/units';
 import { Sheet } from '../ui/Sheet';
+import { Switch } from '../ui/Switch';
 import { Pressable } from '../ui/Pressable';
 import { Pill } from '../ui/Chip';
 import { Eyebrow } from '../ui/Card';
@@ -410,37 +411,10 @@ export function HouseholdSheet({
               {t.turnsEnableHint}
             </div>
           </span>
-          {/*
-           * `<input type="checkbox" role="switch">` real dentro de su
-           * `<label>` — mismo patrón accesible que `NotifySheet.tsx`
-           * (duplicado aquí, no importado: esa hoja no lo exporta y no es
-           * una de las que toca esta tarea).
-           */}
-          <input
-            type="checkbox"
-            role="switch"
+          <Switch
             checked={household.turnsEnabled}
+            onChange={(v) => void commitTurns(v)}
             disabled={turnsBusy}
-            onChange={(e) => void commitTurns(e.target.checked)}
-            style={{
-              appearance: 'none',
-              WebkitAppearance: 'none',
-              flex: '0 0 44px',
-              width: 44,
-              height: 26,
-              margin: 0,
-              borderRadius: radius.pill,
-              border: '1px solid var(--line)',
-              background: household.turnsEnabled ? 'var(--accent)' : 'var(--surface2)',
-              backgroundImage: 'radial-gradient(circle, var(--surface) 42%, transparent 44%)',
-              backgroundSize: '20px 20px',
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: household.turnsEnabled ? 'right 3px center' : 'left 3px center',
-              boxShadow: 'var(--shadow-s)',
-              cursor: turnsBusy ? 'default' : 'pointer',
-              opacity: turnsBusy ? 0.6 : 1,
-              transition: 'background-color .18s ease, background-position .18s cubic-bezier(.2,.75,.2,1)',
-            }}
           />
         </label>
 
