@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
     supabase.from("household").select("id, turns_enabled").in("id", householdIds),
     supabase
       .from("pantry_item")
-      .select("household_id, expires_on, ingredient:ingredient_id(name_es)")
+      .select("household_id, expires_on, ingredient(name_es)")
       .in("household_id", householdIds)
       .gte("expires_on", today)
       .lte("expires_on", expiringUntil)
