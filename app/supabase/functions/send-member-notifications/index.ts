@@ -1,0 +1,324 @@
+import webpush from "npm:web-push@3.6.7";
+import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { cronAuthStatus } from "../send-timer-notifications/logic.ts";
+import { HOUSEHOLD_TIME_ZONE, localMinutes } from "../send-timer-notifications/quiet.ts";
+import { ateFromCooked, dueNotices, shareKey, type NotifyPrefRow } from "./due.ts";
+
+const ALLOWED_PUSH_HOSTS = [
+  "fcm.googleapis.com",
+  "push.services.mozilla.com",
+  "notify.windows.com",
+  "push.apple.com",
+];
+const MAX_SENDS_PER_RUN = 200;
+const SEND_TIMEOUT_MS = 10_000;
+const EXPIRING_WINDOW_DAYS = 3;
+
+function isAllowedEndpoint(endpoint: string): boolean {
+  try {
+    const url = new URL(endpoint);
+    return (
+      url.protocol === "https:" &&
+      ALLOWED_PUSH_HOSTS.some((h) => url.hostname === h || url.hostname.endsWith(`.${h}`))
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Suma días de calendario a una fecha `'YYYY-MM-DD'`, sin horas ni zona. */
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+type NoticeKind = "expiring" | "cook_turn" | "log_reminder";
+
+// Los textos van en castellano y sin i18n de servidor, igual que
+// `send-timer-notifications` ("Paso N: el temporizador ha terminado") — el
+// repo no tiene i18n en el servidor y este no es el momento de añadirlo.
+// Deuda conocida, anotada también en el informe de esta tarea.
+function bodyFor(kind: NoticeKind, ctx: { expiringCount: number; expiringFirst: string }): string {
+  switch (kind) {
+    case "expiring":
+      return ctx.expiringCount <= 1
+        ? `${ctx.expiringFirst} está a punto de caducar.`
+        : `${ctx.expiringCount} cosas de la despensa están a punto de caducar, empezando por ${ctx.expiringFirst}.`;
+    case "cook_turn":
+      return "Hoy te toca cocinar.";
+    case "log_reminder":
+      return "Todavía no has registrado lo que has comido hoy.";
+  }
+}
+
+/**
+ * M4/M5/M7 (§9) — disparada por pg_cron cada hora en punto y cinco (ver
+ * migración `rezet_member_notice_log`). Manda como mucho un aviso de cada
+ * tipo (`expiring`, `cook_turn`, `log_reminder`) por miembro y día,
+ * respetando las horas de silencio de `member_notify_pref` — a diferencia
+ * de `send-timer-notifications`, que las ignora a propósito.
+ *
+ * Usa SUPABASE_SERVICE_ROLE_KEY para saltarse RLS: esta función necesita ver
+ * miembros, despensa y plan de TODOS los hogares, no solo uno.
+ */
+Deno.serve(async (req) => {
+  // Mismo secreto que `send-timer-notifications` ("el secreto del cron"), a
+  // propósito: ya está configurado en el panel y una segunda variable de
+  // entorno sería una cosa más que se puede olvidar de poner.
+  const denied = cronAuthStatus(Deno.env.get("TIMER_CRON_SECRET"), req.headers.get("x-rezet-cron"));
+  if (denied === 503) {
+    console.warn("send-member-notifications: TIMER_CRON_SECRET sin configurar, se rechaza");
+    return new Response("not configured", { status: 503 });
+  }
+  if (denied === 401) return new Response("unauthorized", { status: 401 });
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, serviceKey);
+
+  const { data: secretRows, error: secretError } = await supabase
+    .from("app_secret")
+    .select("key, value");
+  if (secretError) {
+    // Sin volcar secretError.message: puede llevar detalle interno de Postgres.
+    console.error("send-member-notifications: failed to read app_secret");
+    return new Response(JSON.stringify({ error: "failed to read secrets" }), { status: 500 });
+  }
+  const secrets = Object.fromEntries((secretRows ?? []).map((s) => [s.key, s.value]));
+  if (!secrets.VAPID_PUBLIC_KEY || !secrets.VAPID_PRIVATE_KEY) {
+    return new Response(JSON.stringify({ error: "missing VAPID secrets" }), { status: 500 });
+  }
+  webpush.setVapidDetails(
+    secrets.VAPID_SUBJECT ?? "mailto:noreply@example.com",
+    secrets.VAPID_PUBLIC_KEY,
+    secrets.VAPID_PRIVATE_KEY,
+  );
+
+  const now = new Date();
+  const hour = Math.floor(localMinutes(now, HOUSEHOLD_TIME_ZONE) / 60);
+  // `en-CA` da directamente 'YYYY-MM-DD' — la fecha del día en Madrid, no en
+  // UTC (una Edge Function corre en UTC; ver `quiet.ts`).
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: HOUSEHOLD_TIME_ZONE }).format(now);
+  const expiringUntil = addDays(today, EXPIRING_WINDOW_DAYS);
+
+  // Miembros vivos CON cuenta: un tutelado sin cuenta no tiene dónde recibir
+  // un aviso push, así que se salta directamente aquí.
+  const { data: members, error: membersError } = await supabase
+    .from("member")
+    .select(
+      "id, household_id, auth_user_id, member_notify_pref(expiring, cook_turn, log_reminder, log_reminder_at, quiet_from, quiet_to)",
+    )
+    .is("deleted_at", null)
+    .not("auth_user_id", "is", null);
+  if (membersError) {
+    console.error("send-member-notifications: failed to read member");
+    return new Response(JSON.stringify({ error: "failed to read member" }), { status: 500 });
+  }
+  if (!members || members.length === 0) {
+    return new Response(JSON.stringify({ hour, checked: 0, sent: 0, skipped: 0 }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const memberIds = members.map((m) => m.id);
+  const householdIds = [...new Set(members.map((m) => m.household_id))];
+
+  const [{ data: householdRows, error: householdError }, { data: expiringRows, error: expiringError }, {
+    data: cookRows,
+    error: cookError,
+  }, { data: cookedRows, error: cookedError }, { data: intakeRows, error: intakeError }, {
+    data: sentRows,
+    error: sentError,
+  }] = await Promise.all([
+    supabase.from("household").select("id, turns_enabled").in("id", householdIds),
+    supabase
+      .from("pantry_item")
+      .select("household_id, expires_on, ingredient(name_es)")
+      .in("household_id", householdIds)
+      // Sin cota inferior a propósito: lo que ya venció cuenta como "caduca
+      // pronto", igual que en la pantalla de Despensa (expiresInDays <= 3,
+      // negativos incluidos). Dos definiciones distintas de lo mismo era
+      // justo lo que había.
+      .not("expires_on", "is", null)
+      .lte("expires_on", expiringUntil)
+      .order("expires_on", { ascending: true }),
+    supabase
+      .from("plan_entry")
+      .select("cook_member_id")
+      .in("household_id", householdIds)
+      .eq("on_date", today)
+      .not("cook_member_id", "is", null),
+    supabase
+      .from("plan_entry")
+      .select("id, household_id")
+      .in("household_id", householdIds)
+      .eq("on_date", today)
+      .not("cooked_at", "is", null),
+    supabase.from("intake_extra").select("member_id").in("member_id", memberIds).eq("date", today),
+    supabase.from("member_notice_log").select("member_id, kind").eq("on_date", today).in("member_id", memberIds),
+  ]);
+  if (householdError || expiringError || cookError || cookedError || intakeError || sentError) {
+    console.error("send-member-notifications: failed to read plan/pantry/log state");
+    return new Response(JSON.stringify({ error: "failed to read state" }), { status: 500 });
+  }
+
+  const turnsEnabledByHousehold = new Map((householdRows ?? []).map((h) => [h.id, h.turns_enabled === true]));
+
+  const expiringByHousehold = new Map<string, { count: number; first: string }>();
+  for (const row of expiringRows ?? []) {
+    const existing = expiringByHousehold.get(row.household_id);
+    const ingredient = Array.isArray(row.ingredient) ? row.ingredient[0] : row.ingredient;
+    const name = ingredient?.name_es ?? "un ingrediente";
+    if (existing) existing.count += 1;
+    else expiringByHousehold.set(row.household_id, { count: 1, first: name });
+  }
+
+  const cookMemberIdsToday = new Set((cookRows ?? []).map((r) => r.cook_member_id as string));
+  const membersLoggedIntakeToday = new Set((intakeRows ?? []).map((r) => r.member_id));
+
+  // "Ya ha registrado algo hoy" es de la PERSONA, no del hogar. Mirar solo si
+  // alguien cocinó hoy en casa haría que en un hogar activo el recordatorio no
+  // saltara casi nunca, justo para quien no se apuntó nada. Lo que cuenta es
+  // su ración de una comida cocinada hoy (`intake_share`, que escribe
+  // `finish_cook_v2`) con más de cero — "no lo comí" se guarda como 0 y no
+  // es haber comido.
+  // Comidas cocinadas hoy, por hogar, y el reparto explicito que haya de
+  // ellas. La ausencia de fila NO es "no comio": finish_cook_v2 no escribe
+  // ninguna cuando nadie toca el reparto, y domain/intake.ts cuenta esa
+  // comida igual (DEFAULT_SHARE = 1). Solo un 0 explicito -el "No lo
+  // comi"- quiere decir que esa persona no comio de ese plato.
+  const cookedEntriesByHousehold = new Map<string, string[]>();
+  for (const row of cookedRows ?? []) {
+    const list = cookedEntriesByHousehold.get(row.household_id as string);
+    if (list) list.push(row.id as string);
+    else cookedEntriesByHousehold.set(row.household_id as string, [row.id as string]);
+  }
+  const cookedEntryIdsToday = (cookedRows ?? []).map((r) => r.id as string);
+  /** Clave "member|plan_entry" -> raciones, solo donde hay fila explicita. */
+  const explicitShares = new Map<string, number>();
+  if (cookedEntryIdsToday.length > 0) {
+    const { data: shareRows, error: shareError } = await supabase
+      .from("intake_share")
+      .select("member_id, plan_entry_id, servings")
+      .in("plan_entry_id", cookedEntryIdsToday)
+      .in("member_id", memberIds);
+    if (shareError) {
+      console.error("send-member-notifications: failed to read intake_share");
+      return new Response(JSON.stringify({ error: "failed to read state" }), { status: 500 });
+    }
+    for (const row of shareRows ?? []) {
+      explicitShares.set(shareKey(row.member_id as string, row.plan_entry_id as string), Number(row.servings));
+    }
+  }
+
+  const alreadySent = new Set((sentRows ?? []).map((r) => `${r.member_id}|${r.kind}`));
+
+  let checked = 0;
+  let sent = 0;
+  let skipped = 0;
+
+  outer: for (const member of members) {
+    checked++;
+    const prefRow = Array.isArray(member.member_notify_pref) ? member.member_notify_pref[0] : member.member_notify_pref;
+    const pref: NotifyPrefRow | null = prefRow ?? null;
+    const expiringInfo = expiringByHousehold.get(member.household_id);
+
+    const due = dueNotices({
+      now,
+      pref,
+      turnsEnabled: turnsEnabledByHousehold.get(member.household_id) === true,
+      hasExpiringSoon: expiringInfo != null,
+      isCookToday: cookMemberIdsToday.has(member.id),
+      hasLoggedToday:
+        membersLoggedIntakeToday.has(member.id) ||
+        ateFromCooked(
+          member.id,
+          cookedEntriesByHousehold.get(member.household_id) ?? [],
+          explicitShares,
+        ),
+    });
+
+    const wanted: NoticeKind[] = [];
+    if (due.expiring) wanted.push("expiring");
+    if (due.cookTurn) wanted.push("cook_turn");
+    if (due.logReminder) wanted.push("log_reminder");
+    if (wanted.length === 0) continue;
+
+    const { data: subs, error: subsError } = await supabase
+      .from("push_subscription")
+      .select("endpoint, p256dh, auth")
+      .eq("profile_id", member.auth_user_id);
+    if (subsError) {
+      // Sin esto el aviso se perdia en silencio: `subs` venia vacio, el
+      // bucle no mandaba nada y aun asi se marcaba el aviso como enviado.
+      // Se salta este miembro SIN marcar, para que la pasada siguiente
+      // (dentro de la ventana de recuperacion) lo reintente.
+      console.error("send-member-notifications: failed to read push_subscription");
+      skipped++;
+      continue outer;
+    }
+    if (!subs || subs.length === 0) {
+      // Sin ningun dispositivo suscrito no hay nada que mandar, y sobre todo
+      // no hay que marcar el aviso como enviado: si esta persona activa las
+      // notificaciones un rato despues, la ventana de recuperacion todavia
+      // se lo puede dar.
+      skipped++;
+      continue outer;
+    }
+
+    for (const kind of wanted) {
+      if (alreadySent.has(`${member.id}|${kind}`)) {
+        skipped++;
+        continue;
+      }
+
+      // El tope se comprueba antes de empezar un aviso, nunca a medias: si
+      // no, marcar `member_notice_log` daría por avisado un aviso que solo
+      // llegó a la mitad de los dispositivos de esa persona.
+      if (sent >= MAX_SENDS_PER_RUN) {
+        // Los avisos que quedan no se marcan, y la ventana de recuperacion
+        // de `due.ts` hace que la pasada siguiente los recoja. Se deja
+        // traza igualmente: si esto sale cada dia, el tope se queda corto.
+        console.warn("send-member-notifications: tope de envios alcanzado, el resto espera a la proxima pasada");
+        break outer;
+      }
+
+      const body = bodyFor(kind, {
+        expiringCount: expiringInfo?.count ?? 0,
+        expiringFirst: expiringInfo?.first ?? "",
+      });
+      const payload = JSON.stringify({ title: "Rezet", body });
+
+      for (const sub of subs) {
+        if (!isAllowedEndpoint(sub.endpoint)) {
+          console.warn("send-member-notifications: endpoint no permitido, se descarta");
+          continue;
+        }
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            payload,
+            { timeout: SEND_TIMEOUT_MS },
+          );
+          sent++;
+        } catch (err) {
+          const statusCode = (err as { statusCode?: number }).statusCode;
+          if (statusCode === 404 || statusCode === 410) {
+            await supabase.from("push_subscription").delete().eq("endpoint", sub.endpoint);
+          }
+        }
+      }
+
+      // `ignoreDuplicates`: dos pasadas del cron solapadas no se pelean por
+      // la misma fila (la PK es (member_id, kind, on_date)).
+      await supabase
+        .from("member_notice_log")
+        .upsert({ member_id: member.id, kind, on_date: today }, { onConflict: "member_id,kind,on_date", ignoreDuplicates: true });
+    }
+  }
+
+  return new Response(JSON.stringify({ hour, checked, sent, skipped }), {
+    headers: { "Content-Type": "application/json" },
+  });
+});

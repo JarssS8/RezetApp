@@ -252,7 +252,17 @@ const entry = (
   recipeId: string,
   servings: number,
   cooked = false,
-): PlanEntry => ({ id: `seed${++n}`, date: offsetKey(dayOffset), slot, recipeId, servings, cooked });
+): PlanEntry => ({
+  id: `seed${++n}`,
+  date: offsetKey(dayOffset),
+  slot,
+  recipeId,
+  servings,
+  cooked,
+  // Turnos (§10): sin asignar en el seed — el demo enseña la función vacía,
+  // no con un reparto ya inventado.
+  cookMemberId: null,
+});
 
 export const PLAN: PlanEntry[] = [
   entry(0, 'breakfast', 'r8', 1, true),

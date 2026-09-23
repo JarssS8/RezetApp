@@ -27,12 +27,16 @@ import type {
   Member,
   MemberBody,
   MemberId,
+  NotifyPref,
   PantryItem,
   PantryLoc,
   PlanEntry,
   Recipe,
+  RecipePref,
+  RecipeRating,
   Shortage,
   ShoppingNeed,
+  ShoppingTurn,
   Unit,
 } from '../types';
 
@@ -81,6 +85,29 @@ interface Data {
   intakeShares: { memberId: MemberId; planEntryId: string; servings: number }[];
   /** Historial completo de extras — la demo es pequeña, no hace falta acotar por semana como la capa real. */
   intakeExtras: IntakeExtra[];
+  /**
+   * Preferencias de aviso por miembro (`member_notify_pref` en la capa
+   * real). Igual que `memberBody`: sin fila para un miembro, el contrato
+   * (`notifyPref`, siempre el del "yo" de la demo) da `null` — la pantalla
+   * de Ajustes es quien decide qué valores por defecto enseñar en ese caso.
+   */
+  notifyPrefByMember: Partial<Record<MemberId, NotifyPref>>;
+  /**
+   * Valoraciones de recetas (`member_recipe_pref` en la capa real). Una
+   * lista plana y no un mapa anidado, mismo motivo que `intakeShares`: así
+   * se persiste tal cual en JSON. Como mucho una fila por (miembro,
+   * receta) — la clave primaria real.
+   */
+  recipePrefs: Array<{ memberId: MemberId; recipeId: string; rating: RecipeRating }>;
+  /** Turnos (§10), apagados por defecto — ver `HouseholdDetail.turnsEnabled` en `types.ts`. */
+  turnsEnabled: boolean;
+  /**
+   * A quién le toca la compra de cada semana. Una lista plana, no un mapa
+   * anidado — mismo motivo que `intakeShares`/`recipePrefs`: así se
+   * persiste tal cual en JSON. Como mucho una fila por semana (misma clave
+   * real que `shopping_turn`).
+   */
+  shoppingTurns: ShoppingTurn[];
 }
 
 const INITIAL: Data = {
@@ -94,6 +121,29 @@ const INITIAL: Data = {
   memberBody: { [MEMBERS[0]!.id]: MEMBER_BODY },
   intakeShares: [],
   intakeExtras: INTAKE_EXTRAS,
+  notifyPrefByMember: {},
+  recipePrefs: [],
+  turnsEnabled: false,
+  shoppingTurns: [],
+};
+
+/**
+ * Valores por defecto del diseño (§9, migración
+ * `20260921100000_rezet_notify_pref.sql`): todo activado salvo el
+ * recordatorio de registro (una app que da la lata sin que se lo pidas se
+ * desinstala) y sin horas de silencio configuradas. Solo se usa para
+ * fusionar un patch la primera vez que se toca el ajuste — igual que hace
+ * `upsert` en la capa real al insertar una fila nueva con columnas por
+ * defecto —, nunca se expone directamente como `notifyPref`.
+ */
+const DEFAULT_NOTIFY_PREF: NotifyPref = {
+  timers: true,
+  expiring: true,
+  cookTurn: true,
+  logReminder: false,
+  logReminderAt: '21:00',
+  quietFrom: null,
+  quietTo: null,
 };
 
 /**
@@ -127,6 +177,10 @@ const DEMO_HOUSEHOLD: HouseholdDetail = {
   members: [{ id: 'demo-user', displayName: 'Tú', isAdmin: true }],
   membersLoaded: true,
   komprappListToken: null,
+  // Valor de relleno: `value` de más abajo lo sustituye por `data.turnsEnabled`
+  // (el de verdad, persistido) antes de exponerlo — ver el mismo patrón que
+  // ya usa `pantry`/`pantryExposed`.
+  turnsEnabled: false,
 };
 
 async function demoHouseholdActionUnavailable(): Promise<never> {
@@ -208,6 +262,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           recipeId,
           servings: servings ?? recipe.baseServings,
           cooked: false,
+          cookMemberId: null,
         };
         return { ...d, plan: [...d.plan, next] };
       });
@@ -456,6 +511,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               recipeId: recipe.id,
               servings: input.servings,
               cooked: true,
+              cookMemberId: null,
             },
           ];
         }
@@ -584,6 +640,115 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
+   * Contrato: en la capa real es un `upsert` directo sobre
+   * `member_notify_pref` (sin RPC, ver `useNotifyPref.ts`). Solo se tocan
+   * las claves presentes en el patch, fusionadas sobre `DEFAULT_NOTIFY_PREF`
+   * si es la primera vez que se toca el ajuste — mismo criterio que
+   * `setMemberSettings`/`setMyBody` de más arriba.
+   */
+  const setNotifyPref = useCallback(
+    async (memberId: MemberId, patch: Partial<NotifyPref>): Promise<void> => {
+      setData((d) => {
+        const base = d.notifyPrefByMember[memberId] ?? DEFAULT_NOTIFY_PREF;
+        return {
+          ...d,
+          notifyPrefByMember: { ...d.notifyPrefByMember, [memberId]: { ...base, ...patch } },
+        };
+      });
+    },
+    [setData],
+  );
+
+  /**
+   * Del hogar entero, agrupadas por receta — quién votó qué es visible a
+   * propósito (ver `RecipePref` en `types.ts`). En demo "el hogar" es solo
+   * el propio voto, pero el contrato ya es de lista para no divergir de la
+   * capa real cuando hay tutelados con voto propio.
+   */
+  const recipePrefsByRecipe = useMemo(() => {
+    const map = new Map<string, RecipePref[]>();
+    for (const p of data.recipePrefs) {
+      const list = map.get(p.recipeId) ?? [];
+      list.push({ memberId: p.memberId, rating: p.rating });
+      map.set(p.recipeId, list);
+    }
+    return map;
+  }, [data.recipePrefs]);
+
+  /**
+   * Contrato: upsert/delete sobre `member_recipe_pref`, siempre del "yo" de
+   * la demo. Pulsar el mismo botón otra vez quita el voto (se borra la
+   * fila), tal y como pide la UI.
+   */
+  const setRecipePref = useCallback(
+    async (recipeId: string, rating: RecipeRating): Promise<void> => {
+      setData((d) => {
+        const existing = d.recipePrefs.find(
+          (p) => p.memberId === DEMO_MY_MEMBER_ID && p.recipeId === recipeId,
+        );
+        const withoutMine = d.recipePrefs.filter(
+          (p) => !(p.memberId === DEMO_MY_MEMBER_ID && p.recipeId === recipeId),
+        );
+        if (existing && existing.rating === rating) {
+          return { ...d, recipePrefs: withoutMine };
+        }
+        return {
+          ...d,
+          recipePrefs: [...withoutMine, { memberId: DEMO_MY_MEMBER_ID, recipeId, rating }],
+        };
+      });
+    },
+    [setData],
+  );
+
+  /**
+   * Contrato: `update household set turns_enabled = ...` (columna con grant
+   * de escritura propio, sin RPC — ver la migración de turnos). Cualquier
+   * miembro puede llamarla, sin gate de admin: no es una acción de
+   * pertenencia, ver el comentario de `HouseholdDetail.turnsEnabled` en
+   * `types.ts`.
+   */
+  const setTurnsEnabled = useCallback(
+    async (enabled: boolean): Promise<void> => {
+      setData((d) => ({ ...d, turnsEnabled: enabled }));
+    },
+    [setData],
+  );
+
+  /**
+   * Contrato: `update plan_entry set cook_member_id = ...`. Puramente
+   * informativo (turnos §10): no toca despensa ni calorías, solo dice quién
+   * se apunta a cocinar esa comida.
+   */
+  const setCookMember = useCallback(
+    async (planEntryId: string, memberId: MemberId | null): Promise<void> => {
+      setData((d) => ({
+        ...d,
+        plan: d.plan.map((e) => (e.id === planEntryId ? { ...e, cookMemberId: memberId } : e)),
+      }));
+    },
+    [setData],
+  );
+
+  /**
+   * Contrato: upsert/delete sobre `shopping_turn` (clave `household_id,
+   * week_start`, el hogar ya fijo en demo). `memberId: null` borra la fila
+   * de esa semana, igual que hace un `delete` real.
+   */
+  const setShoppingTurn = useCallback(
+    async (weekStart: string, memberId: MemberId | null): Promise<void> => {
+      setData((d) => {
+        const without = d.shoppingTurns.filter((s) => s.weekStart !== weekStart);
+        return {
+          ...d,
+          shoppingTurns: memberId === null ? without : [...without, { weekStart, memberId }],
+        };
+      });
+    },
+    [setData],
+  );
+
+  /**
    * Puro sobre lo ya persistido: la aritmética (raciones, extras, totales)
    * sale de `domain/intake.ts`, igual que `useIntake.ts` en la capa real —
    * si las dos divergieran, la demo (pública, en rezet.jarsss8.es) enseñaría
@@ -686,7 +851,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     () => ({
       ...data,
       pantry: pantryExposed,
-      household: DEMO_HOUSEHOLD,
+      household: { ...DEMO_HOUSEHOLD, turnsEnabled: data.turnsEnabled },
       myMemberId: DEMO_MY_MEMBER_ID,
       createWardMember,
       deleteWardMember,
@@ -728,6 +893,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       removeExtra,
       frequentExtras,
       weekTotalsFor,
+      // Solo la fila del "yo" de la demo: un tutelado sin cuenta no recibe
+      // avisos (no hay dónde enviárselos), igual que en la capa real.
+      notifyPref: data.notifyPrefByMember[DEMO_MY_MEMBER_ID] ?? null,
+      setNotifyPref,
+      recipePrefsByRecipe,
+      setRecipePref,
+      setTurnsEnabled,
+      setCookMember,
+      setShoppingTurn,
     }),
     [
       data,
@@ -761,6 +935,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       removeExtra,
       frequentExtras,
       weekTotalsFor,
+      setNotifyPref,
+      recipePrefsByRecipe,
+      setRecipePref,
+      setTurnsEnabled,
+      setCookMember,
+      setShoppingTurn,
     ],
   );
 

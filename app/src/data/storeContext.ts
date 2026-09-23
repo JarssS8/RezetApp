@@ -10,12 +10,16 @@ import type {
   Member,
   MemberBody,
   MemberId,
+  NotifyPref,
   PantryItem,
   PantryLoc,
   PlanEntry,
   Recipe,
+  RecipePref,
+  RecipeRating,
   Shortage,
   ShoppingNeed,
+  ShoppingTurn,
   Unit,
 } from '../types';
 import type { DayIntake, DayTotal } from '../domain/intake';
@@ -255,6 +259,72 @@ export interface Store {
   frequentExtras: (memberId: MemberId) => FrequentExtra[];
   /** Totales por día para la pantalla de progreso. */
   weekTotalsFor: (memberId: MemberId, dates: string[]) => DayTotal[];
+
+  /**
+   * Preferencias de aviso del miembro propio (`member_notify_pref`). `null`
+   * mientras carga en modo real, o si nadie las ha tocado todavía — la
+   * pantalla de Ajustes es quien decide mostrar ahí los valores por defecto
+   * del diseño (§9), no este contrato. Solo la propia: a diferencia de
+   * `bodyOf`, aquí no hace falta indexar por miembro porque un tutelado sin
+   * cuenta no tiene dónde recibir un aviso (ver `NotifyPref` en `types.ts`).
+   */
+  notifyPref: NotifyPref | null;
+  /**
+   * Contrato: en la capa real es un `upsert` directo sobre
+   * `member_notify_pref` (RLS `can_act_for`; la tabla concede
+   * INSERT/UPDATE/DELETE a `authenticated` sin pasar por una RPC). Solo las
+   * claves presentes en el patch: las ausentes las conserva el servidor.
+   */
+  setNotifyPref: (memberId: MemberId, patch: Partial<NotifyPref>) => Promise<void>;
+
+  /**
+   * Valoraciones ("me gusta"/"no me gusta") de TODO el hogar por receta
+   * (`member_recipe_pref`) — mapa recipeId -> lista de votos, ausente o
+   * vacío si nadie ha votado. Deliberadamente del hogar entero, no solo el
+   * propio voto: quién votó qué es visible a propósito (ver el tipo
+   * `RecipePref` en `types.ts`), y la puntuación de "Para ti"
+   * (`domain/suggestions.ts`) solo necesita el voto propio, pero la
+   * interfaz enseña el agregado.
+   */
+  recipePrefsByRecipe: Map<string, RecipePref[]>;
+  /**
+   * Contrato: upsert/delete sobre `member_recipe_pref`, siempre del miembro
+   * propio (`myMemberId`) — la RLS de escritura ya lo exige
+   * (`can_act_for`). Pasar la misma puntuación que ya tenías quita el voto
+   * (se borra la fila), que es como la UI pide que funcione "pulsar el
+   * mismo botón otra vez".
+   */
+  setRecipePref: (recipeId: string, rating: RecipeRating) => Promise<void>;
+
+  /**
+   * Enciende o apaga los turnos del hogar entero
+   * (`household.turns_enabled`). Cualquier miembro puede llamarla — igual
+   * que el nombre del hogar, no es una acción de pertenencia, así que no
+   * lleva gate de admin ni aquí ni en la base (ver el comentario de
+   * `HouseholdDetail.turnsEnabled` en `types.ts`).
+   */
+  setTurnsEnabled: (enabled: boolean) => Promise<void>;
+  /**
+   * Quién cocina una comida del plan (`plan_entry.cook_member_id`), turnos
+   * §10. `null` quita la asignación. Puramente informativo: no cambia quién
+   * puede cocinarla de verdad, ni la despensa ni las calorías.
+   */
+  setCookMember: (planEntryId: string, memberId: MemberId | null) => Promise<void>;
+  /**
+   * A quién le toca la compra de cada semana (`shopping_turn`). Un ARRAY
+   * plano, nunca un `Map`: TanStack no le hace structural sharing a un mapa
+   * devuelto por una queryFn, así que cada refetch cambiaría de identidad y
+   * dispararía cualquier efecto que dependiera de él (el mismo fallo ya
+   * costó una ronda en una fase anterior de este proyecto, con un
+   * formulario a medio escribir borrado en directo). Quien necesite
+   * indexar por semana construye su propio `Map` con `useMemo`.
+   */
+  shoppingTurns: ShoppingTurn[];
+  /**
+   * Asigna (o quita, con `null`) quién hace la compra de una semana.
+   * `weekStart` es el lunes de esa semana, `dateKey(mondayOf(weekOffset))`.
+   */
+  setShoppingTurn: (weekStart: string, memberId: MemberId | null) => Promise<void>;
 }
 
 export const StoreCtx = createContext<Store | null>(null);

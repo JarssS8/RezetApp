@@ -5,6 +5,7 @@
 
 import { supabase } from '../supabaseClient';
 import { resolveExpiry } from '../../domain/dates';
+import { asMemberId } from '../../types';
 import type { FoodGroup, Ingredient, MealSlot, PantryItem, PantryLoc, PlanEntry, Recipe, Unit } from '../../types';
 
 function mapIngredient(row: {
@@ -116,6 +117,7 @@ function mapPlanEntry(row: {
   recipe_id: string;
   servings: number;
   cooked_at: string | null;
+  cook_member_id: string | null;
 }): PlanEntry {
   return {
     id: row.id,
@@ -124,6 +126,7 @@ function mapPlanEntry(row: {
     recipeId: row.recipe_id,
     servings: row.servings,
     cooked: row.cooked_at != null,
+    cookMemberId: row.cook_member_id != null ? asMemberId(row.cook_member_id) : null,
   };
 }
 

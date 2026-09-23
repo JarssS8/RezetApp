@@ -45,6 +45,23 @@ export const es = {
   notificationsDenied: 'Bloqueaste el permiso de notificaciones en el navegador.',
   notificationsUnsupported: 'Este navegador no soporta notificaciones push.',
   notificationsError: 'No se pudo activar. Inténtalo de nuevo.',
+
+  notifyTitle: 'Avisos',
+  notifyTimers: 'Temporizadores de cocina',
+  notifyTimersNever: 'Nunca se silencian, ni en las horas de silencio.',
+  notifyExpiring: 'Caduca pronto',
+  notifyExpiringHint: 'Un aviso cuando algo de la despensa está a punto de caducar.',
+  notifyCookTurn: 'Te toca cocinar',
+  notifyCookTurnHint: 'Un aviso cuando el plan dice que cocinas tú.',
+  notifyLogReminder: 'Recordarme registrar',
+  notifyLogReminderHint: 'Un aviso si por la noche no has apuntado lo que has comido.',
+  notifyQuiet: 'Horas de silencio',
+  notifyQuietHint:
+    'Caduca pronto, te toca cocinar y el recordatorio de registrar callan en este tramo. Los temporizadores de cocina no: uno que se traga porque son las 23:10 es comida quemada, no una notificación molesta.',
+  notifyQuietFrom: 'Desde',
+  notifyQuietTo: 'Hasta',
+  notifyWardsNote: 'Quien no tiene cuenta no recibe avisos: no hay dónde enviárselos.',
+
   inviteSheetTitle: 'Invita a tu hogar',
   inviteSheetBody:
     'Comparte este código. Caduca en 7 días y solo puede usarse una vez.',
@@ -87,6 +104,11 @@ export const es = {
   emptyTodayBody: 'Elige una receta o deja que el plan de la semana lo resuelva.',
   planWeek: 'Planificar la semana',
   cookableNow: 'Puedes cocinarlo ya',
+  // "Para ti" (Today): las tres recetas con mejor puntuación de
+  // `domain/suggestions.ts` — gustos, despensa y cuánto hace que no se
+  // cocina, nada de aprendizaje automático.
+  forYou: 'Para ti',
+  forYouHint: 'Según tus gustos, tu despensa y cuánto hace que no la cocinas.',
 
   kcalOf: 'de',
   kcal: 'kcal',
@@ -158,6 +180,16 @@ export const es = {
   sensitiveNote:
     'La sal y las especias no se duplican al subir raciones: se ajustan poco a poco.',
   cookedTimes: 'veces cocinada',
+
+  // Gustos por persona (`member_recipe_pref`): dos botones que se
+  // deshacen al pulsarlos otra vez, y debajo el agregado del hogar —
+  // quién votó qué es visible a propósito, no un dato privado.
+  likeAction: 'Me gusta',
+  dislikeAction: 'No me gusta',
+  likedByCount: (liked: number, total: number) => `A ${liked} de ${total} le gusta`,
+  // Nombra el propósito del grupo de botones, no repite el nombre de la
+  // receta: el lector de pantalla ya lo ha anunciado en el título.
+  rateRecipeGroup: 'Valorar esta receta',
 
   minutes: 'Minutos',
   difficulty: 'Dificultad',
@@ -284,6 +316,19 @@ export const es = {
   householdMembersCount: (n: number) => (n === 1 ? '1 persona' : `${n} personas`),
   leaveHouseholdRow: 'Salir del hogar',
   deleteHouseholdRow: 'Eliminar hogar',
+
+  // Turnos (§10, opcional y apagados por defecto): quién cocina cada comida
+  // y quién hace la compra de la semana. Puramente informativo — no cambia
+  // la despensa, la compra ni las calorías. Cualquier miembro del hogar
+  // enciende o apaga el interruptor, sin gate de admin (ver `types.ts`).
+  turnsTitle: 'Turnos',
+  turnsEnable: 'Usar turnos en este hogar',
+  turnsEnableHint:
+    'Reparte quién cocina cada comida y quién hace la compra de la semana. Solo informativo: no cambia la despensa, la compra ni las calorías.',
+  turnsYours: 'Te toca',
+  turnsWeekShopping: 'Compra de la semana',
+  turnsAssign: 'Quién cocina',
+  turnsNobody: 'Nadie',
 
   memberSheetTitle: 'Miembro',
   memberKcalTarget: 'Objetivo diario',

@@ -3,11 +3,13 @@ import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
 import { longDate, todayKey } from '../domain/dates';
 import { entriesOfDay } from '../domain/shopping';
+import { rankSuggestions } from '../domain/suggestions';
 import { formatKcal } from '../domain/units';
 import type { MealLine } from '../domain/intake';
 import { prefersReducedMotion } from '../motion/motion';
 import { Button, IconButton } from '../ui/Button';
 import { Card, Eyebrow, SectionHeader } from '../ui/Card';
+import { Pill } from '../ui/Chip';
 import { Icon } from '../ui/Icon';
 import { Pressable } from '../ui/Pressable';
 import { ScreenBody, ScreenHeader } from '../ui/Fields';
@@ -56,10 +58,14 @@ export function Today({
     coverageOf,
     members,
     myMemberId,
+    household,
     intakeOfDayFor,
     setShare,
     removeExtra,
+    recipePrefsByRecipe,
   } = useData();
+  // Turnos (§10): mientras estén apagados, el chip "Te toca" no existe.
+  const turnsEnabled = household?.turnsEnabled ?? false;
   const today = todayKey();
 
   // Un extra a la vez: evita un doble borrado si se toca dos veces mientras
@@ -112,6 +118,27 @@ export function Today({
   const cookable = useMemo(
     () => recipes.filter((r) => coverageOf(r, r.baseServings).full).slice(0, 3),
     [recipes, coverageOf],
+  );
+
+  /**
+   * "Para ti": las tres mejores según `domain/suggestions.ts` (gustos +
+   * despensa + cuánto hace que no se cocina) — la puntuación vive entera en
+   * ese módulo, aquí solo se junta lo que hace falta para calcularla.
+   */
+  const suggestions = useMemo(
+    () =>
+      rankSuggestions(
+        recipes.map((r) => ({
+          recipe: r,
+          myRating: myMemberId
+            ? (recipePrefsByRecipe.get(r.id)?.find((p) => p.memberId === myMemberId)?.rating ?? null)
+            : null,
+          pantryFull: coverageOf(r, r.baseServings).full,
+        })),
+        plan,
+        3,
+      ),
+    [recipes, recipePrefsByRecipe, myMemberId, coverageOf, plan],
   );
 
   const kcalLine = `${t.kcalOf} ${formatKcal(kcalTarget, locale)} ${t.kcal}${
@@ -225,6 +252,7 @@ export function Today({
                 meal={meal}
                 entry={entry}
                 recipe={recipe}
+                isMyTurn={turnsEnabled && myMemberId != null && entry.cookMemberId === myMemberId}
                 onOpenRecipe={onOpenRecipe}
                 onCook={onCook}
                 onSetShare={(servings) =>
@@ -316,6 +344,43 @@ export function Today({
         </Card>
       )}
 
+      {suggestions.length > 0 && (
+        <div style={{ marginTop: 26 }}>
+          <Eyebrow style={{ margin: '0 4px 4px' }}>{t.forYou}</Eyebrow>
+          <div style={{ margin: '0 4px 12px', fontSize: 13, color: 'var(--muted)' }}>{t.forYouHint}</div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gap: 12,
+            }}
+          >
+            {suggestions.map(({ recipe: r }) => (
+              <Pressable
+                key={r.id}
+                onClick={() => onOpenRecipe(r.id, r.baseServings)}
+                scale={0.98}
+                style={{
+                  textAlign: 'left',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--line)',
+                  borderRadius: radius.list,
+                  padding: 14,
+                  boxShadow: 'var(--shadow-s)',
+                }}
+              >
+                <div style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: '-.015em', lineHeight: 1.25 }}>
+                  {loc(r.name)}
+                </div>
+                <div style={{ marginTop: 6, fontSize: 13, color: 'var(--muted)', ...tabular }}>
+                  {r.minutes} min · {r.kcalPerServing} {t.kcal}
+                </div>
+              </Pressable>
+            ))}
+          </div>
+        </div>
+      )}
+
       {cookable.length > 0 && (
         <div style={{ marginTop: 26 }}>
           <Eyebrow style={{ margin: '0 4px 12px' }}>{t.cookableNow}</Eyebrow>
@@ -364,6 +429,7 @@ function MealCard({
   meal,
   entry,
   recipe,
+  isMyTurn,
   onOpenRecipe,
   onCook,
   onSetShare,
@@ -371,6 +437,8 @@ function MealCard({
   meal: MealLine;
   entry: PlanEntry;
   recipe: Recipe;
+  /** Turnos (§10): esta comida está sin cocinar y te toca a ti cocinarla. */
+  isMyTurn: boolean;
   onOpenRecipe: (recipeId: string, servings: number) => void;
   onCook: (recipeId: string, servings: number, planEntryId: string | null) => void;
   onSetShare: (servings: number) => void;
@@ -425,6 +493,13 @@ function MealCard({
           {formatKcal(cooked ? meal.kcal : potentialKcal, locale)} {t.kcal}
         </div>
       </div>
+
+      {/* Turnos (§10): chip informativo, no cambia nada del bucle plan→cocinar→despensa. */}
+      {!cooked && isMyTurn && (
+        <div style={{ marginTop: 10 }}>
+          <Pill>{t.turnsYours}</Pill>
+        </div>
+      )}
 
       {/*
        * Una comida o está por cocinar —y aquí se ofrece cocinarla, el atajo

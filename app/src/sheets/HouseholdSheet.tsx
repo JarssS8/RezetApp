@@ -13,7 +13,7 @@ import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { TextField } from '../ui/Fields';
 import { Icon } from '../ui/Icon';
-import { radius, text as T } from '../ui/tokens';
+import { height, radius, text as T } from '../ui/tokens';
 import type { Accent, Member, MemberId } from '../types';
 
 const rowStyle = {
@@ -86,13 +86,16 @@ export function HouseholdSheet({
   onToast?: (msg: string) => void;
 }) {
   const { t, locale } = usePrefs();
-  const { household, members, myMemberId, promoteAdmin, demoteAdmin, createWardMember } = useData();
+  const { household, members, myMemberId, promoteAdmin, demoteAdmin, createWardMember, setTurnsEnabled } =
+    useData();
   /** Fila con una acción de rol en curso (ascender o quitar admin). */
   const [promotingId, setPromotingId] = useState<string | null>(null);
   const [addingWard, setAddingWard] = useState(false);
   const [wardName, setWardName] = useState('');
   const [wardColor, setWardColor] = useState<Accent>('green');
   const [wardBusy, setWardBusy] = useState(false);
+  /** Evita dos toques seguidos al interruptor de turnos mientras el primero sigue en vuelo. */
+  const [turnsBusy, setTurnsBusy] = useState(false);
   /** Mapa ruta → URL firmada (el bucket `avatars` no es público). */
   const [avatarUrls, setAvatarUrls] = useState<Record<string, string>>({});
 
@@ -189,6 +192,26 @@ export function HouseholdSheet({
       onToast?.(stripHouseholdErrorTag(e instanceof Error ? e.message : String(e)) || t.memberActionError);
     } finally {
       setWardBusy(false);
+    }
+  };
+
+  /**
+   * Turnos (§10): cualquier miembro puede encenderlos o apagarlos, sin gate
+   * de admin — ver el comentario en `types.ts`. Sin estado local optimista
+   * propio: `setTurnsEnabled` ya escribe la caché de la query del hogar de
+   * forma optimista en la capa real (igual que `addPlanEntry`), así que
+   * `household.turnsEnabled` refleja el cambio al instante y se revierte
+   * solo si la escritura falla.
+   */
+  const commitTurns = async (enabled: boolean) => {
+    if (turnsBusy) return;
+    setTurnsBusy(true);
+    try {
+      await setTurnsEnabled(enabled);
+    } catch (e) {
+      onToast?.(stripHouseholdErrorTag(e instanceof Error ? e.message : String(e)) || t.memberActionError);
+    } finally {
+      setTurnsBusy(false);
     }
   };
 
@@ -369,6 +392,57 @@ export function HouseholdSheet({
             </div>
           </div>
         )}
+
+        <Eyebrow style={{ marginTop: 22, marginBottom: 6 }}>{t.turnsTitle}</Eyebrow>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 13,
+            minHeight: height.touch,
+            padding: '4px 0',
+            cursor: turnsBusy ? 'default' : 'pointer',
+          }}
+        >
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <div style={T.row}>{t.turnsEnable}</div>
+            <div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.4 }}>
+              {t.turnsEnableHint}
+            </div>
+          </span>
+          {/*
+           * `<input type="checkbox" role="switch">` real dentro de su
+           * `<label>` — mismo patrón accesible que `NotifySheet.tsx`
+           * (duplicado aquí, no importado: esa hoja no lo exporta y no es
+           * una de las que toca esta tarea).
+           */}
+          <input
+            type="checkbox"
+            role="switch"
+            checked={household.turnsEnabled}
+            disabled={turnsBusy}
+            onChange={(e) => void commitTurns(e.target.checked)}
+            style={{
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              flex: '0 0 44px',
+              width: 44,
+              height: 26,
+              margin: 0,
+              borderRadius: radius.pill,
+              border: '1px solid var(--line)',
+              background: household.turnsEnabled ? 'var(--accent)' : 'var(--surface2)',
+              backgroundImage: 'radial-gradient(circle, var(--surface) 42%, transparent 44%)',
+              backgroundSize: '20px 20px',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: household.turnsEnabled ? 'right 3px center' : 'left 3px center',
+              boxShadow: 'var(--shadow-s)',
+              cursor: turnsBusy ? 'default' : 'pointer',
+              opacity: turnsBusy ? 0.6 : 1,
+              transition: 'background-color .18s ease, background-position .18s cubic-bezier(.2,.75,.2,1)',
+            }}
+          />
+        </label>
 
         {(onRequestLeave || (amIAdmin && onRequestDelete)) && (
           <div style={{ marginTop: 24 }}>

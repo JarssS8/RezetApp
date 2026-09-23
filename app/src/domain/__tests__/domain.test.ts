@@ -90,7 +90,7 @@ describe('lista de la compra', () => {
 
   it('resta la despensa', () => {
     const plan: PlanEntry[] = [
-      { id: 'p1', date: '2026-01-05', slot: 'lunch', recipeId: 'r1', servings: 4, cooked: false },
+      { id: 'p1', date: '2026-01-05', slot: 'lunch', recipeId: 'r1', servings: 4, cooked: false, cookMemberId: null },
     ];
     const pantry: PantryItem[] = [
       { id: 'x', ingredientId: 'i1', quantity: 200, unit: 'g', location: 'cupboard', expiresInDays: null },
@@ -102,14 +102,14 @@ describe('lista de la compra', () => {
 
   it('ignora lo ya cocinado', () => {
     const plan: PlanEntry[] = [
-      { id: 'p1', date: '2026-01-05', slot: 'lunch', recipeId: 'r1', servings: 4, cooked: true },
+      { id: 'p1', date: '2026-01-05', slot: 'lunch', recipeId: 'r1', servings: 4, cooked: true, cookMemberId: null },
     ];
     expect(shoppingNeeds({ ...base, plan, pantry: [] })).toHaveLength(0);
   });
 
   it('descarta migajas', () => {
     const plan: PlanEntry[] = [
-      { id: 'p1', date: '2026-01-05', slot: 'lunch', recipeId: 'r1', servings: 2, cooked: false },
+      { id: 'p1', date: '2026-01-05', slot: 'lunch', recipeId: 'r1', servings: 2, cooked: false, cookMemberId: null },
     ];
     const pantry: PantryItem[] = [
       { id: 'x', ingredientId: 'i1', quantity: 299.7, unit: 'g', location: 'cupboard', expiresInDays: null },
@@ -120,7 +120,7 @@ describe('lista de la compra', () => {
 
   it('ignora los días fuera de la semana pedida', () => {
     const plan: PlanEntry[] = [
-      { id: 'p1', date: '2026-02-01', slot: 'lunch', recipeId: 'r1', servings: 2, cooked: false },
+      { id: 'p1', date: '2026-02-01', slot: 'lunch', recipeId: 'r1', servings: 2, cooked: false, cookMemberId: null },
     ];
     expect(shoppingNeeds({ ...base, plan, pantry: [] })).toHaveLength(0);
   });
@@ -150,7 +150,7 @@ describe('ingredientes "al gusto"', () => {
 
   it('no entra en la lista de la compra', () => {
     const plan: PlanEntry[] = [
-      { id: 'p1', date: '2026-01-05', slot: 'lunch', recipeId: 'r1', servings: 4, cooked: false },
+      { id: 'p1', date: '2026-01-05', slot: 'lunch', recipeId: 'r1', servings: 4, cooked: false, cookMemberId: null },
     ];
     const needs = shoppingNeeds({
       dates: ['2026-01-05'],

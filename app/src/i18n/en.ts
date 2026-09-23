@@ -47,6 +47,23 @@ export const en: Dictionary = {
   notificationsDenied: 'You blocked notification permission in the browser.',
   notificationsUnsupported: 'This browser does not support push notifications.',
   notificationsError: 'Could not enable it. Please try again.',
+
+  notifyTitle: 'Notifications',
+  notifyTimers: 'Cooking timers',
+  notifyTimersNever: 'Never silenced, not even during quiet hours.',
+  notifyExpiring: 'Expiring soon',
+  notifyExpiringHint: 'A heads-up when something in the pantry is about to expire.',
+  notifyCookTurn: 'Your turn to cook',
+  notifyCookTurnHint: "A heads-up when the plan says you're cooking.",
+  notifyLogReminder: 'Remind me to log',
+  notifyLogReminderHint: "A heads-up if you haven't logged what you ate by the evening.",
+  notifyQuiet: 'Quiet hours',
+  notifyQuietHint:
+    "Expiring soon, your turn to cook and the log reminder stay quiet in this window. Cooking timers don't: one that gets swallowed because it's 11:10pm is burnt food, not an annoying notification.",
+  notifyQuietFrom: 'From',
+  notifyQuietTo: 'To',
+  notifyWardsNote: "Someone without an account gets no notifications: there's nowhere to send them.",
+
   inviteSheetTitle: 'Invite to your household',
   inviteSheetBody: 'Share this code. It expires in 7 days and works once.',
   copyCode: 'Copy code',
@@ -88,6 +105,10 @@ export const en: Dictionary = {
   emptyTodayBody: 'Pick a recipe, or let the week plan handle it.',
   planWeek: 'Plan the week',
   cookableNow: 'You can cook this now',
+  // "For you" (Today): the top three recipes by `domain/suggestions.ts`
+  // score — likes, pantry and how long since it was cooked, no ML.
+  forYou: 'For you',
+  forYouHint: 'Based on what you like, your pantry, and how long since you cooked it.',
 
   kcalOf: 'of',
   kcal: 'kcal',
@@ -153,6 +174,16 @@ export const en: Dictionary = {
   photoSlot: 'dish photo',
   sensitiveNote: "Salt and spices don't double when you scale up: they adjust gently.",
   cookedTimes: 'times cooked',
+
+  // Per-person likes (`member_recipe_pref`): two buttons that undo on a
+  // second tap, and below them the household aggregate — who voted what
+  // is visible on purpose, not private data.
+  likeAction: 'Like',
+  dislikeAction: 'Dislike',
+  likedByCount: (liked: number, total: number) => `${liked} of ${total} like this`,
+  // Names the button group's purpose, not the recipe name again: the
+  // screen reader already announced it in the title.
+  rateRecipeGroup: 'Rate this recipe',
 
   minutes: 'Minutes',
   difficulty: 'Difficulty',
@@ -274,6 +305,15 @@ export const en: Dictionary = {
   householdMembersCount: (n: number) => (n === 1 ? '1 person' : `${n} people`),
   leaveHouseholdRow: 'Leave household',
   deleteHouseholdRow: 'Delete household',
+
+  turnsTitle: 'Turns',
+  turnsEnable: 'Use turns in this household',
+  turnsEnableHint:
+    "Share out who cooks each meal and who does the week's shopping. Informational only: it doesn't change the pantry, the shopping list or the calories.",
+  turnsYours: "It's your turn",
+  turnsWeekShopping: "This week's shopping",
+  turnsAssign: 'Who cooks',
+  turnsNobody: 'Nobody',
 
   memberSheetTitle: 'Member',
   memberKcalTarget: 'Daily target',

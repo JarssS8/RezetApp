@@ -76,6 +76,12 @@ export interface PlanEntry {
   recipeId: string;
   servings: number;
   cooked: boolean;
+  /**
+   * Quién cocina esta comida (`plan_entry.cook_member_id`), turnos §10 —
+   * opcional y puramente informativo: no decide quién PUEDE cocinarla de
+   * verdad, ni descuenta despensa ni calorías. `null` = sin asignar.
+   */
+  cookMemberId: MemberId | null;
 }
 
 export interface Shortage {
@@ -145,6 +151,16 @@ export interface HouseholdDetail {
   membersLoaded: boolean;
   /** Token de una lista de komprapp (repo `ShoppingList`) vinculada a este hogar, o `null` si no hay ninguna. */
   komprappListToken: string | null;
+  /**
+   * Turnos de cocina y compra (§10, opcional), `household.turns_enabled` en
+   * la base. Apagado por defecto — mientras sea `false`, todo lo que cuelga
+   * de este subsistema (chip en Hoy, avatares en Plan, la hoja de turnos)
+   * deja de existir en la interfaz, no solo se deshabilita. Cualquier
+   * miembro del hogar puede encenderlo o apagarlo, igual que el nombre del
+   * hogar — no es una acción de pertenencia (invitar/expulsar/promover), así
+   * que no lleva gate de admin.
+   */
+  turnsEnabled: boolean;
 }
 
 /**
@@ -186,6 +202,55 @@ export interface MemberBody {
   weightKg: number | null;
   activity: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
   goal: 'lose' | 'maintain' | 'gain';
+}
+
+/**
+ * Qué avisos quiere recibir un miembro y cuándo (diseño §9,
+ * `member_notify_pref`). Privado, mismo nivel que `MemberBody`: solo el
+ * propio, o el de un tutelado — pero a diferencia del cuerpo, un tutelado
+ * (sin cuenta) nunca llega a usarlo de verdad, porque no hay dónde
+ * enviarle un aviso.
+ */
+export interface NotifyPref {
+  /** Temporizadores de cocina. Exento de `quietFrom`/`quietTo` por diseño. */
+  timers: boolean;
+  expiring: boolean;
+  cookTurn: boolean;
+  /** Apagado por defecto: una app que da la lata sin que se lo pidas se desinstala. */
+  logReminder: boolean;
+  /** Hora local, tal como la devuelve Postgres para una columna `time` ('HH:MM' o 'HH:MM:SS'). */
+  logReminderAt: string;
+  /** `null` en cualquiera de los dos = sin horas de silencio configuradas. */
+  quietFrom: string | null;
+  quietTo: string | null;
+}
+
+/** Voto de un miembro sobre una receta (`member_recipe_pref.rating`): -1 "no me gusta", 1 "me gusta". */
+export type RecipeRating = -1 | 1;
+
+/**
+ * Un voto sobre una receta, con quién lo puso. A diferencia de `MemberBody`/
+ * `NotifyPref` (privados), este dato es del HOGAR: leer es de cualquier
+ * miembro, escribir es solo del propio — esconder quién votó qué crearía una
+ * ambigüedad peor ("¿a quién no le gusta?") en un grupo pequeño.
+ */
+export interface RecipePref {
+  memberId: MemberId;
+  rating: RecipeRating;
+}
+
+/**
+ * A quién le toca la compra de una semana (`shopping_turn`), turnos §10.
+ * Como mucho una fila por semana (clave real: `household_id, week_start`) —
+ * ausente = nadie asignado. Un array plano, no un mapa por semana: es lo que
+ * expone el contrato `Store` directamente (regla del proyecto, ver
+ * `storeContext.ts::Store.shoppingTurns`) — quien necesite indexar por
+ * semana construye su propio `Map` con `useMemo`.
+ */
+export interface ShoppingTurn {
+  /** Lunes de esa semana (`dateKey(mondayOf(weekOffset))`), mismo formato que `PlanEntry.date`. */
+  weekStart: string;
+  memberId: MemberId;
 }
 
 /** Algo que alguien comió fuera del plan. */
