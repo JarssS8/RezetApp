@@ -80,9 +80,18 @@ export interface Suggestion {
 }
 
 /**
- * Las `limit` recetas con mejor puntuación. El plan solo se usa para
- * "no cocinada hace poco" — el resto de factores ya llega calculado, así que
- * esta función sigue siendo pura: nada de red, nada de React.
+ * Las `limit` recetas con mejor puntuación, **sin las que el miembro marcó
+ * "no me gusta"**. El plan solo se usa para "no cocinada hace poco" — el
+ * resto de factores ya llega calculado, así que esta función sigue siendo
+ * pura: nada de red, nada de React.
+ *
+ * El descarte es explícito y no se deja al -10 de la puntuación: con pocas
+ * recetas en el hogar, ordenar y cortar a `limit` deja pasar una receta
+ * rechazada por no haber suficientes candidatas por encima. Un hogar recién
+ * creado con dos recetas veía en "Para ti" justo la que había dicho que no
+ * le gustaba. El -10 se queda como lo que siempre fue —el peso del voto
+ * dentro del orden— y la regla de "no me gusta no aparece" pasa a ser un
+ * filtro, que es lo que de verdad es.
  */
 export function rankSuggestions(
   candidates: SuggestionCandidate[],
@@ -90,6 +99,7 @@ export function rankSuggestions(
   limit = 3,
 ): Suggestion[] {
   return candidates
+    .filter(({ myRating }) => myRating !== -1)
     .map(({ recipe, myRating, pantryFull }) => ({
       recipe,
       score: suggestionScore({

@@ -18,6 +18,30 @@ function minutesOf(hhmm: string): number {
 }
 
 /**
+ * Zona horaria del hogar. Las Edge Functions corren en UTC, así que
+ * `getHours()` daría las 22:30 de Madrid como 20:30 y una franja de 23:00 a
+ * 08:00 se aplicaría con dos horas de desfase — justo en la franja en la que
+ * la gente duerme. Es el mismo motivo por el que el Worker de MCP llama a
+ * `setClock`.
+ */
+export const HOUSEHOLD_TIME_ZONE = "Europe/Madrid";
+
+/** Minutos desde medianoche de `at`, leídos en la zona horaria dada. */
+export function localMinutes(at: Date, timeZone: string = HOUSEHOLD_TIME_ZONE): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(at);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  // `en-GB` con hour12:false da 24 en vez de 0 para la medianoche en algunos
+  // motores; normalizarlo es más barato que confiar en que no pase.
+  return (hour % 24) * 60 + minute;
+}
+
+/**
  * ¿Cae `now` dentro de la franja de silencio [from, to)?
  *
  * - Sin `from` o sin `to`: no hay franja configurada, nunca hay silencio.
@@ -35,14 +59,20 @@ function minutesOf(hhmm: string): number {
  * termina justo ahí, es la hora en la que ya se puede volver a avisar) — de
  * ahí el intervalo semiabierto [from, to).
  */
-export function isQuiet(now: Date, from: string | null, to: string | null): boolean {
+export function isQuiet(
+  now: Date,
+  from: string | null,
+  to: string | null,
+  timeZone: string = HOUSEHOLD_TIME_ZONE,
+): boolean {
   if (!from || !to) return false;
 
   const start = minutesOf(from);
   const end = minutesOf(to);
   if (start === end) return false;
 
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  // En la zona del hogar, nunca en la del proceso: ver `localMinutes`.
+  const nowMinutes = localMinutes(now, timeZone);
 
   if (start < end) {
     // Franja normal: silencio solo entre las dos horas del mismo día.

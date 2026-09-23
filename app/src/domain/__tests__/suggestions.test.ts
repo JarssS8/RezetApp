@@ -76,10 +76,10 @@ describe('rankSuggestions', () => {
     const candidates = [
       { recipe: recipe('neutral'), myRating: null, pantryFull: false },
       { recipe: recipe('liked'), myRating: 1 as const, pantryFull: true },
-      { recipe: recipe('disliked'), myRating: -1 as const, pantryFull: true },
+      { recipe: recipe('covered'), myRating: null, pantryFull: true },
     ];
-    const ranked = rankSuggestions(candidates, [], 3);
-    expect(ranked.map((s) => s.recipe.id)).toEqual(['liked', 'neutral', 'disliked']);
+    const ranked = rankSuggestions(candidates, [], 2);
+    expect(ranked.map((s) => s.recipe.id)).toEqual(['liked', 'covered']);
   });
 
   it('una receta marcada "no me gusta" no aparece en el top aunque gane en despensa y turno', () => {
@@ -94,5 +94,26 @@ describe('rankSuggestions', () => {
     ];
     const ranked = rankSuggestions(candidates, [], 3);
     expect(ranked.map((s) => s.recipe.id)).not.toContain('disliked-but-ideal');
+  });
+
+  it('una receta "no me gusta" tampoco sale cuando no hay candidatas de sobra', () => {
+    // El caso que el test de arriba NO cubría: con cuatro candidatas, el
+    // top-3 dejaba fuera a la rechazada por saturación, no por la regla. Un
+    // hogar recién creado tiene dos o tres recetas, y ahí sí salía.
+    const candidates = [
+      { recipe: recipe('liked'), myRating: 1 as const, pantryFull: false },
+      { recipe: recipe('disliked'), myRating: -1 as const, pantryFull: true },
+    ];
+    const ranked = rankSuggestions(candidates, [], 3);
+    expect(ranked.map((s) => s.recipe.id)).toEqual(['liked']);
+  });
+
+  it('con una sola receta y marcada "no me gusta", "Para ti" se queda vacío', () => {
+    const ranked = rankSuggestions(
+      [{ recipe: recipe('solo'), myRating: -1 as const, pantryFull: true }],
+      [],
+      3,
+    );
+    expect(ranked).toEqual([]);
   });
 });

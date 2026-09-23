@@ -147,23 +147,43 @@ export function NotifySheet({
   // falla. Se resincroniza cuando llega (o cambia) la fila de verdad —
   // `notifyPref` puede seguir cargando en el primer render de la capa real.
   const [pref, setPref] = useState<NotifyPref>(() => notifyPref ?? DEFAULT_NOTIFY_PREF);
-  const [busyField, setBusyField] = useState<keyof NotifyPref | null>(null);
+  /**
+   * Los campos con una escritura en vuelo, no "hay alguna escritura en
+   * vuelo": con un solo indicador, tocar dos interruptores seguidos
+   * descartaba el segundo en silencio, y la hoja entera se quedaba
+   * bloqueada mientras iba la petición del primero.
+   */
+  const [busyFields, setBusyFields] = useState<ReadonlySet<keyof NotifyPref>>(new Set());
+  const isBusy = (field: keyof NotifyPref) => busyFields.has(field);
 
   useEffect(() => {
     setPref(notifyPref ?? DEFAULT_NOTIFY_PREF);
   }, [notifyPref]);
 
   const commit = <K extends keyof NotifyPref>(field: K, value: NotifyPref[K]) => {
-    if (!myMemberId || busyField) return;
-    const prev = pref;
+    // Solo se ignora un segundo toque sobre EL MISMO campo: dos escrituras
+    // de la misma columna pueden llegar desordenadas y dejar el interruptor
+    // diciendo lo contrario de lo guardado. Campos distintos son columnas
+    // distintas y no se pisan.
+    if (!myMemberId || isBusy(field)) return;
+    const prev = pref[field];
     setPref((p) => ({ ...p, [field]: value }));
-    setBusyField(field);
+    setBusyFields((b) => new Set(b).add(field));
     void setNotifyPref(myMemberId, { [field]: value })
       .catch(() => {
-        setPref(prev);
+        // Se revierte SOLO este campo: `prev` era antes la hoja entera, así
+        // que un fallo aquí tiraba por tierra lo que se hubiera cambiado en
+        // otro interruptor mientras tanto.
+        setPref((p) => ({ ...p, [field]: prev }));
         onToast?.(t.memberActionError);
       })
-      .finally(() => setBusyField(null));
+      .finally(() =>
+        setBusyFields((b) => {
+          const next = new Set(b);
+          next.delete(field);
+          return next;
+        }),
+      );
   };
 
   return (
@@ -175,28 +195,28 @@ export function NotifySheet({
             hint={t.notifyTimersNever}
             checked={pref.timers}
             onChange={(v) => commit('timers', v)}
-            disabled={busyField !== null}
+            disabled={isBusy('timers')}
           />
           <SwitchRow
             title={t.notifyExpiring}
             hint={t.notifyExpiringHint}
             checked={pref.expiring}
             onChange={(v) => commit('expiring', v)}
-            disabled={busyField !== null}
+            disabled={isBusy('expiring')}
           />
           <SwitchRow
             title={t.notifyCookTurn}
             hint={t.notifyCookTurnHint}
             checked={pref.cookTurn}
             onChange={(v) => commit('cookTurn', v)}
-            disabled={busyField !== null}
+            disabled={isBusy('cookTurn')}
           />
           <SwitchRow
             title={t.notifyLogReminder}
             hint={t.notifyLogReminderHint}
             checked={pref.logReminder}
             onChange={(v) => commit('logReminder', v)}
-            disabled={busyField !== null}
+            disabled={isBusy('logReminder')}
           />
         </ListCard>
 
@@ -214,7 +234,7 @@ export function NotifySheet({
                 type="time"
                 value={toTimeInputValue(pref.quietFrom)}
                 onChange={(v) => commit('quietFrom', v === '' ? null : v)}
-                style={{ opacity: busyField !== null ? 0.6 : 1 }}
+                style={{ opacity: isBusy('quietFrom') ? 0.6 : 1 }}
               />
             </label>
             <label style={{ flex: 1, display: 'block' }}>
@@ -223,7 +243,7 @@ export function NotifySheet({
                 type="time"
                 value={toTimeInputValue(pref.quietTo)}
                 onChange={(v) => commit('quietTo', v === '' ? null : v)}
-                style={{ opacity: busyField !== null ? 0.6 : 1 }}
+                style={{ opacity: isBusy('quietTo') ? 0.6 : 1 }}
               />
             </label>
           </div>
