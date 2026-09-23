@@ -2468,6 +2468,42 @@ describe('migraciones', () => {
     await db.close();
   }, 120_000);
 
+  it('dashboard: otro adulto del mismo hogar tampoco puede LEER el tuyo', async () => {
+    // Hasta ahora solo se probaba que no se puede ESCRIBIR el dashboard
+    // ajeno (arriba) y que no se ve el de otro HOGAR (`cada uno ve y edita
+    // solo el suyo`). Falta fijar el caso intermedio: dentro del MISMO
+    // hogar, un adulto que no es tú ni tutelado tuyo tampoco debe poder
+    // LEER tu dashboard — el comportamiento ya es correcto (`can_act_for`
+    // en el `using` de `member_dashboard_rw` lo cubre), pero nada en el
+    // banco lo fijaba todavía, así que quien relaje ese `using` no lo
+    // notaría.
+    const db = await applyMigrations();
+    const [ana, bea] = await householdWith(db, ['Ana', 'Bea']);
+    const anaMember = (
+      await db.query<{ id: string }>(`select id from public.member where auth_user_id = '${ana}'`)
+    ).rows[0].id;
+
+    await db.query(
+      `insert into public.member_dashboard (member_id, layout) values ('${anaMember}', '[]'::jsonb)`,
+    );
+
+    // La fila existe de verdad (superusuario, sin RLS) ...
+    expect(
+      (await db.query<{ n: number }>('select count(*)::int as n from public.member_dashboard')).rows[0].n,
+    ).toBe(1);
+
+    // ... pero Bea, del mismo hogar, no la ve — `asUser` para que la RLS
+    // aplique de verdad, nunca un `db.query` a secas.
+    const vistoPorBea = await count(db, bea, 'select count(*)::int as n from public.member_dashboard');
+    expect(vistoPorBea).toBe(0);
+
+    // Ana sí ve la suya.
+    const vistoPorAna = await count(db, ana, 'select count(*)::int as n from public.member_dashboard');
+    expect(vistoPorAna).toBe(1);
+
+    await db.close();
+  }, 120_000);
+
   it('dashboard: borrar el miembro se lleva su dashboard', async () => {
     const db = await applyMigrations();
     const [ana] = await householdWith(db, ['Ana']);
