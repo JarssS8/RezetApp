@@ -56,7 +56,7 @@ export const en: Dictionary = {
   notifyCookTurn: 'Your turn to cook',
   notifyCookTurnHint: "A heads-up when the plan says you're cooking.",
   notifyLogReminder: 'Remind me to log',
-  notifyLogReminderHint: "A heads-up if you haven't logged what you ate by mid-afternoon.",
+  notifyLogReminderHint: "A heads-up if you haven't logged what you ate by the evening.",
   notifyQuiet: 'Quiet hours',
   notifyQuietHint:
     "Expiring soon, your turn to cook and the log reminder stay quiet in this window. Cooking timers don't: one that gets swallowed because it's 11:10pm is burnt food, not an annoying notification.",

@@ -54,7 +54,7 @@ export const es = {
   notifyCookTurn: 'Te toca cocinar',
   notifyCookTurnHint: 'Un aviso cuando el plan dice que cocinas tú.',
   notifyLogReminder: 'Recordarme registrar',
-  notifyLogReminderHint: 'Un aviso si a media tarde no has apuntado lo que has comido.',
+  notifyLogReminderHint: 'Un aviso si por la noche no has apuntado lo que has comido.',
   notifyQuiet: 'Horas de silencio',
   notifyQuietHint:
     'Caduca pronto, te toca cocinar y el recordatorio de registrar callan en este tramo. Los temporizadores de cocina no: uno que se traga porque son las 23:10 es comida quemada, no una notificación molesta.',
