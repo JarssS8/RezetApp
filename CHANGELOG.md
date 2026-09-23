@@ -8,7 +8,7 @@ Published Rezet versions. Every entry in Spanish and English.
 ### Español
 
 **Nuevo**
-- Avisos a tu medida: cada persona elige qué le notifica la app (temporizadores de cocina, caduca pronto, te toca cocinar, recordatorio de registrar lo que comes) y puede fijar unas horas de silencio. Los temporizadores de cocina nunca se silencian, ni siquiera en esas horas: uno que se traga porque son las 23:10 es comida quemada, no una molestia.
+- Avisos a tu medida: cada persona elige qué le notifica la app (temporizadores de cocina, caduca pronto, te toca cocinar, recordatorio de registrar lo que comes) y puede fijar unas horas de silencio. Los de la mañana llegan a partir de las 9; el recordatorio, a tu hora. Los temporizadores de cocina nunca se silencian, ni siquiera en esas horas: uno que se traga porque son las 23:10 es comida quemada, no una molestia.
 - Gustos: cada miembro marca si una receta le gusta o no le gusta, y el hogar ve el agregado ("gusta a 3 de 4") al decidir qué cocinar. Quién ha votado qué es visible dentro del hogar, a propósito.
 - "Para ti" en Hoy: un bloque que sugiere recetas según tus gustos, lo que da la despensa y lo que no has cocinado últimamente.
 - Turnos: un hogar puede repartirse quién cocina cada comida y quién hace la compra de la semana. Vienen apagados, los enciende cualquier miembro del hogar, y son puramente informativos: no cambian la despensa, la compra ni las calorías.
@@ -16,7 +16,7 @@ Published Rezet versions. Every entry in Spanish and English.
 ### English
 
 **New**
-- Notifications your way: everyone chooses what the app notifies them about (cooking timers, expiring soon, your turn to cook, a reminder to log what you ate) and can set quiet hours. Cooking timers never go quiet, not even during those hours: one that gets swallowed because it's 11:10pm is burnt food, not a nuisance.
+- Notifications your way: everyone chooses what the app notifies them about (cooking timers, expiring soon, your turn to cook, a reminder to log what you ate) and can set quiet hours. The morning ones arrive from 9am; the reminder, at your chosen time. Cooking timers never go quiet, not even during those hours: one that gets swallowed because it's 11:10pm is burnt food, not a nuisance.
 - Likes: every member marks whether they like a recipe or not, and the household sees the aggregate ("3 of 4 like it") when deciding what to cook. Who voted what is visible inside the household, on purpose.
 - "For you" on Today: a block that suggests recipes based on your likes, what the pantry has, and what you haven't cooked lately.
 - Shifts: a household can split up who cooks each meal and who does the week's shopping. They come turned off, any household member can turn them on, and they're purely informational — they don't change the pantry, the shopping list or calories.
