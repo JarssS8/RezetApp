@@ -7,16 +7,18 @@ import { useSlotDrag } from '../motion/useSlotDrag';
 import { haptics } from '../motion/motion';
 import { Button, IconButton } from '../ui/Button';
 import { Eyebrow } from '../ui/Card';
+import { Avatar } from '../ui/Avatar';
 import { Icon } from '../ui/Icon';
 import { Pressable } from '../ui/Pressable';
 import { ScreenBody, ScreenHeader } from '../ui/Fields';
 import { maxW, radius, tabular } from '../ui/tokens';
-import type { MealSlot } from '../types';
+import type { MealSlot, MemberId, PlanEntry } from '../types';
 
 export function Plan({
   weekOffset,
   onWeekOffset,
   onOpenShopping,
+  onOpenTurns,
   onOpenRecipe,
   onPickForSlot,
   onNewRecipe,
@@ -25,15 +27,36 @@ export function Plan({
   weekOffset: number;
   onWeekOffset: (next: number) => void;
   onOpenShopping: () => void;
+  /** Abre la hoja de turnos (Tarea 8). Solo se ofrece cuando los turnos están encendidos. */
+  onOpenTurns: () => void;
   onOpenRecipe: (recipeId: string, servings: number) => void;
   onPickForSlot: (date: string, slot: MealSlot) => void;
   onNewRecipe: () => void;
   onToast: (message: string) => void;
 }) {
   const { t, locale, loc } = usePrefs();
-  const { recipes, plan, recipeById, addPlanEntry, removePlanEntry } = useData();
+  const { recipes, plan, recipeById, addPlanEntry, removePlanEntry, household, members, setCookMember } =
+    useData();
   const today = todayKey();
   const days = useMemo(() => weekDays(weekOffset), [weekOffset]);
+  const turnsEnabled = household?.turnsEnabled ?? false;
+
+  // Turnos (§10): miembros vivos, en el mismo orden que el resto de la app
+  // (`sortOrder`) — se recorren en ese orden al pulsar el avatar de "quién
+  // cocina" para pasar al siguiente.
+  const activeMembers = useMemo(
+    () => [...members].filter((m) => m.deletedAt === null).sort((a, b) => a.sortOrder - b.sortOrder),
+    [members],
+  );
+
+  /** `null` ("nadie") seguido de cada miembro vivo, en orden: el ciclo que sigue el avatar de cada comida. */
+  const cookCycle = useMemo<(MemberId | null)[]>(() => [null, ...activeMembers.map((m) => m.id)], [activeMembers]);
+
+  const cycleCookMember = (entry: PlanEntry) => {
+    const idx = cookCycle.indexOf(entry.cookMemberId);
+    const next = cookCycle[(idx + 1) % cookCycle.length] ?? null;
+    void setCookMember(entry.id, next).catch(() => onToast(t.memberActionError));
+  };
 
   const { drag, start } = useSlotDrag((recipeId, slotKey) => {
     const [date, slot] = slotKey.split('|') as [string, MealSlot];
@@ -66,6 +89,12 @@ export function Plan({
             >
               {t.shoppingList}
             </Button>
+            {/* Turnos (§10): sin esto, ni el botón ni la hoja existen mientras el hogar los tenga apagados. */}
+            {turnsEnabled && (
+              <IconButton onClick={onOpenTurns} ariaLabel={t.turnsTitle}>
+                <Icon name="account" size={17} strokeWidth={2} />
+              </IconButton>
+            )}
           </div>
         }
       />
@@ -295,6 +324,7 @@ export function Plan({
                       >
                         {items.map((entry) => {
                           const recipe = recipeById.get(entry.recipeId);
+                          const cookMember = activeMembers.find((m) => m.id === entry.cookMemberId);
                           return (
                             <div
                               key={entry.id}
@@ -303,50 +333,103 @@ export function Plan({
                                 borderRadius: 11,
                                 padding: '8px 9px',
                                 display: 'flex',
-                                alignItems: 'center',
+                                flexDirection: 'column',
                                 gap: 6,
                               }}
                             >
-                              <Pressable
-                                onClick={() => onOpenRecipe(entry.recipeId, entry.servings)}
-                                scale={1}
-                                style={{ flex: 1, minWidth: 0, textAlign: 'left' }}
-                              >
-                                <div
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Pressable
+                                  onClick={() => onOpenRecipe(entry.recipeId, entry.servings)}
+                                  scale={1}
+                                  style={{ flex: 1, minWidth: 0, textAlign: 'left' }}
+                                >
+                                  <div
+                                    style={{
+                                      fontSize: 13.5,
+                                      fontWeight: 600,
+                                      letterSpacing: '-.012em',
+                                      lineHeight: 1.25,
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {recipe ? loc(recipe.name) : '—'}
+                                  </div>
+                                  <div style={{ marginTop: 3, fontSize: 11.5, color: 'var(--muted)', ...tabular }}>
+                                    {entry.servings}× {entry.cooked ? `· ${t.cooked}` : ''}
+                                  </div>
+                                </Pressable>
+                                <Pressable
+                                  onClick={() => {
+                                    removePlanEntry(entry.id);
+                                    onToast(t.removed);
+                                  }}
+                                  ariaLabel={t.removed}
+                                  scale={0.9}
                                   style={{
-                                    fontSize: 13.5,
-                                    fontWeight: 600,
-                                    letterSpacing: '-.012em',
-                                    lineHeight: 1.25,
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: 6,
+                                    display: 'grid',
+                                    placeItems: 'center',
+                                    color: 'var(--muted)',
                                   }}
                                 >
-                                  {recipe ? loc(recipe.name) : '—'}
-                                </div>
-                                <div style={{ marginTop: 3, fontSize: 11.5, color: 'var(--muted)', ...tabular }}>
-                                  {entry.servings}× {entry.cooked ? `· ${t.cooked}` : ''}
-                                </div>
-                              </Pressable>
-                              <Pressable
-                                onClick={() => {
-                                  removePlanEntry(entry.id);
-                                  onToast(t.removed);
-                                }}
-                                ariaLabel={t.removed}
-                                scale={0.9}
-                                style={{
-                                  width: 20,
-                                  height: 20,
-                                  borderRadius: 6,
-                                  display: 'grid',
-                                  placeItems: 'center',
-                                  color: 'var(--muted)',
-                                }}
-                              >
-                                <Icon name="close" size={11} strokeWidth={2.6} />
-                              </Pressable>
+                                  <Icon name="close" size={11} strokeWidth={2.6} />
+                                </Pressable>
+                              </div>
+
+                              {/*
+                               * Turnos (§10): "quién cocina" esta comida.
+                               * Un toque pasa al siguiente miembro del ciclo
+                               * (ver `cycleCookMember` más arriba) — el
+                               * avatar nunca va solo, siempre con el nombre
+                               * (o "Nadie") en texto al lado.
+                               */}
+                              {turnsEnabled && (
+                                <Pressable
+                                  onClick={() => cycleCookMember(entry)}
+                                  ariaLabel={`${t.turnsAssign}: ${cookMember?.displayName ?? t.turnsNobody}`}
+                                  scale={0.97}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    height: 26,
+                                    padding: '0 6px 0 0',
+                                    borderRadius: radius.chip,
+                                    alignSelf: 'flex-start',
+                                  }}
+                                >
+                                  {cookMember ? (
+                                    <Avatar member={cookMember} size={18} />
+                                  ) : (
+                                    <div
+                                      aria-hidden
+                                      style={{
+                                        width: 18,
+                                        height: 18,
+                                        flex: '0 0 18px',
+                                        borderRadius: '50%',
+                                        border: '1px dashed var(--line)',
+                                      }}
+                                    />
+                                  )}
+                                  <span
+                                    style={{
+                                      fontSize: 11.5,
+                                      fontWeight: 600,
+                                      color: 'var(--muted)',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                    }}
+                                  >
+                                    {cookMember?.displayName ?? t.turnsNobody}
+                                  </span>
+                                </Pressable>
+                              )}
                             </div>
                           );
                         })}

@@ -36,6 +36,7 @@ import type {
   RecipeRating,
   Shortage,
   ShoppingNeed,
+  ShoppingTurn,
   Unit,
 } from '../types';
 
@@ -98,6 +99,15 @@ interface Data {
    * receta) — la clave primaria real.
    */
   recipePrefs: Array<{ memberId: MemberId; recipeId: string; rating: RecipeRating }>;
+  /** Turnos (§10), apagados por defecto — ver `HouseholdDetail.turnsEnabled` en `types.ts`. */
+  turnsEnabled: boolean;
+  /**
+   * A quién le toca la compra de cada semana. Una lista plana, no un mapa
+   * anidado — mismo motivo que `intakeShares`/`recipePrefs`: así se
+   * persiste tal cual en JSON. Como mucho una fila por semana (misma clave
+   * real que `shopping_turn`).
+   */
+  shoppingTurns: ShoppingTurn[];
 }
 
 const INITIAL: Data = {
@@ -113,6 +123,8 @@ const INITIAL: Data = {
   intakeExtras: INTAKE_EXTRAS,
   notifyPrefByMember: {},
   recipePrefs: [],
+  turnsEnabled: false,
+  shoppingTurns: [],
 };
 
 /**
@@ -165,6 +177,10 @@ const DEMO_HOUSEHOLD: HouseholdDetail = {
   members: [{ id: 'demo-user', displayName: 'Tú', isAdmin: true }],
   membersLoaded: true,
   komprappListToken: null,
+  // Valor de relleno: `value` de más abajo lo sustituye por `data.turnsEnabled`
+  // (el de verdad, persistido) antes de exponerlo — ver el mismo patrón que
+  // ya usa `pantry`/`pantryExposed`.
+  turnsEnabled: false,
 };
 
 async function demoHouseholdActionUnavailable(): Promise<never> {
@@ -246,6 +262,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           recipeId,
           servings: servings ?? recipe.baseServings,
           cooked: false,
+          cookMemberId: null,
         };
         return { ...d, plan: [...d.plan, next] };
       });
@@ -494,6 +511,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               recipeId: recipe.id,
               servings: input.servings,
               cooked: true,
+              cookMemberId: null,
             },
           ];
         }
@@ -684,6 +702,53 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
+   * Contrato: `update household set turns_enabled = ...` (columna con grant
+   * de escritura propio, sin RPC — ver la migración de turnos). Cualquier
+   * miembro puede llamarla, sin gate de admin: no es una acción de
+   * pertenencia, ver el comentario de `HouseholdDetail.turnsEnabled` en
+   * `types.ts`.
+   */
+  const setTurnsEnabled = useCallback(
+    async (enabled: boolean): Promise<void> => {
+      setData((d) => ({ ...d, turnsEnabled: enabled }));
+    },
+    [setData],
+  );
+
+  /**
+   * Contrato: `update plan_entry set cook_member_id = ...`. Puramente
+   * informativo (turnos §10): no toca despensa ni calorías, solo dice quién
+   * se apunta a cocinar esa comida.
+   */
+  const setCookMember = useCallback(
+    async (planEntryId: string, memberId: MemberId | null): Promise<void> => {
+      setData((d) => ({
+        ...d,
+        plan: d.plan.map((e) => (e.id === planEntryId ? { ...e, cookMemberId: memberId } : e)),
+      }));
+    },
+    [setData],
+  );
+
+  /**
+   * Contrato: upsert/delete sobre `shopping_turn` (clave `household_id,
+   * week_start`, el hogar ya fijo en demo). `memberId: null` borra la fila
+   * de esa semana, igual que hace un `delete` real.
+   */
+  const setShoppingTurn = useCallback(
+    async (weekStart: string, memberId: MemberId | null): Promise<void> => {
+      setData((d) => {
+        const without = d.shoppingTurns.filter((s) => s.weekStart !== weekStart);
+        return {
+          ...d,
+          shoppingTurns: memberId === null ? without : [...without, { weekStart, memberId }],
+        };
+      });
+    },
+    [setData],
+  );
+
+  /**
    * Puro sobre lo ya persistido: la aritmética (raciones, extras, totales)
    * sale de `domain/intake.ts`, igual que `useIntake.ts` en la capa real —
    * si las dos divergieran, la demo (pública, en rezet.jarsss8.es) enseñaría
@@ -786,7 +851,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     () => ({
       ...data,
       pantry: pantryExposed,
-      household: DEMO_HOUSEHOLD,
+      household: { ...DEMO_HOUSEHOLD, turnsEnabled: data.turnsEnabled },
       myMemberId: DEMO_MY_MEMBER_ID,
       createWardMember,
       deleteWardMember,
@@ -834,6 +899,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setNotifyPref,
       recipePrefsByRecipe,
       setRecipePref,
+      setTurnsEnabled,
+      setCookMember,
+      setShoppingTurn,
     }),
     [
       data,
@@ -870,6 +938,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setNotifyPref,
       recipePrefsByRecipe,
       setRecipePref,
+      setTurnsEnabled,
+      setCookMember,
+      setShoppingTurn,
     ],
   );
 

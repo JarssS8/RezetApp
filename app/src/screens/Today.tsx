@@ -9,6 +9,7 @@ import type { MealLine } from '../domain/intake';
 import { prefersReducedMotion } from '../motion/motion';
 import { Button, IconButton } from '../ui/Button';
 import { Card, Eyebrow, SectionHeader } from '../ui/Card';
+import { Pill } from '../ui/Chip';
 import { Icon } from '../ui/Icon';
 import { Pressable } from '../ui/Pressable';
 import { ScreenBody, ScreenHeader } from '../ui/Fields';
@@ -57,11 +58,14 @@ export function Today({
     coverageOf,
     members,
     myMemberId,
+    household,
     intakeOfDayFor,
     setShare,
     removeExtra,
     recipePrefsByRecipe,
   } = useData();
+  // Turnos (§10): mientras estén apagados, el chip "Te toca" no existe.
+  const turnsEnabled = household?.turnsEnabled ?? false;
   const today = todayKey();
 
   // Un extra a la vez: evita un doble borrado si se toca dos veces mientras
@@ -248,6 +252,7 @@ export function Today({
                 meal={meal}
                 entry={entry}
                 recipe={recipe}
+                isMyTurn={turnsEnabled && myMemberId != null && entry.cookMemberId === myMemberId}
                 onOpenRecipe={onOpenRecipe}
                 onCook={onCook}
                 onSetShare={(servings) =>
@@ -424,6 +429,7 @@ function MealCard({
   meal,
   entry,
   recipe,
+  isMyTurn,
   onOpenRecipe,
   onCook,
   onSetShare,
@@ -431,6 +437,8 @@ function MealCard({
   meal: MealLine;
   entry: PlanEntry;
   recipe: Recipe;
+  /** Turnos (§10): esta comida está sin cocinar y te toca a ti cocinarla. */
+  isMyTurn: boolean;
   onOpenRecipe: (recipeId: string, servings: number) => void;
   onCook: (recipeId: string, servings: number, planEntryId: string | null) => void;
   onSetShare: (servings: number) => void;
@@ -485,6 +493,13 @@ function MealCard({
           {formatKcal(cooked ? meal.kcal : potentialKcal, locale)} {t.kcal}
         </div>
       </div>
+
+      {/* Turnos (§10): chip informativo, no cambia nada del bucle plan→cocinar→despensa. */}
+      {!cooked && isMyTurn && (
+        <div style={{ marginTop: 10 }}>
+          <Pill>{t.turnsYours}</Pill>
+        </div>
+      )}
 
       {/*
        * Una comida o está por cocinar —y aquí se ofrece cocinarla, el atajo

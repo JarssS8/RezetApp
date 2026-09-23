@@ -306,6 +306,15 @@ export const en: Dictionary = {
   leaveHouseholdRow: 'Leave household',
   deleteHouseholdRow: 'Delete household',
 
+  turnsTitle: 'Turns',
+  turnsEnable: 'Use turns in this household',
+  turnsEnableHint:
+    "Share out who cooks each meal and who does the week's shopping. Informational only: it doesn't change the pantry, the shopping list or the calories.",
+  turnsYours: "It's your turn",
+  turnsWeekShopping: "This week's shopping",
+  turnsAssign: 'Who cooks',
+  turnsNobody: 'Nobody',
+
   memberSheetTitle: 'Member',
   memberKcalTarget: 'Daily target',
   memberColor: 'Color',

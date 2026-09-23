@@ -20,7 +20,7 @@ function recipe(id: string): Recipe {
 }
 
 function planEntry(recipeId: string, date: string, cooked = true): PlanEntry {
-  return { id: `${recipeId}-${date}`, date, slot: 'dinner', recipeId, servings: 2, cooked };
+  return { id: `${recipeId}-${date}`, date, slot: 'dinner', recipeId, servings: 2, cooked, cookMemberId: null };
 }
 
 describe('suggestionScore', () => {

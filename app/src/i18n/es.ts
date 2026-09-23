@@ -317,6 +317,19 @@ export const es = {
   leaveHouseholdRow: 'Salir del hogar',
   deleteHouseholdRow: 'Eliminar hogar',
 
+  // Turnos (§10, opcional y apagados por defecto): quién cocina cada comida
+  // y quién hace la compra de la semana. Puramente informativo — no cambia
+  // la despensa, la compra ni las calorías. Cualquier miembro del hogar
+  // enciende o apaga el interruptor, sin gate de admin (ver `types.ts`).
+  turnsTitle: 'Turnos',
+  turnsEnable: 'Usar turnos en este hogar',
+  turnsEnableHint:
+    'Reparte quién cocina cada comida y quién hace la compra de la semana. Solo informativo: no cambia la despensa, la compra ni las calorías.',
+  turnsYours: 'Te toca',
+  turnsWeekShopping: 'Compra de la semana',
+  turnsAssign: 'Quién cocina',
+  turnsNobody: 'Nadie',
+
   memberSheetTitle: 'Miembro',
   memberKcalTarget: 'Objetivo diario',
   memberColor: 'Color',

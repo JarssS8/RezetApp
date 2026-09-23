@@ -19,6 +19,7 @@ import type {
   RecipeRating,
   Shortage,
   ShoppingNeed,
+  ShoppingTurn,
   Unit,
 } from '../types';
 import type { DayIntake, DayTotal } from '../domain/intake';
@@ -294,6 +295,36 @@ export interface Store {
    * mismo botón otra vez".
    */
   setRecipePref: (recipeId: string, rating: RecipeRating) => Promise<void>;
+
+  /**
+   * Enciende o apaga los turnos del hogar entero
+   * (`household.turns_enabled`). Cualquier miembro puede llamarla — igual
+   * que el nombre del hogar, no es una acción de pertenencia, así que no
+   * lleva gate de admin ni aquí ni en la base (ver el comentario de
+   * `HouseholdDetail.turnsEnabled` en `types.ts`).
+   */
+  setTurnsEnabled: (enabled: boolean) => Promise<void>;
+  /**
+   * Quién cocina una comida del plan (`plan_entry.cook_member_id`), turnos
+   * §10. `null` quita la asignación. Puramente informativo: no cambia quién
+   * puede cocinarla de verdad, ni la despensa ni las calorías.
+   */
+  setCookMember: (planEntryId: string, memberId: MemberId | null) => Promise<void>;
+  /**
+   * A quién le toca la compra de cada semana (`shopping_turn`). Un ARRAY
+   * plano, nunca un `Map`: TanStack no le hace structural sharing a un mapa
+   * devuelto por una queryFn, así que cada refetch cambiaría de identidad y
+   * dispararía cualquier efecto que dependiera de él (el mismo fallo ya
+   * costó una ronda en una fase anterior de este proyecto, con un
+   * formulario a medio escribir borrado en directo). Quien necesite
+   * indexar por semana construye su propio `Map` con `useMemo`.
+   */
+  shoppingTurns: ShoppingTurn[];
+  /**
+   * Asigna (o quita, con `null`) quién hace la compra de una semana.
+   * `weekStart` es el lunes de esa semana, `dateKey(mondayOf(weekOffset))`.
+   */
+  setShoppingTurn: (weekStart: string, memberId: MemberId | null) => Promise<void>;
 }
 
 export const StoreCtx = createContext<Store | null>(null);

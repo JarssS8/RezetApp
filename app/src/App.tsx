@@ -32,6 +32,7 @@ import { RecipePickerSheet, type PickerTarget } from './sheets/RecipePickerSheet
 import { IntakeAddSheet } from './sheets/IntakeAddSheet';
 import { CookFinishSheet } from './sheets/CookFinishSheet';
 import { InviteSheet } from './sheets/InviteSheet';
+import { TurnsSheet } from './sheets/TurnsSheet';
 import { ConnectMcpSheet } from './sheets/ConnectMcpSheet';
 import { KomprappLinkSheet } from './sheets/KomprappLinkSheet';
 import { AccountHouseholdSheet } from './sheets/AccountHouseholdSheet';
@@ -66,6 +67,7 @@ type SheetState =
   | { kind: 'intakeAdd' }
   | { kind: 'finish' }
   | { kind: 'invite' }
+  | { kind: 'turns' }
   | { kind: 'connectMcp' }
   | { kind: 'komprappLink' }
   | { kind: 'accountHousehold' }
@@ -375,6 +377,7 @@ function MainApp({
             weekOffset={weekOffset}
             onWeekOffset={setWeekOffset}
             onOpenShopping={() => setSheet({ kind: 'shopping' })}
+            onOpenTurns={() => setSheet({ kind: 'turns' })}
             onOpenRecipe={openRecipe}
             onPickForSlot={(date: string, slot: MealSlot) =>
               setSheet({ kind: 'picker', target: { kind: 'slot', date, slot } })
@@ -462,6 +465,10 @@ function MainApp({
 
       {sheet?.kind === 'shopping' && (
         <ShoppingSheet weekOffset={weekOffset} onClose={() => setSheet(null)} onToast={show} />
+      )}
+
+      {sheet?.kind === 'turns' && (
+        <TurnsSheet weekOffset={weekOffset} onClose={() => setSheet(null)} onToast={show} />
       )}
 
       {sheet?.kind === 'pantryAdd' && (

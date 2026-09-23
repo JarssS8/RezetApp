@@ -48,6 +48,7 @@ import { useMembers } from './supabaseStore/useMembers';
 import { useIntake } from './supabaseStore/useIntake';
 import { useNotifyPref } from './supabaseStore/useNotifyPref';
 import { useRecipePrefs } from './supabaseStore/useRecipePrefs';
+import { useTurns } from './supabaseStore/useTurns';
 
 const uid = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
 
@@ -118,7 +119,7 @@ export function SupabaseDataProvider({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('plan_entry')
-        .select('id, on_date, slot, recipe_id, servings, cooked_at')
+        .select('id, on_date, slot, recipe_id, servings, cooked_at, cook_member_id')
         .eq('household_id', householdId);
       if (error) throw error;
       return (data ?? []).map(mapPlanEntry);
@@ -145,7 +146,7 @@ export function SupabaseDataProvider({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('household')
-        .select('kcal_target, name, komprapp_list_token')
+        .select('kcal_target, name, komprapp_list_token, turns_enabled')
         .eq('id', householdId)
         .single();
       if (error) throw error;
@@ -153,6 +154,7 @@ export function SupabaseDataProvider({
         kcalTarget: data.kcal_target as number,
         name: data.name as string,
         komprappListToken: data.komprapp_list_token as string | null,
+        turnsEnabled: data.turns_enabled as boolean,
       };
     },
   });
@@ -261,12 +263,25 @@ export function SupabaseDataProvider({
       .on('postgres_changes', { event: '*', schema: 'public', table: 'recipe_ingredient' }, () =>
         queryClient.invalidateQueries({ queryKey: recipesKey }),
       )
+      // Turnos §10: el interruptor (`household.turns_enabled`) y el turno de
+      // compra de cada semana son de todo el hogar — sin esto, otro
+      // dispositivo del mismo hogar no vería el cambio hasta recargar.
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'household', filter: `id=eq.${householdId}` },
+        () => queryClient.invalidateQueries({ queryKey: householdKey }),
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shopping_turn', filter: `household_id=eq.${householdId}` },
+        () => queryClient.invalidateQueries({ queryKey: storeKeys.shoppingTurns(householdId) }),
+      )
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [householdId, queryClient, pantryKey, planKey, shoppingKey, recipesKey]);
+  }, [householdId, queryClient, pantryKey, planKey, shoppingKey, recipesKey, householdKey]);
 
   const household = useMemo<HouseholdDetail | null>(() => {
     if (!householdQ.data) return null;
@@ -276,6 +291,7 @@ export function SupabaseDataProvider({
       members: householdMembersQ.data ?? [],
       membersLoaded: householdMembersQ.data !== undefined,
       komprappListToken: householdQ.data?.komprappListToken ?? null,
+      turnsEnabled: householdQ.data?.turnsEnabled ?? false,
     };
   }, [householdId, householdQ.data, householdMembersQ.data]);
 
@@ -306,6 +322,7 @@ export function SupabaseDataProvider({
 
   const { notifyPref, setNotifyPref } = useNotifyPref(householdId, myMemberId);
   const { recipePrefsByRecipe, setRecipePref } = useRecipePrefs(householdId, myMemberId);
+  const { shoppingTurns, setShoppingTurn } = useTurns(householdId, household?.turnsEnabled ?? false);
 
   const { stockOf, needOf, coverageOf, needsForWeek, shortagesFor } = useMemo(
     () =>
@@ -328,7 +345,7 @@ export function SupabaseDataProvider({
       const tempId = uid('pe');
       queryClient.setQueryData<PlanEntry[]>(planKey, (old = []) => [
         ...old,
-        { id: tempId, date, slot, recipeId, servings: finalServings, cooked: false },
+        { id: tempId, date, slot, recipeId, servings: finalServings, cooked: false, cookMemberId: null },
       ]);
       void supabase
         .from('plan_entry')
@@ -746,6 +763,59 @@ export function SupabaseDataProvider({
   );
 
   /**
+   * Turnos §10 (`household.turns_enabled`): sin RPC — la columna tiene
+   * grant propio para `authenticated` (ver la migración de turnos), y
+   * cualquier miembro puede tocarla, igual que el nombre del hogar (no es
+   * una acción de pertenencia, así que no lleva gate de admin ni aquí ni en
+   * la base). Optimista sobre `householdKey`, revertido si el `update`
+   * falla — mismo patrón que `addPlanEntry` más arriba.
+   */
+  const setTurnsEnabled = useCallback(
+    async (enabled: boolean): Promise<void> => {
+      const prev = queryClient.getQueryData<{
+        kcalTarget: number;
+        name: string;
+        komprappListToken: string | null;
+        turnsEnabled: boolean;
+      }>(householdKey);
+      queryClient.setQueryData(householdKey, (old: typeof prev) =>
+        old ? { ...old, turnsEnabled: enabled } : old,
+      );
+      const { error } = await supabase.from('household').update({ turns_enabled: enabled }).eq('id', householdId);
+      if (error) {
+        if (prev) queryClient.setQueryData(householdKey, prev);
+        throw error;
+      }
+    },
+    [queryClient, householdKey, householdId],
+  );
+
+  /**
+   * Turnos §10 (`plan_entry.cook_member_id`): puramente informativo, no
+   * toca despensa ni calorías. Optimista sobre `planKey`, mismo patrón que
+   * `addPlanEntry`/`removePlanEntry` — el `UPDATE` de `plan_entry` filtrado
+   * por `household_id` ya está suscrito en tiempo real más arriba, así que
+   * el resto del hogar ve la asignación sin recargar.
+   */
+  const setCookMember = useCallback(
+    async (planEntryId: string, memberId: MemberId | null): Promise<void> => {
+      const prev = queryClient.getQueryData<PlanEntry[]>(planKey);
+      queryClient.setQueryData<PlanEntry[]>(planKey, (old = []) =>
+        old.map((e) => (e.id === planEntryId ? { ...e, cookMemberId: memberId } : e)),
+      );
+      const { error } = await supabase
+        .from('plan_entry')
+        .update({ cook_member_id: memberId })
+        .eq('id', planEntryId);
+      if (error) {
+        if (prev) queryClient.setQueryData(planKey, prev);
+        throw error;
+      }
+    },
+    [queryClient, planKey],
+  );
+
+  /**
    * `delete_account()`: borra la cuenta de Auth de verdad, no solo el
    * profile. Igual que `leaveHousehold`/`deleteHousehold`, no hace falta
    * invalidar nada aquí — quien llama hace el cierre de sesión real (ver
@@ -820,6 +890,10 @@ export function SupabaseDataProvider({
       setNotifyPref,
       recipePrefsByRecipe,
       setRecipePref,
+      setTurnsEnabled,
+      setCookMember,
+      shoppingTurns,
+      setShoppingTurn,
     }),
     [
       ingredientsQ.data,
@@ -872,6 +946,10 @@ export function SupabaseDataProvider({
       setNotifyPref,
       recipePrefsByRecipe,
       setRecipePref,
+      setTurnsEnabled,
+      setCookMember,
+      shoppingTurns,
+      setShoppingTurn,
     ],
   );
 
