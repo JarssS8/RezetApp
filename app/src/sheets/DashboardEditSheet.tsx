@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/storeContext';
 import {
@@ -10,6 +10,8 @@ import {
   type WidgetItem,
   type WidgetSize,
 } from '../domain/dashboard';
+import { ROW_HEIGHT, useListReorder, type RowDragHandlers } from '../motion/useListReorder';
+import { EASE_SHEET } from '../motion/motion';
 import { Sheet } from '../ui/Sheet';
 import { Button, IconButton } from '../ui/Button';
 import { Icon } from '../ui/Icon';
@@ -64,7 +66,14 @@ function Switch({
   );
 }
 
-/** Una fila del layout: nombre, interruptor, tamaño (si admite más de uno) y subir/bajar. */
+/**
+ * Una fila del layout: asa de arrastre, nombre, interruptor, tamaño (si
+ * admite más de uno) y subir/bajar.
+ *
+ * `style` la posiciona (índice × `ROW_HEIGHT`, Tarea 8); se aplica al mismo
+ * div raíz que ya llevaba el borde y el padding, no a un envoltorio nuevo,
+ * para no duplicar el layout de la fila en dos sitios.
+ */
 function DashboardRow({
   item,
   name,
@@ -73,6 +82,9 @@ function DashboardRow({
   onToggle,
   onSize,
   onMove,
+  dragHandlers,
+  dragging,
+  style,
 }: {
   item: WidgetItem;
   name: string;
@@ -81,6 +93,9 @@ function DashboardRow({
   onToggle: (on: boolean) => void;
   onSize: (w: WidgetSize) => void;
   onMove: (dir: 'up' | 'down') => void;
+  dragHandlers: RowDragHandlers;
+  dragging: boolean;
+  style?: CSSProperties;
 }) {
   const { t } = usePrefs();
   const sizes = SIZES_BY_ID.get(item.id) ?? ['full'];
@@ -91,16 +106,42 @@ function DashboardRow({
       style={{
         display: 'flex',
         alignItems: 'center',
+        alignContent: 'center',
         flexWrap: 'wrap',
         gap: 10,
         padding: '12px 15px',
         borderBottom: '1px solid var(--line)',
+        background: 'var(--surface)',
+        boxShadow: dragging ? 'var(--shadow-m)' : undefined,
+        ...style,
       }}
     >
+      {/*
+        El asa arrastra, no la fila: con la fila entera arrastrando, en
+        móvil no se podría desplazar la lista con el dedo. `aria-hidden`
+        porque subir/bajar ya cubren su función para quien usa lector de
+        pantalla o teclado — anunciarla también sería ruido.
+      */}
+      <span
+        aria-hidden="true"
+        {...dragHandlers}
+        style={{
+          flex: '0 0 auto',
+          display: 'grid',
+          placeItems: 'center',
+          width: height.touch,
+          height: height.touch,
+          color: 'var(--muted)',
+          cursor: 'grab',
+          touchAction: 'none',
+        }}
+      >
+        <Icon name="grip" size={18} strokeWidth={2} />
+      </span>
       <div
         style={{
           ...T.row,
-          flex: '1 1 110px',
+          flex: '1 1 90px',
           minWidth: 0,
           color: item.on ? 'var(--text)' : 'var(--muted)',
         }}
@@ -198,6 +239,37 @@ export function DashboardEditSheet({
     if (i >= 0) setAnnouncement(t.dashboardMoved(nameOf(id), i + 1, next.length));
   };
 
+  // Arrastre (Tarea 8): un añadido sobre el mismo `moveWidget` que usan los
+  // botones de subir/bajar, nunca un `splice` propio — cada frontera de fila
+  // cruzada es un swap adyacente sobre la copia local.
+  const { dragIndex, offset, handlers: dragHandlers } = useListReorder({
+    count: layout.length,
+    onMove: (from, to) => {
+      setLayout((prev) => {
+        const id = prev[from]?.id;
+        if (!id) return prev;
+        dirty.current = true;
+        return moveWidget(prev, id, to > from ? 'down' : 'up');
+      });
+    },
+  });
+
+  // El arrastre acaba de soltarse (el índice arrastrado vuelve a `null`
+  // tras el muelle de regreso): anuncia por el mismo `aria-live` que ya usan
+  // subir/bajar, con la posición final ya asentada en `layout`.
+  const lastDragIndex = useRef<number | null>(null);
+  useEffect(() => {
+    if (dragIndex !== null) {
+      lastDragIndex.current = dragIndex;
+      return;
+    }
+    const i = lastDragIndex.current;
+    lastDragIndex.current = null;
+    if (i === null) return;
+    const item = layout[i];
+    if (item) setAnnouncement(t.dashboardMoved(nameOf(item.id), i + 1, layout.length));
+  }, [dragIndex, layout, t]);
+
   const handleReset = () => {
     apply(normalizeLayout(null, { turns: turnsEnabled }));
     setAnnouncement('');
@@ -215,19 +287,41 @@ export function DashboardEditSheet({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 6 }}>
         <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.45 }}>{t.dashboardHint}</div>
 
-        <ListCard>
-          {layout.map((item, i) => (
-            <DashboardRow
-              key={item.id}
-              item={item}
-              name={nameOf(item.id)}
-              isFirst={i === 0}
-              isLast={i === layout.length - 1}
-              onToggle={(on) => apply(setWidgetOn(layout, item.id, on))}
-              onSize={(w) => apply(setWidgetSize(layout, item.id, w))}
-              onMove={(dir) => handleMove(item.id, dir)}
-            />
-          ))}
+        {/*
+          Filas posicionadas por `transform` (índice × `ROW_HEIGHT`), no por
+          flujo normal: es lo que permite que la fila arrastrada siga al
+          puntero con un simple `offset` y que sus vecinas se limiten a
+          transicionar de un índice al siguiente cuando `layout` cambia de
+          orden, sin recalcular nada geométrico aparte.
+        */}
+        <ListCard style={{ position: 'relative', height: layout.length * ROW_HEIGHT }}>
+          {layout.map((item, i) => {
+            const dragging = dragIndex === i;
+            return (
+              <DashboardRow
+                key={item.id}
+                item={item}
+                name={nameOf(item.id)}
+                isFirst={i === 0}
+                isLast={i === layout.length - 1}
+                onToggle={(on) => apply(setWidgetOn(layout, item.id, on))}
+                onSize={(w) => apply(setWidgetSize(layout, item.id, w))}
+                onMove={(dir) => handleMove(item.id, dir)}
+                dragHandlers={dragHandlers(i)}
+                dragging={dragging}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: ROW_HEIGHT,
+                  transform: `translateY(${i * ROW_HEIGHT + (dragging ? offset : 0)}px)`,
+                  transition: dragging ? 'none' : `transform 220ms ${EASE_SHEET}`,
+                  zIndex: dragging ? 1 : 0,
+                }}
+              />
+            );
+          })}
         </ListCard>
 
         <div aria-live="polite" style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', minHeight: 18 }}>
