@@ -40,17 +40,24 @@ const openSheetStack: number[] = [];
  *
  * Diálogo modal: atrapa el foco, cierra con Escape y devuelve el foco al
  * disparador. El asa arrastra con proyección de momento (ver `useSheetDrag`).
+ *
+ * `canClose` (I2, revisión final de rama): opcional, para la única hoja
+ * cuyo cierre puede fallar (`DashboardEditSheet`, por el guardado en red).
+ * `onClose` sigue siendo el contrato de siempre para las demás — nunca
+ * falla, siempre desmonta; ver el comentario en `useSheetDrag.ts`.
  */
 export function Sheet({
   title,
   onClose,
+  canClose,
   children,
 }: {
   title: ReactNode;
   onClose: () => void;
+  canClose?: () => boolean | Promise<boolean>;
   children: ReactNode;
 }) {
-  const { y, fading, scrimOpacity, onPointerDown, dismiss } = useSheetDrag(onClose);
+  const { y, fading, scrimOpacity, onPointerDown, dismiss } = useSheetDrag(onClose, canClose);
   const panel = useRef<HTMLDivElement>(null);
   const restoreTo = useRef<Element | null>(null);
   // Id estable por instancia, asignado una sola vez (no en un efecto: hace

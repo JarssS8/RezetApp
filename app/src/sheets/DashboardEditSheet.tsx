@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/storeContext';
 import {
@@ -22,6 +22,21 @@ import { height, radius, text as T } from '../ui/tokens';
 const SIZES_BY_ID = new Map(WIDGET_CATALOG.map((s) => [s.id, s.sizes]));
 
 /**
+ * Ids de DOM estables por fila (I3, revisión final de rama): dejan
+ * encontrar un control concreto con `document.getElementById` desde
+ * `handleMove`, para moverle el foco justo antes de que React deshabilite
+ * el botón que se acaba de pulsar. Ni `Pressable`/`IconButton` reenvían
+ * `ref`, así que un `id` es más simple que añadir `forwardRef` a un
+ * primitivo compartido por otras 22 hojas solo para este caso.
+ */
+function rowMoveId(id: WidgetItem['id'], dir: 'up' | 'down'): string {
+  return `dashboard-row-${dir}-${id}`;
+}
+function rowSwitchId(id: WidgetItem['id']): string {
+  return `dashboard-row-switch-${id}`;
+}
+
+/**
  * Interruptor accesible, igual que el de `NotifySheet.tsx`, pero con
  * `aria-label` propio en vez de un `<label>` que envuelva texto visible: en
  * esta fila el nombre del widget ya se pinta aparte, junto al resto de
@@ -33,16 +48,19 @@ function Switch({
   onChange,
   ariaLabel,
   disabled,
+  id,
 }: {
   checked: boolean;
   onChange: (value: boolean) => void;
   ariaLabel: string;
   disabled?: boolean;
+  id?: string;
 }) {
   return (
     <input
       type="checkbox"
       role="switch"
+      id={id}
       aria-label={ariaLabel}
       checked={checked}
       disabled={disabled}
@@ -164,7 +182,13 @@ function DashboardRow({
       >
         {name}
       </div>
-      <Switch checked={item.on} onChange={onToggle} ariaLabel={t.dashboardShow(name)} disabled={disabled} />
+      <Switch
+        checked={item.on}
+        onChange={onToggle}
+        ariaLabel={t.dashboardShow(name)}
+        disabled={disabled}
+        id={rowSwitchId(item.id)}
+      />
       {canSize && (
         <div style={{ width: 132, flex: '0 0 132px' }}>
           <SegmentedControl<WidgetSize>
@@ -180,6 +204,7 @@ function DashboardRow({
       )}
       <div style={{ display: 'flex', gap: 6 }}>
         <IconButton
+          id={rowMoveId(item.id, 'up')}
           ariaLabel={t.dashboardUp(name)}
           size={height.touch}
           disabled={isFirst || disabled}
@@ -188,6 +213,7 @@ function DashboardRow({
           <Icon name="chevronUp" size={18} strokeWidth={2} />
         </IconButton>
         <IconButton
+          id={rowMoveId(item.id, 'down')}
           ariaLabel={t.dashboardDown(name)}
           size={height.touch}
           disabled={isLast || disabled}
@@ -238,6 +264,23 @@ function DashboardRow({
  * saber el layout real). En la demo `dashboardLayoutLoading` es siempre
  * `false`, así que ahí no cambia nada.
  *
+ * Ronda de arreglo final — dos hallazgos Important más:
+ *
+ * (c) I2: cerrar podía fallar (el guardado en red) y `Sheet`/`useSheetDrag`
+ * asumían que `onClose` siempre desmonta. Ahora esta hoja pasa `canClose`
+ * a `<Sheet>` — un veto que se consulta ANTES de que empiece cualquier
+ * animación de salida — y `onClose` vuelve a ser el de verdad, sin
+ * envolver. Ver el comentario en `canClose` más abajo y en
+ * `useSheetDrag.ts`.
+ *
+ * (d) I3: `key={item.id}` hace que el nodo del botón sobreviva al
+ * reordenado — al llevar un widget al tope, el botón recién pulsado pasa a
+ * `disabled` bajo el foco, el navegador lo devuelve a `document.body`, y
+ * la trampa de Tab de `Sheet.tsx` deja pasar el siguiente Tab por detrás
+ * de la hoja. `handleMove` mueve el foco a un botón hermano (o al
+ * interruptor de la fila) ANTES de aplicar el reordenado. Ver el
+ * comentario en `handleMove` más abajo.
+ *
  * Ronda de arreglo 2 — (b) no estaba cerrado del todo: el segmentado de
  * tamaño se apagaba con un envoltorio `pointerEvents: 'none'`, que bloquea
  * ratón y toque pero no Tab ni Enter/Espacio sobre el `<button>` nativo —
@@ -275,10 +318,36 @@ export function DashboardEditSheet({
     setLayout(next);
   };
 
+  /**
+   * I3 (revisión final de rama): como `key={item.id}`, el nodo del botón
+   * sobrevive al reordenado y conserva el foco. Al llevar un widget al
+   * tope, el botón que se acaba de pulsar pasa a `disabled` BAJO el foco
+   * — un `<button disabled>` lo pierde al vuelo, el navegador lo devuelve
+   * a `document.body`, y la trampa de Tab de `Sheet.tsx` deja de casar
+   * (`activeElement` no es ni el primero ni el último), así que el
+   * siguiente Tab escapa de la hoja modal.
+   *
+   * El foco se mueve ANTES de aplicar el reordenado — mientras el DOM
+   * todavía tiene el botón pulsado habilitado — al botón hermano (la otra
+   * dirección, en la misma fila): si el widget sube al primer puesto,
+   * "bajar" sigue activo salvo que la lista tenga un único elemento (caso
+   * en que ambos ya estaban deshabilitados de entrada, así que no se
+   * llega aquí). Si el hermano también fuera a quedar deshabilitado, cae
+   * al interruptor de la fila, que el tope nunca deshabilita.
+   */
   const handleMove = (id: WidgetItem['id'], dir: 'up' | 'down') => {
     const next = moveWidget(layout, id, dir);
-    apply(next);
     const i = next.findIndex((it) => it.id === id);
+    if (i >= 0) {
+      const pressedWillBeDisabled = dir === 'up' ? i === 0 : i === next.length - 1;
+      if (pressedWillBeDisabled) {
+        const opposite = dir === 'up' ? 'down' : 'up';
+        const oppositeWillBeDisabled = opposite === 'up' ? i === 0 : i === next.length - 1;
+        const targetId = oppositeWillBeDisabled ? rowSwitchId(id) : rowMoveId(id, opposite);
+        document.getElementById(targetId)?.focus();
+      }
+    }
+    apply(next);
     if (i >= 0) setAnnouncement(t.dashboardMoved(nameOf(id), i + 1, next.length));
   };
 
@@ -335,33 +404,39 @@ export function DashboardEditSheet({
   };
 
   /**
-   * (a) Cerrar espera de verdad al guardado. Antes, `onClose()` se llamaba
-   * sin esperar la promesa: si `setDashboardLayout` fallaba, el toast
-   * llegaba con la hoja ya desmontada (`layout` perdido con ella) y sin
-   * nada que reintentar, porque la mutación nunca llegó a cuajar. Ahora
-   * solo se desmonta tras un guardado que sí ha ido bien, o si no había
-   * nada que guardar — igual que `MemberTargetSheet.tsx::save()`. `closing`
-   * evita que un segundo Escape/X mientras la primera petición sigue en
-   * vuelo dispare una segunda en paralelo; si la primera falla, se limpia
-   * y un nuevo intento de cerrar reintenta el mismo guardado.
+   * (a) Cerrar espera de verdad al guardado: si `setDashboardLayout`
+   * falla, no se cierra (la copia local con todo lo editado sigue viva) y
+   * se avisa por `onToast`. `closing` evita que un segundo Escape/X
+   * mientras la primera petición sigue en vuelo dispare una segunda en
+   * paralelo; si la primera falla, se limpia y un nuevo intento de cerrar
+   * reintenta el mismo guardado — igual que `MemberTargetSheet.tsx::save()`.
+   *
+   * I2 (revisión final de rama): esto ya NO se le pasa a `<Sheet>` como
+   * `onClose` — se le pasa como `canClose`, aparte. `onClose` vuelve a ser
+   * el de verdad, el que dio el padre, sin envolver: siempre desmonta,
+   * nunca falla, igual que en las otras 22 hojas. `dismiss()` (en
+   * `useSheetDrag.ts`) consulta `canClose` ANTES de tocar ningún estado
+   * visual, así que mientras esto está en vuelo la hoja sigue exactamente
+   * como estaba — interactiva, opaca — y si devuelve `false` no hay nada
+   * que revertir porque nada llegó a cambiar. Solo cuando devuelve `true`
+   * arranca la animación de salida y, al terminar, `onClose` desmonta.
    */
-  const handleClose = () => {
-    if (closing) return;
-    if (!dirty.current) {
-      onClose();
-      return;
-    }
+  const canClose = useCallback(async (): Promise<boolean> => {
+    if (closing) return false;
+    if (!dirty.current) return true;
     setClosing(true);
-    void setDashboardLayout(layout)
-      .then(() => onClose())
-      .catch(() => {
-        onToast?.(t.memberActionError);
-        setClosing(false);
-      });
-  };
+    try {
+      await setDashboardLayout(layout);
+      return true;
+    } catch {
+      onToast?.(t.memberActionError);
+      setClosing(false);
+      return false;
+    }
+  }, [closing, layout, onToast, setDashboardLayout, t]);
 
   return (
-    <Sheet title={t.dashboardTitle} onClose={handleClose}>
+    <Sheet title={t.dashboardTitle} onClose={onClose} canClose={canClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 6 }}>
         <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.45 }}>{t.dashboardHint}</div>
 
