@@ -125,10 +125,14 @@ describe('movimientos', () => {
 });
 
 describe('rejilla', () => {
-  it('columnas por ancho', () => {
-    expect(columnsFor(false, false)).toBe(1);
-    expect(columnsFor(true, false)).toBe(2);
-    expect(columnsFor(true, true)).toBe(3);
+  // Revisión final de rama, hallazgo Important: la §7.2 pedía tres columnas
+  // desde ancho, pero `maxW.today` sigue en 600px — a tres, 189px por
+  // columna desborda una baldosa de receta y deja el anillo sin sitio para
+  // su propia cifra. `columnsFor` ya no devuelve 3 (ver el comentario en
+  // `domain/dashboard.ts`): dos columnas máximo, sea cual sea el ancho.
+  it('columnas por ancho: nunca más de dos', () => {
+    expect(columnsFor(false)).toBe(1);
+    expect(columnsFor(true)).toBe(2);
   });
 
   it('en una columna todo ocupa uno: el tamaño no se nota, el orden sí', () => {
@@ -141,11 +145,6 @@ describe('rejilla', () => {
     expect(spanFor('half', 2)).toBe(1);
   });
 
-  it('con tres columnas full ocupa dos, no tres', () => {
-    expect(spanFor('full', 3)).toBe(2);
-    expect(spanFor('half', 3)).toBe(1);
-  });
-
   it('el orden no depende de las columnas: en móvil el tamaño no se nota, el orden sí', () => {
     const layout: WidgetItem[] = [
       { id: 'kcal_ring', w: 'half', on: true },
@@ -153,7 +152,7 @@ describe('rejilla', () => {
       { id: 'quick_log', w: 'half', on: true },
     ];
     const ids = layout.map((i) => i.id);
-    for (const cols of [1, 2, 3] as const) {
+    for (const cols of [1, 2] as const) {
       expect(visibleWidgets(layout).map((i) => i.id)).toEqual(ids);
       expect(spanFor(layout[1]!.w, cols)).toBe(cols === 1 ? 1 : 2);
     }

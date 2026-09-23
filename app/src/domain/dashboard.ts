@@ -179,14 +179,23 @@ export function setWidgetOn(
 /**
  * Columnas de la rejilla (§7.2). Por debajo de 600px una sola: en el móvil
  * el tamaño no se nota y el orden sí.
+ *
+ * §7.2 pedía tres columnas desde ancho (`isWide`), pero `maxW.today`
+ * (`src/ui/tokens.ts`) — un token de diseño establecido, que `CLAUDE.md`
+ * protege frente a la intuición de quien implementa — sigue en 600px. A
+ * tres columnas con `gap: 16` eso deja (600 − 32) / 3 ≈ 189px por columna:
+ * una baldosa de receta con `minmax(200px, 1fr)` desborda, y el anillo en
+ * tamaño "Media" no tiene sitio para su propia cifra. Revisión final de
+ * rama, hallazgo Important: nunca devolver 3 hasta que `maxW.today` se
+ * ensanche — entonces se puede recuperar la tercera columna que pedía la
+ * spec.
  */
-export function columnsFor(isMedium: boolean, isWide: boolean): 1 | 2 | 3 {
-  if (isWide) return 3;
+export function columnsFor(isMedium: boolean): 1 | 2 {
   return isMedium ? 2 : 1;
 }
 
-/** Columnas que ocupa un widget. `full` nunca pasa de dos. */
-export function spanFor(w: WidgetSize, columns: 1 | 2 | 3): number {
+/** Columnas que ocupa un widget. `full` ocupa todo el ancho disponible. */
+export function spanFor(w: WidgetSize, columns: 1 | 2): number {
   if (columns === 1) return 1;
   return w === 'full' ? 2 : 1;
 }

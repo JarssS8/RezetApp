@@ -217,7 +217,7 @@ export function Today({
         : `${t.kcalLeft} ${formatKcal(kcalTarget - done, locale)} ${t.kcal}`;
   const kcalHintColor = over > 0 ? 'var(--warn-ink)' : 'var(--accent-ink)';
 
-  const columns = columnsFor(useIsMedium(), isWide);
+  const columns = columnsFor(useIsMedium());
   const visible = useMemo(() => visibleWidgets(dashboardLayout), [dashboardLayout]);
 
   // Un `switch` exhaustivo a propósito: el día que se añada un widget al
