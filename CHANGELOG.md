@@ -3,6 +3,24 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.12.0] - 2026-09-23
+
+### Español
+
+**Nuevo**
+- Hoy se personaliza: cada persona elige qué bloques ve, en qué orden y con qué tamaño, y esa configuración le sigue a cualquier dispositivo en el que entre.
+- Se puede apagar cualquier bloque de Hoy, incluido el anillo de calorías, y se queda apagado hasta que decidas volver a encenderlo.
+- El bloque "a quién le toca" solo aparece cuando los turnos del hogar están encendidos; se apaga solo si los turnos se apagan.
+- El orden se cambia arrastrando los bloques o con los botones de subir y bajar, para quien prefiera no arrastrar.
+
+### English
+
+**New**
+- Today is now personal: everyone picks which blocks they see, in what order and at what size, and that choice follows them to any device they sign in on.
+- Any block on Today can be turned off, including the calorie ring, and it stays off until you turn it back on.
+- The "whose turn" block only shows up when the household's shifts are turned on, and disappears on its own if shifts get turned off.
+- Reorder blocks by dragging them, or with the up/down buttons, for anyone who'd rather not drag.
+
 ## [1.11.0] - 2026-09-23
 
 ### Español
