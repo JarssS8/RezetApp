@@ -12,10 +12,22 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
   options,
+  disabled,
 }: {
   value: T;
   onChange: (v: T) => void;
   options: Array<{ value: T; label: string }>;
+  /**
+   * `disabled` de verdad, hasta el `<button disabled>` nativo de cada
+   * opción — no un envoltorio con `pointerEvents: 'none'` por fuera. Ese
+   * envoltorio bloquea el ratón y el toque, pero no el foco por Tab ni la
+   * activación por Enter/Espacio: un `<button>` nativo dispara `click` al
+   * activarse por teclado sin pasar por el pipeline de punteros, así que
+   * `pointer-events` nunca lo intercepta (hallazgo de revisión de
+   * `DashboardEditSheet.tsx`, ronda 2). `Pressable` ya sabe deshabilitarse
+   * de verdad; aquí solo se reenvía.
+   */
+  disabled?: boolean;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
@@ -42,12 +54,17 @@ export function SegmentedControl<T extends string>({
     <div
       ref={trackRef}
       role="radiogroup"
+      aria-disabled={disabled}
       style={{
         position: 'relative',
         display: 'flex',
         background: 'var(--surface2)',
         borderRadius: radius.chip,
         padding: 3,
+        // Una sola atenuación, aquí: con `disabled` de verdad en cada
+        // `Pressable`, no hace falta que quien use este componente lo
+        // envuelva aparte para apagarlo visualmente.
+        opacity: disabled ? 0.55 : 1,
       }}
     >
       {pill && (
@@ -72,6 +89,7 @@ export function SegmentedControl<T extends string>({
           onClick={() => onChange(o.value)}
           role="radio"
           ariaChecked={o.value === value}
+          disabled={disabled}
           scale={0.97}
           style={{
             position: 'relative',

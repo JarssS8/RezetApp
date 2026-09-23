@@ -13,6 +13,7 @@ import {
   type IntakeExtraLine,
 } from '../domain/intake';
 import { createStoreDerivations } from '../domain/deriveStore';
+import { normalizeLayout, type WidgetItem } from '../domain/dashboard';
 import { INGREDIENTS, INTAKE_EXTRAS, KCAL_TARGET, MEMBER_BODY, MEMBERS, PANTRY, PLAN, RECIPES } from './seed';
 import { usePrefs } from '../store/prefs';
 import { asMemberId, type Accent } from '../types';
@@ -92,6 +93,9 @@ interface Data {
    * de Ajustes es quien decide qué valores por defecto enseñar en ese caso.
    */
   notifyPrefByMember: Partial<Record<MemberId, NotifyPref>>;
+  /** Igual que `notifyPrefByMember`: por miembro, para que la demo enseñe lo
+   * mismo que la real. Sin entrada, el layout por defecto. */
+  dashboardByMember: Partial<Record<MemberId, WidgetItem[]>>;
   /**
    * Valoraciones de recetas (`member_recipe_pref` en la capa real). Una
    * lista plana y no un mapa anidado, mismo motivo que `intakeShares`: así
@@ -122,6 +126,7 @@ const INITIAL: Data = {
   intakeShares: [],
   intakeExtras: INTAKE_EXTRAS,
   notifyPrefByMember: {},
+  dashboardByMember: {},
   recipePrefs: [],
   turnsEnabled: false,
   shoppingTurns: [],
@@ -660,6 +665,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
+   * Contrato: en la capa real es un `upsert` directo sobre
+   * `member_dashboard` (RLS `can_act_for`). Siempre del "yo" de la demo,
+   * igual que `setRecipePref` — la demo no tiene sesión con la que elegir
+   * otro miembro.
+   */
+  const setDashboardLayout = useCallback(
+    async (layout: WidgetItem[]): Promise<void> => {
+      setData((d) => ({
+        ...d,
+        dashboardByMember: { ...d.dashboardByMember, [DEMO_MY_MEMBER_ID]: layout },
+      }));
+    },
+    [setData],
+  );
+
+  /**
    * Del hogar entero, agrupadas por receta — quién votó qué es visible a
    * propósito (ver `RecipePref` en `types.ts`). En demo "el hogar" es solo
    * el propio voto, pero el contrato ya es de lista para no divergir de la
@@ -897,6 +918,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // avisos (no hay dónde enviárselos), igual que en la capa real.
       notifyPref: data.notifyPrefByMember[DEMO_MY_MEMBER_ID] ?? null,
       setNotifyPref,
+      dashboardLayout: normalizeLayout(data.dashboardByMember[DEMO_MY_MEMBER_ID] ?? null, {
+        turns: data.turnsEnabled,
+      }),
+      // La demo no hace ningún viaje de red: el estado ya está en memoria
+      // desde el primer render, así que nunca hay una consulta "en curso"
+      // (mismo razonamiento que `bodyLoading: false` más arriba) ni una
+      // que pueda fallar.
+      dashboardLayoutLoading: false,
+      dashboardLayoutError: false,
+      setDashboardLayout,
       recipePrefsByRecipe,
       setRecipePref,
       setTurnsEnabled,
@@ -936,6 +967,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       frequentExtras,
       weekTotalsFor,
       setNotifyPref,
+      setDashboardLayout,
       recipePrefsByRecipe,
       setRecipePref,
       setTurnsEnabled,

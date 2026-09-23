@@ -711,6 +711,16 @@ Un widget cuyo sub-proyecto no esté implementado **no aparece en el catálogo**
   tamaño no se nota; el orden sí.
 - ≥ 900 px (barra lateral ya existente): tres columnas, `full` ocupa dos.
 
+> **Desviación de implementación (revisión final de rama `feat/dashboard-widgets`, hallazgo
+> Important I4):** se implementaron **dos columnas como máximo**, nunca tres, aunque esta
+> sección pida tres desde 900px. `maxW.today` (`app/src/ui/tokens.ts`) — el ancho máximo del
+> contenedor de Hoy, un token de diseño establecido — sigue en 600px, no en el ancho de la
+> ventana; a tres columnas con `gap: 16` eso deja `(600 − 32) / 3 ≈ 189px` por columna, y una
+> baldosa de receta con `minmax(200px, 1fr)` desborda ~11px. `columnsFor`
+> (`app/src/domain/dashboard.ts`) nunca devuelve `3` por esto. Se puede recuperar la tercera
+> columna que pide esta sección el día que se ensanche `maxW.today` lo suficiente para que
+> quepa sin desbordar.
+
 ### 7.3 Edición
 
 Modo "Personalizar" desde la cabecera de Hoy: asa de arrastre, control de tamaño e

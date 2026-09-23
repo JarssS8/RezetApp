@@ -23,6 +23,7 @@ import type {
   Unit,
 } from '../types';
 import type { DayIntake, DayTotal } from '../domain/intake';
+import type { WidgetItem } from '../domain/dashboard';
 
 /**
  * Contrato compartido por las dos capas de datos: `store.tsx` (demo,
@@ -276,6 +277,43 @@ export interface Store {
    * claves presentes en el patch: las ausentes las conserva el servidor.
    */
   setNotifyPref: (memberId: MemberId, patch: Partial<NotifyPref>) => Promise<void>;
+
+  /**
+   * El dashboard de quien está usando la app, ya normalizado por
+   * `domain/dashboard.ts`: nunca vacío, nunca con ids desconocidos, nunca
+   * con `whose_turn` si los turnos están apagados. La pantalla lo pinta tal
+   * cual y no vuelve a validarlo.
+   *
+   * Mientras `dashboardLayoutLoading` es `true`, este valor YA es el
+   * layout por defecto (`normalizeLayout` normaliza incluso el `null` de
+   * "todavía no ha llegado nada") — indistinguible, sin esa señal, de "este
+   * miembro no tiene fila guardada". Quien vaya a editarlo y guardarlo de
+   * vuelta (`DashboardEditSheet.tsx`) tiene que mirar esa señal antes de
+   * tratar este valor como el layout real de la persona.
+   */
+  dashboardLayout: WidgetItem[];
+  /**
+   * `true` mientras no se sabe el layout real de esta persona: la primera
+   * carga de la consulta (no cada refetch en segundo plano — mismo
+   * contrato que `bodyLoading`), y también mientras esa consulta está en
+   * error (segunda ronda de revisión final) — "no sé leerlo" cuenta como
+   * "no se sabe", igual que "todavía cargando"; no como "está vacío y se
+   * puede editar". En la demo el dato ya está en memoria desde el primer
+   * render y no hay red que falle, así que siempre es `false`.
+   */
+  dashboardLayoutLoading: boolean;
+  /**
+   * `true` específicamente cuando `dashboardLayoutLoading` es `true`
+   * PORQUE la consulta está en error, no porque siga cargando (tercera
+   * ronda de revisión final). Sirve para que quien lo muestre
+   * (`DashboardEditSheet.tsx`) pueda decir "no se pudo leer tu
+   * personalización" en vez de fingir "cargando" — un `aria-busy`
+   * indefinido no explica nada a quien usa lector de pantalla. En la
+   * demo no hay red que falle, así que siempre es `false`.
+   */
+  dashboardLayoutError: boolean;
+  /** Guarda el layout entero. Sin sesión de miembro no hace nada. */
+  setDashboardLayout: (layout: WidgetItem[]) => Promise<void>;
 
   /**
    * Valoraciones ("me gusta"/"no me gusta") de TODO el hogar por receta

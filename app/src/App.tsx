@@ -26,6 +26,7 @@ import { useCookSession } from './screens/useCookSession';
 import { useCookTimerSync } from './data/useCookTimerSync';
 import { SettingsSheet } from './sheets/SettingsSheet';
 import { NotifySheet } from './sheets/NotifySheet';
+import { DashboardEditSheet } from './sheets/DashboardEditSheet';
 import { ShoppingSheet } from './sheets/ShoppingSheet';
 import { PantryAddSheet } from './sheets/PantryAddSheet';
 import { RecipePickerSheet, type PickerTarget } from './sheets/RecipePickerSheet';
@@ -61,6 +62,7 @@ type Push =
 type SheetState =
   | { kind: 'settings' }
   | { kind: 'notify' }
+  | { kind: 'dashboardEdit' }
   | { kind: 'shopping' }
   | { kind: 'pantryAdd' }
   | { kind: 'picker'; target: PickerTarget }
@@ -362,6 +364,9 @@ function MainApp({
             onOpenSettings={() => setSheet({ kind: 'settings' })}
             onAddIntake={() => setSheet({ kind: 'intakeAdd' })}
             onOpenWeek={() => setPush({ kind: 'week' })}
+            onOpenPantry={() => setTab('pantry')}
+            onOpenShopping={() => setSheet({ kind: 'shopping' })}
+            onOpenDashboardEdit={() => setSheet({ kind: 'dashboardEdit' })}
             onToast={show}
           />
         )}
@@ -462,6 +467,8 @@ function MainApp({
       )}
 
       {sheet?.kind === 'notify' && <NotifySheet onClose={() => setSheet(null)} onToast={show} />}
+
+      {sheet?.kind === 'dashboardEdit' && <DashboardEditSheet onClose={() => setSheet(null)} onToast={show} />}
 
       {sheet?.kind === 'shopping' && (
         <ShoppingSheet weekOffset={weekOffset} onClose={() => setSheet(null)} onToast={show} />

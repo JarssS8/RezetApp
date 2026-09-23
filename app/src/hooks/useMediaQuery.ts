@@ -23,3 +23,6 @@ export function useMediaQuery(query: string): boolean {
 }
 
 export const useIsWide = () => useMediaQuery('(min-width: 900px)');
+
+/** Dos columnas en el dashboard (§7.2). Por debajo, una sola. */
+export const useIsMedium = () => useMediaQuery('(min-width: 600px)');

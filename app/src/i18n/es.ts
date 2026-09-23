@@ -110,6 +110,47 @@ export const es = {
   forYou: 'Para ti',
   forYouHint: 'Según tus gustos, tu despensa y cuánto hace que no la cocinas.',
 
+  // Los cuatro widgets nuevos del dashboard (Tarea 5, catálogo §7.1).
+  widgetQuickLog: 'Registro rápido',
+  widgetQuickLogEmpty: 'Lo que registres a menudo aparecerá aquí.',
+  widgetExpiring: 'Caduca pronto',
+  widgetExpiringEmpty: 'Nada a punto de caducar.',
+  widgetExpiringIn: (d: number) =>
+    d < 0 ? 'Caducado' : d === 0 ? 'Hoy' : d === 1 ? 'Mañana' : `En ${d} días`,
+  widgetShopping: 'Para la semana',
+  widgetShoppingCount: (n: number) => (n === 1 ? 'Falta 1 cosa' : `Faltan ${n} cosas`),
+  widgetShoppingEmpty: 'No falta nada.',
+  widgetWhoseTurn: 'A quién le toca',
+  widgetWhoseTurnNobody: 'Nadie asignado hoy',
+  widgetCustomize: 'Personalizar',
+
+  // Hoja "Personalizar Hoy" (Tarea 7): edita una copia local del layout y
+  // guarda una sola vez al cerrar — ver `DashboardEditSheet.tsx`.
+  dashboardTitle: 'Personalizar Hoy',
+  dashboardHint: 'Enciende lo que quieras ver y ponlo en el orden que prefieras.',
+  // Tercera ronda de revisión final: cuando la consulta del dashboard está
+  // en error, no basta con `aria-busy` — hay que decir lo que pasó.
+  dashboardLoadError: 'No se pudo leer tu personalización. Vuelve a intentarlo más tarde.',
+  dashboardUp: (name: string) => `Subir ${name}`,
+  dashboardDown: (name: string) => `Bajar ${name}`,
+  dashboardShow: (name: string) => `Mostrar ${name}`,
+  dashboardSizeFull: 'Ancho',
+  dashboardSizeHalf: 'Media',
+  dashboardMoved: (name: string, pos: number, total: number) =>
+    `${name}, posición ${pos} de ${total}`,
+  dashboardReset: 'Volver al orden inicial',
+  widgetName: {
+    kcal_ring: 'Tu anillo',
+    today_meals: 'Tu día',
+    quick_log: 'Registro rápido',
+    week_progress: 'Tu semana',
+    cookable_now: 'Puedes cocinarlo ya',
+    expiring_soon: 'Caduca pronto',
+    shopping_summary: 'Para la semana',
+    for_you: 'Para ti',
+    whose_turn: 'A quién le toca',
+  },
+
   kcalOf: 'de',
   kcal: 'kcal',
   kcalLeft: 'Te quedan',

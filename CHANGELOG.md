@@ -3,6 +3,26 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.12.0] - 2026-09-23
+
+### Español
+
+**Nuevo**
+- Cuatro bloques nuevos en Hoy: "Registro rápido" (registrar lo que has comido sin salir de la pantalla), "Caduca pronto" (lo próximo a vencer en la despensa), "Para la semana" (lo que falta comprar) y "A quién le toca" (turnos de cocinar/comprar de hoy).
+- Hoy se personaliza: cada persona elige qué bloques ve, en qué orden y con qué tamaño, y esa configuración le sigue a cualquier dispositivo en el que entre.
+- Se puede apagar cualquier bloque de Hoy, incluido el anillo de calorías, y se queda apagado hasta que decidas volver a encenderlo.
+- El bloque "a quién le toca" solo aparece cuando los turnos del hogar están encendidos; se apaga solo si los turnos se apagan.
+- El orden se cambia arrastrando las filas de la hoja "Personalizar Hoy" o con los botones de subir y bajar, para quien prefiera no arrastrar.
+
+### English
+
+**New**
+- Four new blocks on Today: "Quick log" (log what you've eaten without leaving the screen), "Expiring soon" (what's about to go off in the pantry), "For the week" (what's still missing from the shopping list) and "Whose turn" (today's cooking/shopping shifts).
+- Today is now personal: everyone picks which blocks they see, in what order and at what size, and that choice follows them to any device they sign in on.
+- Any block on Today can be turned off, including the calorie ring, and it stays off until you turn it back on.
+- The "whose turn" block only shows up when the household's shifts are turned on, and disappears on its own if shifts get turned off.
+- Reorder blocks by dragging the rows in the "Customize Today" sheet, or with the up/down buttons, for anyone who'd rather not drag.
+
 ## [1.11.0] - 2026-09-23
 
 ### Español

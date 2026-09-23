@@ -26,6 +26,8 @@ const PATHS = {
   bookmark: 'M6 4h12v16l-6-4-6 4Z',
   // Candado: grillete (arco) + cuerpo (rectángulo cerrado) — aviso de privacidad de "Tu objetivo".
   lock: 'M8 10.5V8a4 4 0 0 1 8 0v2.5M6 10.5h12v8.5H6Z',
+  // Asa de arrastre: seis puntos (trazo de longitud casi nula, cierre redondeado) — Tarea 8.
+  grip: 'M9 7h.01M9 12h.01M9 17h.01M15 7h.01M15 12h.01M15 17h.01',
 } as const;
 
 export type IconName = keyof typeof PATHS;

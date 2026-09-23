@@ -84,6 +84,7 @@ export function IconButton({
   size = 40,
   disabled,
   style,
+  id,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -91,9 +92,12 @@ export function IconButton({
   size?: number;
   disabled?: boolean;
   style?: CSSProperties;
+  /** Ver el comentario en `Pressable.tsx` — `DashboardEditSheet.tsx` la usa para encontrar un botón hermano por foco. */
+  id?: string;
 }) {
   return (
     <Pressable
+      id={id}
       onClick={onClick}
       ariaLabel={ariaLabel}
       disabled={disabled}

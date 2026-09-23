@@ -110,6 +110,43 @@ export const en: Dictionary = {
   forYou: 'For you',
   forYouHint: 'Based on what you like, your pantry, and how long since you cooked it.',
 
+  // The four new dashboard widgets (Task 5, catalog §7.1).
+  widgetQuickLog: 'Quick log',
+  widgetQuickLogEmpty: 'What you log often will show up here.',
+  widgetExpiring: 'Expiring soon',
+  widgetExpiringEmpty: 'Nothing about to expire.',
+  widgetExpiringIn: (d: number) =>
+    d < 0 ? 'Expired' : d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : `In ${d} days`,
+  widgetShopping: 'For the week',
+  widgetShoppingCount: (n: number) => (n === 1 ? '1 item missing' : `${n} items missing`),
+  widgetShoppingEmpty: 'Nothing missing.',
+  widgetWhoseTurn: 'Whose turn',
+  widgetWhoseTurnNobody: 'Nobody assigned today',
+  widgetCustomize: 'Customize',
+
+  // "Customize Today" sheet (Task 7).
+  dashboardTitle: 'Customize Today',
+  dashboardHint: 'Turn on what you want to see and put it in the order you like.',
+  dashboardLoadError: "Couldn't read your customization. Try again later.",
+  dashboardUp: (name: string) => `Move ${name} up`,
+  dashboardDown: (name: string) => `Move ${name} down`,
+  dashboardShow: (name: string) => `Show ${name}`,
+  dashboardSizeFull: 'Wide',
+  dashboardSizeHalf: 'Half',
+  dashboardMoved: (name: string, pos: number, total: number) => `${name}, position ${pos} of ${total}`,
+  dashboardReset: 'Back to the original order',
+  widgetName: {
+    kcal_ring: 'Your ring',
+    today_meals: 'Your day',
+    quick_log: 'Quick log',
+    week_progress: 'Your week',
+    cookable_now: 'Ready to cook',
+    expiring_soon: 'Expiring soon',
+    shopping_summary: 'For the week',
+    for_you: 'For you',
+    whose_turn: 'Whose turn',
+  },
+
   kcalOf: 'of',
   kcal: 'kcal',
   kcalLeft: 'Left today',

@@ -34,6 +34,14 @@ export interface PressableProps {
   /** Para botones toggle sueltos (no agrupados con role="radio"): comunica cuál está activo. */
   ariaPressed?: boolean;
   type?: 'button' | 'submit';
+  /**
+   * Opcional — pasada tal cual al `<button>`. Añadida para
+   * `DashboardEditSheet.tsx` (I3, revisión final de rama): mover el foco a
+   * un botón hermano ANTES de que React deshabilite el que se acaba de
+   * pulsar necesita poder encontrarlo por `id` con `document.getElementById`,
+   * porque ni `Pressable` ni `IconButton` reenvían `ref`.
+   */
+  id?: string;
 }
 
 /** Botón con la presión del diseño ya aplicada. */
@@ -48,11 +56,13 @@ export function Pressable({
   ariaChecked,
   ariaPressed,
   type = 'button',
+  id,
 }: PressableProps) {
   const press = usePress(scale);
   return (
     <button
       type={type}
+      id={id}
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}

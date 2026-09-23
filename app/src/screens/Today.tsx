@@ -1,30 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
+import { columnsFor, isWidgetEmpty, spanFor, visibleWidgets, type WidgetItem } from '../domain/dashboard';
 import { longDate, todayKey } from '../domain/dates';
 import { entriesOfDay } from '../domain/shopping';
 import { rankSuggestions } from '../domain/suggestions';
 import { formatKcal } from '../domain/units';
 import type { MealLine } from '../domain/intake';
+import { useIsMedium } from '../hooks/useMediaQuery';
 import { prefersReducedMotion } from '../motion/motion';
-import { Button, IconButton } from '../ui/Button';
-import { Card, Eyebrow, SectionHeader } from '../ui/Card';
-import { Pill } from '../ui/Chip';
+import type { FrequentExtra } from '../types';
+import { IconButton } from '../ui/Button';
 import { Icon } from '../ui/Icon';
-import { Pressable } from '../ui/Pressable';
 import { ScreenBody, ScreenHeader } from '../ui/Fields';
-import { height, maxW, radius, tabular, text as T } from '../ui/tokens';
-import type { PlanEntry, Recipe } from '../types';
-
-const RING_CIRCUMFERENCE = 263.9;
-
-/** Media, entera, y media más raciones — las cuatro opciones del segmentado de reparto. */
-const SHARE_OPTIONS: Array<{ value: number; label: string }> = [
-  { value: 0.5, label: '½' },
-  { value: 1, label: '1' },
-  { value: 1.5, label: '1½' },
-  { value: 2, label: '2' },
-];
+import { maxW } from '../ui/tokens';
+import {
+  CookableNowWidget,
+  ExpiringSoonWidget,
+  ForYouWidget,
+  KcalRingWidget,
+  QuickLogWidget,
+  ShoppingSummaryWidget,
+  TodayMealsWidget,
+  WeekProgressWidget,
+  WhoseTurnWidget,
+} from './today/Widgets';
 
 /** Hoy responde una pregunta: qué toca comer y qué hago con ello. */
 export function Today({
@@ -34,6 +34,9 @@ export function Today({
   onOpenSettings,
   onAddIntake,
   onOpenWeek,
+  onOpenPantry,
+  onOpenShopping,
+  onOpenDashboardEdit,
   onToast,
   isWide,
 }: {
@@ -45,6 +48,12 @@ export function Today({
   onAddIntake: () => void;
   /** Abre "Tu semana" (Tarea 13): la fila bajo el anillo. */
   onOpenWeek: () => void;
+  /** Abre la pestaña Despensa, desde el widget "Caduca pronto". */
+  onOpenPantry: () => void;
+  /** Abre la hoja de Compra, desde el widget "Para la semana". */
+  onOpenShopping: () => void;
+  /** Abre el modo "Personalizar" (Tarea 7): reordenar, encender/apagar y cambiar tamaño. */
+  onOpenDashboardEdit: () => void;
   /** Toast de error al borrar un extra (hallazgo de revisión: antes no se podía). */
   onToast: (message: string) => void;
   isWide: boolean;
@@ -63,6 +72,12 @@ export function Today({
     setShare,
     removeExtra,
     recipePrefsByRecipe,
+    pantry,
+    ingredientById,
+    frequentExtras,
+    addExtra,
+    needsForWeek,
+    dashboardLayout,
   } = useData();
   // Turnos (§10): mientras estén apagados, el chip "Te toca" no existe.
   const turnsEnabled = household?.turnsEnabled ?? false;
@@ -83,6 +98,19 @@ export function Today({
     }
   };
 
+  // "Registro rápido" (widget nuevo): registra un extra ya conocido sin
+  // abrir `IntakeAddSheet`. Con `await`/`catch` a propósito — un registro
+  // que falla en silencio deja el anillo mintiendo el resto del día (mismo
+  // hallazgo de revisión que `handleRemoveExtra` de arriba).
+  const handleLogFrequent = async (extra: FrequentExtra) => {
+    if (!myMemberId) return;
+    try {
+      await addExtra({ memberId: myMemberId, date: today, label: extra.label, kcal: extra.kcal, source: 'manual' });
+    } catch {
+      onToast(t.memberActionError);
+    }
+  };
+
   // El anillo compara contra el objetivo PROPIO cuando existe (control por
   // persona, Tarea de fundación de miembro), cayendo al del hogar si no hay
   // sesión de miembro (demo, o carga inicial antes de que lleguen los
@@ -91,6 +119,40 @@ export function Today({
 
   const entries = useMemo(() => entriesOfDay(today, plan), [today, plan]);
   const entryById = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
+
+  // "Caduca pronto" (widget nuevo): `PantryItem.expiresInDays` ya trae la
+  // cuenta hecha, aquí solo se filtra a 7 días o menos y se ordena — nada
+  // de fechas ni restas, eso vive en el tipo y en quien lo escribe.
+  const expiringSoon = useMemo(
+    () =>
+      pantry
+        .filter((p): p is typeof p & { expiresInDays: number } => p.expiresInDays !== null && p.expiresInDays <= 7)
+        .sort((a, b) => a.expiresInDays - b.expiresInDays)
+        .map((p) => {
+          const ing = ingredientById.get(p.ingredientId);
+          return { id: p.id, name: ing ? ing.name[locale] || ing.name.es : '', days: p.expiresInDays };
+        }),
+    [pantry, ingredientById, locale],
+  );
+
+  // "Para la semana" (widget nuevo): los mismos argumentos que usa hoy
+  // `ShoppingSheet` para la semana actual — `needsForWeek` es un envoltorio
+  // de `domain/shopping.ts::shoppingNeeds`, nada calculado aquí.
+  const shoppingNeedsCount = needsForWeek(0).length;
+
+  // "A quién le toca" (widget nuevo): quien cocina cada comida de hoy, ya
+  // en `plan_entry.cook_member_id` — ni una fecha ni una comparación nueva.
+  const whoseTurnRows = useMemo(
+    () =>
+      entries.map((entry) => {
+        const recipe = recipeById.get(entry.recipeId);
+        const member = entry.cookMemberId
+          ? (members.find((m) => m.id === entry.cookMemberId && m.deletedAt === null) ?? null)
+          : null;
+        return { slot: entry.slot, recipeName: recipe ? loc(recipe.name) : '', member };
+      }),
+    [entries, recipeById, members, loc],
+  );
 
   // Lo que lleva comido HOY es lo que dice el registro de esta persona, no
   // una suma de raciones de plato — ver `domain/intake.ts`. Calcularlo aquí
@@ -155,426 +217,174 @@ export function Today({
         : `${t.kcalLeft} ${formatKcal(kcalTarget - done, locale)} ${t.kcal}`;
   const kcalHintColor = over > 0 ? 'var(--warn-ink)' : 'var(--accent-ink)';
 
+  const columns = columnsFor(useIsMedium());
+  const visible = useMemo(() => visibleWidgets(dashboardLayout), [dashboardLayout]);
+
+  // Un `switch` exhaustivo a propósito: el día que se añada un widget al
+  // catálogo (`domain/dashboard.ts`) y se olvide de pintarlo aquí, esto
+  // tiene que romper `tsc`, no dejar la rejilla a medias en silencio.
+  //
+  // I1 (segunda ronda de revisión final): `for_you`, `cookable_now` y
+  // `whose_turn` devuelven un `null` DE VERDAD aquí, en el propio `case`,
+  // cuando `isWidgetEmpty` (`domain/dashboard.ts`) dice que no hay nada
+  // que mostrar — nunca comprobando después si lo que devolvió el
+  // componente "es" `null`, porque un componente de React que PINTA `null`
+  // sigue siendo un elemento, no `null` (`React.createElement(() => null)
+  // !== null`). Eso es justo lo que hacía el intento anterior, y por lo
+  // que compilaba y no hacía nada: ver el comentario de `isWidgetEmpty`.
+  const renderWidget = (item: WidgetItem) => {
+    const counts = { suggestions: suggestions.length, cookable: cookable.length, whoseTurnRows: whoseTurnRows.length };
+    switch (item.id) {
+      case 'kcal_ring':
+        return (
+          <KcalRingWidget
+            pct={pct}
+            animatedPct={animatedPct}
+            done={done}
+            kcalLine={kcalLine}
+            kcalHint={kcalHint}
+            kcalHintColor={kcalHintColor}
+            locale={locale}
+          />
+        );
+      case 'today_meals':
+        return (
+          <TodayMealsWidget
+            meals={meals}
+            entryById={entryById}
+            recipeById={recipeById}
+            extraLines={extraLines}
+            turnsEnabled={turnsEnabled}
+            myMemberId={myMemberId}
+            removingExtraId={removingExtraId}
+            hasEntries={entries.length > 0}
+            locale={locale}
+            onOpenRecipe={onOpenRecipe}
+            onCook={onCook}
+            onSetShare={setShare}
+            onRemoveExtra={handleRemoveExtra}
+            onAddIntake={onAddIntake}
+            onGoPlan={onGoPlan}
+          />
+        );
+      case 'week_progress':
+        return <WeekProgressWidget onOpenWeek={onOpenWeek} label={t.yourWeek} />;
+      case 'quick_log':
+        return (
+          <QuickLogWidget
+            extras={myMemberId ? frequentExtras(myMemberId) : []}
+            onLog={(extra) => void handleLogFrequent(extra)}
+            label={t.widgetQuickLog}
+            emptyLabel={t.widgetQuickLogEmpty}
+          />
+        );
+      case 'whose_turn':
+        // `item.id` (no el literal 'whose_turn'): dentro de este `case`,
+        // `switch (item.id)` ya lo estrecha al tipo literal correcto — si
+        // algún día se renombra la etiqueta del `case`, `tsc` avisa aquí
+        // en vez de dejar un literal suelto que nadie actualiza (nit,
+        // tercera ronda de revisión final).
+        if (isWidgetEmpty(item.id, counts)) return null;
+        return (
+          <WhoseTurnWidget rows={whoseTurnRows} nobodyLabel={t.widgetWhoseTurnNobody} label={t.widgetWhoseTurn} />
+        );
+      case 'for_you':
+        if (isWidgetEmpty(item.id, counts)) return null;
+        return (
+          <ForYouWidget suggestions={suggestions} onOpenRecipe={onOpenRecipe} label={t.forYou} hint={t.forYouHint} />
+        );
+      case 'cookable_now':
+        if (isWidgetEmpty(item.id, counts)) return null;
+        return <CookableNowWidget recipes={cookable} onOpenRecipe={onOpenRecipe} label={t.cookableNow} />;
+      case 'expiring_soon':
+        return (
+          <ExpiringSoonWidget
+            items={expiringSoon}
+            onOpenPantry={onOpenPantry}
+            label={t.widgetExpiring}
+            emptyLabel={t.widgetExpiringEmpty}
+            formatDays={t.widgetExpiringIn}
+          />
+        );
+      case 'shopping_summary':
+        return (
+          <ShoppingSummaryWidget
+            count={shoppingNeedsCount}
+            onOpenShopping={onOpenShopping}
+            label={t.widgetShopping}
+            countLabel={t.widgetShoppingCount}
+            emptyLabel={t.widgetShoppingEmpty}
+          />
+        );
+      default: {
+        // Exhaustividad real: un id nuevo en el catálogo que no se pinte
+        // aquí rompe `tsc` (noUnusedLocals incluido), no la pantalla.
+        const _never: never = item.id;
+        return _never;
+      }
+    }
+  };
+
   return (
     <ScreenBody maxWidth={maxW.today} label="Hoy">
       <ScreenHeader
         eyebrow={longDate(new Date(), locale)}
         title={t.today}
         trailing={
-          !isWide && (
-            <IconButton onClick={onOpenSettings} ariaLabel={t.settings} style={{ color: 'var(--muted)' }}>
-              <Icon name="sun" size={19} strokeWidth={1.8} />
+          <div style={{ display: 'flex', gap: 6 }}>
+            {/*
+             * El de ajustes solo se pinta en pantalla estrecha (en ancho
+             * vive en la barra lateral); el de personalizar se pinta
+             * SIEMPRE — en ancho, con la rejilla de varias columnas a la
+             * vista, es donde más se nota el orden.
+             */}
+            <IconButton onClick={onOpenDashboardEdit} ariaLabel={t.widgetCustomize} style={{ color: 'var(--muted)' }}>
+              <Icon name="edit" size={18} strokeWidth={1.8} />
             </IconButton>
-          )
+            {!isWide && (
+              <IconButton onClick={onOpenSettings} ariaLabel={t.settings} style={{ color: 'var(--muted)' }}>
+                <Icon name="sun" size={19} strokeWidth={1.8} />
+              </IconButton>
+            )}
+          </div>
         }
       />
 
-      <Card style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-        <div style={{ position: 'relative', width: 92, height: 92, flex: '0 0 92px' }}>
-          <svg
-            width={92}
-            height={92}
-            viewBox="0 0 100 100"
-            style={{ transform: 'rotate(-90deg)' }}
-            role="progressbar"
-            aria-valuenow={Math.round(pct * 100)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          >
-            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--soft)" strokeWidth={9} />
-            <circle
-              cx="50"
-              cy="50"
-              r="42"
-              fill="none"
-              stroke="var(--accent)"
-              strokeWidth={9}
-              strokeLinecap="round"
-              strokeDasharray={RING_CIRCUMFERENCE}
-              strokeDashoffset={RING_CIRCUMFERENCE * (1 - animatedPct)}
-              style={{ transition: 'stroke-dashoffset .7s cubic-bezier(.2,.7,.2,1)' }}
-            />
-          </svg>
-          <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
-            <div style={{ fontSize: 15, fontWeight: 650, letterSpacing: '-.02em', ...tabular }}>
-              {Math.round(pct * 100)}%
-            </div>
-          </div>
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ ...T.bigNumber, ...tabular }}>{formatKcal(done, locale)}</div>
-          <div style={{ marginTop: 7, fontSize: 14.5, color: 'var(--muted)', letterSpacing: '-.005em' }}>
-            {kcalLine}
-          </div>
-          <div style={{ marginTop: 10, fontSize: 13.5, color: kcalHintColor, fontWeight: 600 }}>
-            {kcalHint}
-          </div>
-        </div>
-      </Card>
-
-      {/* Entrada a "Tu semana" (Tarea 13): una fila bajo el anillo, no una
-       * pestaña propia — es un vistazo ocasional, no algo que se consulte
-       * cada día como Hoy o Plan. */}
-      <Pressable
-        onClick={onOpenWeek}
-        scale={0.98}
+      {/*
+       * La rejilla se pinta desde el layout normalizado del miembro
+       * (Tareas 1 y 3): nada que validar aquí, `dashboardLayout` nunca
+       * viene vacío ni con ids/tamaños que este catálogo no reconozca.
+       * Una columna por debajo de 600px, dos desde ahí — nunca tres (ver
+       * el comentario de `columnsFor` en `domain/dashboard.ts`: a tres,
+       * `maxW.today` deja 189px por columna, que desbordan) — y `full`
+       * nunca pasa de dos (`spanFor`).
+       */}
+      <div
         style={{
-          marginTop: 14,
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 10,
-          padding: '13px 16px',
-          background: 'var(--surface)',
-          border: '1px solid var(--line)',
-          borderRadius: radius.list,
-          boxShadow: 'var(--shadow-s)',
+          marginTop: 22,
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: 16,
+          alignItems: 'start',
         }}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, fontWeight: 600 }}>
-          <Icon name="calendar" size={18} strokeWidth={1.8} />
-          {t.yourWeek}
-        </span>
-        <Icon name="chevronRight" size={16} strokeWidth={2.2} />
-      </Pressable>
-
-      <div style={{ marginTop: 26 }}>
-        <SectionHeader label={t.yourDay} trailing={t.yourDayCount(meals.length)} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {meals.map((meal) => {
-            const entry = entryById.get(meal.planEntryId);
-            const recipe = recipeById.get(meal.recipeId);
-            if (!entry || !recipe) return null;
-            return (
-              <MealCard
-                key={meal.planEntryId}
-                meal={meal}
-                entry={entry}
-                recipe={recipe}
-                isMyTurn={turnsEnabled && myMemberId != null && entry.cookMemberId === myMemberId}
-                onOpenRecipe={onOpenRecipe}
-                onCook={onCook}
-                onSetShare={(servings) =>
-                  myMemberId && void setShare(myMemberId, meal.planEntryId, servings)
-                }
-              />
-            );
-          })}
-
-          {/* Una fila por extra, con su nombre y sus kcal — no una tarjeta
-           * genérica con el total: cada extra es una cosa distinta que la
-           * persona registró, no un agregado sin nombre. */}
-          {extraLines.map((extra) => (
-            <div
-              key={extra.id}
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--line)',
-                borderRadius: radius.list,
-                padding: '14px 14px 14px 16px',
-                boxShadow: 'var(--shadow-s)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 14,
-              }}
-            >
-              <div
-                style={{
-                  ...T.cardTitle,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {extra.label}
-              </div>
-              <div style={{ ...tabular, fontSize: 14.5, fontWeight: 650, whiteSpace: 'nowrap' }}>
-                {formatKcal(extra.kcal, locale)} {t.kcal}
-              </div>
-              {/* Hallazgo de revisión: un extra registrado no se podía borrar
-               * — si te equivocabas de cifra, el anillo mentía el resto del
-               * día sin recurso, y encima contaminaba `frequentExtras`. */}
-              <IconButton
-                onClick={() => void handleRemoveExtra(extra.id)}
-                ariaLabel={t.removeExtraAction(extra.label)}
-                disabled={removingExtraId === extra.id}
-                size={height.touch}
-                style={{ color: 'var(--muted)' }}
-              >
-                <Icon name="trash" size={16} strokeWidth={1.9} />
-              </IconButton>
+        {visible.map((item) => {
+          // I1 (revisión final): tres widgets devuelven `null` en estados
+          // normales (`ForYouWidget` sin sugerencias, `CookableNowWidget`
+          // sin nada cocinable, `WhoseTurnWidget` sin comidas hoy). El
+          // envoltorio de celda ocupa su hueco en la rejilla aunque esté
+          // vacío, así que hay que calcular el widget ANTES y no pintar la
+          // celda si sale `null` — nunca pintar un `<div>` vacío que solo
+          // sirva de agujero.
+          const widget = renderWidget(item);
+          if (widget === null) return null;
+          return (
+            <div key={item.id} style={{ gridColumn: `span ${spanFor(item.w, columns)}`, minWidth: 0 }}>
+              {widget}
             </div>
-          ))}
-        </div>
-
-        <Button
-          full
-          size="primary"
-          onClick={onAddIntake}
-          icon={<Icon name="plus" size={16} />}
-          style={{ marginTop: 14, borderRadius: radius.button }}
-        >
-          {t.addWhatIAte}
-        </Button>
+          );
+        })}
       </div>
-
-      {entries.length === 0 && (
-        <Card dashed style={{ marginTop: 20, padding: '36px 24px', textAlign: 'center' }}>
-          <div style={{ fontSize: 18, fontWeight: 650, letterSpacing: '-.02em' }}>{t.emptyToday}</div>
-          <div
-            style={{
-              marginTop: 8,
-              fontSize: 14.5,
-              color: 'var(--muted)',
-              lineHeight: 1.5,
-              maxWidth: 280,
-              margin: '8px auto 0',
-              textWrap: 'pretty',
-            }}
-          >
-            {t.emptyTodayBody}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
-            <Button onClick={onGoPlan} size="header">
-              {t.planWeek}
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {suggestions.length > 0 && (
-        <div style={{ marginTop: 26 }}>
-          <Eyebrow style={{ margin: '0 4px 4px' }}>{t.forYou}</Eyebrow>
-          <div style={{ margin: '0 4px 12px', fontSize: 13, color: 'var(--muted)' }}>{t.forYouHint}</div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-              gap: 12,
-            }}
-          >
-            {suggestions.map(({ recipe: r }) => (
-              <Pressable
-                key={r.id}
-                onClick={() => onOpenRecipe(r.id, r.baseServings)}
-                scale={0.98}
-                style={{
-                  textAlign: 'left',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--line)',
-                  borderRadius: radius.list,
-                  padding: 14,
-                  boxShadow: 'var(--shadow-s)',
-                }}
-              >
-                <div style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: '-.015em', lineHeight: 1.25 }}>
-                  {loc(r.name)}
-                </div>
-                <div style={{ marginTop: 6, fontSize: 13, color: 'var(--muted)', ...tabular }}>
-                  {r.minutes} min · {r.kcalPerServing} {t.kcal}
-                </div>
-              </Pressable>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {cookable.length > 0 && (
-        <div style={{ marginTop: 26 }}>
-          <Eyebrow style={{ margin: '0 4px 12px' }}>{t.cookableNow}</Eyebrow>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-              gap: 12,
-            }}
-          >
-            {cookable.map((r) => (
-              <Pressable
-                key={r.id}
-                onClick={() => onOpenRecipe(r.id, r.baseServings)}
-                scale={0.98}
-                style={{
-                  textAlign: 'left',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--line)',
-                  borderRadius: radius.list,
-                  padding: 14,
-                  boxShadow: 'var(--shadow-s)',
-                }}
-              >
-                <div style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: '-.015em', lineHeight: 1.25 }}>
-                  {loc(r.name)}
-                </div>
-                <div style={{ marginTop: 6, fontSize: 13, color: 'var(--muted)', ...tabular }}>
-                  {r.minutes} min · {r.kcalPerServing} {t.kcal}
-                </div>
-              </Pressable>
-            ))}
-          </div>
-        </div>
-      )}
     </ScreenBody>
-  );
-}
-
-/**
- * Una comida del plan de hoy. Solo cocinada muestra el reparto (segmentado
- * ½/1/1½/2 + "No lo comí"): mientras no se cocine, la ración de nadie está
- * decidida todavía, así que no hay nada que ajustar.
- */
-function MealCard({
-  meal,
-  entry,
-  recipe,
-  isMyTurn,
-  onOpenRecipe,
-  onCook,
-  onSetShare,
-}: {
-  meal: MealLine;
-  entry: PlanEntry;
-  recipe: Recipe;
-  /** Turnos (§10): esta comida está sin cocinar y te toca a ti cocinarla. */
-  isMyTurn: boolean;
-  onOpenRecipe: (recipeId: string, servings: number) => void;
-  onCook: (recipeId: string, servings: number, planEntryId: string | null) => void;
-  onSetShare: (servings: number) => void;
-}) {
-  const { t, locale, loc } = usePrefs();
-  const cooked = meal.cooked;
-  // Lo que aportaría si se cocinara con la ración actual: todavía no cuenta,
-  // de ahí el "+" y el tono apagado.
-  const potentialKcal = recipe.kcalPerServing * meal.share;
-
-  return (
-    <div
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--line)',
-        borderRadius: radius.list,
-        padding: '14px 14px 14px 16px',
-        boxShadow: 'var(--shadow-s)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <Pressable
-          onClick={() => onOpenRecipe(recipe.id, entry.servings)}
-          scale={1}
-          style={{ flex: 1, minWidth: 0, textAlign: 'left' }}
-        >
-          <div
-            style={{
-              ...T.cardTitle,
-              color: cooked ? 'var(--text)' : 'var(--muted)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {loc(recipe.name)}
-          </div>
-          <div style={{ marginTop: 4, fontSize: 13.5, color: 'var(--muted)' }}>
-            {t[meal.slot]} · {cooked ? t.cooked : t.mealNotCooked}
-          </div>
-        </Pressable>
-        <div
-          style={{
-            ...tabular,
-            fontSize: 14.5,
-            fontWeight: 650,
-            color: cooked ? 'var(--text)' : 'var(--muted)',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {cooked ? '' : '+'}
-          {formatKcal(cooked ? meal.kcal : potentialKcal, locale)} {t.kcal}
-        </div>
-      </div>
-
-      {/* Turnos (§10): chip informativo, no cambia nada del bucle plan→cocinar→despensa. */}
-      {!cooked && isMyTurn && (
-        <div style={{ marginTop: 10 }}>
-          <Pill>{t.turnsYours}</Pill>
-        </div>
-      )}
-
-      {/*
-       * Una comida o está por cocinar —y aquí se ofrece cocinarla, el atajo
-       * del bucle plan→cocinar→despensa— o ya se cocinó, y entonces se
-       * ofrece ajustar cuánto se comió. Nunca las dos cosas a la vez.
-       */}
-      {!cooked && (
-        <div style={{ marginTop: 12 }}>
-          <Button
-            size="header"
-            onClick={() => onCook(recipe.id, entry.servings, entry.id)}
-            icon={<Icon name="cook" size={15} />}
-            style={{ height: 40, borderRadius: radius.chip, fontSize: 14.5, fontWeight: 600 }}
-          >
-            {t.cook}
-          </Button>
-        </div>
-      )}
-
-      {cooked && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-          <div
-            role="group"
-            aria-label={loc(recipe.name)}
-            style={{
-              display: 'flex',
-              height: height.stepper,
-              background: 'var(--surface2)',
-              borderRadius: radius.stepper,
-              padding: 3,
-              gap: 2,
-            }}
-          >
-            {SHARE_OPTIONS.map((opt) => {
-              const active = meal.share === opt.value;
-              return (
-                <Pressable
-                  key={opt.value}
-                  onClick={() => onSetShare(opt.value)}
-                  ariaPressed={active}
-                  scale={0.95}
-                  style={{
-                    minWidth: 44,
-                    padding: '0 6px',
-                    borderRadius: radius.stepper - 3,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    background: active ? 'var(--soft)' : 'transparent',
-                    color: active ? 'var(--accent-ink)' : 'var(--text)',
-                  }}
-                >
-                  {opt.label}
-                </Pressable>
-              );
-            })}
-          </div>
-          <Pressable
-            onClick={() => onSetShare(0)}
-            ariaPressed={meal.share === 0}
-            scale={0.96}
-            style={{
-              height: height.stepper,
-              padding: '0 14px',
-              borderRadius: radius.stepper,
-              fontSize: 14,
-              fontWeight: 600,
-              border: `1px solid ${meal.share === 0 ? 'var(--soft2)' : 'var(--line)'}`,
-              background: meal.share === 0 ? 'var(--soft)' : 'var(--surface)',
-              color: meal.share === 0 ? 'var(--accent-ink)' : 'var(--muted)',
-            }}
-          >
-            {t.notEaten}
-          </Pressable>
-        </div>
-      )}
-    </div>
   );
 }
