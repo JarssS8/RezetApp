@@ -26,31 +26,62 @@ const REDUCED_FADE_MS = 120;
  * `onClose` sigue siendo el de verdad, el que le pasó su padre.
  *
  * Si `canClose` deniega el cierre (devuelve `false`, sea sync o vía
- * `Promise`), no hay nada que deshacer: como la animación nunca llegó a
- * arrancar, la hoja sigue exactamente como estaba — interactiva, opaca,
- * sin la capa `position: fixed` quedándose atenuada por encima de toda la
- * app (el fallo que `DashboardEditSheet` disparaba con
- * `prefers-reduced-motion` cuando el guardado fallaba). Si venía de un
- * arrastre soltado más allá del umbral, además se `settle()`-ea de vuelta
- * a `y: 0` — si no, la hoja se queda colgada en la posición arrastrada,
- * con el velo a media opacidad, sin fundido pero igual de inusable.
+ * `Promise`, o si la propia promesa rechaza), no hay nada que deshacer: la
+ * hoja sigue — o vuelve a estar — exactamente como antes de tocar cerrar:
+ * interactiva, opaca, sin la capa `position: fixed` quedándose atenuada
+ * por encima de toda la app (el fallo que `DashboardEditSheet` disparaba
+ * con `prefers-reduced-motion` cuando el guardado fallaba). Mientras se
+ * espera la respuesta — no solo si al final deniega — la hoja ya vuelve a
+ * `y: 0` con `settle()`: sin esto, un arrastre soltado más allá del
+ * umbral se quedaba colgado en la posición arrastrada, con el velo a
+ * media opacidad, mientras el guardado seguía en vuelo (tercera ronda de
+ * revisión final) — la única de las cuatro vías de cierre en la que
+ * "sigue como estaba" no era del todo cierto. Si se aprueba, se cancela
+ * ese `settle()` (`stopMotion()`) antes de arrancar la animación de
+ * salida de verdad, para que no queden dos muelles compitiendo por `y`.
  *
  * `closingRef` (segunda ronda de revisión final): `dismiss` no se puede
  * reentrar mientras un cierre sigue en curso — ni desde otra vía (botón,
- * velo, Escape, otro arrastre) ni desde la misma. Antes, `dismiss` siempre
- * empezaba por `stopMotion()`, que cancela el muelle/temporizador de
- * salida SIN llamar a `onClose`: un segundo Escape mientras la animación
- * de salida seguía en vuelo (~300ms; 120ms con movimiento reducido) la
- * cancelaba a medias y volvía a consultar `canClose`, que en
- * `DashboardEditSheet` devolvía `false` porque su guarda local de
- * reentrada se había quedado en `true` — desde ahí ningún cierre volvía a
- * funcionar, con la capa `position: fixed; inset: 0; zIndex: 80` encima de
- * la app hasta recargar. La guarda va aquí, en el componente compartido,
- * no en cada hoja: es `useSheetDrag`/`Sheet` quien asume que `onClose`
- * siempre desmonta, así que es aquí donde hay que impedir un segundo
- * intento mientras el primero sigue abierto. Se libera de nuevo en cuanto
- * `canClose` deniega (para poder reintentar) o nunca, si el cierre llega a
+ * velo, Escape) ni desde la misma. Antes, `dismiss` siempre empezaba por
+ * `stopMotion()`, que cancela el muelle/temporizador de salida SIN llamar
+ * a `onClose`: un segundo Escape mientras la animación de salida seguía
+ * en vuelo (~300ms; 120ms con movimiento reducido) la cancelaba a medias
+ * y volvía a consultar `canClose`, que en `DashboardEditSheet` devolvía
+ * `false` porque su guarda local de reentrada se había quedado en `true`
+ * — desde ahí ningún cierre volvía a funcionar, con la capa `position:
+ * fixed; inset: 0; zIndex: 80` encima de la app hasta recargar. La guarda
+ * va aquí, en el componente compartido, no en cada hoja: es
+ * `useSheetDrag`/`Sheet` quien asume que `onClose` siempre desmonta, así
+ * que es aquí donde hay que impedir un segundo intento mientras el
+ * primero sigue abierto. Se libera de nuevo en cuanto `canClose` deniega
+ * o rechaza (para poder reintentar) o nunca, si el cierre llega a
  * completarse (la hoja se desmonta con `onClose`, así que ya no importa).
+ *
+ * Tercera ronda — dos ajustes más sobre `closingRef`:
+ *
+ * - `void Promise.resolve(canClose()).then(...)` no tenía `.catch`: si
+ *   `canClose` (o su promesa) rechazaba en vez de devolver `false`,
+ *   `closingRef` se quedaba en `true` para siempre y ni Escape, ni velo,
+ *   ni botón, ni arrastre volvían a funcionar — una trampa para el
+ *   siguiente `canClose` que no envuelva su única espera en `try/catch`
+ *   (hoy `DashboardEditSheet.canClose` sí lo hace, así que el caso no se
+ *   alcanza, pero el contrato de `useSheetDrag` no debe depender de que
+ *   quien lo use lo haga bien).
+ * - `onPointerDown` volvía a bloquearse igual mientras `closingRef` fuera
+ *   `true`, lo que impedía agarrar el asa durante la animación de salida
+ *   — al contrario de lo que dice el párrafo de arriba ("Interrumpible en
+ *   pleno vuelo"), una propiedad deliberada del gesto. Se recupera:
+ *   agarrar el asa cancela cualquier cierre automático en curso (como
+ *   siempre lo hizo `stopMotion()`) y además libera `closingRef`, para que
+ *   un intento de cerrar posterior no se quede bloqueado por un cierre
+ *   que ya se interrumpió físicamente. (Excepción no cubierta, y dejada
+ *   anotada a propósito: si se agarra el asa MIENTRAS `canClose` sigue
+ *   esperando red — antes de que exista ninguna animación que
+ *   interrumpir — esa promesa pendiente no se cancela; si resuelve
+ *   `true` más tarde, `runCloseAnimation` arrancará con la velocidad del
+ *   gesto ORIGINAL, pudiendo pisar un arrastre nuevo ya en marcha. Es un
+ *   caso extremo — guardado en red resolviendo justo mientras se re-agarra
+ *   el asa — no cubierto por esta ronda.)
  */
 export function useSheetDrag(onClose: () => void, canClose?: () => boolean | Promise<boolean>) {
   const [y, setY] = useState(0);
@@ -109,28 +140,42 @@ export function useSheetDrag(onClose: () => void, canClose?: () => boolean | Pro
         runCloseAnimation(velocity);
         return;
       }
-      // No se toca `fading`/`y` mientras se espera la respuesta: si deniega,
-      // no hay nada que revertir porque nada llegó a cambiar (salvo, si
-      // venía de un arrastre, devolver `y` a 0 — ver `settle` más abajo).
-      void Promise.resolve(canClose()).then((allowed) => {
-        if (allowed) {
-          runCloseAnimation(velocity);
-          return;
-        }
-        closingRef.current = false;
-        settle(velocity);
-      });
+      // Vuelve a reposo MIENTRAS se espera la respuesta, no solo si al
+      // final deniega — la única forma de que las cuatro vías de cierre
+      // (botón, velo, Escape, arrastre) dejen la hoja "exactamente como
+      // estaba" durante la espera, no solo al final de ella.
+      settle(velocity);
+      void Promise.resolve(canClose())
+        .then((allowed) => {
+          if (!allowed) {
+            closingRef.current = false;
+            return;
+          }
+          // Cancela el muelle de `settle` (si seguía en marcha) antes de
+          // arrancar el de salida — dos muelles a la vez pelearían por `y`.
+          stopMotion();
+          runCloseAnimation(0);
+        })
+        .catch(() => {
+          // `canClose` rechazó en vez de resolver `false`: mismo trato que
+          // un veto — no dejar `closingRef` atascado para siempre.
+          closingRef.current = false;
+        });
     },
     [canClose, runCloseAnimation, settle, stopMotion],
   );
 
   const onPointerDown = useCallback(
     (event: React.PointerEvent) => {
-      // Mismo motivo que la reentrada de `dismiss`: agarrar el asa mientras
-      // un cierre ya está en curso podría cancelar (vía `stopMotion`, más
-      // abajo) el muelle/temporizador de salida sin que `onClose` llegue a
-      // llamarse, dejando `closingRef` atascado en `true` para siempre.
-      if (closingRef.current) return;
+      // Agarrar el asa interrumpe cualquier cierre automático en curso —
+      // "Interrumpible en pleno vuelo" de verdad, no solo mientras no hay
+      // ningún cierre en marcha. `stopMotion()` (más abajo) ya cancela el
+      // muelle/temporizador de salida; liberar `closingRef` aquí es lo que
+      // permite que un intento de cerrar POSTERIOR no se quede bloqueado
+      // por uno que ya se canceló a mano. Ver el comentario de arriba
+      // sobre el caso extremo que esto no cubre (`canClose` todavía
+      // esperando red cuando se re-agarra el asa).
+      closingRef.current = false;
       event.preventDefault();
       stopMotion();
 
