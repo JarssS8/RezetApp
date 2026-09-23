@@ -362,6 +362,8 @@ function MainApp({
             onOpenSettings={() => setSheet({ kind: 'settings' })}
             onAddIntake={() => setSheet({ kind: 'intakeAdd' })}
             onOpenWeek={() => setPush({ kind: 'week' })}
+            onOpenPantry={() => setTab('pantry')}
+            onOpenShopping={() => setSheet({ kind: 'shopping' })}
             onToast={show}
           />
         )}

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
+import { columnsFor, spanFor, visibleWidgets, type WidgetItem } from '../domain/dashboard';
 import { longDate, todayKey } from '../domain/dates';
 import { entriesOfDay } from '../domain/shopping';
 import { rankSuggestions } from '../domain/suggestions';
 import { formatKcal } from '../domain/units';
 import type { MealLine } from '../domain/intake';
+import { useIsMedium } from '../hooks/useMediaQuery';
 import { prefersReducedMotion } from '../motion/motion';
 import type { FrequentExtra } from '../types';
 import { IconButton } from '../ui/Button';
@@ -32,6 +34,8 @@ export function Today({
   onOpenSettings,
   onAddIntake,
   onOpenWeek,
+  onOpenPantry,
+  onOpenShopping,
   onToast,
   isWide,
 }: {
@@ -43,6 +47,10 @@ export function Today({
   onAddIntake: () => void;
   /** Abre "Tu semana" (Tarea 13): la fila bajo el anillo. */
   onOpenWeek: () => void;
+  /** Abre la pestaña Despensa, desde el widget "Caduca pronto". */
+  onOpenPantry: () => void;
+  /** Abre la hoja de Compra, desde el widget "Para la semana". */
+  onOpenShopping: () => void;
   /** Toast de error al borrar un extra (hallazgo de revisión: antes no se podía). */
   onToast: (message: string) => void;
   isWide: boolean;
@@ -66,6 +74,7 @@ export function Today({
     frequentExtras,
     addExtra,
     needsForWeek,
+    dashboardLayout,
   } = useData();
   // Turnos (§10): mientras estén apagados, el chip "Te toca" no existe.
   const turnsEnabled = household?.turnsEnabled ?? false;
@@ -205,6 +214,96 @@ export function Today({
         : `${t.kcalLeft} ${formatKcal(kcalTarget - done, locale)} ${t.kcal}`;
   const kcalHintColor = over > 0 ? 'var(--warn-ink)' : 'var(--accent-ink)';
 
+  const columns = columnsFor(useIsMedium(), isWide);
+  const visible = useMemo(() => visibleWidgets(dashboardLayout), [dashboardLayout]);
+
+  // Un `switch` exhaustivo a propósito: el día que se añada un widget al
+  // catálogo (`domain/dashboard.ts`) y se olvide de pintarlo aquí, esto
+  // tiene que romper `tsc`, no dejar la rejilla a medias en silencio.
+  const renderWidget = (item: WidgetItem) => {
+    switch (item.id) {
+      case 'kcal_ring':
+        return (
+          <KcalRingWidget
+            pct={pct}
+            animatedPct={animatedPct}
+            done={done}
+            kcalLine={kcalLine}
+            kcalHint={kcalHint}
+            kcalHintColor={kcalHintColor}
+            locale={locale}
+          />
+        );
+      case 'today_meals':
+        return (
+          <TodayMealsWidget
+            meals={meals}
+            entryById={entryById}
+            recipeById={recipeById}
+            extraLines={extraLines}
+            turnsEnabled={turnsEnabled}
+            myMemberId={myMemberId}
+            removingExtraId={removingExtraId}
+            hasEntries={entries.length > 0}
+            locale={locale}
+            onOpenRecipe={onOpenRecipe}
+            onCook={onCook}
+            onSetShare={setShare}
+            onRemoveExtra={handleRemoveExtra}
+            onAddIntake={onAddIntake}
+            onGoPlan={onGoPlan}
+          />
+        );
+      case 'week_progress':
+        return <WeekProgressWidget onOpenWeek={onOpenWeek} label={t.yourWeek} />;
+      case 'quick_log':
+        return (
+          <QuickLogWidget
+            extras={myMemberId ? frequentExtras(myMemberId) : []}
+            onLog={(extra) => void handleLogFrequent(extra)}
+            label={t.widgetQuickLog}
+            emptyLabel={t.widgetQuickLogEmpty}
+          />
+        );
+      case 'whose_turn':
+        return (
+          <WhoseTurnWidget rows={whoseTurnRows} nobodyLabel={t.widgetWhoseTurnNobody} label={t.widgetWhoseTurn} />
+        );
+      case 'for_you':
+        return (
+          <ForYouWidget suggestions={suggestions} onOpenRecipe={onOpenRecipe} label={t.forYou} hint={t.forYouHint} />
+        );
+      case 'cookable_now':
+        return <CookableNowWidget recipes={cookable} onOpenRecipe={onOpenRecipe} label={t.cookableNow} />;
+      case 'expiring_soon':
+        return (
+          <ExpiringSoonWidget
+            items={expiringSoon}
+            onOpenPantry={onOpenPantry}
+            label={t.widgetExpiring}
+            emptyLabel={t.widgetExpiringEmpty}
+            formatDays={t.widgetExpiringIn}
+          />
+        );
+      case 'shopping_summary':
+        return (
+          <ShoppingSummaryWidget
+            count={shoppingNeedsCount}
+            onOpenShopping={onOpenShopping}
+            label={t.widgetShopping}
+            countLabel={t.widgetShoppingCount}
+            emptyLabel={t.widgetShoppingEmpty}
+          />
+        );
+      default: {
+        // Exhaustividad real: un id nuevo en el catálogo que no se pinte
+        // aquí rompe `tsc` (noUnusedLocals incluido), no la pantalla.
+        const _never: never = item.id;
+        return _never;
+      }
+    }
+  };
+
   return (
     <ScreenBody maxWidth={maxW.today} label="Hoy">
       <ScreenHeader
@@ -219,72 +318,27 @@ export function Today({
         }
       />
 
-      <KcalRingWidget
-        pct={pct}
-        animatedPct={animatedPct}
-        done={done}
-        kcalLine={kcalLine}
-        kcalHint={kcalHint}
-        kcalHintColor={kcalHintColor}
-        locale={locale}
-      />
-
-      <WeekProgressWidget onOpenWeek={onOpenWeek} label={t.yourWeek} />
-
-      <TodayMealsWidget
-        meals={meals}
-        entryById={entryById}
-        recipeById={recipeById}
-        extraLines={extraLines}
-        turnsEnabled={turnsEnabled}
-        myMemberId={myMemberId}
-        removingExtraId={removingExtraId}
-        hasEntries={entries.length > 0}
-        locale={locale}
-        onOpenRecipe={onOpenRecipe}
-        onCook={onCook}
-        onSetShare={setShare}
-        onRemoveExtra={handleRemoveExtra}
-        onAddIntake={onAddIntake}
-        onGoPlan={onGoPlan}
-      />
-
-      <ForYouWidget suggestions={suggestions} onOpenRecipe={onOpenRecipe} label={t.forYou} hint={t.forYouHint} />
-
-      <CookableNowWidget recipes={cookable} onOpenRecipe={onOpenRecipe} label={t.cookableNow} />
-
       {/*
-       * Los cuatro widgets nuevos del catálogo (Tarea 5), montados aquí solo
-       * para comprobar que compilan con datos reales — todavía no tienen
-       * sitio en una rejilla (Tarea 6 la trae) ni una navegación real a
-       * Despensa/Compra (`onOpenPantry`/`onOpenShopping` son marcadores de
-       * posición a propósito: esa navegación se conecta desde `App.tsx`
-       * cuando la Tarea 6 recoloque estos widgets).
+       * La rejilla se pinta desde el layout normalizado del miembro
+       * (Tareas 1 y 3): nada que validar aquí, `dashboardLayout` nunca
+       * viene vacío ni con ids/tamaños que este catálogo no reconozca.
+       * Una columna por debajo de 600px, dos hasta 900, tres desde ahí —
+       * `full` nunca pasa de dos (`spanFor`).
        */}
-      <div style={{ marginTop: 26, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <QuickLogWidget
-          extras={myMemberId ? frequentExtras(myMemberId) : []}
-          onLog={(extra) => void handleLogFrequent(extra)}
-          label={t.widgetQuickLog}
-          emptyLabel={t.widgetQuickLogEmpty}
-        />
-        <ExpiringSoonWidget
-          items={expiringSoon}
-          onOpenPantry={() => {}}
-          label={t.widgetExpiring}
-          emptyLabel={t.widgetExpiringEmpty}
-          formatDays={t.widgetExpiringIn}
-        />
-        <ShoppingSummaryWidget
-          count={shoppingNeedsCount}
-          onOpenShopping={() => {}}
-          label={t.widgetShopping}
-          countLabel={t.widgetShoppingCount}
-          emptyLabel={t.widgetShoppingEmpty}
-        />
-        {turnsEnabled && (
-          <WhoseTurnWidget rows={whoseTurnRows} nobodyLabel={t.widgetWhoseTurnNobody} label={t.widgetWhoseTurn} />
-        )}
+      <div
+        style={{
+          marginTop: 22,
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: 16,
+          alignItems: 'start',
+        }}
+      >
+        {visible.map((item) => (
+          <div key={item.id} style={{ gridColumn: `span ${spanFor(item.w, columns)}`, minWidth: 0 }}>
+            {renderWidget(item)}
+          </div>
+        ))}
       </div>
     </ScreenBody>
   );

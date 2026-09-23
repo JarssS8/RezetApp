@@ -145,4 +145,17 @@ describe('rejilla', () => {
     expect(spanFor('full', 3)).toBe(2);
     expect(spanFor('half', 3)).toBe(1);
   });
+
+  it('el orden no depende de las columnas: en móvil el tamaño no se nota, el orden sí', () => {
+    const layout: WidgetItem[] = [
+      { id: 'kcal_ring', w: 'half', on: true },
+      { id: 'today_meals', w: 'full', on: true },
+      { id: 'quick_log', w: 'half', on: true },
+    ];
+    const ids = layout.map((i) => i.id);
+    for (const cols of [1, 2, 3] as const) {
+      expect(visibleWidgets(layout).map((i) => i.id)).toEqual(ids);
+      expect(spanFor(layout[1]!.w, cols)).toBe(cols === 1 ? 1 : 2);
+    }
+  });
 });
