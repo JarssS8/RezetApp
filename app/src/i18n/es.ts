@@ -124,6 +124,30 @@ export const es = {
   widgetWhoseTurnNobody: 'Nadie asignado hoy',
   widgetCustomize: 'Personalizar',
 
+  // Hoja "Personalizar Hoy" (Tarea 7): edita una copia local del layout y
+  // guarda una sola vez al cerrar — ver `DashboardEditSheet.tsx`.
+  dashboardTitle: 'Personalizar Hoy',
+  dashboardHint: 'Enciende lo que quieras ver y ponlo en el orden que prefieras.',
+  dashboardUp: (name: string) => `Subir ${name}`,
+  dashboardDown: (name: string) => `Bajar ${name}`,
+  dashboardShow: (name: string) => `Mostrar ${name}`,
+  dashboardSizeFull: 'Ancho',
+  dashboardSizeHalf: 'Media',
+  dashboardMoved: (name: string, pos: number, total: number) =>
+    `${name}, posición ${pos} de ${total}`,
+  dashboardReset: 'Volver al orden inicial',
+  widgetName: {
+    kcal_ring: 'Tu anillo',
+    today_meals: 'Tu día',
+    quick_log: 'Registro rápido',
+    week_progress: 'Tu semana',
+    cookable_now: 'Puedes cocinarlo ya',
+    expiring_soon: 'Caduca pronto',
+    shopping_summary: 'Para la semana',
+    for_you: 'Para ti',
+    whose_turn: 'A quién le toca',
+  },
+
   kcalOf: 'de',
   kcal: 'kcal',
   kcalLeft: 'Te quedan',

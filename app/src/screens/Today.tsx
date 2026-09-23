@@ -36,6 +36,7 @@ export function Today({
   onOpenWeek,
   onOpenPantry,
   onOpenShopping,
+  onOpenDashboardEdit,
   onToast,
   isWide,
 }: {
@@ -51,6 +52,8 @@ export function Today({
   onOpenPantry: () => void;
   /** Abre la hoja de Compra, desde el widget "Para la semana". */
   onOpenShopping: () => void;
+  /** Abre el modo "Personalizar" (Tarea 7): reordenar, encender/apagar y cambiar tamaño. */
+  onOpenDashboardEdit: () => void;
   /** Toast de error al borrar un extra (hallazgo de revisión: antes no se podía). */
   onToast: (message: string) => void;
   isWide: boolean;
@@ -310,11 +313,22 @@ export function Today({
         eyebrow={longDate(new Date(), locale)}
         title={t.today}
         trailing={
-          !isWide && (
-            <IconButton onClick={onOpenSettings} ariaLabel={t.settings} style={{ color: 'var(--muted)' }}>
-              <Icon name="sun" size={19} strokeWidth={1.8} />
+          <div style={{ display: 'flex', gap: 6 }}>
+            {/*
+             * El de ajustes solo se pinta en pantalla estrecha (en ancho
+             * vive en la barra lateral); el de personalizar se pinta
+             * SIEMPRE — en ancho, con la rejilla de varias columnas a la
+             * vista, es donde más se nota el orden.
+             */}
+            <IconButton onClick={onOpenDashboardEdit} ariaLabel={t.widgetCustomize} style={{ color: 'var(--muted)' }}>
+              <Icon name="edit" size={18} strokeWidth={1.8} />
             </IconButton>
-          )
+            {!isWide && (
+              <IconButton onClick={onOpenSettings} ariaLabel={t.settings} style={{ color: 'var(--muted)' }}>
+                <Icon name="sun" size={19} strokeWidth={1.8} />
+              </IconButton>
+            )}
+          </div>
         }
       />
 

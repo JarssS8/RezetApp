@@ -124,6 +124,28 @@ export const en: Dictionary = {
   widgetWhoseTurnNobody: 'Nobody assigned today',
   widgetCustomize: 'Customize',
 
+  // "Customize Today" sheet (Task 7).
+  dashboardTitle: 'Customize Today',
+  dashboardHint: 'Turn on what you want to see and put it in the order you like.',
+  dashboardUp: (name: string) => `Move ${name} up`,
+  dashboardDown: (name: string) => `Move ${name} down`,
+  dashboardShow: (name: string) => `Show ${name}`,
+  dashboardSizeFull: 'Wide',
+  dashboardSizeHalf: 'Half',
+  dashboardMoved: (name: string, pos: number, total: number) => `${name}, position ${pos} of ${total}`,
+  dashboardReset: 'Back to the original order',
+  widgetName: {
+    kcal_ring: 'Your ring',
+    today_meals: 'Your day',
+    quick_log: 'Quick log',
+    week_progress: 'Your week',
+    cookable_now: 'Ready to cook',
+    expiring_soon: 'Expiring soon',
+    shopping_summary: 'For the week',
+    for_you: 'For you',
+    whose_turn: 'Whose turn',
+  },
+
   kcalOf: 'of',
   kcal: 'kcal',
   kcalLeft: 'Left today',
