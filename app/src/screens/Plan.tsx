@@ -55,7 +55,10 @@ export function Plan({
   const cycleCookMember = (entry: PlanEntry) => {
     const idx = cookCycle.indexOf(entry.cookMemberId);
     const next = cookCycle[(idx + 1) % cookCycle.length] ?? null;
-    void setCookMember(entry.id, next).catch(() => onToast(t.memberActionError));
+    const nextName = activeMembers.find((m) => m.id === next)?.displayName ?? t.turnsNobody;
+    void setCookMember(entry.id, next)
+      .then(() => onToast(`${t.turnsAssign}: ${nextName}`))
+      .catch(() => onToast(t.memberActionError));
   };
 
   const { drag, start } = useSlotDrag((recipeId, slotKey) => {
@@ -337,7 +340,17 @@ export function Plan({
                                 gap: 6,
                               }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  // El área táctil de "quién cocina" (abajo) desborda 9px hacia
+                                  // arriba; esta capa se queda con sus propios clics.
+                                  position: 'relative',
+                                  zIndex: 1,
+                                }}
+                              >
                                 <Pressable
                                   onClick={() => onOpenRecipe(entry.recipeId, entry.servings)}
                                   scale={1}
@@ -396,7 +409,12 @@ export function Plan({
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 6,
-                                    height: 26,
+                                    // 44px de área táctil (README §8) ocupando 26px de alto:
+                                    // los márgenes negativos la extienden sobre el relleno de
+                                    // la tarjeta, que no tiene nada pulsable.
+                                    height: 44,
+                                    marginTop: -9,
+                                    marginBottom: -9,
                                     padding: '0 6px 0 0',
                                     borderRadius: radius.chip,
                                     alignSelf: 'flex-start',
