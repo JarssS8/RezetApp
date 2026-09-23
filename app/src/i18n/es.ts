@@ -110,6 +110,20 @@ export const es = {
   forYou: 'Para ti',
   forYouHint: 'Según tus gustos, tu despensa y cuánto hace que no la cocinas.',
 
+  // Los cuatro widgets nuevos del dashboard (Tarea 5, catálogo §7.1).
+  widgetQuickLog: 'Registro rápido',
+  widgetQuickLogEmpty: 'Lo que registres a menudo aparecerá aquí.',
+  widgetExpiring: 'Caduca pronto',
+  widgetExpiringEmpty: 'Nada a punto de caducar.',
+  widgetExpiringIn: (d: number) =>
+    d < 0 ? 'Caducado' : d === 0 ? 'Hoy' : d === 1 ? 'Mañana' : `En ${d} días`,
+  widgetShopping: 'Para la semana',
+  widgetShoppingCount: (n: number) => (n === 1 ? 'Falta 1 cosa' : `Faltan ${n} cosas`),
+  widgetShoppingEmpty: 'No falta nada.',
+  widgetWhoseTurn: 'A quién le toca',
+  widgetWhoseTurnNobody: 'Nadie asignado hoy',
+  widgetCustomize: 'Personalizar',
+
   kcalOf: 'de',
   kcal: 'kcal',
   kcalLeft: 'Te quedan',

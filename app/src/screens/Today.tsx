@@ -7,16 +7,21 @@ import { rankSuggestions } from '../domain/suggestions';
 import { formatKcal } from '../domain/units';
 import type { MealLine } from '../domain/intake';
 import { prefersReducedMotion } from '../motion/motion';
+import type { FrequentExtra } from '../types';
 import { IconButton } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { ScreenBody, ScreenHeader } from '../ui/Fields';
 import { maxW } from '../ui/tokens';
 import {
   CookableNowWidget,
+  ExpiringSoonWidget,
   ForYouWidget,
   KcalRingWidget,
+  QuickLogWidget,
+  ShoppingSummaryWidget,
   TodayMealsWidget,
   WeekProgressWidget,
+  WhoseTurnWidget,
 } from './today/Widgets';
 
 /** Hoy responde una pregunta: qué toca comer y qué hago con ello. */
@@ -42,7 +47,7 @@ export function Today({
   onToast: (message: string) => void;
   isWide: boolean;
 }) {
-  const { t, locale } = usePrefs();
+  const { t, locale, loc } = usePrefs();
   const {
     plan,
     recipes,
@@ -56,6 +61,11 @@ export function Today({
     setShare,
     removeExtra,
     recipePrefsByRecipe,
+    pantry,
+    ingredientById,
+    frequentExtras,
+    addExtra,
+    needsForWeek,
   } = useData();
   // Turnos (§10): mientras estén apagados, el chip "Te toca" no existe.
   const turnsEnabled = household?.turnsEnabled ?? false;
@@ -76,6 +86,19 @@ export function Today({
     }
   };
 
+  // "Registro rápido" (widget nuevo): registra un extra ya conocido sin
+  // abrir `IntakeAddSheet`. Con `await`/`catch` a propósito — un registro
+  // que falla en silencio deja el anillo mintiendo el resto del día (mismo
+  // hallazgo de revisión que `handleRemoveExtra` de arriba).
+  const handleLogFrequent = async (extra: FrequentExtra) => {
+    if (!myMemberId) return;
+    try {
+      await addExtra({ memberId: myMemberId, date: today, label: extra.label, kcal: extra.kcal, source: 'manual' });
+    } catch {
+      onToast(t.memberActionError);
+    }
+  };
+
   // El anillo compara contra el objetivo PROPIO cuando existe (control por
   // persona, Tarea de fundación de miembro), cayendo al del hogar si no hay
   // sesión de miembro (demo, o carga inicial antes de que lleguen los
@@ -84,6 +107,40 @@ export function Today({
 
   const entries = useMemo(() => entriesOfDay(today, plan), [today, plan]);
   const entryById = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
+
+  // "Caduca pronto" (widget nuevo): `PantryItem.expiresInDays` ya trae la
+  // cuenta hecha, aquí solo se filtra a 7 días o menos y se ordena — nada
+  // de fechas ni restas, eso vive en el tipo y en quien lo escribe.
+  const expiringSoon = useMemo(
+    () =>
+      pantry
+        .filter((p): p is typeof p & { expiresInDays: number } => p.expiresInDays !== null && p.expiresInDays <= 7)
+        .sort((a, b) => a.expiresInDays - b.expiresInDays)
+        .map((p) => {
+          const ing = ingredientById.get(p.ingredientId);
+          return { id: p.id, name: ing ? ing.name[locale] || ing.name.es : '', days: p.expiresInDays };
+        }),
+    [pantry, ingredientById, locale],
+  );
+
+  // "Para la semana" (widget nuevo): los mismos argumentos que usa hoy
+  // `ShoppingSheet` para la semana actual — `needsForWeek` es un envoltorio
+  // de `domain/shopping.ts::shoppingNeeds`, nada calculado aquí.
+  const shoppingNeedsCount = needsForWeek(0).length;
+
+  // "A quién le toca" (widget nuevo): quien cocina cada comida de hoy, ya
+  // en `plan_entry.cook_member_id` — ni una fecha ni una comparación nueva.
+  const whoseTurnRows = useMemo(
+    () =>
+      entries.map((entry) => {
+        const recipe = recipeById.get(entry.recipeId);
+        const member = entry.cookMemberId
+          ? (members.find((m) => m.id === entry.cookMemberId && m.deletedAt === null) ?? null)
+          : null;
+        return { slot: entry.slot, recipeName: recipe ? loc(recipe.name) : '', member };
+      }),
+    [entries, recipeById, members, loc],
+  );
 
   // Lo que lleva comido HOY es lo que dice el registro de esta persona, no
   // una suma de raciones de plato — ver `domain/intake.ts`. Calcularlo aquí
@@ -195,6 +252,40 @@ export function Today({
       <ForYouWidget suggestions={suggestions} onOpenRecipe={onOpenRecipe} label={t.forYou} hint={t.forYouHint} />
 
       <CookableNowWidget recipes={cookable} onOpenRecipe={onOpenRecipe} label={t.cookableNow} />
+
+      {/*
+       * Los cuatro widgets nuevos del catálogo (Tarea 5), montados aquí solo
+       * para comprobar que compilan con datos reales — todavía no tienen
+       * sitio en una rejilla (Tarea 6 la trae) ni una navegación real a
+       * Despensa/Compra (`onOpenPantry`/`onOpenShopping` son marcadores de
+       * posición a propósito: esa navegación se conecta desde `App.tsx`
+       * cuando la Tarea 6 recoloque estos widgets).
+       */}
+      <div style={{ marginTop: 26, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <QuickLogWidget
+          extras={myMemberId ? frequentExtras(myMemberId) : []}
+          onLog={(extra) => void handleLogFrequent(extra)}
+          label={t.widgetQuickLog}
+          emptyLabel={t.widgetQuickLogEmpty}
+        />
+        <ExpiringSoonWidget
+          items={expiringSoon}
+          onOpenPantry={() => {}}
+          label={t.widgetExpiring}
+          emptyLabel={t.widgetExpiringEmpty}
+          formatDays={t.widgetExpiringIn}
+        />
+        <ShoppingSummaryWidget
+          count={shoppingNeedsCount}
+          onOpenShopping={() => {}}
+          label={t.widgetShopping}
+          countLabel={t.widgetShoppingCount}
+          emptyLabel={t.widgetShoppingEmpty}
+        />
+        {turnsEnabled && (
+          <WhoseTurnWidget rows={whoseTurnRows} nobodyLabel={t.widgetWhoseTurnNobody} label={t.widgetWhoseTurn} />
+        )}
+      </div>
     </ScreenBody>
   );
 }

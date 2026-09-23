@@ -11,13 +11,14 @@ import { usePrefs } from '../../store/prefs';
 import { formatKcal } from '../../domain/units';
 import type { IntakeExtraLine, MealLine } from '../../domain/intake';
 import type { Suggestion } from '../../domain/suggestions';
+import { Avatar } from '../../ui/Avatar';
 import { Button, IconButton } from '../../ui/Button';
 import { Card, Eyebrow, SectionHeader } from '../../ui/Card';
-import { Pill } from '../../ui/Chip';
+import { Chip, Pill } from '../../ui/Chip';
 import { Icon } from '../../ui/Icon';
 import { Pressable } from '../../ui/Pressable';
 import { height, radius, tabular, text as T } from '../../ui/tokens';
-import type { Locale, MemberId, PlanEntry, Recipe } from '../../types';
+import type { FrequentExtra, Locale, MealSlot, Member, MemberId, PlanEntry, Recipe } from '../../types';
 
 const RING_CIRCUMFERENCE = 263.9;
 
@@ -527,5 +528,275 @@ function MealCard({
         </div>
       )}
     </div>
+  );
+}
+
+/** Texto de vacío compartido por los widgets nuevos: un hueco en blanco no es una opción. */
+function WidgetEmpty({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        background: 'var(--surface)',
+        border: '1px dashed var(--line)',
+        borderRadius: radius.list,
+        padding: '18px 16px',
+        textAlign: 'center',
+        fontSize: 13.5,
+        color: 'var(--muted)',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+const QUICK_LOG_LIMIT = 4;
+
+/**
+ * "Registro rápido": hasta cuatro de los extras que esta persona repite más
+ * (`frequentExtrasOf`, `domain/intake.ts`), como chips que registran de un
+ * toque — sin abrir `IntakeAddSheet`. `onLog` es responsabilidad de quien
+ * monta el widget: tiene que ir con `await`/`catch`, porque un registro que
+ * falla en silencio deja el anillo de kcal mintiendo el resto del día.
+ */
+export function QuickLogWidget({
+  extras,
+  onLog,
+  label,
+  emptyLabel,
+}: {
+  extras: FrequentExtra[];
+  onLog: (extra: FrequentExtra) => void;
+  label: string;
+  emptyLabel: string;
+}) {
+  const { t, locale } = usePrefs();
+  const shown = extras.slice(0, QUICK_LOG_LIMIT);
+  return (
+    <WidgetCard label={label}>
+      {shown.length === 0 ? (
+        <WidgetEmpty>{emptyLabel}</WidgetEmpty>
+      ) : (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {shown.map((extra) => (
+            <Chip
+              key={`${extra.label}\u0000${extra.kcal}`}
+              active={false}
+              onClick={() => onLog(extra)}
+              label={`${extra.label} · ${formatKcal(extra.kcal, locale)} ${t.kcal}`}
+            />
+          ))}
+        </div>
+      )}
+    </WidgetCard>
+  );
+}
+
+const EXPIRING_LIMIT = 5;
+
+/**
+ * "Caduca pronto": hasta cinco filas de despensa que caducan en 7 días o
+ * menos, ya filtradas y ordenadas por quien monta el widget desde
+ * `PantryItem.expiresInDays` — este componente solo las pinta. Un plazo
+ * vencido (negativo o cero) va en `--warn-ink` (texto), nunca en `--warn`
+ * (que es relleno): mezclarlos rompe el contraste 4.5:1.
+ */
+export function ExpiringSoonWidget({
+  items,
+  onOpenPantry,
+  label,
+  emptyLabel,
+  formatDays,
+}: {
+  items: { id: string; name: string; days: number }[];
+  onOpenPantry: () => void;
+  label: string;
+  emptyLabel: string;
+  formatDays: (d: number) => string;
+}) {
+  const shown = items.slice(0, EXPIRING_LIMIT);
+  return (
+    <WidgetCard label={label}>
+      {shown.length === 0 ? (
+        <WidgetEmpty>{emptyLabel}</WidgetEmpty>
+      ) : (
+        <Pressable
+          onClick={onOpenPantry}
+          scale={0.99}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            width: '100%',
+            textAlign: 'left',
+            background: 'var(--surface)',
+            border: '1px solid var(--line)',
+            borderRadius: radius.list,
+            padding: 14,
+            boxShadow: 'var(--shadow-s)',
+          }}
+        >
+          {shown.map((item) => (
+            <div
+              key={item.id}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+            >
+              <div
+                style={{
+                  ...T.cardTitle,
+                  fontSize: 14.5,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {item.name}
+              </div>
+              <div
+                style={{
+                  ...tabular,
+                  fontSize: 13,
+                  fontWeight: 650,
+                  color: item.days <= 0 ? 'var(--warn-ink)' : 'var(--muted)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {formatDays(item.days)}
+              </div>
+            </div>
+          ))}
+        </Pressable>
+      )}
+    </WidgetCard>
+  );
+}
+
+/**
+ * "Para la semana": una línea con lo que falta por comprar. El número lo
+ * calcula `domain/shopping.ts::shoppingNeeds` (vía `needsForWeek` del
+ * `Store`, los mismos argumentos que usa `ShoppingSheet`) — este componente
+ * solo recibe la cuenta ya hecha.
+ */
+export function ShoppingSummaryWidget({
+  count,
+  onOpenShopping,
+  label,
+  countLabel,
+  emptyLabel,
+}: {
+  count: number;
+  onOpenShopping: () => void;
+  label: string;
+  countLabel: (n: number) => string;
+  emptyLabel: string;
+}) {
+  return (
+    <WidgetCard label={label}>
+      <Pressable
+        onClick={onOpenShopping}
+        scale={0.98}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          padding: '13px 16px',
+          background: 'var(--surface)',
+          border: '1px solid var(--line)',
+          borderRadius: radius.list,
+          boxShadow: 'var(--shadow-s)',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, fontWeight: 600 }}>
+          <Icon name="bag" size={18} strokeWidth={1.8} />
+          {count === 0 ? emptyLabel : countLabel(count)}
+        </span>
+        <Icon name="chevronRight" size={16} strokeWidth={2.2} />
+      </Pressable>
+    </WidgetCard>
+  );
+}
+
+/**
+ * "A quién le toca": una fila por comida de hoy con quien la cocina
+ * (turnos §10) — avatar + nombre, o `nobodyLabel` sin asignar — y el plato.
+ * Solo tiene sentido con los turnos encendidos; la Tarea 1 ya garantiza que
+ * con los turnos apagados este widget ni aparece en el layout normalizado
+ * ni en el catálogo de personalizar, así que aquí no hace falta un segundo
+ * `if`. Sin comidas hoy no hay nada que asignar, así que no se pinta nada
+ * (mismo criterio que "Para ti"/"Puedes cocinarlo ya").
+ */
+export function WhoseTurnWidget({
+  rows,
+  nobodyLabel,
+  label,
+}: {
+  rows: { slot: MealSlot; recipeName: string; member: Member | null }[];
+  nobodyLabel: string;
+  label: string;
+}) {
+  const { t } = usePrefs();
+  if (rows.length === 0) return null;
+  return (
+    <WidgetCard label={label}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {rows.map((row, i) => (
+          <div
+            key={`${row.slot}-${i}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              background: 'var(--surface)',
+              border: '1px solid var(--line)',
+              borderRadius: radius.list,
+              padding: '12px 14px',
+              boxShadow: 'var(--shadow-s)',
+            }}
+          >
+            {row.member ? (
+              <Avatar member={row.member} size={28} />
+            ) : (
+              <div
+                aria-hidden
+                style={{
+                  width: 28,
+                  height: 28,
+                  flex: '0 0 28px',
+                  borderRadius: '50%',
+                  border: '1px dashed var(--line)',
+                }}
+              />
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: 650,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {row.member ? row.member.displayName : nobodyLabel}
+              </div>
+              <div
+                style={{
+                  marginTop: 2,
+                  fontSize: 12.5,
+                  color: 'var(--muted)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {t[row.slot]} · {row.recipeName}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </WidgetCard>
   );
 }

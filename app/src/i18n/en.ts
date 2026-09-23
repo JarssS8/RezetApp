@@ -110,6 +110,20 @@ export const en: Dictionary = {
   forYou: 'For you',
   forYouHint: 'Based on what you like, your pantry, and how long since you cooked it.',
 
+  // The four new dashboard widgets (Task 5, catalog §7.1).
+  widgetQuickLog: 'Quick log',
+  widgetQuickLogEmpty: 'What you log often will show up here.',
+  widgetExpiring: 'Expiring soon',
+  widgetExpiringEmpty: 'Nothing about to expire.',
+  widgetExpiringIn: (d: number) =>
+    d < 0 ? 'Expired' : d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : `In ${d} days`,
+  widgetShopping: 'For the week',
+  widgetShoppingCount: (n: number) => (n === 1 ? '1 item missing' : `${n} items missing`),
+  widgetShoppingEmpty: 'Nothing missing.',
+  widgetWhoseTurn: 'Whose turn',
+  widgetWhoseTurnNobody: 'Nobody assigned today',
+  widgetCustomize: 'Customize',
+
   kcalOf: 'of',
   kcal: 'kcal',
   kcalLeft: 'Left today',
