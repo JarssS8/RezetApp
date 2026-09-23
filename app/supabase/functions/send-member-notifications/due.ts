@@ -1,0 +1,86 @@
+// Diseño §9 — igual que `quiet.ts` en `send-timer-notifications`, la
+// decisión de "¿toca este aviso a esta hora para este miembro?" vive aparte
+// del manejador HTTP: es TypeScript puro (sin red, sin API de Deno), así que
+// se puede testear con vitest sin arrancar nada.
+//
+// Los tres avisos que decide esta función (`expiring`, `cook_turn`,
+// `log_reminder`) SÍ respetan las horas de silencio — a diferencia de
+// `timers`, que ni siquiera pasa por aquí (ver `send-timer-notifications`).
+import { HOUSEHOLD_TIME_ZONE, isQuiet, localMinutes } from '../send-timer-notifications/quiet.ts';
+
+/** Hora de Madrid a la que se comprueban `expiring` y `cook_turn` (diseño §9). */
+export const MORNING_HOUR = 9;
+
+/**
+ * Forma de una fila de `member_notify_pref`, tal como la devuelve el embed
+ * de PostgREST (columnas en snake_case, `time` como string `'HH:MM'` o
+ * `'HH:MM:SS'`). Solo las columnas que este aviso necesita.
+ */
+export interface NotifyPrefRow {
+  expiring: boolean;
+  cook_turn: boolean;
+  log_reminder: boolean;
+  log_reminder_at: string;
+  quiet_from: string | null;
+  quiet_to: string | null;
+}
+
+/**
+ * Valores por defecto de la migración `20260921100000_rezet_notify_pref.sql`.
+ * Un miembro sin fila en `member_notify_pref` (nadie ha tocado el ajuste
+ * todavía) se comporta EXACTAMENTE como si tuviera esta fila — nunca como
+ * "todo apagado" ni como "todo encendido a la fuerza".
+ */
+export const DEFAULT_NOTIFY_PREF: NotifyPrefRow = {
+  expiring: true,
+  cook_turn: true,
+  log_reminder: false,
+  log_reminder_at: '21:00',
+  quiet_from: null,
+  quiet_to: null,
+};
+
+function hourOf(hhmm: string): number {
+  return Number(hhmm.split(':')[0]);
+}
+
+export interface DueInputs {
+  /** El instante de esta pasada del cron. */
+  now: Date;
+  /** `null` cuando el miembro no tiene fila en `member_notify_pref` todavía. */
+  pref: NotifyPrefRow | null;
+  /** `household.turns_enabled` del hogar de este miembro. */
+  turnsEnabled: boolean;
+  /** ¿Hay algo en la despensa del hogar que caduque hoy o en los próximos 3 días? */
+  hasExpiringSoon: boolean;
+  /** ¿Hay una `plan_entry` de hoy con `cook_member_id` igual a este miembro? */
+  isCookToday: boolean;
+  /**
+   * ¿Ha registrado esta persona algo de comer hoy? Household-wide en la
+   * mitad "ya se cocinó algo hoy en este hogar" (diseño §9: no se filtra por
+   * a quién fue esa ración), y por miembro en la mitad `intake_extra`.
+   */
+  hasLoggedToday: boolean;
+  /** Solo para tests: forzar una zona horaria distinta a Madrid. */
+  timeZone?: string;
+}
+
+export interface DueNotices {
+  expiring: boolean;
+  cookTurn: boolean;
+  logReminder: boolean;
+}
+
+/** ¿Qué avisos tocan AHORA MISMO para este miembro? Sin efectos, sin red. */
+export function dueNotices(inputs: DueInputs): DueNotices {
+  const timeZone = inputs.timeZone ?? HOUSEHOLD_TIME_ZONE;
+  const pref = inputs.pref ?? DEFAULT_NOTIFY_PREF;
+  const hour = Math.floor(localMinutes(inputs.now, timeZone) / 60);
+  const quiet = isQuiet(inputs.now, pref.quiet_from, pref.quiet_to, timeZone);
+
+  return {
+    expiring: !quiet && pref.expiring && hour === MORNING_HOUR && inputs.hasExpiringSoon,
+    cookTurn: !quiet && pref.cook_turn && hour === MORNING_HOUR && inputs.turnsEnabled && inputs.isCookToday,
+    logReminder: !quiet && pref.log_reminder && hour === hourOf(pref.log_reminder_at) && !inputs.hasLoggedToday,
+  };
+}
