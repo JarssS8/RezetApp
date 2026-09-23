@@ -279,17 +279,22 @@ export function Today({
           />
         );
       case 'whose_turn':
-        if (isWidgetEmpty('whose_turn', counts)) return null;
+        // `item.id` (no el literal 'whose_turn'): dentro de este `case`,
+        // `switch (item.id)` ya lo estrecha al tipo literal correcto — si
+        // algún día se renombra la etiqueta del `case`, `tsc` avisa aquí
+        // en vez de dejar un literal suelto que nadie actualiza (nit,
+        // tercera ronda de revisión final).
+        if (isWidgetEmpty(item.id, counts)) return null;
         return (
           <WhoseTurnWidget rows={whoseTurnRows} nobodyLabel={t.widgetWhoseTurnNobody} label={t.widgetWhoseTurn} />
         );
       case 'for_you':
-        if (isWidgetEmpty('for_you', counts)) return null;
+        if (isWidgetEmpty(item.id, counts)) return null;
         return (
           <ForYouWidget suggestions={suggestions} onOpenRecipe={onOpenRecipe} label={t.forYou} hint={t.forYouHint} />
         );
       case 'cookable_now':
-        if (isWidgetEmpty('cookable_now', counts)) return null;
+        if (isWidgetEmpty(item.id, counts)) return null;
         return <CookableNowWidget recipes={cookable} onOpenRecipe={onOpenRecipe} label={t.cookableNow} />;
       case 'expiring_soon':
         return (
