@@ -199,3 +199,40 @@ export function spanFor(w: WidgetSize, columns: 1 | 2): number {
   if (columns === 1) return 1;
   return w === 'full' ? 2 : 1;
 }
+
+/**
+ * Qué widgets se OCULTAN por completo cuando no tienen nada que mostrar,
+ * en vez de pintar su propio estado vacío (`quick_log`, `expiring_soon` y
+ * `shopping_summary` sí pintan uno, con su `emptyLabel`).
+ *
+ * Segunda ronda de revisión final, hallazgo I1 — NOT ADDRESSED la primera
+ * vez: `Today.tsx` comprobaba `renderWidget(item) === null` para saltarse
+ * la celda de rejilla, pero `renderWidget` devuelve SIEMPRE un elemento de
+ * React (`<ForYouWidget .../>`, etc.) — el `return null` vivía DENTRO del
+ * componente (`today/Widgets.tsx`), no en el `switch`, así que la
+ * comprobación nunca era cierta (`React.createElement(() => null) !==
+ * null`). `tsc` no lo avisa porque un elemento es un elemento, esté vacío
+ * o no; la guarda compilaba, parecía correcta y no hacía nada.
+ *
+ * El vacío se decide aquí — un predicado puro, sin React, testable con un
+ * `it()` barato (`__tests__/dashboard.test.ts`) — y `Today.tsx` lo usa
+ * para que el propio `case` del `switch` devuelva un `null` DE VERDAD,
+ * antes de construir cualquier elemento. `default: false` a propósito: un
+ * widget nuevo no se oculta solo por añadirse al catálogo, tiene que
+ * pedirlo aquí explícitamente.
+ */
+export function isWidgetEmpty(
+  id: WidgetId,
+  counts: { suggestions: number; cookable: number; whoseTurnRows: number },
+): boolean {
+  switch (id) {
+    case 'for_you':
+      return counts.suggestions === 0;
+    case 'cookable_now':
+      return counts.cookable === 0;
+    case 'whose_turn':
+      return counts.whoseTurnRows === 0;
+    default:
+      return false;
+  }
+}

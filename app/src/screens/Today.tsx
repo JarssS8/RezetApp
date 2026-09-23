@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { usePrefs } from '../store/prefs';
 import { useData } from '../data/store';
-import { columnsFor, spanFor, visibleWidgets, type WidgetItem } from '../domain/dashboard';
+import { columnsFor, isWidgetEmpty, spanFor, visibleWidgets, type WidgetItem } from '../domain/dashboard';
 import { longDate, todayKey } from '../domain/dates';
 import { entriesOfDay } from '../domain/shopping';
 import { rankSuggestions } from '../domain/suggestions';
@@ -223,7 +223,17 @@ export function Today({
   // Un `switch` exhaustivo a propósito: el día que se añada un widget al
   // catálogo (`domain/dashboard.ts`) y se olvide de pintarlo aquí, esto
   // tiene que romper `tsc`, no dejar la rejilla a medias en silencio.
+  //
+  // I1 (segunda ronda de revisión final): `for_you`, `cookable_now` y
+  // `whose_turn` devuelven un `null` DE VERDAD aquí, en el propio `case`,
+  // cuando `isWidgetEmpty` (`domain/dashboard.ts`) dice que no hay nada
+  // que mostrar — nunca comprobando después si lo que devolvió el
+  // componente "es" `null`, porque un componente de React que PINTA `null`
+  // sigue siendo un elemento, no `null` (`React.createElement(() => null)
+  // !== null`). Eso es justo lo que hacía el intento anterior, y por lo
+  // que compilaba y no hacía nada: ver el comentario de `isWidgetEmpty`.
   const renderWidget = (item: WidgetItem) => {
+    const counts = { suggestions: suggestions.length, cookable: cookable.length, whoseTurnRows: whoseTurnRows.length };
     switch (item.id) {
       case 'kcal_ring':
         return (
@@ -269,14 +279,17 @@ export function Today({
           />
         );
       case 'whose_turn':
+        if (isWidgetEmpty('whose_turn', counts)) return null;
         return (
           <WhoseTurnWidget rows={whoseTurnRows} nobodyLabel={t.widgetWhoseTurnNobody} label={t.widgetWhoseTurn} />
         );
       case 'for_you':
+        if (isWidgetEmpty('for_you', counts)) return null;
         return (
           <ForYouWidget suggestions={suggestions} onOpenRecipe={onOpenRecipe} label={t.forYou} hint={t.forYouHint} />
         );
       case 'cookable_now':
+        if (isWidgetEmpty('cookable_now', counts)) return null;
         return <CookableNowWidget recipes={cookable} onOpenRecipe={onOpenRecipe} label={t.cookableNow} />;
       case 'expiring_soon':
         return (
@@ -336,8 +349,10 @@ export function Today({
        * La rejilla se pinta desde el layout normalizado del miembro
        * (Tareas 1 y 3): nada que validar aquí, `dashboardLayout` nunca
        * viene vacío ni con ids/tamaños que este catálogo no reconozca.
-       * Una columna por debajo de 600px, dos hasta 900, tres desde ahí —
-       * `full` nunca pasa de dos (`spanFor`).
+       * Una columna por debajo de 600px, dos desde ahí — nunca tres (ver
+       * el comentario de `columnsFor` en `domain/dashboard.ts`: a tres,
+       * `maxW.today` deja 189px por columna, que desbordan) — y `full`
+       * nunca pasa de dos (`spanFor`).
        */}
       <div
         style={{

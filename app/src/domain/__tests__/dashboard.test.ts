@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   columnsFor,
   DEFAULT_LAYOUT,
+  isWidgetEmpty,
   moveWidget,
   normalizeLayout,
   setWidgetOn,
@@ -155,6 +156,49 @@ describe('rejilla', () => {
     for (const cols of [1, 2] as const) {
       expect(visibleWidgets(layout).map((i) => i.id)).toEqual(ids);
       expect(spanFor(layout[1]!.w, cols)).toBe(cols === 1 ? 1 : 2);
+    }
+  });
+});
+
+describe('isWidgetEmpty', () => {
+  // Segunda ronda de revisión final, hallazgo I1 — NOT ADDRESSED la
+  // primera vez: `Today.tsx` comprobaba `renderWidget(item) === null`,
+  // pero `renderWidget` siempre devuelve un elemento de React (el `return
+  // null` vivía dentro del COMPONENTE, no en el `switch`), así que esa
+  // comprobación nunca era cierta y la celda de rejilla se seguía
+  // pintando vacía. Este test no puede fijar `Today.tsx` en sí — este
+  // repo no tiene Testing Library para montar componentes (ver
+  // `CLAUDE.md`, "Known gaps") — pero sí fija, barato y sin React, la
+  // única pieza de lógica de la que depende el arreglo: el predicado que
+  // decide el vacío. `Today.tsx` ahora hace literalmente
+  // `if (isWidgetEmpty(id, counts)) return null;` DENTRO de cada `case`
+  // del `switch`, antes de construir el elemento — con este predicado ya
+  // fijado, esa línea es glue code trivial de inspeccionar a simple
+  // vista.
+  const NONE = { suggestions: 0, cookable: 0, whoseTurnRows: 0 };
+  const SOME = { suggestions: 3, cookable: 2, whoseTurnRows: 1 };
+
+  it('for_you, cookable_now y whose_turn se ocultan sin nada que mostrar', () => {
+    expect(isWidgetEmpty('for_you', NONE)).toBe(true);
+    expect(isWidgetEmpty('cookable_now', NONE)).toBe(true);
+    expect(isWidgetEmpty('whose_turn', NONE)).toBe(true);
+  });
+
+  it('for_you, cookable_now y whose_turn se pintan en cuanto tienen algo', () => {
+    expect(isWidgetEmpty('for_you', SOME)).toBe(false);
+    expect(isWidgetEmpty('cookable_now', SOME)).toBe(false);
+    expect(isWidgetEmpty('whose_turn', SOME)).toBe(false);
+  });
+
+  it('cada uno mira solo su propio recuento, no los otros dos', () => {
+    expect(isWidgetEmpty('for_you', { suggestions: 0, cookable: 5, whoseTurnRows: 5 })).toBe(true);
+    expect(isWidgetEmpty('cookable_now', { suggestions: 5, cookable: 0, whoseTurnRows: 5 })).toBe(true);
+    expect(isWidgetEmpty('whose_turn', { suggestions: 5, cookable: 5, whoseTurnRows: 0 })).toBe(true);
+  });
+
+  it('el resto del catálogo nunca se oculta por esta vía — pintan su propio estado vacío', () => {
+    for (const id of ['kcal_ring', 'today_meals', 'week_progress', 'quick_log', 'expiring_soon', 'shopping_summary'] as const) {
+      expect(isWidgetEmpty(id, NONE)).toBe(false);
     }
   });
 });
