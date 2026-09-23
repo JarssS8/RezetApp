@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
       .not("cook_member_id", "is", null),
     supabase
       .from("plan_entry")
-      .select("household_id")
+      .select("id")
       .in("household_id", householdIds)
       .eq("on_date", today)
       .not("cooked_at", "is", null),
@@ -171,8 +171,29 @@ Deno.serve(async (req) => {
   }
 
   const cookMemberIdsToday = new Set((cookRows ?? []).map((r) => r.cook_member_id as string));
-  const householdsCookedToday = new Set((cookedRows ?? []).map((r) => r.household_id));
   const membersLoggedIntakeToday = new Set((intakeRows ?? []).map((r) => r.member_id));
+
+  // "Ya ha registrado algo hoy" es de la PERSONA, no del hogar. Mirar solo si
+  // alguien cocinó hoy en casa haría que en un hogar activo el recordatorio no
+  // saltara casi nunca, justo para quien no se apuntó nada. Lo que cuenta es
+  // su ración de una comida cocinada hoy (`intake_share`, que escribe
+  // `finish_cook_v2`) con más de cero — "no lo comí" se guarda como 0 y no
+  // es haber comido.
+  const cookedEntryIdsToday = (cookedRows ?? []).map((r) => r.id as string);
+  const membersWithShareToday = new Set<string>();
+  if (cookedEntryIdsToday.length > 0) {
+    const { data: shareRows, error: shareError } = await supabase
+      .from("intake_share")
+      .select("member_id, servings")
+      .in("plan_entry_id", cookedEntryIdsToday)
+      .in("member_id", memberIds)
+      .gt("servings", 0);
+    if (shareError) {
+      console.error("send-member-notifications: failed to read intake_share");
+      return new Response(JSON.stringify({ error: "failed to read state" }), { status: 500 });
+    }
+    for (const row of shareRows ?? []) membersWithShareToday.add(row.member_id as string);
+  }
   const alreadySent = new Set((sentRows ?? []).map((r) => `${r.member_id}|${r.kind}`));
 
   let checked = 0;
@@ -192,7 +213,7 @@ Deno.serve(async (req) => {
       hasExpiringSoon: expiringInfo != null,
       isCookToday: cookMemberIdsToday.has(member.id),
       hasLoggedToday:
-        membersLoggedIntakeToday.has(member.id) || householdsCookedToday.has(member.household_id),
+        membersLoggedIntakeToday.has(member.id) || membersWithShareToday.has(member.id),
     });
 
     const wanted: NoticeKind[] = [];

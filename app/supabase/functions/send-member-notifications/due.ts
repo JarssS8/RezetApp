@@ -56,9 +56,12 @@ export interface DueInputs {
   /** ¿Hay una `plan_entry` de hoy con `cook_member_id` igual a este miembro? */
   isCookToday: boolean;
   /**
-   * ¿Ha registrado esta persona algo de comer hoy? Household-wide en la
-   * mitad "ya se cocinó algo hoy en este hogar" (diseño §9: no se filtra por
-   * a quién fue esa ración), y por miembro en la mitad `intake_extra`.
+   * ¿Ha registrado ESTA PERSONA algo de comer hoy? Un extra propio, o su
+   * ración (mayor que cero) de una comida cocinada hoy. Es por miembro en
+   * las dos mitades a propósito: que alguien haya cocinado en casa no dice
+   * nada de si tú te apuntaste lo que comiste, y mirarlo a nivel de hogar
+   * dejaba el recordatorio sin saltar casi nunca justo para quien no se
+   * apunta nada.
    */
   hasLoggedToday: boolean;
   /** Solo para tests: forzar una zona horaria distinta a Madrid. */
