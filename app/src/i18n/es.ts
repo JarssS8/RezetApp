@@ -128,6 +128,9 @@ export const es = {
   // guarda una sola vez al cerrar — ver `DashboardEditSheet.tsx`.
   dashboardTitle: 'Personalizar Hoy',
   dashboardHint: 'Enciende lo que quieras ver y ponlo en el orden que prefieras.',
+  // Tercera ronda de revisión final: cuando la consulta del dashboard está
+  // en error, no basta con `aria-busy` — hay que decir lo que pasó.
+  dashboardLoadError: 'No se pudo leer tu personalización. Vuelve a intentarlo más tarde.',
   dashboardUp: (name: string) => `Subir ${name}`,
   dashboardDown: (name: string) => `Bajar ${name}`,
   dashboardShow: (name: string) => `Mostrar ${name}`,

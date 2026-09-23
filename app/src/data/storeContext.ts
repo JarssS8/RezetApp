@@ -302,6 +302,16 @@ export interface Store {
    * render y no hay red que falle, así que siempre es `false`.
    */
   dashboardLayoutLoading: boolean;
+  /**
+   * `true` específicamente cuando `dashboardLayoutLoading` es `true`
+   * PORQUE la consulta está en error, no porque siga cargando (tercera
+   * ronda de revisión final). Sirve para que quien lo muestre
+   * (`DashboardEditSheet.tsx`) pueda decir "no se pudo leer tu
+   * personalización" en vez de fingir "cargando" — un `aria-busy`
+   * indefinido no explica nada a quien usa lector de pantalla. En la
+   * demo no hay red que falle, así que siempre es `false`.
+   */
+  dashboardLayoutError: boolean;
   /** Guarda el layout entero. Sin sesión de miembro no hace nada. */
   setDashboardLayout: (layout: WidgetItem[]) => Promise<void>;
 

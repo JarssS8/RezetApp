@@ -311,7 +311,8 @@ export function DashboardEditSheet({
   onToast?: (message: string) => void;
 }) {
   const { t } = usePrefs();
-  const { dashboardLayout, dashboardLayoutLoading, setDashboardLayout, household } = useData();
+  const { dashboardLayout, dashboardLayoutLoading, dashboardLayoutError, setDashboardLayout, household } =
+    useData();
   const turnsEnabled = household?.turnsEnabled ?? false;
 
   const [layout, setLayout] = useState<WidgetItem[]>(() => dashboardLayout);
@@ -453,6 +454,34 @@ export function DashboardEditSheet({
         <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.45 }}>{t.dashboardHint}</div>
 
         {/*
+          Tercera ronda de revisión final: `dashboardLayoutLoading` cubre
+          "cargando" Y "en error" con la misma señal (a propósito: las dos
+          significan "no toques nada todavía"), pero quien lo muestra tiene
+          que distinguirlas — un `aria-busy` indefinido le dice a un
+          lector de pantalla "ocupada", nunca "no se pudo leer tu
+          personalización". `role="alert"` para que se anuncie solo,
+          igual que el resto de la hoja se queda deshabilitado mientras
+          tanto (`disabled`, más abajo, sigue mirando
+          `dashboardLayoutLoading` sin más: el error también debe
+          bloquear la edición, solo cambia lo que se explica).
+        */}
+        {dashboardLayoutError && (
+          <div
+            role="alert"
+            style={{
+              padding: '13px 15px',
+              borderRadius: radius.input,
+              background: 'var(--warnsoft)',
+              color: 'var(--warn-ink)',
+              fontSize: 13.5,
+              lineHeight: 1.45,
+            }}
+          >
+            {t.dashboardLoadError}
+          </div>
+        )}
+
+        {/*
           Filas posicionadas por `transform` (índice × `ROW_HEIGHT`), no por
           flujo normal: es lo que permite que la fila arrastrada siga al
           puntero con un simple `offset` y que sus vecinas se limiten a
@@ -464,9 +493,11 @@ export function DashboardEditSheet({
           es el layout por defecto de mientras tanto, no el de esta
           persona: la lista se atenúa (`opacity`, `aria-busy`) y cada fila
           se deshabilita (`disabled`, más abajo) para que nada de lo que se
-          toque aquí se pierda cuando llegue el de verdad.
+          toque aquí se pierda cuando llegue el de verdad. `aria-busy` solo
+          cuando de verdad está cargando — con error ya lo dice el aviso
+          de arriba, no "ocupada".
         */}
-        <div aria-busy={dashboardLayoutLoading}>
+        <div aria-busy={dashboardLayoutLoading && !dashboardLayoutError}>
           <ListCard
             style={{
               position: 'relative',

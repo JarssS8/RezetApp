@@ -127,6 +127,7 @@ export const en: Dictionary = {
   // "Customize Today" sheet (Task 7).
   dashboardTitle: 'Customize Today',
   dashboardHint: 'Turn on what you want to see and put it in the order you like.',
+  dashboardLoadError: "Couldn't read your customization. Try again later.",
   dashboardUp: (name: string) => `Move ${name} up`,
   dashboardDown: (name: string) => `Move ${name} down`,
   dashboardShow: (name: string) => `Show ${name}`,

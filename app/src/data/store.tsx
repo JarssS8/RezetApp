@@ -923,8 +923,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }),
       // La demo no hace ningún viaje de red: el estado ya está en memoria
       // desde el primer render, así que nunca hay una consulta "en curso"
-      // (mismo razonamiento que `bodyLoading: false` más arriba).
+      // (mismo razonamiento que `bodyLoading: false` más arriba) ni una
+      // que pueda fallar.
       dashboardLayoutLoading: false,
+      dashboardLayoutError: false,
       setDashboardLayout,
       recipePrefsByRecipe,
       setRecipePref,

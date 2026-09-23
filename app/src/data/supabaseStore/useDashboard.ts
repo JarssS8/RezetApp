@@ -135,5 +135,17 @@ export function useDashboard(
   // `computeDashboardLoading` más arriba.
   const dashboardLayoutLoading = computeDashboardLoading(myMemberId, householdId, q.isLoading, q.isError);
 
-  return { dashboardLayout: layout, dashboardLayoutLoading, setDashboardLayout };
+  // Tercera ronda de revisión final: `dashboardLayoutLoading` ya cubre
+  // "no toques nada todavía" para cargando Y para error (misma señal,
+  // misma protección), pero no basta para que QUIEN LO MUESTRE explique
+  // la diferencia — un lector de pantalla que solo tiene `aria-busy`
+  // dice "ocupada" para un error que puede tardar en resolverse solo,
+  // sin decir nunca lo que de verdad pasó. Aparte, para que
+  // `DashboardEditSheet` pueda avisar "no se pudo leer tu
+  // personalización" en vez de dejarlo atenuado sin explicación. Solo
+  // cuenta como error una vez se conoce `myMemberId` — antes de eso
+  // `q.isError` no significa nada (la query ni ha arrancado).
+  const dashboardLayoutError = myMemberId !== null && q.isError;
+
+  return { dashboardLayout: layout, dashboardLayoutLoading, dashboardLayoutError, setDashboardLayout };
 }
