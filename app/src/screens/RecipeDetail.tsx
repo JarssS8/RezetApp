@@ -50,12 +50,14 @@ export function RecipeDetail({
 
   const prefs = recipePrefsByRecipe.get(recipe.id) ?? [];
   const myRating = prefs.find((p) => p.memberId === myMemberId)?.rating ?? null;
-  const likedCount = prefs.filter((p) => p.rating === 1).length;
   const activeMembers = members.filter((m) => m.deletedAt === null);
   const memberById = new Map(activeMembers.map((m) => [m.id, m]));
   // Solo miembros que siguen en el hogar y han votado: un voto de alguien ya
-  // salido no tiene a quién atribuírselo en la interfaz.
+  // salido no tiene a quién atribuírselo en la interfaz, y no debe sumar en
+  // el agregado — si no, el numerador podía superar al denominador ("gusta
+  // a 4 de 3"). El voto en sí no se borra, solo deja de contarse aquí.
   const voters = prefs.filter((p) => memberById.has(p.memberId));
+  const likedCount = voters.filter((p) => p.rating === 1).length;
 
   const handleRate = async (rating: RecipeRating) => {
     if (ratingPending) return;
