@@ -1,7 +1,7 @@
 // `due.ts` es TypeScript puro (sin ninguna API de Deno), así que se testea
 // con vitest como `quiet.test.ts` — `npm test` lo recoge y lo corre en CI.
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_NOTIFY_PREF, dueNotices, type NotifyPrefRow } from './due.ts';
+import { ateFromCooked, DEFAULT_NOTIFY_PREF, dueNotices, shareKey, type NotifyPrefRow } from './due.ts';
 
 /**
  * Un instante que en **Madrid** son las `hour:minute` del 1 de enero de 2026
@@ -38,8 +38,27 @@ describe('dueNotices', () => {
     expect(due.expiring).toBe(true);
   });
 
-  it('a las 10 no toca ninguno de los dos de la mañana', () => {
-    const due = dueNotices({ ...baseInputs, now: madrid(10, 5) });
+  it('un aviso de la mañana que no salió a su hora se recoge en las horas siguientes', () => {
+    // Ventana de recuperación: el cron caído a las 9, o el tope de envíos
+    // alcanzado, no puede comerse el aviso para todo el día. El registro de
+    // avisos enviados es lo que impide que salga dos veces.
+    for (const hora of [9, 10, 11]) {
+      const due = dueNotices({ ...baseInputs, now: madrid(hora, 5) });
+      expect(due.expiring).toBe(true);
+      expect(due.cookTurn).toBe(true);
+    }
+  });
+
+  it('pasada la ventana de recuperación ya no toca: a media tarde no sirve de nada', () => {
+    for (const hora of [12, 17, 22]) {
+      const due = dueNotices({ ...baseInputs, now: madrid(hora, 5) });
+      expect(due.expiring).toBe(false);
+      expect(due.cookTurn).toBe(false);
+    }
+  });
+
+  it('antes de su hora no toca', () => {
+    const due = dueNotices({ ...baseInputs, now: madrid(8, 5) });
     expect(due.expiring).toBe(false);
     expect(due.cookTurn).toBe(false);
   });
@@ -101,5 +120,44 @@ describe('dueNotices', () => {
 
     const enUtc = dueNotices({ ...baseInputs, now: instant, timeZone: 'UTC' });
     expect(enUtc.expiring).toBe(false);
+  });
+});
+
+describe('ateFromCooked', () => {
+  const CENA = 'entry-cena';
+  const COMIDA = 'entry-comida';
+
+  it('sin fila de reparto, esa persona comio: la racion por defecto es implicita', () => {
+    // `finish_cook_v2` no escribe fila cuando nadie toca el reparto, que es
+    // el caso normal, y el anillo de Hoy cuenta esa comida igual. Leerlo al
+    // reves hacia saltar el recordatorio cada noche en una casa que cena en
+    // casa, diciendo lo contrario de lo que la propia app acababa de
+    // ensenar en Hoy.
+    expect(ateFromCooked('ana', [CENA], new Map())).toBe(true);
+  });
+
+  it('una racion explicita de 0 es "no lo comi", y no cuenta', () => {
+    const shares = new Map([[shareKey('ana', CENA), 0]]);
+    expect(ateFromCooked('ana', [CENA], shares)).toBe(false);
+  });
+
+  it('una racion explicita mayor que cero cuenta', () => {
+    const shares = new Map([[shareKey('ana', CENA), 0.5]]);
+    expect(ateFromCooked('ana', [CENA], shares)).toBe(true);
+  });
+
+  it('basta con haber comido de una de las comidas del dia', () => {
+    const shares = new Map([[shareKey('ana', CENA), 0]]);
+    expect(ateFromCooked('ana', [COMIDA, CENA], shares)).toBe(true);
+  });
+
+  it('el reparto de otra persona no cuenta como el tuyo', () => {
+    const shares = new Map([[shareKey('bea', CENA), 0]]);
+    expect(ateFromCooked('bea', [CENA], shares)).toBe(false);
+    expect(ateFromCooked('ana', [CENA], shares)).toBe(true);
+  });
+
+  it('sin nada cocinado hoy, no ha comido nada que la app cuente', () => {
+    expect(ateFromCooked('ana', [], new Map())).toBe(false);
   });
 });

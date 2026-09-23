@@ -2,7 +2,7 @@ import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { cronAuthStatus } from "../send-timer-notifications/logic.ts";
 import { HOUSEHOLD_TIME_ZONE, localMinutes } from "../send-timer-notifications/quiet.ts";
-import { dueNotices, type NotifyPrefRow } from "./due.ts";
+import { ateFromCooked, dueNotices, shareKey, type NotifyPrefRow } from "./due.ts";
 
 const ALLOWED_PUSH_HOSTS = [
   "fcm.googleapis.com",
@@ -136,7 +136,11 @@ Deno.serve(async (req) => {
       .from("pantry_item")
       .select("household_id, expires_on, ingredient(name_es)")
       .in("household_id", householdIds)
-      .gte("expires_on", today)
+      // Sin cota inferior a propósito: lo que ya venció cuenta como "caduca
+      // pronto", igual que en la pantalla de Despensa (expiresInDays <= 3,
+      // negativos incluidos). Dos definiciones distintas de lo mismo era
+      // justo lo que había.
+      .not("expires_on", "is", null)
       .lte("expires_on", expiringUntil)
       .order("expires_on", { ascending: true }),
     supabase
@@ -147,7 +151,7 @@ Deno.serve(async (req) => {
       .not("cook_member_id", "is", null),
     supabase
       .from("plan_entry")
-      .select("id")
+      .select("id, household_id")
       .in("household_id", householdIds)
       .eq("on_date", today)
       .not("cooked_at", "is", null),
@@ -179,21 +183,35 @@ Deno.serve(async (req) => {
   // su ración de una comida cocinada hoy (`intake_share`, que escribe
   // `finish_cook_v2`) con más de cero — "no lo comí" se guarda como 0 y no
   // es haber comido.
+  // Comidas cocinadas hoy, por hogar, y el reparto explicito que haya de
+  // ellas. La ausencia de fila NO es "no comio": finish_cook_v2 no escribe
+  // ninguna cuando nadie toca el reparto, y domain/intake.ts cuenta esa
+  // comida igual (DEFAULT_SHARE = 1). Solo un 0 explicito -el "No lo
+  // comi"- quiere decir que esa persona no comio de ese plato.
+  const cookedEntriesByHousehold = new Map<string, string[]>();
+  for (const row of cookedRows ?? []) {
+    const list = cookedEntriesByHousehold.get(row.household_id as string);
+    if (list) list.push(row.id as string);
+    else cookedEntriesByHousehold.set(row.household_id as string, [row.id as string]);
+  }
   const cookedEntryIdsToday = (cookedRows ?? []).map((r) => r.id as string);
-  const membersWithShareToday = new Set<string>();
+  /** Clave "member|plan_entry" -> raciones, solo donde hay fila explicita. */
+  const explicitShares = new Map<string, number>();
   if (cookedEntryIdsToday.length > 0) {
     const { data: shareRows, error: shareError } = await supabase
       .from("intake_share")
-      .select("member_id, servings")
+      .select("member_id, plan_entry_id, servings")
       .in("plan_entry_id", cookedEntryIdsToday)
-      .in("member_id", memberIds)
-      .gt("servings", 0);
+      .in("member_id", memberIds);
     if (shareError) {
       console.error("send-member-notifications: failed to read intake_share");
       return new Response(JSON.stringify({ error: "failed to read state" }), { status: 500 });
     }
-    for (const row of shareRows ?? []) membersWithShareToday.add(row.member_id as string);
+    for (const row of shareRows ?? []) {
+      explicitShares.set(shareKey(row.member_id as string, row.plan_entry_id as string), Number(row.servings));
+    }
   }
+
   const alreadySent = new Set((sentRows ?? []).map((r) => `${r.member_id}|${r.kind}`));
 
   let checked = 0;
@@ -213,7 +231,12 @@ Deno.serve(async (req) => {
       hasExpiringSoon: expiringInfo != null,
       isCookToday: cookMemberIdsToday.has(member.id),
       hasLoggedToday:
-        membersLoggedIntakeToday.has(member.id) || membersWithShareToday.has(member.id),
+        membersLoggedIntakeToday.has(member.id) ||
+        ateFromCooked(
+          member.id,
+          cookedEntriesByHousehold.get(member.household_id) ?? [],
+          explicitShares,
+        ),
     });
 
     const wanted: NoticeKind[] = [];
@@ -222,10 +245,27 @@ Deno.serve(async (req) => {
     if (due.logReminder) wanted.push("log_reminder");
     if (wanted.length === 0) continue;
 
-    const { data: subs } = await supabase
+    const { data: subs, error: subsError } = await supabase
       .from("push_subscription")
       .select("endpoint, p256dh, auth")
       .eq("profile_id", member.auth_user_id);
+    if (subsError) {
+      // Sin esto el aviso se perdia en silencio: `subs` venia vacio, el
+      // bucle no mandaba nada y aun asi se marcaba el aviso como enviado.
+      // Se salta este miembro SIN marcar, para que la pasada siguiente
+      // (dentro de la ventana de recuperacion) lo reintente.
+      console.error("send-member-notifications: failed to read push_subscription");
+      skipped++;
+      continue outer;
+    }
+    if (!subs || subs.length === 0) {
+      // Sin ningun dispositivo suscrito no hay nada que mandar, y sobre todo
+      // no hay que marcar el aviso como enviado: si esta persona activa las
+      // notificaciones un rato despues, la ventana de recuperacion todavia
+      // se lo puede dar.
+      skipped++;
+      continue outer;
+    }
 
     for (const kind of wanted) {
       if (alreadySent.has(`${member.id}|${kind}`)) {
@@ -236,7 +276,13 @@ Deno.serve(async (req) => {
       // El tope se comprueba antes de empezar un aviso, nunca a medias: si
       // no, marcar `member_notice_log` daría por avisado un aviso que solo
       // llegó a la mitad de los dispositivos de esa persona.
-      if (sent >= MAX_SENDS_PER_RUN) break outer;
+      if (sent >= MAX_SENDS_PER_RUN) {
+        // Los avisos que quedan no se marcan, y la ventana de recuperacion
+        // de `due.ts` hace que la pasada siguiente los recoja. Se deja
+        // traza igualmente: si esto sale cada dia, el tope se queda corto.
+        console.warn("send-member-notifications: tope de envios alcanzado, el resto espera a la proxima pasada");
+        break outer;
+      }
 
       const body = bodyFor(kind, {
         expiringCount: expiringInfo?.count ?? 0,
@@ -244,7 +290,7 @@ Deno.serve(async (req) => {
       });
       const payload = JSON.stringify({ title: "Rezet", body });
 
-      for (const sub of subs ?? []) {
+      for (const sub of subs) {
         if (!isAllowedEndpoint(sub.endpoint)) {
           console.warn("send-member-notifications: endpoint no permitido, se descarta");
           continue;

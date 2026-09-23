@@ -62,6 +62,20 @@ create function net.http_post(url text, body jsonb default '{}'::jsonb, params j
   returns bigint language sql as $$ select 1::bigint $$;
 
 create publication supabase_realtime;
+
+-- Supabase concede privilegios POR DEFECTO a anon/authenticated/service_role
+-- sobre cada tabla nueva del esquema public (pg_default_acl). Sin
+-- replicarlo aquí, una tabla que se olvide su revoke all parecía segura en
+-- el banco (el "permission denied" salía solo, porque el rol nunca tuvo el
+-- grant) y era escribible por cualquiera en producción. Con esto, un test
+-- que afirme que un rol no puede tocar una tabla solo pasa si la migración
+-- revoca de verdad.
+alter default privileges in schema public
+  grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant all on sequences to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant all on functions to anon, authenticated, service_role;
 `;
 
 /**
