@@ -313,7 +313,7 @@ export function RecipeDetail({
          * comunica cuál está activo a lectores de pantalla, igual que el
          * segmentado de raciones de `Today.tsx`.
          */}
-        <div style={{ marginTop: 22, display: 'flex', gap: 10 }} role="group" aria-label={loc(recipe.name)}>
+        <div style={{ marginTop: 22, display: 'flex', gap: 10 }} role="group" aria-label={t.rateRecipeGroup}>
           <Pressable
             onClick={() => void handleRate(1)}
             ariaPressed={myRating === 1}

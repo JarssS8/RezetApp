@@ -187,6 +187,9 @@ export const es = {
   likeAction: 'Me gusta',
   dislikeAction: 'No me gusta',
   likedByCount: (liked: number, total: number) => `A ${liked} de ${total} le gusta`,
+  // Nombra el propósito del grupo de botones, no repite el nombre de la
+  // receta: el lector de pantalla ya lo ha anunciado en el título.
+  rateRecipeGroup: 'Valorar esta receta',
 
   minutes: 'Minutos',
   difficulty: 'Dificultad',

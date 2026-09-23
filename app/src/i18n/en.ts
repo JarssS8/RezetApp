@@ -181,6 +181,9 @@ export const en: Dictionary = {
   likeAction: 'Like',
   dislikeAction: 'Dislike',
   likedByCount: (liked: number, total: number) => `${liked} of ${total} like this`,
+  // Names the button group's purpose, not the recipe name again: the
+  // screen reader already announced it in the title.
+  rateRecipeGroup: 'Rate this recipe',
 
   minutes: 'Minutes',
   difficulty: 'Difficulty',
