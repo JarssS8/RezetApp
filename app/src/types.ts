@@ -280,3 +280,5 @@ export interface FrequentExtra {
   kcal: number;
   times: number;
 }
+
+export type { WidgetId, WidgetItem, WidgetSize } from './domain/dashboard';
