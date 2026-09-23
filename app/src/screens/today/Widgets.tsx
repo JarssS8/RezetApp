@@ -148,7 +148,6 @@ export function WeekProgressWidget({ onOpenWeek, label }: { onOpenWeek: () => vo
       onClick={onOpenWeek}
       scale={0.98}
       style={{
-        marginTop: 14,
         width: '100%',
         display: 'flex',
         alignItems: 'center',
@@ -206,7 +205,7 @@ export function TodayMealsWidget({
   const { t } = usePrefs();
   return (
     <>
-      <div style={{ marginTop: 26 }}>
+      <div>
         <SectionHeader label={t.yourDay} trailing={t.yourDayCount(meals.length)} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {meals.map((meal) => {
@@ -327,7 +326,7 @@ export function ForYouWidget({
 }) {
   if (suggestions.length === 0) return null;
   return (
-    <div style={{ marginTop: 26 }}>
+    <div>
       <Eyebrow style={{ margin: '0 4px 4px' }}>{label}</Eyebrow>
       <div style={{ margin: '0 4px 12px', fontSize: 13, color: 'var(--muted)' }}>{hint}</div>
       <div
@@ -356,7 +355,7 @@ export function CookableNowWidget({
 }) {
   if (recipes.length === 0) return null;
   return (
-    <WidgetCard label={label} style={{ marginTop: 26 }}>
+    <WidgetCard label={label}>
       <div
         style={{
           display: 'grid',
@@ -597,9 +596,12 @@ const EXPIRING_LIMIT = 5;
 /**
  * "Caduca pronto": hasta cinco filas de despensa que caducan en 7 días o
  * menos, ya filtradas y ordenadas por quien monta el widget desde
- * `PantryItem.expiresInDays` — este componente solo las pinta. Un plazo
- * vencido (negativo o cero) va en `--warn-ink` (texto), nunca en `--warn`
- * (que es relleno): mezclarlos rompe el contraste 4.5:1.
+ * `PantryItem.expiresInDays` — este componente solo las pinta. El umbral de
+ * "urgente" (3 días o menos) va en `--warn-ink` (texto), nunca en `--warn`
+ * (que es relleno): mezclarlos rompe el contraste 4.5:1. El número (3) es
+ * el mismo que usa `Pantry.tsx` (`const soon = … <= 3`) — si se cambia uno,
+ * hay que cambiar el otro, o dos pantallas dejan de estar de acuerdo sobre
+ * qué es urgente.
  */
 export function ExpiringSoonWidget({
   items,
@@ -657,7 +659,8 @@ export function ExpiringSoonWidget({
                   ...tabular,
                   fontSize: 13,
                   fontWeight: 650,
-                  color: item.days <= 0 ? 'var(--warn-ink)' : 'var(--muted)',
+                  // 3 días: mismo umbral que `Pantry.tsx` (ver comentario del componente).
+                  color: item.days <= 3 ? 'var(--warn-ink)' : 'var(--muted)',
                   whiteSpace: 'nowrap',
                 }}
               >
