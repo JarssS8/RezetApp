@@ -3,6 +3,22 @@
 Versiones publicadas de Rezet. Cada entrada, en español y en inglés.
 Published Rezet versions. Every entry in Spanish and English.
 
+## [1.12.1] - 2026-09-24
+
+### Español
+
+**Arreglado**
+- Los interruptores de encendido y apagado (Avisos, Tu hogar y Personalizar Hoy) se veían con un cerco gris alrededor de la bolita y cambiaban de golpe en vez de deslizarse. Ahora se mueven como deben y se ve dónde está el foco al navegar con el teclado.
+- Las horas de silencio se salían de su tarjeta en pantallas estrechas: cuando no caben una al lado de la otra, ahora se colocan una debajo de la otra.
+- En tema oscuro, el relojito para elegir la hora de silencio era negro sobre fondo oscuro y no se veía.
+
+### English
+
+**Fixed**
+- The on/off switches (Notifications, Your household and Customize Today) had a grey halo around the knob and snapped instead of sliding. They now move as they should, and the focus ring is visible when navigating by keyboard.
+- The quiet hours overflowed their card on narrow screens: when the two fields don't fit side by side, they now stack.
+- In dark mode, the little clock for picking a quiet hour was black on a dark background and invisible.
+
 ## [1.12.0] - 2026-09-23
 
 ### Español
